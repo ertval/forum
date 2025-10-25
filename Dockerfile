@@ -19,7 +19,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o forum ./cmd/forum
+RUN CGO_ENABLED=1 GOOS=linux go build -o forum ./cmd/forum
 
 # == Runtime stage ==
 FROM alpine:latest
