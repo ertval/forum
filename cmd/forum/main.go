@@ -14,6 +14,6 @@ func main() {
 	// Setup routes and middleware
 	// Start HTTP server on port 8080
 
-	log.Println("Starting forum server on :8080")
+	log.Println("🚀 Forum server is running at http://localhost:8080 🌐")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
