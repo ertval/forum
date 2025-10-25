@@ -54,3 +54,9 @@ Thumbs.db
 *.prompt
 *.response
 *.history
+
+# Dev
+docker-compose.override.yml
+docker-compose.yml.dev 
+Dockerfile.dev
+templates/
