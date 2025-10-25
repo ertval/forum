@@ -106,8 +106,8 @@
 - [ ] Git commit: Middleware and error handling
 
 ### Phase 10: Docker Integration
-- [ ] Create Dockerfile
-- [ ] Create docker-compose.yml
+- [x] Create Dockerfile
+- [x] Create docker-compose.yml
 - [ ] Test Docker build
 - [ ] Test Docker deployment
 - [ ] Update README with Docker instructions
