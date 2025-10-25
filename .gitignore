@@ -56,5 +56,3 @@ Thumbs.db
 *.history
 
 # Dev
-docker-compose.yml.dev 
-Dockerfile.dev
