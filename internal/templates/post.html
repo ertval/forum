@@ -1,0 +1,82 @@
+{{define "content"}}
+<div class="post-container">
+    <article class="post-detail">
+        <h1>{{.Post.Title}}</h1>
+        <div class="post-meta">
+            <span class="author">By {{.Post.Username}}</span>
+            <span class="date">{{.Post.CreatedAt}}</span>
+        </div>
+        <div class="post-categories">
+            {{range .Post.Categories}}
+                <span class="category-tag">{{.}}</span>
+            {{end}}
+        </div>
+        <div class="post-content">
+            <p>{{.Post.Content}}</p>
+        </div>
+        
+        <!-- Post Reactions -->
+        <div class="reactions">
+            {{if .User}}
+                <button class="btn-reaction" data-type="post" data-id="{{.Post.ID}}" data-reaction="1">
+                    👍 Like ({{.Post.LikeCount}})
+                </button>
+                <button class="btn-reaction" data-type="post" data-id="{{.Post.ID}}" data-reaction="-1">
+                    👎 Dislike ({{.Post.DislikeCount}})
+                </button>
+            {{else}}
+                <span class="likes">👍 {{.Post.LikeCount}}</span>
+                <span class="dislikes">👎 {{.Post.DislikeCount}}</span>
+            {{end}}
+        </div>
+    </article>
+
+    <!-- Comments Section -->
+    <section class="comments-section">
+        <h2>Comments</h2>
+        
+        <!-- Add Comment Form -->
+        {{if .User}}
+            <form method="POST" action="/comment/create" class="comment-form">
+                <input type="hidden" name="post_id" value="{{.Post.ID}}">
+                <textarea name="content" placeholder="Write a comment..." required></textarea>
+                <button type="submit" class="btn-primary">Post Comment</button>
+            </form>
+        {{else}}
+            <p><a href="/login">Login</a> to post a comment.</p>
+        {{end}}
+
+        <!-- Comments List -->
+        <div class="comments-list">
+            {{if .Comments}}
+                {{range .Comments}}
+                    <div class="comment">
+                        <div class="comment-meta">
+                            <span class="author">{{.Username}}</span>
+                            <span class="date">{{.CreatedAt}}</span>
+                        </div>
+                        <div class="comment-content">
+                            <p>{{.Content}}</p>
+                        </div>
+                        <div class="comment-reactions">
+                            {{if $.User}}
+                                <button class="btn-reaction" data-type="comment" data-id="{{.ID}}" data-reaction="1">
+                                    👍 ({{.LikeCount}})
+                                </button>
+                                <button class="btn-reaction" data-type="comment" data-id="{{.ID}}" data-reaction="-1">
+                                    👎 ({{.DislikeCount}})
+                                </button>
+                            {{else}}
+                                <span class="likes">👍 {{.LikeCount}}</span>
+                                <span class="dislikes">👎 {{.DislikeCount}}</span>
+                            {{end}}
+                        </div>
+                    </div>
+                {{end}}
+            {{else}}
+                <p>No comments yet. Be the first to comment!</p>
+            {{end}}
+        </div>
+    </section>
+</div>
+{{end}}

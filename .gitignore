@@ -4,8 +4,8 @@
 *.dll
 *.so
 *.dylib
-forum
-main
+*.test
+
 
 # Test binary, built with `go test -c`
 *.test
@@ -56,7 +56,5 @@ Thumbs.db
 *.history
 
 # Dev
-docker-compose.override.yml
 docker-compose.yml.dev 
 Dockerfile.dev
-templates/
