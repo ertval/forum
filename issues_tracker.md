@@ -18,9 +18,9 @@ Initial project structure and configuration. Foundation for all development.
 ## 📅 Phase 1 — Database Layer (**High Priority**)
 Focus on database setup and connection. Start here for a solid foundation.
 
-11. [ ] 🔴 **DB-1**: Write tests for database connection — Unit test for database initialization. *Dep: Setup-10*.
-12. [ ] 🔴 **DB-2**: Implement database connection and initialization — Implement DB connection, set package DB, configure PRAGMAs. *Dep: Setup-10*.
-13. [ ] 🔴 **DB-3**: Create database migration logic — Implement migration runner to execute schema.sql safely. *Dep: Setup-10*.
+11. [ ] 🔴 **DB-1**: Write tests for database connection — Unit test for database initialization. *Dep: Setup*.
+12. [ ] 🔴 **DB-2**: Implement database connection and initialization — Implement DB connection, set package DB, configure PRAGMAs. *Dep: Setup*.
+13. [ ] 🔴 **DB-3**: Create database migration logic — Implement migration runner to execute schema.sql safely. *Dep: Setup*.
 
 ## 📅 Phase 2 — Models (**High Priority, Parallel after DB**)
 Implement all data models once DB is ready. These can be worked on in parallel.
