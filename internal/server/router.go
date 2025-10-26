@@ -57,9 +57,9 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 func handleLogin(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		handlers.LoginHandler(w, r)
+		handlers.LoginHandlerGET(w, r)
 	case http.MethodPost:
-		handlers.LoginPostHandler(w, r)
+		handlers.LoginHandlerPOST(w, r)
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}

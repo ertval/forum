@@ -22,13 +22,13 @@ func RegisterHandlerPOST(w http.ResponseWriter, r *http.Request) {
 	// Redirect to login page
 }
 
-// LoginHandler displays the login form (GET)
-func LoginHandler(w http.ResponseWriter, r *http.Request) {
+// LoginHandlerGET displays the login form (GET)
+func LoginHandlerGET(w http.ResponseWriter, r *http.Request) {
 	// Render login template
 }
 
-// LoginPostHandler processes login form submission (POST)
-func LoginPostHandler(w http.ResponseWriter, r *http.Request) {
+// LoginHandlerPOST processes login form submission (POST)
+func LoginHandlerPOST(w http.ResponseWriter, r *http.Request) {
 	// Parse form data
 	// Retrieve user by email
 	// Validate password
