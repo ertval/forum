@@ -95,7 +95,7 @@ Final testing, documentation, and deployment.
 56. [ ] 🔴 **Integration-4**: Test error scenarios — Test error scenarios.
 57. [ ] 🔴 **Integration-5**: Test session expiration — Test session expiration.
 58. [ ] 🔴 **Integration-6**: Test concurrent access — Test concurrent access.
-59. [ ] 🟡 **Docs-1**: Update README with final documentation — Document endpoints, migration steps, test commands, Docker usage.
+59. [ ] 🟡 **Docs-1**: Update README with final documentation — Document endpoints, migration  steps, test commands, Docker usage.
 60. [ ] 🟢 **Release-1**: Review all code for best practices — Code review.
 61. [ ] 🟢 **Release-2**: Verify all requirements are met — Verify requirements.
 62. [ ] 🟢 **Release-3**: Performance testing — Performance review.
