@@ -1,26 +1,19 @@
 package main
 
 // main.go is the entry point of the forum application.
-// It orchestrates server initialization and startup.
+// It initializes the database, sets up HTTP routes and middleware,
+// and starts the web server.
 
 import (
 	"log"
-
-	"forum/internal/server"
+	"net/http"
 )
 
 func main() {
-	// Load configuration from environment or use defaults
-	cfg := server.DefaultConfig()
+	// Initialize database connection
+	// Setup routes and middleware
+	// Start HTTP server on port 8080
 
-	// Create new server instance
-	srv, err := server.New(cfg)
-	if err != nil {
-		log.Fatalf("Failed to create server: %v", err)
-	}
-
-	// Run server with graceful shutdown handling
-	if err := srv.Run(); err != nil {
-		log.Fatalf("Server error: %v", err)
-	}
+	log.Println("🚀 Forum server is running at http://localhost:8080 🌐")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }

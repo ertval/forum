@@ -21,9 +21,6 @@ forum/
 │   └── forum/
 │       └── main.go              # Application entry point
 ├── internal/
-│   ├── server/
-│   │   ├── server.go           # HTTP server setup and lifecycle management
-│   │   └── router.go           # Route registration and middleware configuration
 │   ├── database/
 │   │   ├── db.go               # Database connection and initialization
 │   │   ├── migrations.go       # Database migration logic
