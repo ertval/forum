@@ -7,13 +7,13 @@ import (
 	"net/http"
 )
 
-// RegisterHandler displays the registration form (GET)
-func RegisterHandler(w http.ResponseWriter, r *http.Request) {
+// RegisterHandlerGET displays the registration form (GET)
+func RegisterHandlerGET(w http.ResponseWriter, r *http.Request) {
 	// Render registration template
 }
 
-// RegisterPostHandler processes registration form submission (POST)
-func RegisterPostHandler(w http.ResponseWriter, r *http.Request) {
+// RegisterHandlerPOST processes registration form submission (POST)
+func RegisterHandlerPOST(w http.ResponseWriter, r *http.Request) {
 	// Parse form data
 	// Validate email, username, password
 	// Check if email/username already exists
