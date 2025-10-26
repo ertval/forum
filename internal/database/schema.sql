@@ -73,23 +73,37 @@ CREATE TABLE IF NOT EXISTS comments (
 CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_comments_user_id ON comments(user_id);
 
--- Reactions table stores likes and dislikes for posts and comments
--- reaction_type: 1 for like, -1 for dislike
--- target_type: 'post' or 'comment'
-CREATE TABLE IF NOT EXISTS reactions (
+-- Reactions table (replaced): use separate tables for posts and comments so foreign keys can be enforced
+
+-- Create post reactions table
+CREATE TABLE IF NOT EXISTS post_reactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
-    target_type TEXT NOT NULL CHECK(target_type IN ('post', 'comment')),
-    target_id INTEGER NOT NULL,
+    post_id INTEGER NOT NULL,
     reaction_type INTEGER NOT NULL CHECK(reaction_type IN (1, -1)),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_id, target_type, target_id),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    UNIQUE(user_id, post_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
 );
 
--- Index for faster reaction queries and counts
-CREATE INDEX IF NOT EXISTS idx_reactions_target ON reactions(target_type, target_id);
-CREATE INDEX IF NOT EXISTS idx_reactions_user ON reactions(user_id);
+-- Create comment reactions table
+CREATE TABLE IF NOT EXISTS comment_reactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    comment_id INTEGER NOT NULL,
+    reaction_type INTEGER NOT NULL CHECK(reaction_type IN (1, -1)),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, comment_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE
+);
+
+-- Indexes for new tables
+CREATE INDEX IF NOT EXISTS idx_post_reactions_post_id ON post_reactions(post_id);
+CREATE INDEX IF NOT EXISTS idx_post_reactions_user ON post_reactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_comment_reactions_comment_id ON comment_reactions(comment_id);
+CREATE INDEX IF NOT EXISTS idx_comment_reactions_user ON comment_reactions(user_id);
 
 -- Insert default categories
 INSERT OR IGNORE INTO categories (name, description) VALUES
