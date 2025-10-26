@@ -146,7 +146,8 @@ The application uses SQLite with the following main tables:
 - **comments**: Post comments
 - **categories**: Post categories
 - **post_categories**: Many-to-many relationship between posts and categories
-- **reactions**: Likes and dislikes for posts and comments
+- **post_reactions**: Likes and dislikes for posts
+- **comment_reactions**: Likes and dislikes for comments
 
 See `internal/database/schema.sql` for the complete schema definition.
 
