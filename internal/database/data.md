@@ -10,7 +10,8 @@ This document provides an overview of the SQLite database schema used in the for
 - **posts**: Contains forum posts with title, content, and author references
 - **post_categories**: Junction table linking posts to multiple categories (many-to-many)
 - **comments**: Stores comments on posts with content and author references
-- **reactions**: Tracks likes (+1) and dislikes (-1) for posts and comments
+- **post_reactions**: Tracks likes (+1) and dislikes (-1) for posts
+- **comment_reactions**: Tracks likes (+1) and dislikes (-1) for comments
 
 
 ## Key columns by table
@@ -21,7 +22,8 @@ This document provides an overview of the SQLite database schema used in the for
 - posts: id (PK), user_id (FK -> users.id), title, content, created_at, updated_at
 - post_categories: post_id (FK -> posts.id), category_id (FK -> categories.id) — composite PK (post_id, category_id)
 - comments: id (PK), post_id (FK -> posts.id), user_id (FK -> users.id), content, created_at, updated_at
-- reactions: id (PK), user_id (FK -> users.id), target_type ("post"|"comment"), target_id, reaction_type (1|-1), created_at
+- post_reactions: id (PK), user_id (FK -> users.id), post_id (FK -> posts.id), reaction_type (1|-1), created_at — UNIQUE (user_id, post_id)
+- comment_reactions: id (PK), user_id (FK -> users.id), comment_id (FK -> comments.id), reaction_type (1|-1), created_at — UNIQUE (user_id, comment_id)
 
 
 ## Entity-Relationship Diagram
@@ -31,12 +33,13 @@ erDiagram
     USERS ||--o{ SESSIONS : "manages"
     USERS ||--o{ POSTS : "creates"
     USERS ||--o{ COMMENTS : "writes"
-    USERS ||--o{ REACTIONS : "gives"
+    USERS ||--o{ POST_REACTIONS : "gives"
+    USERS ||--o{ COMMENT_REACTIONS : "gives"
     CATEGORIES ||--o{ POST_CATEGORIES : "belongs_to"
     POSTS ||--o{ POST_CATEGORIES : "has"
     POSTS ||--o{ COMMENTS : "receives"
-    POSTS ||--o{ REACTIONS : "receives"
-    COMMENTS ||--o{ REACTIONS : "receives"
+    POSTS ||--o{ POST_REACTIONS : "receives"
+    COMMENTS ||--o{ COMMENT_REACTIONS : "receives"
 ```
 
 ## Table Schemas
@@ -113,16 +116,28 @@ classDiagram
     }
 ```
 
-### Reactions Table
+### Post Reactions Table
 ```mermaid
 classDiagram
-    class reactions {
+    class post_reactions {
         +id: INTEGER (PK, AUTO)
         +user_id: INTEGER (FK -> users.id)
-        +target_type: TEXT ('post'|'comment')
-        +target_id: INTEGER
+        +post_id: INTEGER (FK -> posts.id)
         +reaction_type: INTEGER (1=like, -1=dislike)
         +created_at: DATETIME
-        UNIQUE: (user_id, target_type, target_id)
+        UNIQUE: (user_id, post_id)
+    }
+```
+
+### Comment Reactions Table
+```mermaid
+classDiagram
+    class comment_reactions {
+        +id: INTEGER (PK, AUTO)
+        +user_id: INTEGER (FK -> users.id)
+        +comment_id: INTEGER (FK -> comments.id)
+        +reaction_type: INTEGER (1=like, -1=dislike)
+        +created_at: DATETIME
+        UNIQUE: (user_id, comment_id)
     }
 ```
