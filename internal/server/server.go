@@ -24,11 +24,8 @@ type Server struct {
 
 // Config holds server configuration
 type Config struct {
-	Port         string
-	DBPath       string
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-	IdleTimeout  time.Duration
+	Port   string
+	DBPath string
 }
 
 // New creates a new Server instance with the given configuration
@@ -45,9 +42,9 @@ func New(cfg Config) (*Server, error) {
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      router,
-		ReadTimeout:  cfg.ReadTimeout,
-		WriteTimeout: cfg.WriteTimeout,
-		IdleTimeout:  cfg.IdleTimeout,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 
 	return &Server{
@@ -121,32 +118,8 @@ func DefaultConfig() Config {
 		dbPath = "forum.db"
 	}
 
-	readTimeout := 15 * time.Second
-	if rt := os.Getenv("READ_TIMEOUT"); rt != "" {
-		if parsed, err := time.ParseDuration(rt); err == nil {
-			readTimeout = parsed
-		}
-	}
-
-	writeTimeout := 15 * time.Second
-	if wt := os.Getenv("WRITE_TIMEOUT"); wt != "" {
-		if parsed, err := time.ParseDuration(wt); err == nil {
-			writeTimeout = parsed
-		}
-	}
-
-	idleTimeout := 60 * time.Second
-	if it := os.Getenv("IDLE_TIMEOUT"); it != "" {
-		if parsed, err := time.ParseDuration(it); err == nil {
-			idleTimeout = parsed
-		}
-	}
-
 	return Config{
-		Port:         port,
-		DBPath:       dbPath,
-		ReadTimeout:  readTimeout,
-		WriteTimeout: writeTimeout,
-		IdleTimeout:  idleTimeout,
+		Port:   port,
+		DBPath: dbPath,
 	}
 }
