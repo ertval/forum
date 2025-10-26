@@ -100,10 +100,10 @@ CREATE TABLE IF NOT EXISTS comment_reactions (
 );
 
 -- Indexes for new tables
-CREATE INDEX IF NOT EXISTS idx_post_reactions_post_id ON post_reactions(post_id);
-CREATE INDEX IF NOT EXISTS idx_post_reactions_user ON post_reactions(user_id);
-CREATE INDEX IF NOT EXISTS idx_comment_reactions_comment_id ON comment_reactions(comment_id);
-CREATE INDEX IF NOT EXISTS idx_comment_reactions_user ON comment_reactions(user_id);
+CREATE INDEX IF NOT EXISTS x_post_reactions_post ON post_reactions(post_id);
+CREATE INDEX IF NOT EXISTS x_post_reactions_user ON post_reactions(user_id);
+CREATE INDEX IF NOT EXISTS x_comment_reactions_comment ON comment_reactions(comment_id);
+CREATE INDEX IF NOT EXISTS x_comment_reactions_user ON comment_reactions(user_id);
 
 -- Insert default categories
 INSERT OR IGNORE INTO categories (name, description) VALUES
