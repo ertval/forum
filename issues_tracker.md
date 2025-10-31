@@ -14,6 +14,8 @@ Initial project structure and configuration. Foundation for all development.
 7. [x] 🔴 **Setup-7**: Create SQL schema file — Design and create the database schema for users, posts, comments, etc.
 8. [x] 🔴 **Setup-8**: Create all directory structure — Build out the complete folder hierarchy for handlers, models, middleware, etc.
 9. [x] 🔴 **Setup-9**: Create all empty files with purpose comments — Initialize all source files with TODO comments and basic structure.
+10. [x] 🔴 **Setup-10**: Create server package — Implement server initialization, router, and graceful shutdown handling to keep main.go minimal.
+
 
 ## 📅 Phase 1 — Database Layer (**High Priority**)
 Focus on database setup and connection. Start here for a solid foundation.
@@ -94,7 +96,7 @@ Final testing, documentation, and deployment.
 56. [ ] 🔴 **Integration-4**: Test error scenarios — Test error scenarios.
 57. [ ] 🔴 **Integration-5**: Test session expiration — Test session expiration.
 58. [ ] 🔴 **Integration-6**: Test concurrent access — Test concurrent access.
-59. [ ] 🟡 **Docs-1**: Update README with final documentation — Document endpoints, migration steps, test commands, Docker usage.
+59. [ ] 🟡 **Docs-1**: Update README with final documentation — Document endpoints, migration  steps, test commands, Docker usage.
 60. [ ] 🟢 **Release-1**: Review all code for best practices — Code review.
 61. [ ] 🟢 **Release-2**: Verify all requirements are met — Verify requirements.
 62. [ ] 🟢 **Release-3**: Performance testing — Performance review.
