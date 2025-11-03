@@ -25,6 +25,14 @@ func NewService(postRepo ports.PostRepository, categoryRepo ports.CategoryReposi
 // TODO: Implement post creation with image upload.
 func (s *Service) CreatePost(ctx context.Context, userID int, title, content string, categories []string, image []byte) (*domain.Post, error) {
     // Implementation placeholder
+    // 1. Validate title, content, and categories
+    // 2. Verify categories exist in database
+    // 3. If image provided, validate format (JPEG/PNG/GIF) and size (< 20MB)
+    // 4. Save image to static/uploads/ with unique filename
+    // 5. Create post entity with image URL
+    // 6. Save to repository
+    // 7. Associate categories with post
+    // 8. Return created post
     return nil, nil
 }
 
@@ -37,6 +45,10 @@ func (s *Service) GetPost(ctx context.Context, postID int) (*domain.Post, error)
 // TODO: Implement post update.
 func (s *Service) UpdatePost(ctx context.Context, postID int, title, content string) error {
     // Implementation placeholder
+    // 1. Retrieve existing post
+    // 2. Validate new title and content
+    // 3. Update post entity
+    // 4. Save to repository
     return nil
 }
 
@@ -49,5 +61,9 @@ func (s *Service) DeletePost(ctx context.Context, postID int) error {
 // ListPosts lists posts with optional filters.
 // TODO: Implement post filtering.
 func (s *Service) ListPosts(ctx context.Context, filter ports.PostFilter) ([]*domain.Post, error) {
+    // Implementation placeholder
+    // 1. Apply filters (by category, by user, by liked posts)
+    // 2. Apply pagination (offset, limit)
+    // 3. Return filtered posts
     return s.postRepo.List(ctx, filter)
 }
