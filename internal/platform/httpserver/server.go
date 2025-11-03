@@ -3,15 +3,19 @@
 package httpserver
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"time"
 )
 
 // Server represents an HTTP server with middleware support.
 type Server struct {
-	httpServer *http.Server
-	tlsServer  *http.Server
-	router     *http.ServeMux
+	httpServer  *http.Server
+	tlsServer   *http.Server
+	router      *http.ServeMux
+	tlsCertFile string
+	tlsKeyFile  string
 }
 
 // Config contains HTTP server configuration.
@@ -27,17 +31,51 @@ type Config struct {
 }
 
 // New creates a new HTTP server with the specified configuration.
-// TODO: Implement server initialization.
 func New(cfg Config) *Server {
+	router := http.NewServeMux()
+
+	// Initialize HTTP server
+	httpServer := &http.Server{
+		Addr:         fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+		Handler:      router,
+		ReadTimeout:  cfg.ReadTimeout,
+		WriteTimeout: cfg.WriteTimeout,
+		IdleTimeout:  cfg.IdleTimeout,
+	}
+
+	// Initialize TLS server if TLS configuration is provided
+	var tlsServer *http.Server
+	if cfg.TLSCertFile != "" && cfg.TLSKeyFile != "" {
+		tlsServer = &http.Server{
+			Addr:         fmt.Sprintf("%s:%d", cfg.Host, cfg.TLSPort),
+			Handler:      router,
+			ReadTimeout:  cfg.ReadTimeout,
+			WriteTimeout: cfg.WriteTimeout,
+			IdleTimeout:  cfg.IdleTimeout,
+		}
+	}
+
 	return &Server{
-		router: http.NewServeMux(),
+		httpServer:  httpServer,
+		tlsServer:   tlsServer,
+		router:      router,
+		tlsCertFile: cfg.TLSCertFile,
+		tlsKeyFile:  cfg.TLSKeyFile,
 	}
 }
 
 // RegisterHandler registers a handler for a specific path and HTTP method.
 // The handler will be wrapped with the middleware chain.
 func (s *Server) RegisterHandler(method, path string, handler http.HandlerFunc) {
-	// Implementation placeholder
+	wrappedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check if the request method matches
+		if r.Method != method {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		handler(w, r)
+	})
+	s.router.Handle(path, wrappedHandler)
 }
 
 // RegisterMiddleware registers global middleware.
@@ -48,19 +86,53 @@ func (s *Server) RegisterMiddleware(middleware Middleware) {
 
 // Start starts the HTTP and HTTPS servers.
 // Returns an error if the server fails to start.
-// TODO: Implement server startup logic.
 func (s *Server) Start() error {
-	// Implementation placeholder
-	// 1. Start HTTP server on Port
-	// 2. Start HTTPS server on TLSPort if TLS is configured
-	return nil
+	errChan := make(chan error, 2)
+
+	// Start HTTP server
+	go func() {
+		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errChan <- fmt.Errorf("HTTP server error: %w", err)
+		}
+	}()
+
+	// Start HTTPS server if TLS is configured
+	if s.tlsServer != nil {
+		go func() {
+			if err := s.tlsServer.ListenAndServeTLS(s.tlsCertFile, s.tlsKeyFile); err != nil && err != http.ErrServerClosed {
+				errChan <- fmt.Errorf("HTTPS server error: %w", err)
+			}
+		}()
+	}
+
+	// Return any error that occurs during startup
+	select {
+	case err := <-errChan:
+		return err
+	default:
+		return nil
+	}
 }
 
 // Shutdown gracefully shuts down the server.
 // It waits for existing connections to finish before shutting down.
-// TODO: Implement graceful shutdown.
 func (s *Server) Shutdown() error {
-	// Implementation placeholder
+	// Create a context with timeout for graceful shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Shutdown HTTP server
+	if err := s.httpServer.Shutdown(ctx); err != nil {
+		return fmt.Errorf("HTTP server shutdown error: %w", err)
+	}
+
+	// Shutdown HTTPS server if it exists
+	if s.tlsServer != nil {
+		if err := s.tlsServer.Shutdown(ctx); err != nil {
+			return fmt.Errorf("HTTPS server shutdown error: %w", err)
+		}
+	}
+
 	return nil
 }
 
