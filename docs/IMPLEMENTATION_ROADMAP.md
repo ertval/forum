@@ -1,532 +1,684 @@
 # Implementation Roadmap
 
-This document outlines the step-by-step implementation plan for the Forum project.
+Fast path to functional forum MVP following core requirements, then complete remaining features, finally add bonus features.
 
-## Current Status Summary
+## Current Status
 
 **Project Phase**: Initial Scaffolding (10% Complete)
 - ✅ Project structure created
 - ✅ Module scaffolding complete
 - ✅ Database migrations defined
-- ✅ Dependency injection wiring in main.go
 - ⚠️ Most implementations are placeholders with TODO comments
 
-## Phase 1: Foundation (Platform Services) ⏳ IN PROGRESS
+---
 
-### 1.1 Configuration Management - NOT STARTED
-- [ ] Implement `config.Load()` function (currently placeholder)
-- [ ] Add environment variable parsing
-- [ ] Create default configuration values
-- [ ] Add validation for required config (currently placeholder)
+## PART 1: MVP - CORE REQUIREMENTS (Minimal Functional Forum)
 
-**Status**: Skeleton exists in `internal/platform/config/config.go` with TODO markers
+Focus: Implement essential features from requirements.md to get a working forum ASAP.
 
-### 1.2 Database Layer - NOT STARTED
-- [ ] Implement `database.New()` connection (currently placeholder)
-- [ ] Add connection pooling configuration
-- [ ] Implement `BeginTx()` for transactions (currently placeholder)
-- [ ] Create migration runner logic (currently placeholder)
-- [ ] Test database connection and migrations
+### Phase 1: Platform Basics (Foundation)
 
-**Status**: Skeleton exists with TODO markers in:
-- `internal/platform/database/connection.go`
-- `internal/platform/database/migrator.go`
-- `internal/platform/database/transaction.go`
+**Goal**: Make the app start and serve HTTP
 
-### 1.3 Logging - NOT STARTED
-- [ ] Implement structured logger (currently placeholder)
-- [ ] Add log levels (Debug, Info, Warn, Error, Fatal) - interfaces defined
-- [ ] Add context-aware logging
-- [ ] Configure log output format
+**Platform Layer Implementation:**
+- [ ] Config loading from environment variables (config.go)
+- [ ] Database connection (SQLite with mattn/go-sqlite3) (connection.go)
+- [ ] Database migrator - apply migrations on startup (migrator.go)
+- [ ] Basic HTTP server with standard lib http.ServeMux (server.go)
+- [ ] Structured logger with levels (Debug, Info, Warn, Error) (logger.go)
+- [ ] Recovery middleware (panic handling) (middleware.go)
+- [ ] Logger middleware (request logging) (middleware.go)
+- [ ] Basic error responses with HTTP status mapping (errors.go)
+- [ ] Input validator (email, password strength) (validator.go)
 
-**Status**: Interface defined in `internal/platform/logger/logger.go`, all methods have TODO placeholders
+**Files**: `internal/platform/config/`, `database/`, `logger/`, `httpserver/`, `errors/`, `validator/`
 
-### 1.4 HTTP Server - NOT STARTED
-- [ ] Implement server creation and startup (currently placeholder)
-- [ ] Add graceful shutdown (currently placeholder)
-- [ ] Configure TLS/HTTPS
-- [ ] Implement middleware chain
+**Deliverable**: Server starts, connects to SQLite, runs migrations, serves HTTP
 
-**Status**: Skeleton exists in `internal/platform/httpserver/server.go` with TODO markers
-
-### 1.5 Middleware - NOT STARTED
-- [ ] Recovery middleware (panic handling) - placeholder
-- [ ] Request logging middleware - placeholder
-- [ ] CORS middleware - placeholder
-- [ ] Rate limiting middleware - placeholder
-- [ ] Session validation middleware - placeholder
-- [ ] Authorization middleware - placeholder
-
-**Status**: All middleware stubs exist in `internal/platform/httpserver/middleware.go` with TODO markers
-
-### 1.6 Utilities - PARTIAL
-- [ ] Input validation functions - some implemented
-- [ ] Error handling utilities - error types defined
-- [ ] Response helpers - not started
-- [ ] Email validation - TODO marker
-- [ ] Password strength validation - TODO marker
-- [ ] HTML sanitization - TODO marker
-
-**Status**: `internal/platform/validator/validator.go` has partial implementation with TODOs
-**Status**: `internal/platform/errors/errors.go` has error types defined
-
-**Estimated Time**: 2-3 days
+**Time**: 2-3 days
 
 ---
 
-## Phase 2: Authentication Module 🔐 NOT STARTED
+### Phase 2: Authentication (REQUIREMENT: Authentication)
 
-### 2.1 Domain Layer - PARTIAL
+**Goal**: Users can register with email/username/password and login with session cookies
 
-- [x] Session entity defined
-- [ ] Finalize session validation logic (has TODO marker)
-- [ ] Validate business rules
-- [ ] Add domain tests
+**Auth Module - Domain Layer:**
+- [ ] Session entity with Validate() method (session.go)
+- [ ] Domain errors (ErrInvalidCredentials, ErrSessionExpired, etc.) (errors.go)
 
-**Status**: `internal/modules/auth/domain/session.go` has entity structure but validation is TODO
+**Auth Module - Repositories (Output Adapters):**
+- [ ] Implement SQLite session repository (sqlite_session_repository.go)
+  - [ ] Create(session) - store new session with UUID token
+  - [ ] GetByToken(token) - retrieve session by token
+  - [ ] Delete(sessionID) - logout
+  - [ ] DeleteByUserID(userID) - invalidate old sessions (only ONE active session per user)
+  - [ ] DeleteExpired() - cleanup
+- [ ] Implement SQLite user repository (sqlite_user_repository.go)
+  - [ ] Create(user) - register new user
+  - [ ] GetByEmail(email) - check email existence
+  - [ ] GetByUsername(username) - check username uniqueness
+  - [ ] GetByID(userID) - retrieve user
 
-### 2.2 Repository (Output Adapter) - NOT STARTED
+**Auth Module - Application Service:**
+- [ ] Implement Register use case
+  - [ ] Validate email format (not already taken)
+  - [ ] Validate username uniqueness
+  - [ ] Validate password strength (min 8 chars, complexity)
+  - [ ] Hash password with bcrypt (cost factor 10-12)
+  - [ ] Create user in database
+  - [ ] Create session with UUID token (gofrs/uuid or google/uuid)
+  - [ ] Return session token
+- [ ] Implement Login use case
+  - [ ] Check if email exists in database
+  - [ ] Verify password matches (bcrypt compare)
+  - [ ] Invalidate old sessions for user (only ONE active session)
+  - [ ] Create new session with UUID token
+  - [ ] Set session expiration (default 24h, configurable)
+  - [ ] Return session token
+- [ ] Implement Logout use case
+- [ ] Implement ValidateSession use case
 
-- [ ] Implement SQLite session repository (all methods are placeholders)
-- [ ] Add session CRUD operations
-- [ ] Implement session cleanup
-- [ ] Add repository tests
+**Auth Module - HTTP Handlers (Input Adapters):**
+- [ ] POST /register - registration handler
+  - [ ] Parse form data (email, username, password)
+  - [ ] Call Register service
+  - [ ] Set cookie with session token (HttpOnly, Secure, SameSite=Lax)
+  - [ ] Return 201 Created or 409 Conflict (duplicate email/username)
+- [ ] POST /login - login handler
+  - [ ] Parse credentials
+  - [ ] Call Login service
+  - [ ] Set session cookie
+  - [ ] Return 200 OK or 401 Unauthorized
+- [ ] POST /logout - logout handler
+  - [ ] Delete session cookie
+  - [ ] Return 204 No Content
 
-**Status**: Skeleton in `internal/modules/auth/adapters/sqlite_session_repository.go` - ALL methods have TODO markers
-**Status**: Skeleton in `internal/modules/auth/adapters/sqlite_user_repository.go` - ALL methods have TODO markers
+**Middleware:**
+- [ ] Implement RequireAuth middleware (validate session cookie, inject user into context)
+- [ ] Implement OptionalAuth middleware (for guest vs registered user views)
 
-### 2.3 Password Hasher - NOT STARTED
+**User Module (Basic):**
+- [ ] User domain entity (id, email, username, password_hash, role, created_at)
+- [ ] Basic user repository implementation (needed by auth)
 
-- [ ] Implement bcrypt password hashing (currently placeholder)
-- [ ] Add cost configuration
-- [ ] Add tests
+**Files**: `internal/modules/auth/`, `internal/modules/user/domain/`, `internal/modules/user/adapters/sqlite_repository.go`
 
-**Status**: Helper functions in `internal/modules/auth/application/service.go` have TODO markers
+**Deliverable**: Users can register with email/username/password, login with session cookies, logout. Only ONE session per user.
 
-### 2.4 Application Service - NOT STARTED
-
-- [ ] Implement Register use case (currently placeholder)
-- [ ] Implement Login use case (currently placeholder)
-- [ ] Implement Logout use case (currently placeholder)
-- [ ] Implement ValidateSession use case (currently placeholder)
-- [ ] Implement RefreshSession use case (currently placeholder)
-- [ ] Implement GetSession use case (currently placeholder)
-- [ ] Add service tests
-
-**Status**: `internal/modules/auth/application/service.go` - ALL use cases are TODO placeholders
-
-### 2.5 HTTP Handlers - NOT STARTED
-
-- [ ] Implement registration handler (currently placeholder)
-- [ ] Implement login handler (currently placeholder)
-- [ ] Implement logout handler (currently placeholder)
-- [ ] Implement session retrieval handler (currently placeholder)
-- [ ] Add cookie management
-- [ ] Add request validation
-- [ ] Add handler tests
-- [ ] Implement route registration (currently placeholder)
-
-**Status**: `internal/modules/auth/adapters/http_handler.go` - ALL handlers are TODO placeholders
-
-### 2.6 Middleware - NOT STARTED
-
-- [ ] Implement RequireAuth middleware (in platform middleware with TODO)
-- [ ] Implement OptionalAuth middleware
-- [ ] Add user context injection
-- [ ] Add middleware tests
-
-**Status**: Planned but not started
-
-### 2.7 OAuth (Bonus) - NOT STARTED
-
-- [ ] Implement Google OAuth provider
-- [ ] Implement GitHub OAuth provider
-- [ ] Add OAuth callback handler
-- [ ] Add OAuth tests
-
-**Status**: Not started
-
-**Estimated Time**: 3-4 days
+**Time**: 3-4 days
 
 ---
 
-## Phase 3: User Module 👤 NOT STARTED
+### Phase 3: Posts - Create & View (REQUIREMENT: Communication - Posts)
 
-### 3.1 Repository - NOT STARTED
+**Goal**: Registered users can create posts (title + content). All users can view posts.
 
-- [ ] Implement SQLite user repository (all methods are placeholders)
-- [ ] Add user CRUD operations
-- [ ] Add email/username existence checks
-- [ ] Add repository tests
+**Post Module - Domain Layer:**
+- [ ] Post entity (id, user_id, title, content, created_at, updated_at) (post.go)
+- [ ] Domain errors (ErrPostNotFound, ErrUnauthorized, etc.) (errors.go)
 
-**Status**: `internal/modules/user/adapters/sqlite_repository.go` - ALL 10 methods have TODO placeholders
+**Post Module - Repository (Output Adapter):**
+- [ ] Implement SQLite post repository (sqlite_repository.go)
+  - [ ] Create(post) - create new post
+  - [ ] GetByID(postID) - retrieve single post
+  - [ ] List(limit, offset) - list all posts with pagination
+  - [ ] Update(post) - edit post
+  - [ ] Delete(postID) - delete post
+  - [ ] GetByUserID(userID) - filter user's posts
 
-### 3.2 Application Service - NOT STARTED
+**Post Module - Application Service:**
+- [ ] Implement CreatePost use case
+  - [ ] Validate title and content (not empty)
+  - [ ] Check user is authenticated
+  - [ ] Create post in database
+  - [ ] Return post
+- [ ] Implement GetPost use case
+- [ ] Implement ListPosts use case (with pagination)
+- [ ] Implement UpdatePost use case (only owner can edit)
+- [ ] Implement DeletePost use case (only owner can delete)
 
-- [ ] Implement GetByID
-- [ ] Implement UpdateProfile
-- [ ] Implement PromoteToModerator
-- [ ] Implement DemoteFromModerator
-- [ ] Add authorization checks
-- [ ] Add service tests
+**Post Module - HTTP Handlers:**
+- [ ] POST /posts - create post (requires auth)
+- [ ] GET /posts - list all posts (public)
+- [ ] GET /posts/{id} - view single post (public)
+- [ ] PUT /posts/{id} - edit post (requires auth + ownership)
+- [ ] DELETE /posts/{id} - delete post (requires auth + ownership)
 
-**Status**: Service stub exists but no implementations
+**Frontend (Basic Templates):**
+- [ ] templates/base.html - base layout with navigation
+- [ ] templates/home.html - post list view
+- [ ] templates/post_create.html - create post form
+- [ ] templates/post_view.html - single post view
+- [ ] Basic CSS styling (static/css/style.css)
 
-### 3.3 HTTP Handlers - NOT STARTED
+**Files**: `internal/modules/post/`, `templates/`, `static/css/`
 
-- [ ] Profile view handler (currently placeholder)
-- [ ] Profile edit handler
-- [ ] User list handler (admin) (currently placeholder)
-- [ ] Role management handlers (admin) (currently placeholder)
-- [ ] User deactivation handler (currently placeholder)
-- [ ] Route registration (currently placeholder)
-- [ ] Add handler tests
+**Deliverable**: Registered users create posts, all users view posts. Owners can edit/delete their posts.
 
-**Status**: `internal/modules/user/adapters/http_handler.go` - ALL handlers are TODO placeholders
-
-**Estimated Time**: 2 days
-
----
-
-## Phase 4: Post Module 📝 PARTIAL
-
-### 4.1 Repositories - PARTIAL
-
-- [x] Post repository skeleton created
-- [ ] Implement post repository methods (stubs exist, need implementation)
-- [ ] Implement category repository (not yet created)
-- [ ] Add post filtering logic
-- [ ] Add repository tests
-
-**Status**: `internal/modules/post/adapters/sqlite_repository.go` exists with stub methods
-**Status**: Category repository not yet created - noted as TODO in main.go
-
-### 4.2 Image Storage - NOT STARTED
-
-- [ ] Implement image upload
-- [ ] Add image validation (format, size)
-- [ ] Add image storage logic
-- [ ] Add image deletion
-- [ ] Add tests
-
-**Status**: Not started
-
-### 4.3 Application Services - PARTIAL
-
-- [x] PostService skeleton exists
-- [ ] Implement PostService methods
-- [ ] Implement CategoryService (not yet created)
-- [ ] Add authorization checks
-- [ ] Add service tests
-
-**Status**: Service structure exists but implementations incomplete
-
-### 4.4 HTTP Handlers - PARTIAL
-
-- [x] HTTP handler skeleton exists
-- [ ] Post creation handler (with image upload)
-- [ ] Post view handler
-- [ ] Post list handler
-- [ ] Post edit handler
-- [ ] Post delete handler
-- [ ] Category management handlers
-- [ ] Filter handlers
-- [ ] Route registration (currently placeholder)
-- [ ] Add handler tests
-
-**Status**: `internal/modules/post/adapters/http_handler.go` has skeleton with stub methods
-
-**Estimated Time**: 3-4 days
+**Time**: 2-3 days
 
 ---
 
-## Phase 5: Comment Module 💬 PARTIAL
+### Phase 4: MVP Docker & Testing
 
-### 5.1 Repository - PARTIAL
+**Goal**: Ensure MVP works end-to-end and deploys with Docker
 
-- [x] Comment repository skeleton created
-- [ ] Implement comment repository methods (stubs exist)
-- [ ] Add comment CRUD operations
-- [ ] Add repository tests
+**Docker:**
+- [ ] Verify Dockerfile builds correctly (multi-stage build, CGO_ENABLED=1)
+- [ ] Test docker-compose.yml
+- [ ] Test container deployment
 
-**Status**: `internal/modules/comment/adapters/sqlite_repository.go` exists with stub methods
+**Integration Tests:**
+- [ ] Test user registration flow
+- [ ] Test user login flow (session cookie creation)
+- [ ] Test logout flow
+- [ ] Test create post flow
+- [ ] Test view post flow (public access)
+- [ ] Test edit/delete post flow (authorization)
 
-### 5.2 Application Service - PARTIAL
+**Bug Fixes & Polish:**
+- [ ] Fix critical bugs
+- [ ] Improve error messages
+- [ ] Enhance CSS styling
 
-- [x] CommentService skeleton exists
-- [ ] Implement CommentService methods
-- [ ] Add authorization checks
-- [ ] Add service tests
+**Files**: `tests/integration/`, `Dockerfile`, `docker-compose.yml`
 
-**Status**: Service structure exists but implementations incomplete
+**Deliverable**: Working MVP - users can register, login, create/view/edit/delete posts. Docker deployment works.
 
-### 5.3 HTTP Handlers - PARTIAL
+**Time**: 2 days
 
-- [x] HTTP handler skeleton exists with TODO note
-- [ ] Comment creation handler
-- [ ] Comment list handler
-- [ ] Comment edit handler
-- [ ] Comment delete handler
-- [ ] Route registration (has TODO: POST /comments, GET /comments/{id}, etc.)
-- [ ] Add handler tests
-
-**Status**: `internal/modules/comment/adapters/http_handler.go` has skeleton with TODO marker for routes
-
-**Estimated Time**: 2 days
+**🎉 MVP COMPLETE** - Basic functional forum (9-12 days total)
 
 ---
 
-## Phase 6: Reaction Module 👍👎 PARTIAL
+## PART 2: COMPLETE CORE REQUIREMENTS
 
-### 6.1 Repository - PARTIAL
+Add remaining features from requirements.md to meet all mandatory requirements.
 
-- [x] Reaction repository skeleton created
-- [ ] Implement reaction repository methods (stubs exist)
-- [ ] Add reaction toggle logic
-- [ ] Add reaction counting
-- [ ] Add liked posts retrieval
-- [ ] Add repository tests
+### Phase 5: Categories & Post Association (REQUIREMENT: Communication - Categories)
 
-**Status**: `internal/modules/reaction/adapters/sqlite_repository.go` exists with stub methods
+**Goal**: Posts can be associated with 1+ categories. All users can see categories.
 
-### 6.2 Application Service - PARTIAL
+**Post Module - Domain:**
+- [ ] Category entity (id, name, description) (category.go)
+- [ ] Post-Category association
 
-- [x] ReactionService skeleton exists
-- [ ] Implement ReactTo method (returns nil with TODO comment)
-- [ ] Implement GetReactionCounts method (returns 0, 0, nil with TODO comment)
-- [ ] Add authorization checks
-- [ ] Add service tests
+**Post Module - Repository:**
+- [ ] Create category repository (sqlite_repository.go or separate file)
+  - [ ] CreateCategory(category)
+  - [ ] ListCategories()
+  - [ ] GetCategoryByID(id)
+  - [ ] AssociatePostWithCategory(postID, categoryID)
+  - [ ] GetCategoriesForPost(postID)
 
-**Status**: `internal/modules/reaction/application/service.go` has methods returning TODO placeholders
+**Post Module - Application Service:**
+- [ ] Update CreatePost to accept category IDs
+- [ ] Implement CreateCategory use case
+- [ ] Implement ListCategories use case
 
-### 6.3 HTTP Handlers - PARTIAL
+**Post Module - HTTP Handlers:**
+- [ ] Update POST /posts - accept category IDs
+- [ ] GET /categories - list all categories (public)
+- [ ] Update templates to show/select categories
 
-- [x] HTTP handler skeleton exists with TODO note
-- [ ] Add/toggle reaction handler
-- [ ] Remove reaction handler
-- [ ] Get reaction counts handler
-- [ ] Route registration (has TODO: POST /reactions, DELETE /reactions, GET /reactions)
-- [ ] Add handler tests
+**Files**: `internal/modules/post/domain/category.go`, `internal/modules/post/adapters/sqlite_repository.go`
 
-**Status**: `internal/modules/reaction/adapters/http_handler.go` has skeleton with TODO marker for routes
+**Deliverable**: Posts have 1+ categories. Categories are visible to all users.
 
-### 6.4 Integration - NOT STARTED
-
-- [ ] Integrate with Post module
-- [ ] Integrate with Comment module
-- [ ] Trigger notifications on reactions
-
-**Status**: Not started
-
-**Estimated Time**: 2 days
+**Time**: 1-2 days
 
 ---
 
-## Phase 7: Notification Module 🔔 [OPTIONAL] PARTIAL
+### Phase 6: Comments (REQUIREMENT: Communication - Comments)
 
-### 7.1 Repository - PARTIAL
+**Goal**: Registered users can comment on posts. Comments visible to all users.
 
-- [x] Notification repository skeleton created
-- [ ] Implement notification repository methods (stubs exist)
-- [ ] Add notification CRUD operations
-- [ ] Add unread count query
-- [ ] Add repository tests
+**Comment Module - Domain:**
+- [ ] Comment entity (id, post_id, user_id, content, created_at, updated_at) (comment.go)
+- [ ] Domain errors (errors.go)
 
-**Status**: `internal/modules/notification/adapters/sqlite_repository.go` exists with stub methods
+**Comment Module - Repository:**
+- [ ] Implement SQLite comment repository (sqlite_repository.go)
+  - [ ] Create(comment)
+  - [ ] GetByID(commentID)
+  - [ ] ListByPostID(postID) - get all comments for a post
+  - [ ] Update(comment)
+  - [ ] Delete(commentID)
 
-### 7.2 Application Service - PARTIAL
+**Comment Module - Application Service:**
+- [ ] Implement CreateComment use case
+  - [ ] Validate content not empty
+  - [ ] Check user is authenticated
+  - [ ] Create comment
+- [ ] Implement UpdateComment use case (only owner)
+- [ ] Implement DeleteComment use case (only owner)
+- [ ] Implement ListComments use case
 
-- [x] NotificationService skeleton exists
-- [ ] Implement notification creation logic (currently returns nil with TODO)
-- [ ] Implement GetUserNotifications method (currently returns nil with TODO)
-- [ ] Add service tests
+**Comment Module - HTTP Handlers:**
+- [ ] POST /posts/{postID}/comments - create comment (requires auth)
+- [ ] GET /posts/{postID}/comments - list comments (public)
+- [ ] PUT /comments/{id} - edit comment (requires auth + ownership)
+- [ ] DELETE /comments/{id} - delete comment (requires auth + ownership)
 
-**Status**: `internal/modules/notification/application/service.go` has stub methods with TODO markers
+**Frontend:**
+- [ ] Update templates/post_view.html to show comments
+- [ ] Add comment form for registered users
 
-### 7.3 HTTP Handlers - PARTIAL
+**Files**: `internal/modules/comment/`
 
-- [x] HTTP handler skeleton exists
-- [ ] Notification list handler
-- [ ] Mark as read handler
-- [ ] Mark all as read handler
-- [ ] Notification count handler
-- [ ] Route registration
-- [ ] Add handler tests
+**Deliverable**: Registered users comment on posts. Comments visible to all. Owners can edit/delete.
 
-**Status**: `internal/modules/notification/adapters/http_handler.go` exists with basic structure
-
-### 7.4 Integration - NOT STARTED
-
-- [ ] Trigger notifications on post reactions
-- [ ] Trigger notifications on comment reactions
-- [ ] Trigger notifications on new comments
-
-**Status**: Not started
-
-**Estimated Time**: 2 days
+**Time**: 2 days
 
 ---
 
-## Phase 8: Moderation Module 🛡️ [OPTIONAL] PARTIAL
+### Phase 7: Reactions (REQUIREMENT: Likes and Dislikes)
 
-### 8.1 Repository - PARTIAL
+**Goal**: Registered users can like/dislike posts AND comments. Reaction counts visible to all.
 
-- [x] Report repository skeleton created
-- [ ] Implement report repository methods (stubs exist)
-- [ ] Add report CRUD operations
-- [ ] Add repository tests
+**Reaction Module - Domain:**
+- [ ] Reaction entity (id, user_id, target_type, target_id, type [like/dislike]) (reaction.go)
+- [ ] Domain errors (errors.go)
 
-**Status**: `internal/modules/moderation/adapters/sqlite_repository.go` exists with stub methods
+**Reaction Module - Repository:**
+- [ ] Implement SQLite reaction repository (sqlite_repository.go)
+  - [ ] Create(reaction) - add like/dislike
+  - [ ] Delete(userID, targetType, targetID) - remove reaction
+  - [ ] GetByUser(userID, targetType, targetID) - check existing reaction
+  - [ ] ToggleReaction(userID, targetType, targetID, reactionType) - toggle behavior
+  - [ ] CountLikes(targetType, targetID)
+  - [ ] CountDislikes(targetType, targetID)
+  - [ ] GetLikedPostsByUser(userID) - for filtering
 
-### 8.2 Application Service - PARTIAL
+**Reaction Module - Application Service:**
+- [ ] Implement ReactTo use case
+  - [ ] Check user cannot like AND dislike same target (toggle behavior)
+  - [ ] If existing reaction of same type, remove it
+  - [ ] If existing reaction of different type, update it
+  - [ ] Otherwise, create new reaction
+- [ ] Implement GetReactionCounts use case
+- [ ] Implement GetLikedPosts use case
 
-- [x] ModerationService skeleton exists
-- [ ] Implement CreateReport method (currently returns nil with TODO)
-- [ ] Implement GetReport method (currently returns nil with TODO)
-- [ ] Add report review logic
-- [ ] Add content deletion logic
-- [ ] Add authorization checks (moderator/admin only)
-- [ ] Add service tests
+**Reaction Module - HTTP Handlers:**
+- [ ] POST /reactions - add/toggle reaction (requires auth)
+- [ ] DELETE /reactions - remove reaction (requires auth)
+- [ ] GET /posts/{id}/reactions - get reaction counts (public)
+- [ ] GET /comments/{id}/reactions - get reaction counts (public)
 
-**Status**: `internal/modules/moderation/application/service.go` has stub methods with TODO markers
+**Frontend:**
+- [ ] Add like/dislike buttons to posts
+- [ ] Add like/dislike buttons to comments
+- [ ] Display reaction counts
 
-### 8.3 HTTP Handlers - PARTIAL
+**Files**: `internal/modules/reaction/`
 
-- [x] HTTP handler skeleton exists with TODO note
-- [ ] Create report handler
-- [ ] List reports handler (moderators)
-- [ ] Review report handler (moderators/admins)
-- [ ] Delete content handler (moderators)
-- [ ] Route registration (has TODO: POST /reports, GET /reports, PUT /reports/{id})
-- [ ] Add handler tests
+**Deliverable**: Registered users like/dislike posts and comments. Reaction counts visible to all.
 
-**Status**: `internal/modules/moderation/adapters/http_handler.go` has skeleton with TODO marker for routes
-
-**Estimated Time**: 2-3 days
-
----
-
-## Phase 9: Frontend (Templates & Static Assets) 🎨
-
-### 9.1 Templates
-- [ ] Create base template with layout
-- [ ] Home page with post list
-- [ ] Registration page
-- [ ] Login page
-- [ ] Post creation page
-- [ ] Post view page with comments
-- [ ] User profile page
-- [ ] Activity page
-- [ ] Notification page
-- [ ] Admin/moderator pages
-
-### 9.2 Styling
-- [ ] Create responsive CSS
-- [ ] Add mobile support
-- [ ] Style forms
-- [ ] Style navigation
-- [ ] Style notifications
-
-### 9.3 JavaScript
-- [ ] Form validation
-- [ ] AJAX for reactions
-- [ ] Real-time notification updates (optional)
-- [ ] Image preview before upload
-- [ ] Character counters
-
-**Estimated Time**: 3-4 days
+**Time**: 2 days
 
 ---
 
-## Phase 10: Security & Rate Limiting 🔒
+### Phase 8: Filtering (REQUIREMENT: Filter)
 
-### 10.1 HTTPS/TLS
-- [ ] Generate SSL certificates
-- [ ] Configure TLS in server
-- [ ] Add cipher suite configuration
+**Goal**: Filter posts by categories, created posts, liked posts
+
+**Post Module - Repository:**
+- [ ] Add filter methods to post repository
+  - [ ] FilterByCategory(categoryID, limit, offset)
+  - [ ] FilterByUser(userID, limit, offset) - user's created posts
+  - [ ] FilterByLiked(userID, limit, offset) - user's liked posts (use reaction repo)
+
+**Post Module - Application Service:**
+- [ ] Implement FilterPosts use case with filter options
+
+**Post Module - HTTP Handlers:**
+- [ ] GET /posts?category={id} - filter by category (public)
+- [ ] GET /posts?created_by=me - filter user's posts (requires auth)
+- [ ] GET /posts?liked_by=me - filter user's liked posts (requires auth)
+
+**Frontend:**
+- [ ] Add filter UI to home page
+- [ ] Add navigation for filter options
+
+**Files**: `internal/modules/post/adapters/sqlite_repository.go`, `internal/modules/post/adapters/http_handler.go`
+
+**Deliverable**: Users can filter posts by category, created posts, liked posts.
+
+**Time**: 1-2 days
+
+---
+
+### Phase 9: Docker Requirement (REQUIREMENT: Docker)
+
+**Goal**: Ensure Docker deployment is production-ready
+
+**Docker:**
+- [ ] Verify Dockerfile uses SQLite correctly (CGO_ENABLED=1)
+- [ ] Optimize multi-stage build
+- [ ] Test container startup and migrations
+- [ ] Document Docker usage in README
+
+**Files**: `Dockerfile`, `docker-compose.yml`, `README.md`
+
+**Deliverable**: Docker deployment is production-ready and documented.
+
+**Time**: 1 day
+
+---
+
+### Phase 10: Testing & Error Handling (REQUIREMENT: Testing & Error Handling)
+
+**Goal**: Comprehensive test coverage and proper error handling
+
+**Unit Tests:**
+- [ ] Domain layer tests (entities, validation)
+- [ ] Application service tests (with mocked repositories)
+- [ ] Validator tests
+
+**Integration Tests:**
+- [ ] Repository tests with real SQLite database
+- [ ] HTTP handler tests with full request/response
+- [ ] End-to-end tests covering all user flows
+
+**Error Handling:**
+- [ ] Handle all HTTP status codes correctly (400, 401, 403, 404, 409, 500)
+- [ ] Return proper JSON error responses
+- [ ] Log all 500 errors with context
+- [ ] Never expose internal errors to clients
+
+**Files**: `tests/unit/`, `tests/integration/`
+
+**Deliverable**: All core requirements have test coverage. Errors handled properly.
+
+**Time**: 3-4 days
+
+**🎉 CORE REQUIREMENTS COMPLETE** - All mandatory features implemented (22-28 days total)
+
+---
+
+## PART 3: BONUS FEATURES (from morefeats.md)
+
+Implement optional features after core requirements are complete.
+
+### Phase 11: [BONUS] Security (forum-security)
+
+**Goal**: Implement HTTPS/TLS, rate limiting, enhanced encryption
+
+**HTTPS/TLS:**
+- [ ] Generate SSL certificates (or use Let's Encrypt/autocert)
+- [ ] Configure TLS in HTTP server
+- [ ] Configure cipher suites
 - [ ] Test HTTPS connections
+- [ ] Force HTTPS redirect
 
-### 10.2 Rate Limiting
+**Rate Limiting:**
 - [ ] Implement per-IP rate limiting
 - [ ] Implement per-user rate limiting
 - [ ] Add rate limit middleware
-- [ ] Configure rate limit rules per endpoint
+- [ ] Configure limits per endpoint (e.g., login: 5/min, posts: 10/min)
 
-### 10.3 Security Headers
-- [ ] Add CSP headers
-- [ ] Add X-Frame-Options
-- [ ] Add X-Content-Type-Options
-- [ ] Add Strict-Transport-Security
+**Enhanced Security:**
+- [ ] Ensure UUID session tokens (already required in core)
+- [ ] Add security headers (CSP, X-Frame-Options, X-Content-Type-Options, HSTS)
+- [ ] CSRF protection
+- [ ] Input sanitization (XSS prevention)
+- [ ] Database encryption (optional bonus within bonus)
 
-### 10.4 CSRF Protection
-- [ ] Implement CSRF tokens
-- [ ] Add CSRF middleware
-- [ ] Validate CSRF on forms
+**Files**: `internal/platform/httpserver/middleware.go`, `internal/platform/config/config.go`
 
-**Estimated Time**: 2 days
+**Deliverable**: HTTPS with TLS, rate limiting, enhanced security.
 
----
-
-## Phase 11: Testing 🧪 NOT STARTED
-
-### 11.1 Unit Tests - NOT STARTED
-
-- [ ] Domain layer tests
-- [ ] Application service tests
-- [ ] Validator tests
-- [ ] Utility tests
-
-**Status**: Test stubs exist in `tests/unit/unit_test.go` with message "Unit tests will be implemented following TDD principles"
-
-### 11.2 Integration Tests - NOT STARTED
-
-- [ ] Repository tests with real database
-- [ ] Handler tests with HTTP requests
-- [ ] Module integration tests
-
-**Status**: Test stubs exist in `tests/integration/integration_test.go` with message "Integration tests will be implemented after core functionality"
-
-### 11.3 End-to-End Tests - NOT STARTED
-
-- [ ] User registration and login flow
-- [ ] Post creation and commenting flow
-- [ ] Reaction flow
-- [ ] Moderation flow
-
-**Status**: Not started
-
-**Estimated Time**: 3-4 days
+**Time**: 2-3 days
 
 ---
 
-## Phase 12: Documentation & Deployment 📚
+### Phase 12: [BONUS] Image Upload (forum-image-upload)
 
-### 12.1 Documentation
-- [ ] Update README with complete setup
-- [ ] Add API documentation
-- [ ] Add deployment guide
-- [ ] Add contribution guidelines
+**Goal**: Users can upload images (JPEG, PNG, GIF) with posts, max 20MB
 
-### 12.2 Docker
-- [ ] Optimize Dockerfile
-- [ ] Update docker-compose.yml
-- [ ] Test containerized deployment
-- [ ] Add health checks
+**Image Module:**
+- [ ] Image upload handler
+- [ ] Image validation (format: JPEG, PNG, GIF only)
+- [ ] Image size validation (max 20MB)
+- [ ] Generate unique filenames (UUID-based)
+- [ ] Store images in `static/uploads/`
+- [ ] Image deletion when post is deleted
 
-### 12.3 Final Polish
+**Post Module Updates:**
+- [ ] Add image_path field to Post entity
+- [ ] Update CreatePost to accept image upload
+- [ ] Update repository to store image path
+- [ ] Update templates to display images
+
+**Files**: `internal/modules/post/`, `static/uploads/`
+
+**Deliverable**: Users can create posts with images. Images validated and stored properly.
+
+**Time**: 1-2 days
+
+---
+
+### Phase 13: [BONUS] Moderation (forum-moderation)
+
+**Goal**: Implement user roles (Guest, User, Moderator, Admin) and moderation system
+
+**User Module - Roles:**
+- [ ] Update User entity with role field (Guest, User, Moderator, Admin)
+- [ ] Implement role-based authorization checks
+- [ ] Guest users: read-only access (already default)
+- [ ] User role: create, comment, react (already implemented)
+- [ ] Moderator role: delete content, create reports
+- [ ] Admin role: promote/demote users, manage categories, review reports
+
+**Moderation Module - Domain:**
+- [ ] Report entity (id, reporter_id, target_type, target_id, reason, status, admin_response)
+- [ ] Report statuses (Pending, Reviewed, Resolved)
+
+**Moderation Module - Repository:**
+- [ ] Implement report repository (sqlite_repository.go)
+  - [ ] CreateReport(report)
+  - [ ] GetReport(reportID)
+  - [ ] ListReports(status) - moderators/admins
+  - [ ] UpdateReportStatus(reportID, status, response)
+
+**Moderation Module - Application Service:**
+- [ ] Implement CreateReport use case (moderators only)
+- [ ] Implement ReviewReport use case (admins only)
+- [ ] Implement DeleteContent use case (moderators/admins)
+- [ ] Implement PromoteUser use case (admins only)
+- [ ] Implement DemoteUser use case (admins only)
+
+**Moderation Module - HTTP Handlers:**
+- [ ] POST /reports - create report (moderators)
+- [ ] GET /reports - list reports (moderators/admins)
+- [ ] PUT /reports/{id} - review report (admins)
+- [ ] DELETE /posts/{id} - moderator delete (moderators/admins)
+- [ ] DELETE /comments/{id} - moderator delete (moderators/admins)
+- [ ] POST /users/{id}/promote - promote user (admins)
+- [ ] POST /users/{id}/demote - demote user (admins)
+
+**User Module Updates:**
+- [ ] Request moderator role functionality
+
+**Frontend:**
+- [ ] Admin panel for user management
+- [ ] Moderator panel for reports
+- [ ] Report buttons on posts/comments
+
+**Files**: `internal/modules/moderation/`, `internal/modules/user/`
+
+**Deliverable**: Full moderation system with user roles and report handling.
+
+**Time**: 3-4 days
+
+---
+
+### Phase 14: [BONUS] Notifications (forum-advanced-features - Notifications)
+
+**Goal**: Notify users when their posts/comments are liked/disliked or commented
+
+**Notification Module - Domain:**
+- [ ] Notification entity (id, user_id, type, target_type, target_id, message, read, created_at)
+- [ ] Notification types (PostLiked, PostDisliked, PostCommented, CommentLiked, CommentDisliked)
+
+**Notification Module - Repository:**
+- [ ] Implement notification repository (sqlite_repository.go)
+  - [ ] Create(notification)
+  - [ ] GetByUser(userID, limit, offset)
+  - [ ] GetUnreadCount(userID)
+  - [ ] MarkAsRead(notificationID)
+  - [ ] MarkAllAsRead(userID)
+
+**Notification Module - Application Service:**
+- [ ] Implement CreateNotification use case
+- [ ] Implement GetUserNotifications use case
+- [ ] Implement MarkAsRead use case
+- [ ] Implement GetUnreadCount use case
+
+**Notification Module - HTTP Handlers:**
+- [ ] GET /notifications - list user's notifications (requires auth)
+- [ ] PUT /notifications/{id}/read - mark as read (requires auth)
+- [ ] PUT /notifications/read-all - mark all as read (requires auth)
+- [ ] GET /notifications/count - unread count (requires auth)
+
+**Integration:**
+- [ ] Trigger notification when post is liked/disliked
+- [ ] Trigger notification when post is commented
+- [ ] Trigger notification when comment is liked/disliked
+
+**Frontend:**
+- [ ] Notification bell icon with unread count
+- [ ] Notification list page
+
+**Files**: `internal/modules/notification/`
+
+**Deliverable**: Users receive notifications for reactions and comments.
+
+**Time**: 2-3 days
+
+---
+
+### Phase 15: [BONUS] Activity Tracking (forum-advanced-features - Activity Page)
+
+**Goal**: Activity page showing user's created posts, liked posts, comments
+
+**User Module - Application Service:**
+- [ ] Implement GetUserActivity use case
+  - [ ] Get user's created posts
+  - [ ] Get user's liked posts (via reaction module)
+  - [ ] Get user's comments (via comment module)
+
+**User Module - HTTP Handlers:**
+- [ ] GET /users/{id}/activity - activity page (public or auth-only, your choice)
+- [ ] GET /users/me/activity - current user's activity (requires auth)
+
+**Frontend:**
+- [ ] templates/user_activity.html - activity page showing:
+  - [ ] Created posts
+  - [ ] Liked/disliked posts
+  - [ ] Comments with links to parent posts
+
+**Files**: `internal/modules/user/`, `templates/user_activity.html`
+
+**Deliverable**: Activity page tracking user's posts, likes, and comments.
+
+**Time**: 1-2 days
+
+---
+
+### Phase 16: [BONUS] Edit/Remove Features (forum-advanced-features - Edit/Remove)
+
+**Goal**: Section to edit/remove posts and comments (already implemented in core, enhance UI)
+
+**Enhancement:**
+- [ ] Add dedicated "My Content" page showing user's posts and comments
+- [ ] Quick edit/delete actions from activity page
+- [ ] Confirmation dialogs for deletions
+
+**Frontend:**
+- [ ] templates/my_content.html - user's content management page
+- [ ] JavaScript confirmation dialogs (static/js/app.js)
+
+**Files**: `templates/my_content.html`, `static/js/app.js`
+
+**Deliverable**: Enhanced UI for editing/removing own content.
+
+**Time**: 1 day
+
+---
+
+### Phase 17: [BONUS] OAuth Authentication (authentication)
+
+**Goal**: Google and GitHub OAuth login
+
+**Auth Module - OAuth:**
+- [ ] Implement Google OAuth provider
+  - [ ] OAuth flow (redirect, callback, token exchange)
+  - [ ] Get user info from Google
+  - [ ] Create or link user account
+- [ ] Implement GitHub OAuth provider
+  - [ ] OAuth flow
+  - [ ] Get user info from GitHub
+  - [ ] Create or link user account
+
+**Auth Module - HTTP Handlers:**
+- [ ] GET /auth/google - initiate Google OAuth
+- [ ] GET /auth/google/callback - Google OAuth callback
+- [ ] GET /auth/github - initiate GitHub OAuth
+- [ ] GET /auth/github/callback - GitHub OAuth callback
+
+**Frontend:**
+- [ ] Add "Sign in with Google" button
+- [ ] Add "Sign in with GitHub" button
+
+**Files**: `internal/modules/auth/adapters/oauth_providers.go`, `internal/modules/auth/adapters/http_handler.go`
+
+**Deliverable**: Users can register/login with Google and GitHub OAuth.
+
+**Time**: 2-3 days
+
+---
+
+### Phase 18: Final Polish & Documentation
+
+**Goal**: Production-ready application with complete documentation
+
+**Code Quality:**
 - [ ] Code review and refactoring
 - [ ] Performance optimization
-- [ ] Error handling improvements
-- [ ] Logging improvements
+- [ ] Memory leak checks
+- [ ] Security audit
 
-**Estimated Time**: 2 days
+**Documentation:**
+- [ ] Update README.md with complete setup instructions
+- [ ] Add API documentation (endpoints, request/response formats)
+- [ ] Add deployment guide (Docker, production setup)
+- [ ] Add contribution guidelines
+- [ ] Document environment variables
+
+**Testing:**
+- [ ] Ensure all audit.md scenarios are covered by tests
+- [ ] Run full test suite
+- [ ] Fix any remaining bugs
+
+**Files**: `README.md`, `docs/API.md`, `docs/DEPLOYMENT.md`
+
+**Deliverable**: Production-ready forum with complete documentation.
+
+**Time**: 2-3 days
+
+**🎉 ALL FEATURES COMPLETE** - Full-featured forum with all bonus features
 
 ---
 
-## Total Estimated Time
+## Total Time Estimate
 
-**Core Features**: 25-30 days  
-**With Testing & Polish**: 30-35 days
+- **MVP (Part 1)**: 9-12 days
+- **Core Requirements Complete (Part 2)**: 22-28 days
+- **All Bonus Features (Part 3)**: 35-45 days
+
+---
 
 ## Current Progress Summary
 
@@ -534,22 +686,33 @@ This document outlines the step-by-step implementation plan for the Forum projec
 
 | Phase | Status | Completion |
 |-------|--------|------------|
-| Phase 1: Foundation | ⏳ In Progress (Scaffolding) | 5% |
-| Phase 2: Authentication | ❌ Not Started | 5% (structure only) |
-| Phase 3: User Module | ❌ Not Started | 5% (structure only) |
-| Phase 4: Post Module | ⏳ Partial | 10% (structure + stubs) |
-| Phase 5: Comment Module | ⏳ Partial | 10% (structure + stubs) |
-| Phase 6: Reaction Module | ⏳ Partial | 10% (structure + stubs) |
-| Phase 7: Notification Module | ⏳ Partial | 10% (structure + stubs) |
-| Phase 8: Moderation Module | ⏳ Partial | 10% (structure + stubs) |
-| Phase 9: Frontend | ❌ Not Started | 0% |
-| Phase 10: Security | ❌ Not Started | 0% |
-| Phase 11: Testing | ❌ Not Started | 0% |
-| Phase 12: Documentation | ⏳ Partial | 20% (docs exist) |
+| **PART 1: MVP** |
+| Phase 1: Platform Basics | ⏳ Scaffolding | 5% |
+| Phase 2: Authentication | ⏳ Scaffolding | 5% |
+| Phase 3: Posts - Create & View | ⏳ Scaffolding | 5% |
+| Phase 4: MVP Docker & Testing | ❌ Not Started | 0% |
+| **PART 2: CORE REQUIREMENTS** |
+| Phase 5: Categories & Association | ⏳ Scaffolding | 5% |
+| Phase 6: Comments | ⏳ Scaffolding | 5% |
+| Phase 7: Reactions | ⏳ Scaffolding | 5% |
+| Phase 8: Filtering | ❌ Not Started | 0% |
+| Phase 9: Docker Requirement | ⏳ Partial | 30% |
+| Phase 10: Testing & Error Handling | ⏳ Scaffolding | 5% |
+| **PART 3: BONUS FEATURES** |
+| Phase 11: Security [BONUS] | ❌ Not Started | 0% |
+| Phase 12: Image Upload [BONUS] | ❌ Not Started | 0% |
+| Phase 13: Moderation [BONUS] | ⏳ Scaffolding | 5% |
+| Phase 14: Notifications [BONUS] | ⏳ Scaffolding | 5% |
+| Phase 15: Activity Tracking [BONUS] | ❌ Not Started | 0% |
+| Phase 16: Edit/Remove UI [BONUS] | ❌ Not Started | 0% |
+| Phase 17: OAuth [BONUS] | ❌ Not Started | 0% |
+| Phase 18: Final Polish | ⏳ Docs Exist | 20% |
 
-## Known TODO Items by File
+---
 
-### Platform Layer
+## Known TODO Items by Module
+
+### Platform Layer (Phase 1)
 - `internal/platform/config/config.go`: Load() and Validate() are placeholders
 - `internal/platform/database/connection.go`: NewConnection() is placeholder
 - `internal/platform/database/migrator.go`: All methods (Migrate, Rollback, Version) are placeholders
@@ -560,85 +723,44 @@ This document outlines the step-by-step implementation plan for the Forum projec
 - `internal/platform/validator/validator.go`: Email validation, password strength, Sanitize(), SanitizeHTML() are TODOs
 - `internal/platform/errors/errors.go`: Error types defined, implementation complete
 
-### Auth Module
+### Auth Module (Phase 2)
 - `internal/modules/auth/domain/session.go`: Validate() method is TODO
 - `internal/modules/auth/application/service.go`: ALL 8 methods are TODO placeholders
 - `internal/modules/auth/adapters/http_handler.go`: ALL 4 handlers + helper methods are TODO placeholders
 - `internal/modules/auth/adapters/sqlite_session_repository.go`: ALL 7 methods are TODO placeholders
-- `internal/modules/auth/adapters/sqlite_user_repository.go`: ALL 4 methods are TODO placeholders
+- `internal/modules/auth/adapters/sqlite_user_repository.go`: ALL 10 methods are TODO placeholders
 
-### User Module
-- `internal/modules/user/domain/user.go`: HasPermission() is TODO
-- `internal/modules/user/adapters/sqlite_repository.go`: ALL 10 methods are TODO placeholders
-- `internal/modules/user/adapters/http_handler.go`: ALL 4 handlers are TODO placeholders
+### User Module (Phase 2-3)
+- `internal/modules/user/adapters/sqlite_repository.go`: ALL 10 methods have TODO placeholders
+- `internal/modules/user/application/service.go`: Service stub exists but no implementations
+- `internal/modules/user/adapters/http_handler.go`: ALL handlers are TODO placeholders
 
-### Post Module
-- `cmd/forum/main.go`: Line 112 - TODO: Add categoryRepo
-- `internal/modules/post/adapters/`: Methods exist but need implementation
-- `internal/modules/post/adapters/http_handler.go`: Methods exist but need implementation
+### Post Module (Phase 3, 5)
+- `internal/modules/post/adapters/sqlite_repository.go`: Stub methods exist, need implementation
+- `internal/modules/post/application/service.go`: Service structure exists but implementations incomplete
+- `internal/modules/post/adapters/http_handler.go`: Skeleton with stub methods
+- Category repository not yet created - noted as TODO in main.go
 
-### Comment Module
-- `internal/modules/comment/adapters/http_handler.go`: TODO note for routes: "POST /comments, GET /comments/{id}, PUT /comments/{id}, DELETE /comments/{id}"
-- `internal/modules/comment/adapters/sqlite_repository.go`: Methods exist but need implementation
+### Comment Module (Phase 6)
+- `internal/modules/comment/adapters/sqlite_repository.go`: Stub methods exist
+- `internal/modules/comment/application/service.go`: Service structure exists but implementations incomplete
+- `internal/modules/comment/adapters/http_handler.go`: Skeleton with TODO marker for routes
 
-### Reaction Module
-- `internal/modules/reaction/application/service.go`: ReactTo() returns nil (TODO), GetReactionCounts() returns 0, 0, nil (TODO)
-- `internal/modules/reaction/adapters/http_handler.go`: TODO note for routes: "POST /reactions, DELETE /reactions, GET /reactions"
-- `internal/modules/reaction/adapters/sqlite_repository.go`: Methods exist but need implementation
+### Reaction Module (Phase 7)
+- `internal/modules/reaction/adapters/sqlite_repository.go`: Stub methods exist
+- `internal/modules/reaction/application/service.go`: Methods returning TODO placeholders
+- `internal/modules/reaction/adapters/http_handler.go`: Skeleton with TODO marker for routes
 
-### Moderation Module [OPTIONAL]
-- `internal/modules/moderation/application/service.go`: CreateReport() returns nil (TODO), GetReport() returns nil (TODO)
-- `internal/modules/moderation/adapters/http_handler.go`: TODO note for routes: "POST /reports, GET /reports, PUT /reports/{id}"
-- `internal/modules/moderation/adapters/sqlite_repository.go`: Methods exist but need implementation
+### Notification Module [OPTIONAL] (Phase 14)
+- `internal/modules/notification/adapters/sqlite_repository.go`: Stub methods exist
+- `internal/modules/notification/application/service.go`: Stub methods with TODO markers
+- `internal/modules/notification/adapters/http_handler.go`: Basic structure exists
 
-### Notification Module [OPTIONAL]
-- `internal/modules/notification/application/service.go`: Methods exist but return nil with TODO
-- `internal/modules/notification/adapters/sqlite_repository.go`: Methods exist but need implementation
+### Moderation Module [OPTIONAL] (Phase 13)
+- `internal/modules/moderation/adapters/sqlite_repository.go`: Stub methods exist
+- `internal/modules/moderation/application/service.go`: Stub methods with TODO markers
+- `internal/modules/moderation/adapters/http_handler.go`: Skeleton with TODO marker for routes
 
-### Test Files
-- `tests/unit/unit_test.go`: Stub with message "Unit tests will be implemented following TDD principles"
-- `tests/integration/integration_test.go`: Stub with message "Integration tests will be implemented after core functionality"
-
-## Priority Order
-
-1. **Must Have** (Core Requirements):
-   - Phase 1: Foundation
-   - Phase 2: Authentication
-   - Phase 3: User Management
-   - Phase 4: Posts
-   - Phase 5: Comments
-   - Phase 6: Reactions
-   - Phase 9: Frontend
-
-2. **Should Have** (Enhanced Features):
-   - Phase 7: Notifications
-   - Phase 8: Moderation
-   - Phase 10: Security
-   - Phase 11: Testing
-
-3. **Nice to Have** (Bonus Features):
-   - OAuth integration
-   - Real-time notifications
-   - Advanced moderation tools
-   - Activity analytics
-
-## Implementation Tips
-
-1. **Test as you go**: Write tests immediately after implementing features
-2. **Commit frequently**: Small, focused commits with clear messages
-3. **Review architecture**: Ensure modules maintain clean boundaries
-4. **Use dependency injection**: Wire dependencies in main.go
-5. **Follow SOLID principles**: Keep classes/functions focused
-6. **Keep it simple**: Follow KISS principle
-7. **Document as you code**: Update documentation with changes
-8. **Run the app frequently**: Test manually during development
-
-## Getting Started
-
-Start with Phase 1 (Foundation) as all other phases depend on it. Then proceed sequentially, but you can parallelize some work:
-
-- Phases 4, 5, 6 can be partially parallelized (they're independent)
-- Phase 9 (Frontend) can start once Phase 4 (Posts) is functional
-- Phase 11 (Testing) should be done incrementally with each phase
-
-Good luck! 🚀
+### Testing (Phase 4, 10)
+- `tests/unit/unit_test.go`: Stub with message about TDD implementation
+- `tests/integration/integration_test.go`: Stub with message about implementation after core functionality

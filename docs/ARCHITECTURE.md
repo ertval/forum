@@ -1,584 +1,388 @@
-# Forum Application - Architecture Documentation
+# Forum Application - Architecture
 
 ## Overview
 
-This forum application is built as a **Modular Monolith** with each module following **Hexagonal Architecture** (Ports and Adapters) principles. The architecture is designed to be AI-agent-friendly, maintainable, testable, and follows Go's idiomatic patterns.
+A modular monolith web forum built with Go, following **Hexagonal Architecture** (Ports and Adapters). Clean boundaries, testable components, idiomatic Go.
 
-## ⚠️ Implementation Status
+## Core Principles
 
-**Current State**: Architecture and structure are complete (~10% overall completion). Most implementations are placeholder code with TODO comments.
+### Go Philosophy
+- **Simplicity**: Straightforward solutions over clever tricks
+- **Readability**: Code clarity over brevity
+- **Explicitness**: No hidden magic or implicit behavior
+- **Minimalism**: Minimal dependencies and abstractions
+- **Composition**: Build complexity through composition
 
-**What Exists**:
-- ✅ Complete module scaffolding following hexagonal architecture
-- ✅ All domain entities and interfaces defined
-- ✅ Database migration files created
-- ✅ Dependency injection wiring in main.go
-- ✅ Error types and validation structures defined
+### SOLID + KISS
+- Single Responsibility: One reason to change per component
+- Interface Segregation: Small, focused interfaces
+- Dependency Inversion: Depend on abstractions
+- **Keep It Simple**: Simplest solution that works
 
-**What's Pending**:
-- ⏳ Platform service implementations (config, database, logger, HTTP server)
-- ⏳ Repository implementations (all have TODO placeholders)
-- ⏳ Service layer business logic (all have TODO placeholders)
-- ⏳ HTTP handlers (all have TODO placeholders)
-- ❌ Tests (stub files exist with placeholder messages)
+---
 
-For detailed implementation tracking, see [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)
+## Architecture Pattern: Hexagonal (Ports & Adapters)
 
-## Architectural Principles
-
-### Go's Five Principles
-1. **Simplicity**: Keep solutions simple and straightforward
-2. **Readability**: Code should be easy to read and understand
-3. **Explicitness**: Make behavior explicit, avoid hidden magic
-4. **Minimalism**: Use minimal dependencies and abstractions
-5. **Composition**: Build complex behavior through composition
-
-### SOLID Principles
-1. **Single Responsibility**: Each module/component has one reason to change
-2. **Open/Closed**: Open for extension, closed for modification
-3. **Liskov Substitution**: Subtypes must be substitutable for their base types
-4. **Interface Segregation**: Many specific interfaces better than one general
-5. **Dependency Inversion**: Depend on abstractions, not concretions
-
-### KISS Principle
-**Keep It Simple, Stupid**: Favor simple solutions over complex ones
-
-## Project Structure
+### The Hexagon
 
 ```
-forum/
-├── cmd/
-│   └── forum/                 # Application entry point
-│       └── main.go           # Bootstrap and dependency injection
-├── internal/
-│   ├── modules/              # Business modules (core + optional)
-│   │   ├── auth/            # [CORE] Authentication & session management
-│   │   ├── user/            # [CORE] User management & roles
-│   │   ├── post/            # [CORE] Posts & categories
-│   │   ├── comment/         # [CORE] Comment management
-│   │   ├── reaction/        # [CORE] Likes & dislikes
-│   │   ├── moderation/      # [OPTIONAL] Forum moderation system
-│   │   └── notification/    # [OPTIONAL] User notifications
-│   └── platform/            # Shared infrastructure
-│       ├── database/        # Database connection & migrations
-│       ├── config/          # Configuration management
-│       ├── logger/          # Structured logging
-│       ├── httpserver/      # HTTP server & middleware
-│       ├── errors/          # Common error types
-│       └── validator/       # Input validation
-├── migrations/              # Database migrations (organized by module)
-├── static/                  # Static assets (CSS, JS, images)
-│   ├── css/
-│   ├── js/
-│   └── uploads/
-├── templates/               # HTML templates
-├── tests/
-│   ├── integration/         # Integration tests
-│   └── unit/               # Unit tests
-├── docker-compose.yml       # Docker Compose configuration
-├── Dockerfile              # Multi-stage Docker build
-├── .gitignore
-├── LICENSE
-├── ARCHITECTURE.md         # This file
-└── README.md              # Project overview & setup
+                    ┌─────────────────────────┐
+                    │   HTTP Handlers (IN)    │
+                    │   CLI Commands (IN)     │
+                    └───────────┬─────────────┘
+                                │
+                    ┌───────────▼─────────────┐
+                    │    INPUT PORTS          │
+                    │  (Service Interfaces)   │
+                    └───────────┬─────────────┘
+                                │
+            ┌───────────────────▼───────────────────┐
+            │          DOMAIN CORE                  │
+            │   • Entities                          │
+            │   • Business Rules                    │
+            │   • Domain Logic                      │
+            │   • NO external dependencies          │
+            └───────────────────┬───────────────────┘
+                                │
+                    ┌───────────▼─────────────┐
+                    │   OUTPUT PORTS          │
+                    │ (Repository Interfaces) │
+                    └───────────┬─────────────┘
+                                │
+                    ┌───────────▼─────────────┐
+                    │  SQLite Repos (OUT)     │
+                    │  External APIs (OUT)    │
+                    └─────────────────────────┘
 ```
 
-## Module Structure (Hexagonal Architecture)
+### What This Means
 
-Each module follows this flattened structure with exactly 4 directories:
+**Domain Core** = Business logic with zero external dependencies
+**Ports** = Interfaces (contracts) that define how to interact with the core
+**Adapters** = Concrete implementations that plug into ports
+
+**Data Flow**: HTTP Request → Input Adapter (Handler) → Input Port (Service Interface) → Application Service → Domain Logic → Output Port (Repository Interface) → Output Adapter (SQLite) → Database
+
+---
+
+## Module Structure
+
+Every module follows this **exact 4-directory layout**:
 
 ```
 module/
-├── domain/                  # Core business logic & entities
-│   ├── entity.go           # Domain entities with business rules
-│   ├── value_object.go     # Immutable value objects
-│   ├── repository.go       # Repository interface (output port)
-│   └── errors.go           # Domain-specific errors
-├── ports/                   # Interface definitions
-│   ├── service.go          # Service interface (input port) - defines use cases
-│   └── repository.go       # Repository interface (output port) - data access contract
-├── application/             # Application services (orchestration)
-│   └── service.go          # Service implementation - business logic orchestration
-└── adapters/               # Interface implementations
-    ├── http_handler.go     # [INPUT] HTTP/REST API handlers
-    ├── sqlite_repository.go # [OUTPUT] SQLite database implementation
-    └── external_api.go     # [OUTPUT] External API clients (if needed)
+├── domain/          # Pure business logic (no imports except stdlib)
+│   ├── entity.go    # Domain entities with validation
+│   └── errors.go    # Domain-specific errors
+│
+├── ports/           # Interface definitions
+│   ├── service.go   # INPUT PORT - Use case definitions
+│   └── repository.go # OUTPUT PORT - Data access contract
+│
+├── application/     # Orchestration layer
+│   └── service.go   # Implements ports/service.go
+│                    # Uses ports/repository.go
+│
+└── adapters/        # Technical implementations (flat, no subdirs)
+    ├── http_handler.go       # INPUT - HTTP endpoints
+    └── sqlite_repository.go  # OUTPUT - Database access
 ```
 
-### Port Types (Noted as Comments)
+### Port/Adapter Markers
 
-Each file in `ports/` and `adapters/` includes a comment at the top indicating its type:
-
-- **INPUT PORT**: Defines use cases (service interfaces)
-- **OUTPUT PORT**: Defines data access contracts (repository interfaces)
-- **INPUT ADAPTER**: HTTP handlers, CLI, gRPC servers
-- **OUTPUT ADAPTER**: Database implementations, external APIs
-
-### Key Concepts
-
-#### Domain Layer
-- **Pure business logic** with no external dependencies
-- Contains entities, value objects, and domain errors
-- Defines repository interfaces (output ports)
-- No knowledge of HTTP, databases, or frameworks
-
-#### Ports
-- **Input Ports**: Service interfaces defining use cases
-- **Output Ports**: Repository interfaces for data access
-- Abstract interfaces that the domain depends on
-
-#### Application Layer
-- **Orchestrates** domain logic to implement use cases
-- Depends on domain entities and port interfaces
-- Implements input ports (service interfaces)
-- Uses output ports (repository interfaces) via dependency injection
-
-#### Adapters
-- **Input Adapters**: HTTP handlers, CLI commands, gRPC services
-- **Output Adapters**: Database repositories, external API clients
-- Implement port interfaces
-- Handle technical details (HTTP, SQL, JSON)
-
-## Module Descriptions
-
-### Core Modules (Required) - Structure Complete, Implementation Pending
-
-#### 1. Auth Module - **Status: NOT STARTED (5% - Structure Only)**
-
-**Purpose**: Authentication and session management
-
-**Responsibilities**:
-- User registration (email, username, password)
-- User login/logout
-- Session management with UUID-based cookies
-- Password encryption (bcrypt)
-- Session expiration handling
-
-**Key Entities**: Session (defined in `domain/session.go`)
-
-**Ports**:
-- Input: AuthService (Register, Login, Logout, ValidateSession)
-- Output: SessionRepository
-
-**Implementation Status**:
-- ✅ Domain entity `Session` defined
-- ✅ Ports interfaces defined in `ports/service.go` and `ports/repository.go`
-- ⏳ Application service skeleton exists - all methods have TODO placeholders
-- ⏳ Repositories exist - all methods have TODO placeholders
-- ⏳ HTTP handlers exist - all handlers have TODO placeholders
-
-**Files with TODOs**:
-- `application/service.go`: All 8 methods (Register, Login, Logout, ValidateSession, RefreshSession, GetSession, generateToken, hashPassword, comparePassword)
-- `adapters/sqlite_session_repository.go`: All 7 methods
-- `adapters/sqlite_user_repository.go`: All 4 methods
-- `adapters/http_handler.go`: All 4 handlers + helper methods
-
----
-
-#### 2. User Module - **Status: NOT STARTED (5% - Structure Only)**
-
-**Purpose**: User management and roles
-
-**Responsibilities**:
-- User profile management
-- User role assignment (Guest, User, Moderator, Admin)
-- User permissions
-- User activity tracking
-
-**Key Entities**: User (defined), Role (defined)
-
-**Ports**:
-- Input: UserService (CreateUser, GetUser, UpdateUser, AssignRole)
-- Output: UserRepository
-
-**Implementation Status**:
-- ✅ Domain entities defined
-- ✅ Ports interfaces defined
-- ⏳ Application service skeleton exists
-- ⏳ Repository exists - all 10 methods have TODO placeholders
-- ⏳ HTTP handlers exist - all 4 handlers have TODO placeholders
-
-**Files with TODOs**:
-- `domain/user.go`: HasPermission() method is TODO
-- `adapters/sqlite_repository.go`: All 10 methods
-- `adapters/http_handler.go`: All 4 handlers
-
----
-
-#### 3. Post Module - **Status: PARTIAL (10% - Structure + Stubs)**
-
-**Purpose**: Posts and categories management
-
-**Responsibilities**:
-- Create, read, update, delete posts
-- Category management
-- Associate posts with categories
-- Image upload (JPEG, PNG, GIF, max 20MB)
-- Post filtering (by category, by user, by liked)
-
-**Key Entities**: Post, Category
-
-**Ports**:
-- Input: PostService (CreatePost, GetPost, UpdatePost, DeletePost, FilterPosts)
-- Output: PostRepository, CategoryRepository
-
-**Implementation Status**:
-- ✅ Domain entities defined
-- ✅ Ports interfaces defined
-- ✅ Repository skeleton created with stub methods
-- ⏳ CategoryRepository not yet created (noted in main.go line 112)
-- ⏳ Application service skeleton exists
-- ⏳ HTTP handlers exist with stubs
-
-**Files with TODOs**:
-- `cmd/forum/main.go`: Line 112 - TODO: Add categoryRepo
-- Repository and handler methods need implementation
-
----
-
-#### 4. Comment Module - **Status: PARTIAL (10% - Structure + Stubs)**
-
-**Purpose**: Comment management
-
-**Responsibilities**:
-- Create, read, update, delete comments
-- Associate comments with posts
-- View comment threads
-
-**Key Entities**: Comment
-
-**Ports**:
-- Input: CommentService (CreateComment, GetComment, UpdateComment, DeleteComment)
-- Output: CommentRepository
-
-**Implementation Status**:
-- ✅ Domain entity defined
-- ✅ Ports interfaces defined
-- ✅ Repository skeleton created with stub methods
-- ✅ Application service skeleton exists
-- ⏳ HTTP handlers have TODO note for routes
-
-**Files with TODOs**:
-- `adapters/http_handler.go`: TODO note "POST /comments, GET /comments/{id}, PUT /comments/{id}, DELETE /comments/{id}"
-
----
-
-#### 5. Reaction Module - **Status: PARTIAL (10% - Structure + Stubs)**
-
-**Purpose**: Likes and dislikes for posts and comments
-
-**Responsibilities**:
-- Like/unlike posts and comments
-- Dislike/undislike posts and comments
-- View reaction counts
-- Track user reactions
-
-**Key Entities**: Reaction
-
-**Ports**:
-- Input: ReactionService (React, GetReactions, CountReactions)
-- Output: ReactionRepository
-
-**Implementation Status**:
-- ✅ Domain entity defined
-- ✅ Ports interfaces defined
-- ✅ Repository skeleton created with stub methods
-- ⏳ Application service methods return TODO placeholders
-- ⏳ HTTP handlers have TODO note for routes
-
-**Files with TODOs**:
-- `application/service.go`: ReactTo() returns nil (TODO), GetReactionCounts() returns 0, 0, nil (TODO)
-- `adapters/http_handler.go`: TODO note "POST /reactions, DELETE /reactions, GET /reactions"
-
----
-
-### Optional Modules (Extra Features) - Structure Complete, Implementation Pending
-
-#### 6. Moderation Module [OPTIONAL] - **Status: PARTIAL (10% - Structure + Stubs)**
-
-**Purpose**: Forum moderation system
-
-**Responsibilities**:
-- Report posts and comments
-- Review and handle reports
-- Delete inappropriate content
-- Promote/demote moderators
-- Admin actions
-
-**Key Entities**: Report, ModerationAction
-
-**Ports**:
-- Input: ModerationService (CreateReport, ReviewReport, DeleteContent, PromoteUser)
-- Output: ReportRepository
-
-**Requirements**: forum-moderation feature
-
-**Implementation Status**:
-- ✅ Domain entities defined
-- ✅ Ports interfaces defined
-- ✅ Repository skeleton created with stub methods
-- ⏳ Application service methods return TODO placeholders
-- ⏳ HTTP handlers have TODO note for routes
-
-**Files with TODOs**:
-- `application/service.go`: CreateReport() returns nil (TODO), GetReport() returns nil (TODO)
-- `adapters/http_handler.go`: TODO note "POST /reports, GET /reports, PUT /reports/{id}"
-
----
-
-#### 7. Notification Module [OPTIONAL] - **Status: PARTIAL (10% - Structure + Stubs)**
-
-**Purpose**: User notifications
-
-**Responsibilities**:
-- Notify users on post likes/dislikes
-- Notify users on new comments
-- Mark notifications as read
-- Real-time notification delivery
-
-**Key Entities**: Notification
-
-**Ports**:
-- Input: NotificationService (CreateNotification, GetNotifications, MarkAsRead)
-- Output: NotificationRepository
-
-**Requirements**: forum-advanced-features
-
-**Implementation Status**:
-- ✅ Domain entity defined
-- ✅ Ports interfaces defined
-- ✅ Repository skeleton created with stub methods
-- ⏳ Application service methods return TODO placeholders
-- ✅ HTTP handlers skeleton exists
-
-**Files with TODOs**:
-- `application/service.go`: Methods exist but return nil with TODO
-- `adapters/sqlite_repository.go`: Methods exist but need implementation
-
----
-
-## Module Descriptions
-
-## Platform (Shared Infrastructure)
-
-### Database - **Status: NOT STARTED (Structure only)**
-
-- SQLite connection management
-- Migration execution
-- Transaction handling
-- Connection pooling
-
-**Files with TODOs**:
-- `internal/platform/database/connection.go`: NewConnection() is placeholder
-- `internal/platform/database/migrator.go`: All methods (Migrate, Rollback, Version) are placeholders
-- `internal/platform/database/transaction.go`: BeginTx() is placeholder
-
-### Config - **Status: NOT STARTED (Structure only)**
-
-- Environment variable loading
-- Configuration validation
-- Feature flags
-
-**Files with TODOs**:
-- `internal/platform/config/config.go`: Load() and Validate() are placeholders
-
-### Logger - **Status: NOT STARTED (Structure only)**
-
-- Structured logging (JSON format)
-- Log levels (DEBUG, INFO, WARN, ERROR)
-- Request/response logging
-
-**Files with TODOs**:
-- `internal/platform/logger/logger.go`: All 4 methods (Debug, Info, Warn, Error) are placeholders
-
-### HTTP Server - **Status: NOT STARTED (Structure only)**
-
-- HTTP server setup
-- Middleware chain
-- Route registration
-- TLS/HTTPS support
-
-**Files with TODOs**:
-- `internal/platform/httpserver/server.go`: New(), RegisterRoutes(), Start(), Shutdown() are placeholders
-- `internal/platform/httpserver/middleware.go`: All 6 middleware functions are placeholders
-
-### Errors - **Status: COMPLETE**
-
-- Common error types
-- Error wrapping
-- HTTP status mapping
-- Error responses
-
-**Status**: ✅ Complete - `internal/platform/errors/errors.go` is implemented
-
-### Validator - **Status: PARTIAL**
-
-- Input validation
-- Sanitization
-- Business rule validation
-
-**Files with TODOs**:
-- `internal/platform/validator/validator.go`: Email validation, password strength, Sanitize(), SanitizeHTML() have TODO markers
-
----
-
-## Platform (Shared Infrastructure)
-
-## Dependency Flow
-
-```
-HTTP Request
-    ↓
-Input Adapter (HTTP Handler)
-    ↓
-Input Port (Service Interface)
-    ↓
-Application Service
-    ↓
-Domain Logic
-    ↓
-Output Port (Repository Interface)
-    ↓
-Output Adapter (Database Repository)
-    ↓
-Database
-```
-
-## Module Communication
-
-Modules communicate through their **exposed service interfaces** (input ports):
-
-- **Direct**: Module A imports Module B's service interface
-- **Event-Driven**: Modules publish/subscribe to domain events (future enhancement)
-- **NO direct imports** of internal implementation details
-
-### Example
+Every file in `ports/` and `adapters/` has a header comment:
 
 ```go
-// post module needs to verify user exists
-// BAD: import "forum/internal/modules/user/adapters"
-// GOOD: import "forum/internal/modules/user/ports"
+// INPUT PORT - Service Interface
+// OUTPUT PORT - Repository Interface
+// INPUT ADAPTER - HTTP Handler
+// OUTPUT ADAPTER - SQLite Repository
+```
+
+This makes navigation and understanding instant.
+
+---
+
+## Modules
+
+### Core Modules (Required)
+1. **auth** - Registration, login, sessions
+2. **user** - User profiles, roles
+3. **post** - Create/read/update/delete posts, categories
+4. **comment** - Comments on posts
+5. **reaction** - Like/dislike posts and comments
+
+### Optional Modules
+6. **moderation** - Reports, content moderation, role management
+7. **notification** - User notifications for interactions
+
+---
+
+## Dependency Rules
+
+### Layer Dependencies (Strict)
+
+```
+┌──────────────┐
+│  adapters    │  ─┐
+└──────────────┘   │
+                   ├─► Can import: domain, ports
+┌──────────────┐   │
+│ application  │  ─┘
+└──────────────┘
+
+┌──────────────┐
+│    ports     │  ───► Can import: domain only
+└──────────────┘
+
+┌──────────────┐
+│   domain     │  ───► Can import: NOTHING (only stdlib)
+└──────────────┘
+```
+
+### Module Communication
+
+Modules talk via **service interfaces** only:
+
+```go
+// ✅ GOOD: Import service interface
+import "forum/internal/modules/user/ports"
 
 type PostService struct {
-    userService ports.UserService // Depend on interface
+    userService ports.UserService
 }
+
+// ❌ BAD: Import internal implementation
+import "forum/internal/modules/user/adapters"
 ```
+
+---
 
 ## Dependency Injection
 
-All modules are wired together at the application bootstrap level (`cmd/forum/main.go`):
+All wiring happens in `cmd/forum/main.go`:
 
-1. Initialize platform services (database, logger, config)
-2. Create repositories (output adapters)
-3. Create services (application layer) with injected dependencies
-4. Create HTTP handlers (input adapters) with injected services
-5. Register routes and start server
+```go
+func main() {
+    // 1. Platform services
+    cfg := config.Load()
+    db := database.New(cfg.DB)
+    lgr := logger.New(cfg.Log)
+    
+    // 2. Repositories (output adapters)
+    userRepo := user.NewSQLiteRepository(db)
+    postRepo := post.NewSQLiteRepository(db)
+    
+    // 3. Services (application layer)
+    userSvc := user.NewService(userRepo, lgr)
+    postSvc := post.NewService(postRepo, userSvc, lgr)
+    
+    // 4. HTTP handlers (input adapters)
+    userHandler := user.NewHTTPHandler(userSvc, lgr)
+    postHandler := post.NewHTTPHandler(postSvc, lgr)
+    
+    // 5. Register routes
+    router := httpserver.New()
+    userHandler.RegisterRoutes(router)
+    postHandler.RegisterRoutes(router)
+    
+    // 6. Start server
+    router.Start(":8080")
+}
+```
+
+No magic frameworks. Everything explicit.
+
+---
+
+## Platform Services
+
+Shared infrastructure in `internal/platform/`:
+
+- **config** - Environment variable loading
+- **database** - SQLite connection, migrations, transactions
+- **logger** - Structured logging (JSON output)
+- **httpserver** - HTTP server wrapper with middleware
+- **errors** - Common error types with HTTP status mapping
+- **validator** - Input validation and sanitization
+
+---
+
+## Database Design
+
+### Technology: SQLite
+
+Simple, embedded, single-file database. Perfect for this use case.
+
+### Migrations
+
+Sequential numbered SQL files in `migrations/`:
+
+```
+001_auth_create_sessions.sql
+002_user_create_users.sql
+003_post_create_tables.sql
+004_comment_create_comments.sql
+005_reaction_create_reactions.sql
+```
+
+Each migration has `-- +migrate Up` and `-- +migrate Down` sections.
+
+### Key Patterns
+
+- Foreign keys with `ON DELETE CASCADE`
+- Indexes on frequently queried columns (user_id, post_id, session_token)
+- Timestamps (created_at, updated_at) on all entities
+- Soft deletes where appropriate
+
+---
+
+## Error Handling
+
+### Two-Layer System
+
+**Domain Errors** (simple):
+```go
+// internal/modules/auth/domain/errors.go
+var ErrSessionExpired = errors.New("session has expired")
+```
+
+**Platform Errors** (structured):
+```go
+// internal/platform/errors/errors.go
+return errors.Wrap(err, errors.ErrCodeInternal, "failed to create session")
+```
+
+HTTP handlers map errors to status codes:
+- Domain `ErrNotFound` → 404
+- Domain `ErrUnauthorized` → 401
+- Platform `ErrCodeValidation` → 400
+- Platform `ErrCodeInternal` → 500
+
+---
 
 ## Testing Strategy
 
 ### Unit Tests
-- Domain logic (pure functions, entities)
-- Application services (mock repositories)
-- Located in each module's directory
+- Domain logic (pure functions, business rules)
+- Application services with mocked repositories
+- Location: Each module's directory (`*_test.go`)
 
 ### Integration Tests
 - HTTP handlers with real database
 - End-to-end workflows
-- Located in `tests/integration/`
+- Location: `tests/integration/`
 
-### Test Structure
-```
-module/
-├── domain/
-│   └── entity_test.go
-├── application/
-│   └── service_test.go
-└── adapters/
-    └── http_handler_test.go
-```
-
-## Database Design
-
-### Migration Strategy
-- SQL migrations in `migrations/` directory
-- Numbered sequentially (001_, 002_, etc.)
-- Organized by module
-- Run at application startup
-
-### Key Tables
-- **sessions**: User sessions (auth module)
-- **users**: User accounts (user module)
-- **roles**: User roles (user module)
-- **posts**: Forum posts (post module)
-- **categories**: Post categories (post module)
-- **post_categories**: Many-to-many relationship (post module)
-- **comments**: Post comments (comment module)
-- **reactions**: Likes/dislikes (reaction module)
-- **reports**: Moderation reports (moderation module - optional)
-- **notifications**: User notifications (notification module - optional)
-
-## Security Considerations
-
-1. **Authentication**: bcrypt password hashing, secure session management
-2. **Authorization**: Role-based access control (RBAC)
-3. **Input Validation**: Sanitize and validate all user input
-4. **SQL Injection**: Parameterized queries only
-5. **XSS Prevention**: HTML template escaping
-6. **CSRF Protection**: CSRF tokens for state-changing operations
-7. **Rate Limiting**: Prevent abuse (platform/httpserver)
-8. **HTTPS/TLS**: Encrypt data in transit
-
-## AI Agent Optimization
-
-This architecture is optimized for AI agent collaboration:
-
-### Clear Module Boundaries
-- Each module has a single, well-defined responsibility
-- Easy to understand scope and context
-
-### Consistent Patterns
-- Every module follows the same structure
-- Predictable file locations and naming
-
-### Explicit Dependencies
-- Ports clearly define contracts
-- No hidden dependencies or magic
-
-### Self-Documenting Code
-- File names and structure explain purpose
-- Comments explain "why", code explains "how"
-
-### Small, Focused Files
-- Single Responsibility Principle applied to files
-- Easy to understand and modify
-
-### Type-Safe Interfaces
-- Leverage Go's type system
-- Compile-time guarantees
-
-## Future Enhancements
-
-1. **Event-Driven Architecture**: Introduce domain events for loose coupling
-2. **CQRS**: Separate read and write models for complex queries
-3. **Caching**: Redis for session storage and query caching
-4. **Message Queue**: Background job processing
-5. **Observability**: Metrics, tracing, and monitoring
-6. **API Versioning**: Support multiple API versions
-
-## References
-
-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
-- [Effective Go](https://go.dev/doc/effective_go)
-- [Go Project Layout](https://github.com/golang-standards/project-layout)
-- [SOLID Principles](https://en.wikipedia.org/wiki/SOLID)
-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+### Repository Tests
+- Test against in-memory SQLite (`:memory:`)
+- Verify SQL queries work correctly
 
 ---
 
-**Last Updated**: November 3, 2025
+## Configuration
 
-**Project Status**: 10% Complete - Architecture & Structure Phase
+All config in `internal/platform/config/config.go`. Loaded from environment variables with sane defaults.
 
-**Next Steps**: Begin implementing Phase 1 (Foundation - Platform Services) as outlined in [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)
+```env
+# Server
+PORT=8080
+ENVIRONMENT=development
 
-````
+# Database
+DB_PATH=./forum.db
+
+# Session
+SESSION_DURATION=24h
+
+# Security
+RATE_LIMIT_REQUESTS=100
+RATE_LIMIT_WINDOW=1m
+```
+
+No config files, no external config libraries. Simple env vars.
+
+---
+
+## HTTP Server & Middleware
+
+Standard library `http.ServeMux` wrapped for convenience.
+
+### Middleware Chain (Global)
+
+1. **Recovery** - Panic handling
+2. **Logger** - Request/response logging
+3. **CORS** - Cross-origin headers
+4. **RateLimit** - Request throttling
+
+### HTTP Status Code Conventions
+
+- `200 OK` - Successful GET
+- `201 Created` - Successful POST (create resource)
+- `204 No Content` - Successful DELETE
+- `400 Bad Request` - Invalid input
+- `401 Unauthorized` - Missing/invalid session
+- `403 Forbidden` - Insufficient permissions
+- `404 Not Found` - Resource doesn't exist
+- `409 Conflict` - Duplicate email/username
+- `413 Payload Too Large` - File too large
+- `429 Too Many Requests` - Rate limit exceeded
+- `500 Internal Server Error` - Unexpected error
+
+---
+
+## Security Features
+
+- **HTTPS/TLS** - TLS 1.2+, strong ciphers
+- **Password Hashing** - bcrypt with cost factor 12
+- **Session Management** - UUID tokens, HttpOnly cookies, server-side storage
+- **Rate Limiting** - Per-IP and per-user limits
+- **Input Validation** - Email format, password strength, data sanitization
+- **CSRF Protection** - CSRF tokens on state-changing operations
+- **Security Headers** - CSP, X-Frame-Options, HSTS
+
+---
+
+## Build & Deployment
+
+### Local Development
+```bash
+go run cmd/forum/main.go
+```
+
+### Docker
+```bash
+docker-compose up --build
+```
+
+Multi-stage Dockerfile:
+1. Build stage (compile binary)
+2. Runtime stage (minimal alpine image)
+
+**Important**: Requires `CGO_ENABLED=1` for SQLite.
+
+---
+
+## Key Design Decisions
+
+### Why SQLite?
+Simple, embedded, zero-config. Perfect for learning and small-medium forums. Can migrate to Postgres later without changing much code (thanks to repository pattern).
+
+### Why No ORM?
+ORMs hide SQL and add complexity. Raw SQL with `database/sql` is explicit, performant, and idiomatic Go.
+
+### Why Flat Adapters?
+Prevents over-engineering. One handler file, one repository file per module. Easy to find, easy to understand.
+
+### Why Manual DI?
+No magic. Every dependency is visible in `main.go`. Easy to trace, easy to debug.
+
+### Why Hexagonal Architecture?
+Testability + flexibility. Swap SQLite for Postgres? Change only the repository adapter. Add gRPC API? Add a new input adapter. Core logic untouched.
+
+---
+
+## References
+
+- [Go Project Layout](https://github.com/golang-standards/project-layout)
+- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+- [Effective Go](https://go.dev/doc/effective_go)
