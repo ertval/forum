@@ -1,177 +1,308 @@
-# Forum Web Application
+# Forum - Modular Monolith Web Application
 
-A web forum application built with Go that allows users to communicate through posts and comments, with support for categories, likes/dislikes, and filtering capabilities.
+A modern web forum application built with Go, following Hexagonal Architecture principles and organized as a Modular Monolith. This project implements authentication, posts, comments, reactions, moderation, and notification systems with a focus on clean architecture, maintainability, and AI-agent-friendly structure.
 
-## Features
+## 🏗️ Architecture
 
-- User authentication (registration and login with session management)
-- Create posts with multiple categories
-- Comment on posts
-- Like and dislike posts and comments
-- Filter posts by categories, created posts, and liked posts
-- Session management with cookies
-- SQLite database for data persistence
-- Dockerized deployment
+This project follows a **Modular Monolith** architecture with **Hexagonal Architecture** (Ports and Adapters) for each module. For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
-## Project Structure
+### Key Principles
+
+- **Go's Five Principles**: Simplicity, Readability, Explicitness, Minimalism, Composition
+- **SOLID Principles**: Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion
+- **KISS**: Keep It Simple, Stupid
+
+## 📁 Project Structure
 
 ```
 forum/
 ├── cmd/
-│   └── forum/
-│       └── main.go              # Application entry point
+│   └── forum/                 # Application entry point
+│       └── main.go           # Bootstrap and dependency injection
 ├── internal/
-│   ├── server/
-│   │   ├── server.go           # HTTP server setup and lifecycle management
-│   │   └── router.go           # Route registration and middleware configuration
-│   ├── database/
-│   │   ├── db.go               # Database connection and initialization
-│   │   ├── migrations.go       # Database migration logic
-│   │   └── schema.sql          # SQL schema definitions
-│   ├── models/
-│   │   ├── user.go             # User model and operations
-│   │   ├── post.go             # Post model and operations
-│   │   ├── comment.go          # Comment model and operations
-│   │   ├── category.go         # Category model and operations
-│   │   ├── session.go          # Session model and operations
-│   │   └── reaction.go         # Like/Dislike model and operations
-│   ├── handlers/
-│   │   ├── auth.go             # Authentication handlers (register, login, logout)
-│   │   ├── post.go             # Post handlers (create, view, list)
-│   │   ├── comment.go          # Comment handlers
-│   │   ├── reaction.go         # Like/Dislike handlers
-│   │   └── filter.go           # Filter handlers
-│   ├── middleware/
-│   │   ├── auth.go             # Authentication middleware
-│   │   ├── session.go          # Session management middleware
-│   │   └── error.go            # Error handling middleware
-│   └── templates/
-│       ├── base.html           # Base HTML template
-│       ├── home.html           # Home page template
-│       ├── register.html       # Registration page template
-│       ├── login.html          # Login page template
-│       ├── post.html           # Post view template
-│       └── create_post.html    # Create post template
-├── static/
-│   ├── css/
-│   │   └── style.css           # Application styles
-│   └── js/
-│       └── app.js              # Client-side JavaScript
+│   ├── modules/              # Business modules (hexagonal architecture)
+│   │   ├── auth/            # Authentication & session management
+│   │   ├── user/            # User management & roles
+│   │   ├── post/            # Posts & categories
+│   │   ├── comment/         # Comment management
+│   │   ├── reaction/        # Likes & dislikes
+│   │   ├── moderation/      # Forum moderation
+│   │   └── notification/    # User notifications
+│   └── platform/            # Shared infrastructure
+│       ├── database/        # Database connection & migrations
+│       ├── config/          # Configuration management
+│       ├── logger/          # Structured logging
+│       ├── httpserver/      # HTTP server & middleware
+│       ├── errors/          # Common error types
+│       └── validator/       # Input validation
+├── migrations/              # Database migrations (organized by module)
+├── static/                  # Static assets (CSS, JS, images)
 ├── tests/
-│   ├── integration/
-│   │   └── integration_test.go # Integration tests
-│   └── unit/
-│       └── unit_test.go        # Unit tests
-├── Dockerfile                   # Docker configuration
-├── docker-compose.yml          # Docker Compose configuration
-├── go.mod                      # Go module dependencies
-├── go.sum                      # Go module checksums
-├── todo.md                     # Implementation checklist
-└── README.md                   # This file
+│   ├── integration/         # Integration tests
+│   └── unit/               # Unit tests
+├── docker-compose.yml       # Docker Compose configuration
+├── Dockerfile              # Multi-stage Docker build
+├── ARCHITECTURE.md         # Detailed architecture documentation
+└── README.md              # This file
 ```
 
-## Technology Stack
+### Module Structure (Hexagonal Architecture)
 
-- **Backend**: Go (Golang)
-- **Database**: SQLite3
-- **Frontend**: HTML, CSS, JavaScript (no frameworks)
-- **Containerization**: Docker
-- **Security**: bcrypt for password hashing, UUID for session tokens
+Each module follows this structure:
 
-## Setup Instructions
+```
+module/
+├── domain/                  # Core business logic & entities
+│   ├── entity.go           # Domain entities
+│   ├── value_object.go     # Value objects
+│   └── error.go            # Domain-specific errors
+├── ports/                   # Interfaces
+│   ├── input/              # Inbound ports (use cases)
+│   │   └── service.go      # Service interface
+│   └── output/             # Outbound ports
+│       └── repository.go   # Repository interface
+├── application/             # Application services
+│   └── service.go          # Service implementation
+└── adapters/               # Interface implementations
+    ├── input/              # HTTP handlers, CLI
+    │   └── http/
+    │       └── handler.go
+    └── output/             # Database, external APIs
+        └── persistence/
+            └── sqlite/
+                └── repository.go
+```
+
+## ✨ Features
+
+### Core Features
+
+- ✅ **Authentication & Authorization**
+  - User registration with email, username, and password
+  - Login with session management (UUID-based cookies)
+  - Password encryption (bcrypt)
+  - Session expiration handling
+
+- ✅ **Posts & Categories**
+  - Create, read, update, delete posts
+  - Associate multiple categories with posts
+  - Image upload support (JPEG, PNG, GIF, max 20MB)
+  - Public viewing for all users
+
+- ✅ **Comments**
+  - Comment on posts
+  - View comments (public)
+  - Edit/delete own comments
+
+- ✅ **Reactions (Likes/Dislikes)**
+  - Like/dislike posts and comments
+  - View reaction counts (public)
+  - Only registered users can react
+
+- ✅ **Filtering**
+  - Filter by categories
+  - Filter by user's created posts
+  - Filter by user's liked posts
+
+### Security Features
+
+- ✅ **HTTPS/TLS**
+  - TLS 1.2+ support
+  - Strong cipher suites
+  - SSL certificate management
+
+- ✅ **Rate Limiting**
+  - Per-endpoint rate limiting
+  - Per-user rate limiting
+
+- ✅ **Secure Sessions**
+  - UUID-based session identifiers
+  - Server-side session storage
+  - Secure cookie attributes
+
+### Moderation Features
+
+- ✅ **User Roles**
+  - Guest (view only)
+  - User (create, comment, react)
+  - Moderator (monitor, delete, report)
+  - Administrator (manage users, categories, reports)
+
+- ✅ **Moderation Actions**
+  - Report posts/comments
+  - Delete inappropriate content
+  - Promote/demote moderators
+  - Review moderation reports
+
+### Advanced Features
+
+- ✅ **Notifications**
+  - Notify on post likes/dislikes
+  - Notify on new comments
+  - Real-time notification system
+
+- ✅ **Activity Tracking**
+  - User's created posts
+  - User's likes and dislikes
+  - User's comments with context
+
+- ✅ **Content Management**
+  - Edit posts and comments
+  - Delete own content
+  - Moderator content removal
+
+### Authentication Features
+
+- ✅ **OAuth Integration**
+  - Google OAuth
+  - GitHub OAuth
+  - Session management across providers
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Go 1.25 or higher
-- Docker and Docker Compose (for containerized deployment)
+- Go 1.25+
+- Docker & Docker Compose (for containerized deployment)
 - SQLite3
 
 ### Local Development
 
-1. Clone the repository:
+1. **Clone the repository**
    ```bash
    git clone <repository-url>
    cd forum
    ```
 
-2. Install dependencies:
+2. **Install dependencies**
    ```bash
    go mod download
    ```
 
-3. Initialize the database:
+3. **Run the application**
    ```bash
    go run cmd/forum/main.go
    ```
 
-4. Run the application:
-   ```bash
-   go run cmd/forum/main.go
-   ```
-
-5. Access the forum at `http://localhost:8080`
+4. **Access the forum**
+   - HTTP: `http://localhost:8080`
+   - HTTPS: `https://localhost:8443`
 
 ### Docker Deployment
 
-1. Build and run with Docker Compose:
+1. **Build and run with Docker Compose**
    ```bash
    docker-compose up --build
    ```
 
-2. Access the forum at `http://localhost:8080`
+2. **Access the forum**
+   - `https://localhost:8443`
 
-### Running Tests
+### Environment Configuration
 
-```bash
-# Run all tests
-go test ./...
+Create a `.env` file in the root directory:
 
-# Run with coverage
-go test -cover ./...
+```env
+# Server
+PORT=8080
+TLS_PORT=8443
+ENVIRONMENT=development
 
-# Run integration tests
-go test ./tests/integration/...
+# Database
+DB_PATH=./forum.db
 
-# Run unit tests
-go test ./tests/unit/...
+# Session
+SESSION_SECRET=your-secret-key-here
+SESSION_DURATION=24h
+
+# Rate Limiting
+RATE_LIMIT_REQUESTS=100
+RATE_LIMIT_WINDOW=1m
+
+# OAuth (optional)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
+
+# File Upload
+MAX_UPLOAD_SIZE=20971520  # 20MB in bytes
+UPLOAD_DIR=./static/uploads
 ```
 
-## Database Schema
+## 🧪 Testing
 
-The application uses SQLite with the following main tables:
+### Run all tests
+```bash
+go test ./...
+```
 
-- **users**: User account information
-- **sessions**: User session management
-- **posts**: Forum posts
-- **comments**: Post comments
-- **categories**: Post categories
-- **post_categories**: Many-to-many relationship between posts and categories
-- **post_reactions**: Likes and dislikes for posts
-- **comment_reactions**: Likes and dislikes for comments
+### Run with coverage
+```bash
+go test -cover ./...
+```
 
-See `internal/database/schema.sql` for the complete schema definition.
+### Run integration tests
+```bash
+go test ./tests/integration/...
+```
 
-## API Endpoints
+### Run specific module tests
+```bash
+go test ./internal/modules/auth/...
+```
 
-- `GET /` - Home page with post list
-- `GET /register` - Registration page
-- `POST /register` - Handle user registration
-- `GET /login` - Login page
-- `POST /login` - Handle user login
-- `GET /logout` - User logout
-- `GET /post/:id` - View single post
-- `POST /post/create` - Create new post
-- `POST /comment/create` - Create new comment
-- `POST /reaction` - Add like/dislike
-- `GET /filter` - Filter posts
+## 📦 Dependencies
 
-## Contributing
+- **Database**: [mattn/go-sqlite3](https://github.com/mattn/go-sqlite3)
+- **Password Hashing**: [golang.org/x/crypto/bcrypt](https://pkg.go.dev/golang.org/x/crypto/bcrypt)
+- **UUID**: [gofrs/uuid](https://github.com/gofrs/uuid)
+- **TLS**: [golang.org/x/crypto/acme/autocert](https://pkg.go.dev/golang.org/x/crypto/acme/autocert)
 
-1. Follow Go best practices and idiomatic Go code style
-2. Write tests for all new functionality
-3. Keep functions small and focused (KISS principle)
-4. Update documentation when making changes
+## 🏛️ Design Patterns
 
-## License
+- **Hexagonal Architecture**: Clear separation of concerns with ports and adapters
+- **Dependency Injection**: Modules wired together at bootstrap
+- **Repository Pattern**: Data access abstraction
+- **Service Layer**: Business logic orchestration
+- **Middleware Pattern**: Cross-cutting concerns (auth, logging, rate limiting)
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+## 🤖 AI Agent Optimization
+
+This project is structured to be AI-agent-friendly:
+
+- **Clear module boundaries**: Easy scope understanding
+- **Consistent patterns**: Every module follows the same structure
+- **Explicit dependencies**: Ports clearly define contracts
+- **Self-documenting code**: Comments explain purpose
+- **Small, focused files**: Single responsibility
+- **Type-safe interfaces**: Leverage Go's type system
+
+## 📝 Documentation
+
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - Detailed architecture documentation
+- Module-specific documentation in each module directory
+
+## 🔒 Security
+
+- HTTPS/TLS encryption
+- bcrypt password hashing
+- Rate limiting protection
+- SQL injection prevention (parameterized queries)
+- XSS prevention (template escaping)
+- CSRF protection
+- Secure session management
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built following [Go Project Layout](https://github.com/golang-standards/project-layout)
+- Inspired by [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+- Follows [Effective Go](https://go.dev/doc/effective_go) guidelines
+
+---
+
+**Note**: This is a learning project following idiomatic Go best practices, SOLID principles, and clean architecture patterns. The structure is optimized for maintainability, testability, and AI-agent collaboration.
