@@ -4,8 +4,6 @@
 package config
 
 import (
-	"os"
-	"strconv"
 	"time"
 )
 
@@ -109,11 +107,10 @@ func Load() (*Config, error) {
 	// 2. Load from environment variables
 	// 3. Apply default values
 	// 4. Validate configuration
-	
+
 	// Initialize Config with default values
 	cfg := &Config{}
 
-	// Server configuration
 	cfg.Server.Host = getEnvString("SERVER_HOST", "localhost")
 	cfg.Server.Port = getEnvInt("SERVER_PORT", 8080)
 	cfg.Server.TLSPort = getEnvInt("SERVER_TLS_PORT", 8443)
@@ -121,12 +118,38 @@ func Load() (*Config, error) {
 	cfg.Server.ReadTimeout = getEnvDuration("SERVER_READ_TIMEOUT", 15*time.Second)
 	cfg.Server.WriteTimeout = getEnvDuration("SERVER_WRITE_TIMEOUT", 15*time.Second)
 	cfg.Server.IdleTimeout = getEnvDuration("SERVER_IDLE_TIMEOUT", 60*time.Second)
-	
-	
-	
-	
-	// Return the populated configuration
 
+	cfg.Database.Path = getEnvString("DATABASE_PATH", "forum.db")
+	cfg.Database.MaxOpenConns = getEnvInt("DATABASE_MAX_OPEN_CONNS", 25)
+	cfg.Database.MaxIdleConns = getEnvInt("DATABASE_MAX_IDLE_CONNS", 25)
+	cfg.Database.ConnMaxLifetime = getEnvDuration("DATABASE_CONN_MAX_LIFETIME", 5*time.Minute)
+
+	cfg.Session.Secret = getEnvString("SESSION_SECRET", "defaultsecret")
+	cfg.Session.Duration = getEnvDuration("SESSION_DURATION", 24*time.Hour)
+	cfg.Session.CookieName = getEnvString("SESSION_COOKIE_NAME", "forum_session")
+	cfg.Session.Secure = getEnvBool("SESSION_SECURE", false)
+	cfg.Session.HttpOnly = getEnvBool("SESSION_HTTP_ONLY", true)	
+
+	cfg.Security.TLSCertFile = getEnvString("TLS_CERT_FILE", "cert.pem")
+	cfg.Security.TLSKeyFile = getEnvString("TLS_KEY_FILE", "key.pem")
+	cfg.Security.RateLimitRequests = getEnvInt("RATE_LIMIT_REQUESTS", 100)
+	cfg.Security.RateLimitWindow = getEnvDuration("RATE_LIMIT_WINDOW", time.Minute)
+	cfg.Security.MinPasswordLength = getEnvInt("MIN_PASSWORD_LENGTH", 8)	
+
+	cfg.Upload.MaxSize = int64(getEnvInt("UPLOAD_MAX_SIZE_MB", 20)) * 1024 * 1024
+	cfg.Upload.AllowedTypes = []string{"image/jpeg", "image/png", "image/gif"}
+	cfg.Upload.UploadDir = getEnvString("UPLOAD_DIR", "./uploads")	
+	
+	cfg.OAuth.Google.ClientID = getEnvString("GOOGLE_OAUTH_CLIENT_ID", "")
+	cfg.OAuth.Google.ClientSecret = getEnvString("GOOGLE_OAUTH_CLIENT_SECRET", "")
+	cfg.OAuth.Google.RedirectURL = getEnvString("GOOGLE_OAUTH_REDIRECT_URL", "")
+
+	cfg.OAuth.GitHub.ClientID = getEnvString("GITHUB_OAUTH_CLIENT_ID", "")
+	cfg.OAuth.GitHub.ClientSecret = getEnvString("GITHUB_OAUTH_CLIENT_SECRET", "")
+	cfg.OAuth.GitHub.RedirectURL = getEnvString("GITHUB_OAUTH_REDIRECT_URL", "")
+
+
+	// Return the populated configuration
 	return cfg, nil
 }
 
@@ -136,47 +159,4 @@ func Load() (*Config, error) {
 func (c *Config) Validate() error {
 	// Implementation placeholder
 	return nil
-}
-
-func getEnvString(key string, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
-func getEnvInt(key string, defaultValue int) int {
-	if value := os.Getenv(key); value != "" {
-		if intValue, err := strconv.Atoi(value); err == nil {
-			return intValue
-		}
-	}
-	return defaultValue
-}
-
-func getEnvInt64(key string, defaultValue int64) int64 {
-	if value := os.Getenv(key); value != "" {
-		if int64Value, err := strconv.ParseInt(value, 10, 64); err == nil {
-			return int64Value
-		}
-	}
-	return defaultValue
-}
-
-func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
-	if value := os.Getenv(key); value != "" {
-		if durationValue, err := time.ParseDuration(value); err == nil {
-			return durationValue
-		}
-	}
-	return defaultValue
-}
-
-func getEnvBool(key string, defaultValue bool) bool {
-	if value := os.Getenv(key); value != "" {
-		if boolValue, err := strconv.ParseBool(value); err == nil {
-			return boolValue
-		}
-	}
-	return defaultValue
 }
