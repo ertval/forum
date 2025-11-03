@@ -14,7 +14,7 @@ type Server struct {
 	router     *http.ServeMux
 }
 
-// Config contains HTTP server configuration.
+// Config contains HTTP and HTTPS server configuration.
 type Config struct {
 	Host         string
 	Port         int

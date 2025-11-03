@@ -22,8 +22,8 @@ Focus: Implement essential features from requirements.md to get a working forum 
 
 **Platform Layer Implementation:**
 - [x] Config loading from environment variables (config.go)
-- [ ] Database connection (SQLite with mattn/go-sqlite3) (connection.go)
-- [ ] Database migrator - apply migrations on startup (migrator.go)
+- [X] Database connection (SQLite with mattn/go-sqlite3) (connection.go)
+- [X] Database migrator - apply migrations on startup (migrator.go)
 - [ ] Basic HTTP server with standard lib http.ServeMux (server.go)
 - [ ] Structured logger with levels (Debug, Info, Warn, Error) (logger.go)
 - [ ] Recovery middleware (panic handling) (middleware.go)
