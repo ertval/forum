@@ -135,11 +135,11 @@ func Load() (*Config, error) {
 	cfg.Security.RateLimitRequests = getEnvInt("RATE_LIMIT_REQUESTS", 100)
 	cfg.Security.RateLimitWindow = getEnvDuration("RATE_LIMIT_WINDOW", time.Minute)
 	cfg.Security.MinPasswordLength = getEnvInt("MIN_PASSWORD_LENGTH", 8)	
-
-	cfg.Upload.MaxSize = int64(getEnvInt("UPLOAD_MAX_SIZE_MB", 20)) * 1024 * 1024
-	cfg.Upload.AllowedTypes = []string{"image/jpeg", "image/png", "image/gif"}
-	cfg.Upload.UploadDir = getEnvString("UPLOAD_DIR", "./uploads")	
 	
+	cfg.Upload.MaxSize = int64(getEnvInt("UPLOAD_MAX_SIZE_MB", 20)) * 1024 * 1024
+	cfg.Upload.AllowedTypes = []string{"static/image/jpeg", "static/image/png", "static/image/gif"}
+	cfg.Upload.UploadDir = getEnvString("UPLOAD_DIR", "./uploads")
+
 	cfg.OAuth.Google.ClientID = getEnvString("GOOGLE_OAUTH_CLIENT_ID", "")
 	cfg.OAuth.Google.ClientSecret = getEnvString("GOOGLE_OAUTH_CLIENT_SECRET", "")
 	cfg.OAuth.Google.RedirectURL = getEnvString("GOOGLE_OAUTH_REDIRECT_URL", "")
