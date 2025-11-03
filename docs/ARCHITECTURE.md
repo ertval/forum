@@ -160,38 +160,33 @@ import "forum/internal/modules/user/adapters"
 
 ## Dependency Injection
 
-All wiring happens in `cmd/forum/main.go`:
+All wiring happens in `cmd/forum/wire/` package, called from `main.go`:
 
 ```go
 func main() {
     // 1. Platform services
     cfg := config.Load()
-    db := database.New(cfg.DB)
     lgr := logger.New(cfg.Log)
     
-    // 2. Repositories (output adapters)
-    userRepo := user.NewSQLiteRepository(db)
-    postRepo := post.NewSQLiteRepository(db)
+    // 2. All dependency injection happens here
+    app, err := wire.InitializeApp(cfg, lgr)
+    if err != nil {
+        lgr.Fatal("Failed to initialize app", logger.Error(err))
+    }
+    defer app.Cleanup()
     
-    // 3. Services (application layer)
-    userSvc := user.NewService(userRepo, lgr)
-    postSvc := post.NewService(postRepo, userSvc, lgr)
-    
-    // 4. HTTP handlers (input adapters)
-    userHandler := user.NewHTTPHandler(userSvc, lgr)
-    postHandler := post.NewHTTPHandler(postSvc, lgr)
-    
-    // 5. Register routes
-    router := httpserver.New()
-    userHandler.RegisterRoutes(router)
-    postHandler.RegisterRoutes(router)
-    
-    // 6. Start server
-    router.Start(":8080")
+    // 3. Start server
+    app.Start()
 }
 ```
 
-No magic frameworks. Everything explicit.
+The wire package organizes DI into focused files:
+- `app.go` - Main orchestration and app lifecycle
+- `repos.go` - Repository initialization
+- `services.go` - Service initialization  
+- `handlers.go` - HTTP handler initialization
+
+No magic frameworks. Everything explicit and organized.
 
 ---
 

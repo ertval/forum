@@ -15,10 +15,12 @@ cmd/forum/
 │                        # - Start/shutdown server
 │
 └── wire/                # Dependency injection package
-    ├── wire.go          # Main orchestration
+    ├── app.go           # Main orchestration
+    │                    # - App struct (Server, DB, Logger)
     │                    # - InitializeApp() - coordinates all initialization
     │                    # - initDatabase() - DB connection & migrations
     │                    # - initServer() - HTTP server setup
+    │                    # - Start(), Shutdown(), Cleanup() methods
     │
     ├── repos.go         # Repository initialization (OUTPUT ADAPTERS)
     │                    # - Repositories struct
@@ -32,9 +34,7 @@ cmd/forum/
     │                    # - Handlers struct
     │                    # - initHandlers() - creates all HTTP handlers
     │
-    └── app.go           # Application struct
-                         # - App struct (Server, DB, Logger)
-                         # - Start(), Shutdown(), Cleanup() methods
+    └── README.md        # This documentation
 ```
 
 ## Dependency Flow
@@ -85,7 +85,7 @@ main.go
   - `repos.go` - Add repository
   - `services.go` - Add service
   - `handlers.go` - Add handler
-  - `wire.go` - Register routes
+  - `app.go` - Register routes (in initServer function)
 - `main.go` never changes
 
 ### 5. **Idiomatic Go**
@@ -171,7 +171,7 @@ func main() {
    }
    ```
 
-5. **Update wire/wire.go** (initServer function):
+5. **Update wire/app.go** (initServer function):
    ```go
    handlers.NewModule.RegisterRoutes(server.Router())
    ```
