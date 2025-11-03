@@ -48,7 +48,6 @@ import (
 )
 
 func main() {
-
 	fmt.Println("This is the begg Forum Application")
 	// 1. Load Configuration
 	cfg, err := config.Load()
@@ -70,7 +69,7 @@ func main() {
 
 	// 4. Run Database Migrations
 	migrator := database.NewMigrator(dbConn)
-	if err := migrator.Migrate("./migrations"); err != nil {
+	if err := migrator.Migrate(cfg.Database.MigrationsDir); err != nil {
 		lgr.Error("Failed to run migrations", logger.Error(err))
 		os.Exit(1)
 	}
@@ -165,7 +164,7 @@ func main() {
 	moderationHandler.RegisterRoutes(server.Router())
 	notificationHandler.RegisterRoutes(server.Router())
 
-	fmt.Println("Registering static file handler")	
+	fmt.Println("Registering static file handler")
 
 	// Serve static files
 	server.Router().Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
@@ -178,7 +177,7 @@ func main() {
 		}
 	}()
 
-	fmt.Println("Registering static file handler 2")	
+	fmt.Println("Registering static file handler 2")
 
 	lgr.Info(fmt.Sprintf("Forum server started on port %d (HTTP) and %d (HTTPS)", cfg.Server.Port, cfg.Server.TLSPort))
 
