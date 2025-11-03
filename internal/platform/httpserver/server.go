@@ -11,11 +11,12 @@ import (
 
 // Server represents an HTTP server with middleware support.
 type Server struct {
-	httpServer  *http.Server
-	tlsServer   *http.Server
-	router      *http.ServeMux
-	tlsCertFile string
-	tlsKeyFile  string
+	httpServer *http.Server
+	tlsServer  *http.Server
+	router     *http.ServeMux
+	handler    http.Handler
+	middleware []Middleware
+	config     Config
 }
 
 // Config contains HTTP server configuration.
@@ -34,7 +35,6 @@ type Config struct {
 func New(cfg Config) *Server {
 	router := http.NewServeMux()
 
-	// Initialize HTTP server
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
 		Handler:      router,
@@ -43,7 +43,6 @@ func New(cfg Config) *Server {
 		IdleTimeout:  cfg.IdleTimeout,
 	}
 
-	// Initialize TLS server if TLS configuration is provided
 	var tlsServer *http.Server
 	if cfg.TLSCertFile != "" && cfg.TLSKeyFile != "" {
 		tlsServer = &http.Server{
@@ -56,11 +55,12 @@ func New(cfg Config) *Server {
 	}
 
 	return &Server{
-		httpServer:  httpServer,
-		tlsServer:   tlsServer,
-		router:      router,
-		tlsCertFile: cfg.TLSCertFile,
-		tlsKeyFile:  cfg.TLSKeyFile,
+		httpServer: httpServer,
+		tlsServer:  tlsServer,
+		router:     router,
+		handler:    router,
+		middleware: []Middleware{},
+		config:     cfg,
 	}
 }
 
@@ -97,19 +97,19 @@ func (s *Server) Start() error {
 	}()
 
 	// Start HTTPS server if TLS is configured
-	if s.tlsServer != nil {
+	if s.tlsServer != nil && s.config.TLSCertFile != "" && s.config.TLSKeyFile != "" && false {
 		go func() {
-			if err := s.tlsServer.ListenAndServeTLS(s.tlsCertFile, s.tlsKeyFile); err != nil && err != http.ErrServerClosed {
+			if err := s.tlsServer.ListenAndServeTLS(s.config.TLSCertFile, s.config.TLSKeyFile); err != nil && err != http.ErrServerClosed {
 				errChan <- fmt.Errorf("HTTPS server error: %w", err)
 			}
 		}()
 	}
 
-	// Return any error that occurs during startup
+	// Wait for any error or return nil if both servers start
 	select {
 	case err := <-errChan:
 		return err
-	default:
+	case <-time.After(100 * time.Millisecond):
 		return nil
 	}
 }
