@@ -48,30 +48,31 @@ forum/
 
 ### Module Structure (Hexagonal Architecture)
 
-Each module follows this structure:
+Each module follows this **flattened** structure with exactly 4 directories:
 
 ```
 module/
 ├── domain/                  # Core business logic & entities
-│   ├── entity.go           # Domain entities
-│   ├── value_object.go     # Value objects
-│   └── error.go            # Domain-specific errors
-├── ports/                   # Interfaces
-│   ├── input/              # Inbound ports (use cases)
-│   │   └── service.go      # Service interface
-│   └── output/             # Outbound ports
-│       └── repository.go   # Repository interface
-├── application/             # Application services
-│   └── service.go          # Service implementation
-└── adapters/               # Interface implementations
-    ├── input/              # HTTP handlers, CLI
-    │   └── http/
-    │       └── handler.go
-    └── output/             # Database, external APIs
-        └── persistence/
-            └── sqlite/
-                └── repository.go
+│   ├── entity.go           # Domain entities with business rules
+│   ├── value_object.go     # Immutable value objects (if needed)
+│   └── errors.go           # Domain-specific errors
+├── ports/                   # Interface definitions
+│   ├── service.go          # INPUT PORT: Service interface defining use cases
+│   └── repository.go       # OUTPUT PORT: Repository interface for data access
+├── application/             # Application services (orchestration)
+│   └── service.go          # Service implementation - business logic orchestration
+└── adapters/               # Interface implementations (single files, no subfolders)
+    ├── http_handler.go     # INPUT ADAPTER: HTTP/REST API handlers
+    ├── sqlite_repository.go # OUTPUT ADAPTER: SQLite database implementation
+    └── external_api.go     # OUTPUT ADAPTER: External API clients (if needed)
 ```
+
+**Port/Adapter Type Annotations:**
+- Each file in `ports/` and `adapters/` includes a comment at the top indicating its type:
+  - `// INPUT PORT` - Service interfaces defining use cases
+  - `// OUTPUT PORT` - Repository interfaces for data access
+  - `// INPUT ADAPTER` - HTTP handlers, CLI, gRPC servers
+  - `// OUTPUT ADAPTER` - Database implementations, external APIs
 
 ## ✨ Features
 
@@ -122,13 +123,13 @@ module/
 
 ### Moderation Features
 
-- ✅ **User Roles**
+- ✅ **User Roles** [OPTIONAL FEATURE: forum-moderation]
   - Guest (view only)
   - User (create, comment, react)
   - Moderator (monitor, delete, report)
   - Administrator (manage users, categories, reports)
 
-- ✅ **Moderation Actions**
+- ✅ **Moderation Actions** [OPTIONAL FEATURE: forum-moderation]
   - Report posts/comments
   - Delete inappropriate content
   - Promote/demote moderators
@@ -136,12 +137,12 @@ module/
 
 ### Advanced Features
 
-- ✅ **Notifications**
+- ✅ **Notifications** [OPTIONAL FEATURE: forum-advanced-features]
   - Notify on post likes/dislikes
   - Notify on new comments
   - Real-time notification system
 
-- ✅ **Activity Tracking**
+- ✅ **Activity Tracking** [OPTIONAL FEATURE: forum-advanced-features]
   - User's created posts
   - User's likes and dislikes
   - User's comments with context

@@ -1,267 +1,439 @@
-# Forum - Architecture Documentation
+# Forum Application - Architecture Documentation
 
 ## Overview
 
-This project implements a web forum using a **Modular Monolith** architecture combined with **Hexagonal Architecture** (Ports and Adapters) principles. The design follows Go's idiomatic practices, SOLID principles, and KISS philosophy.
+This forum application is built as a **Modular Monolith** with each module following **Hexagonal Architecture** (Ports and Adapters) principles. The architecture is designed to be AI-agent-friendly, maintainable, testable, and follows Go's idiomatic patterns.
 
 ## Architectural Principles
 
 ### Go's Five Principles
-1. **Simplicity**: Keep solutions straightforward and avoid unnecessary complexity
-2. **Readability**: Write clear, self-documenting code
-3. **Explicitness**: Make dependencies and behavior obvious
-4. **Minimalism**: Use only what you need
-5. **Composition over Inheritance**: Favor interfaces and composition
+1. **Simplicity**: Keep solutions simple and straightforward
+2. **Readability**: Code should be easy to read and understand
+3. **Explicitness**: Make behavior explicit, avoid hidden magic
+4. **Minimalism**: Use minimal dependencies and abstractions
+5. **Composition**: Build complex behavior through composition
 
 ### SOLID Principles
-- **Single Responsibility**: Each module/package has one reason to change
-- **Open/Closed**: Open for extension, closed for modification
-- **Liskov Substitution**: Interfaces are properly abstracted
-- **Interface Segregation**: Small, focused interfaces
-- **Dependency Inversion**: Depend on abstractions, not concretions
+1. **Single Responsibility**: Each module/component has one reason to change
+2. **Open/Closed**: Open for extension, closed for modification
+3. **Liskov Substitution**: Subtypes must be substitutable for their base types
+4. **Interface Segregation**: Many specific interfaces better than one general
+5. **Dependency Inversion**: Depend on abstractions, not concretions
 
-### KISS (Keep It Simple, Stupid)
-- Avoid over-engineering
-- Choose straightforward solutions
-- Clear naming and structure
+### KISS Principle
+**Keep It Simple, Stupid**: Favor simple solutions over complex ones
 
-## Architecture Overview
-
-### Modular Monolith
-
-The application is organized as a monolith but with clear module boundaries. Each module is independent and can potentially be extracted into a microservice if needed.
+## Project Structure
 
 ```
 forum/
-├── cmd/                    # Application entry points
-├── internal/               # Private application code
-│   ├── modules/           # Business modules
-│   └── platform/          # Shared infrastructure
-├── pkg/                   # Public libraries (if needed)
-└── migrations/            # Database migrations
+├── cmd/
+│   └── forum/                 # Application entry point
+│       └── main.go           # Bootstrap and dependency injection
+├── internal/
+│   ├── modules/              # Business modules (core + optional)
+│   │   ├── auth/            # [CORE] Authentication & session management
+│   │   ├── user/            # [CORE] User management & roles
+│   │   ├── post/            # [CORE] Posts & categories
+│   │   ├── comment/         # [CORE] Comment management
+│   │   ├── reaction/        # [CORE] Likes & dislikes
+│   │   ├── moderation/      # [OPTIONAL] Forum moderation system
+│   │   └── notification/    # [OPTIONAL] User notifications
+│   └── platform/            # Shared infrastructure
+│       ├── database/        # Database connection & migrations
+│       ├── config/          # Configuration management
+│       ├── logger/          # Structured logging
+│       ├── httpserver/      # HTTP server & middleware
+│       ├── errors/          # Common error types
+│       └── validator/       # Input validation
+├── migrations/              # Database migrations (organized by module)
+├── static/                  # Static assets (CSS, JS, images)
+│   ├── css/
+│   ├── js/
+│   └── uploads/
+├── templates/               # HTML templates
+├── tests/
+│   ├── integration/         # Integration tests
+│   └── unit/               # Unit tests
+├── docker-compose.yml       # Docker Compose configuration
+├── Dockerfile              # Multi-stage Docker build
+├── .gitignore
+├── LICENSE
+├── ARCHITECTURE.md         # This file
+└── README.md              # Project overview & setup
 ```
 
-### Hexagonal Architecture (Ports and Adapters)
+## Module Structure (Hexagonal Architecture)
 
-Each module follows hexagonal architecture:
+Each module follows this flattened structure with exactly 4 directories:
 
 ```
 module/
-├── domain/                # Business logic and entities (core)
-├── ports/                 # Interfaces (primary and secondary)
-│   ├── input/            # Inbound ports (use cases)
-│   └── output/           # Outbound ports (repositories, external services)
-├── application/           # Application services (orchestration)
-└── adapters/             # Implementations of ports
-    ├── input/            # HTTP handlers, CLI commands
-    └── output/           # Database repositories, external API clients
+├── domain/                  # Core business logic & entities
+│   ├── entity.go           # Domain entities with business rules
+│   ├── value_object.go     # Immutable value objects
+│   ├── repository.go       # Repository interface (output port)
+│   └── errors.go           # Domain-specific errors
+├── ports/                   # Interface definitions
+│   ├── service.go          # Service interface (input port) - defines use cases
+│   └── repository.go       # Repository interface (output port) - data access contract
+├── application/             # Application services (orchestration)
+│   └── service.go          # Service implementation - business logic orchestration
+└── adapters/               # Interface implementations
+    ├── http_handler.go     # [INPUT] HTTP/REST API handlers
+    ├── sqlite_repository.go # [OUTPUT] SQLite database implementation
+    └── external_api.go     # [OUTPUT] External API clients (if needed)
 ```
 
-**Flow**: `Adapters (Input) → Application Services → Domain Logic → Adapters (Output)`
+### Port Types (Noted as Comments)
 
-## Module Structure
+Each file in `ports/` and `adapters/` includes a comment at the top indicating its type:
 
-### Core Modules
+- **INPUT PORT**: Defines use cases (service interfaces)
+- **OUTPUT PORT**: Defines data access contracts (repository interfaces)
+- **INPUT ADAPTER**: HTTP handlers, CLI, gRPC servers
+- **OUTPUT ADAPTER**: Database implementations, external APIs
 
-#### 1. Authentication Module (`internal/modules/auth`)
-Handles user authentication, session management, cookies, and security.
+### Key Concepts
 
-**Responsibilities:**
-- User registration and login
-- Session management with UUID
-- Cookie handling
-- Password hashing (bcrypt)
-- OAuth integration (Google, GitHub)
-- Rate limiting
-- HTTPS/TLS certificate management
+#### Domain Layer
+- **Pure business logic** with no external dependencies
+- Contains entities, value objects, and domain errors
+- Defines repository interfaces (output ports)
+- No knowledge of HTTP, databases, or frameworks
 
-**Ports:**
-- Input: AuthService (registration, login, logout, OAuth)
-- Output: SessionRepository, UserRepository (read-only)
+#### Ports
+- **Input Ports**: Service interfaces defining use cases
+- **Output Ports**: Repository interfaces for data access
+- Abstract interfaces that the domain depends on
 
-#### 2. User Module (`internal/modules/user`)
-Manages user profiles, roles, and permissions.
+#### Application Layer
+- **Orchestrates** domain logic to implement use cases
+- Depends on domain entities and port interfaces
+- Implements input ports (service interfaces)
+- Uses output ports (repository interfaces) via dependency injection
 
-**Responsibilities:**
-- User CRUD operations
-- Role management (Guest, User, Moderator, Admin)
-- User promotion/demotion
-- Profile management
+#### Adapters
+- **Input Adapters**: HTTP handlers, CLI commands, gRPC services
+- **Output Adapters**: Database repositories, external API clients
+- Implement port interfaces
+- Handle technical details (HTTP, SQL, JSON)
 
-**Ports:**
-- Input: UserService
+## Module Descriptions
+
+### Core Modules (Required)
+
+#### 1. Auth Module
+**Purpose**: Authentication and session management
+
+**Responsibilities**:
+- User registration (email, username, password)
+- User login/logout
+- Session management with UUID-based cookies
+- Password encryption (bcrypt)
+- Session expiration handling
+
+**Key Entities**: Session
+
+**Ports**:
+- Input: AuthService (Register, Login, Logout, ValidateSession)
+- Output: SessionRepository
+
+---
+
+#### 2. User Module
+**Purpose**: User management and roles
+
+**Responsibilities**:
+- User profile management
+- User role assignment (Guest, User, Moderator, Admin)
+- User permissions
+- User activity tracking
+
+**Key Entities**: User, Role
+
+**Ports**:
+- Input: UserService (CreateUser, GetUser, UpdateUser, AssignRole)
 - Output: UserRepository
 
-#### 3. Post Module (`internal/modules/post`)
-Handles forum posts and categories.
+---
 
-**Responsibilities:**
-- Post creation, editing, deletion
+#### 3. Post Module
+**Purpose**: Posts and categories management
+
+**Responsibilities**:
+- Create, read, update, delete posts
 - Category management
-- Post filtering (by category, created posts, liked posts)
+- Associate posts with categories
 - Image upload (JPEG, PNG, GIF, max 20MB)
+- Post filtering (by category, by user, by liked)
 
-**Ports:**
-- Input: PostService, CategoryService
-- Output: PostRepository, CategoryRepository, ImageStorage
+**Key Entities**: Post, Category
 
-#### 4. Comment Module (`internal/modules/comment`)
-Manages comments on posts.
+**Ports**:
+- Input: PostService (CreatePost, GetPost, UpdatePost, DeletePost, FilterPosts)
+- Output: PostRepository, CategoryRepository
 
-**Responsibilities:**
-- Comment creation, editing, deletion
-- Comment retrieval by post
+---
 
-**Ports:**
-- Input: CommentService
+#### 4. Comment Module
+**Purpose**: Comment management
+
+**Responsibilities**:
+- Create, read, update, delete comments
+- Associate comments with posts
+- View comment threads
+
+**Key Entities**: Comment
+
+**Ports**:
+- Input: CommentService (CreateComment, GetComment, UpdateComment, DeleteComment)
 - Output: CommentRepository
 
-#### 5. Reaction Module (`internal/modules/reaction`)
-Handles likes and dislikes for posts and comments.
+---
 
-**Responsibilities:**
-- Like/dislike posts
-- Like/dislike comments
-- Count reactions
-- Toggle reactions
+#### 5. Reaction Module
+**Purpose**: Likes and dislikes for posts and comments
 
-**Ports:**
-- Input: ReactionService
+**Responsibilities**:
+- Like/unlike posts and comments
+- Dislike/undislike posts and comments
+- View reaction counts
+- Track user reactions
+
+**Key Entities**: Reaction
+
+**Ports**:
+- Input: ReactionService (React, GetReactions, CountReactions)
 - Output: ReactionRepository
 
-#### 6. Moderation Module (`internal/modules/moderation`)
-Forum moderation functionality.
+---
 
-**Responsibilities:**
-- Report posts/comments
-- Review reports
-- Delete content
-- Manage moderator actions
+### Optional Modules (Extra Features)
 
-**Ports:**
-- Input: ModerationService
+#### 6. Moderation Module [OPTIONAL]
+**Purpose**: Forum moderation system
+
+**Responsibilities**:
+- Report posts and comments
+- Review and handle reports
+- Delete inappropriate content
+- Promote/demote moderators
+- Admin actions
+
+**Key Entities**: Report, ModerationAction
+
+**Ports**:
+- Input: ModerationService (CreateReport, ReviewReport, DeleteContent, PromoteUser)
 - Output: ReportRepository
 
-#### 7. Notification Module (`internal/modules/notification`)
-Real-time user notifications.
+**Requirements**: forum-moderation feature
 
-**Responsibilities:**
-- Notify on post likes/dislikes
-- Notify on comments
-- Track user activity
-- Notification preferences
+---
 
-**Ports:**
-- Input: NotificationService
+#### 7. Notification Module [OPTIONAL]
+**Purpose**: User notifications
+
+**Responsibilities**:
+- Notify users on post likes/dislikes
+- Notify users on new comments
+- Mark notifications as read
+- Real-time notification delivery
+
+**Key Entities**: Notification
+
+**Ports**:
+- Input: NotificationService (CreateNotification, GetNotifications, MarkAsRead)
 - Output: NotificationRepository
 
-### Platform/Shared Infrastructure (`internal/platform`)
+**Requirements**: forum-advanced-features
 
-Shared code used across all modules:
+---
 
-- **database**: SQLite connection, migrations, transaction handling
-- **config**: Configuration loading and management
-- **logger**: Structured logging
-- **httpserver**: HTTP server setup, middleware
-- **errors**: Common error types and handling
-- **validator**: Input validation utilities
+## Platform (Shared Infrastructure)
 
-## Dependency Rules
+### Database
+- SQLite connection management
+- Migration execution
+- Transaction handling
+- Connection pooling
 
-1. **Modules are independent**: No direct imports between modules
-2. **Depend on interfaces**: Modules expose interfaces in `ports/input`
-3. **Platform is shared**: All modules can import from `platform`
-4. **Domain is pure**: No external dependencies in domain layer
-5. **Dependency injection**: Wire modules at application bootstrap (`cmd/forum/main.go`)
+### Config
+- Environment variable loading
+- Configuration validation
+- Feature flags
+
+### Logger
+- Structured logging (JSON format)
+- Log levels (DEBUG, INFO, WARN, ERROR)
+- Request/response logging
+
+### HTTP Server
+- HTTP server setup
+- Middleware chain
+- Route registration
+- TLS/HTTPS support
+
+### Errors
+- Common error types
+- Error wrapping
+- HTTP status mapping
+- Error responses
+
+### Validator
+- Input validation
+- Sanitization
+- Business rule validation
+
+## Dependency Flow
+
+```
+HTTP Request
+    ↓
+Input Adapter (HTTP Handler)
+    ↓
+Input Port (Service Interface)
+    ↓
+Application Service
+    ↓
+Domain Logic
+    ↓
+Output Port (Repository Interface)
+    ↓
+Output Adapter (Database Repository)
+    ↓
+Database
+```
 
 ## Module Communication
 
-Modules communicate through:
-1. **Defined interfaces** in `ports/input`
-2. **Dependency injection** at startup
-3. **Events** (for asynchronous communication, if needed)
+Modules communicate through their **exposed service interfaces** (input ports):
 
-Example:
+- **Direct**: Module A imports Module B's service interface
+- **Event-Driven**: Modules publish/subscribe to domain events (future enhancement)
+- **NO direct imports** of internal implementation details
+
+### Example
+
 ```go
-// In post module
-type ReactionCounter interface {
-    CountReactions(targetID string, targetType string) (likes, dislikes int, err error)
-}
+// post module needs to verify user exists
+// BAD: import "forum/internal/modules/user/adapters"
+// GOOD: import "forum/internal/modules/user/ports"
 
-// Injected from reaction module
-postService := post.NewService(postRepo, reactionCounter)
+type PostService struct {
+    userService ports.UserService // Depend on interface
+}
+```
+
+## Dependency Injection
+
+All modules are wired together at the application bootstrap level (`cmd/forum/main.go`):
+
+1. Initialize platform services (database, logger, config)
+2. Create repositories (output adapters)
+3. Create services (application layer) with injected dependencies
+4. Create HTTP handlers (input adapters) with injected services
+5. Register routes and start server
+
+## Testing Strategy
+
+### Unit Tests
+- Domain logic (pure functions, entities)
+- Application services (mock repositories)
+- Located in each module's directory
+
+### Integration Tests
+- HTTP handlers with real database
+- End-to-end workflows
+- Located in `tests/integration/`
+
+### Test Structure
+```
+module/
+├── domain/
+│   └── entity_test.go
+├── application/
+│   └── service_test.go
+└── adapters/
+    └── http_handler_test.go
 ```
 
 ## Database Design
 
-- **Single SQLite database** shared across all modules
-- Each module owns its tables
-- **Migrations** are versioned and organized by module
-- Use **foreign keys** for referential integrity
-- Implement **Entity Relationship Diagram** (ERD) before implementation
+### Migration Strategy
+- SQL migrations in `migrations/` directory
+- Numbered sequentially (001_, 002_, etc.)
+- Organized by module
+- Run at application startup
+
+### Key Tables
+- **sessions**: User sessions (auth module)
+- **users**: User accounts (user module)
+- **roles**: User roles (user module)
+- **posts**: Forum posts (post module)
+- **categories**: Post categories (post module)
+- **post_categories**: Many-to-many relationship (post module)
+- **comments**: Post comments (comment module)
+- **reactions**: Likes/dislikes (reaction module)
+- **reports**: Moderation reports (moderation module - optional)
+- **notifications**: User notifications (notification module - optional)
 
 ## Security Considerations
 
-1. **HTTPS**: TLS 1.2+ with strong cipher suites
-2. **Password encryption**: bcrypt hashing
-3. **Session management**: UUID-based, server-side storage
-4. **Rate limiting**: Per-endpoint and per-user
-5. **Input validation**: All user inputs sanitized
-6. **SQL injection prevention**: Parameterized queries
-7. **XSS prevention**: Template escaping
-8. **CSRF protection**: Token-based
-
-## Testing Strategy
-
-### Per Module
-- **Unit tests**: `domain/` and `application/` layers
-- **Integration tests**: `adapters/output/` (database)
-- **HTTP tests**: `adapters/input/` (handlers)
-
-### Project Level
-- **Integration tests**: `tests/integration/` - Cross-module workflows
-- **E2E tests**: Full user journeys
+1. **Authentication**: bcrypt password hashing, secure session management
+2. **Authorization**: Role-based access control (RBAC)
+3. **Input Validation**: Sanitize and validate all user input
+4. **SQL Injection**: Parameterized queries only
+5. **XSS Prevention**: HTML template escaping
+6. **CSRF Protection**: CSRF tokens for state-changing operations
+7. **Rate Limiting**: Prevent abuse (platform/httpserver)
+8. **HTTPS/TLS**: Encrypt data in transit
 
 ## AI Agent Optimization
 
-The structure is optimized for AI coding agents:
+This architecture is optimized for AI agent collaboration:
 
-1. **Clear module boundaries**: Easy to understand scope
-2. **Consistent patterns**: Every module follows same structure
-3. **Explicit dependencies**: Ports clearly define contracts
-4. **Self-documenting**: Comments explain purpose
-5. **Small files**: Focused, single-responsibility files
-6. **Type-safe**: Leverage Go's type system
+### Clear Module Boundaries
+- Each module has a single, well-defined responsibility
+- Easy to understand scope and context
 
-## Build and Deployment
+### Consistent Patterns
+- Every module follows the same structure
+- Predictable file locations and naming
 
-### Docker
-- Multi-stage build for optimization
-- Separate development and production configs
-- Health checks
-- Volume management for database
+### Explicit Dependencies
+- Ports clearly define contracts
+- No hidden dependencies or magic
 
-### Running Locally
-```bash
-go run cmd/forum/main.go
-```
+### Self-Documenting Code
+- File names and structure explain purpose
+- Comments explain "why", code explains "how"
 
-### Running with Docker
-```bash
-docker-compose up --build
-```
+### Small, Focused Files
+- Single Responsibility Principle applied to files
+- Easy to understand and modify
 
-## Future Considerations
+### Type-Safe Interfaces
+- Leverage Go's type system
+- Compile-time guarantees
 
-- **Event-driven architecture**: Introduce event bus for async module communication
-- **CQRS**: Separate read and write models if needed
-- **Microservices extraction**: Modules can be extracted independently
-- **API versioning**: Plan for API evolution
-- **Observability**: Metrics, tracing, and monitoring
+## Future Enhancements
+
+1. **Event-Driven Architecture**: Introduce domain events for loose coupling
+2. **CQRS**: Separate read and write models for complex queries
+3. **Caching**: Redis for session storage and query caching
+4. **Message Queue**: Background job processing
+5. **Observability**: Metrics, tracing, and monitoring
+6. **API Versioning**: Support multiple API versions
 
 ## References
 
 - [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
-- [Go Project Layout](https://github.com/golang-standards/project-layout)
-- [SOLID Principles in Go](https://dave.cheney.net/2016/08/20/solid-go-design)
 - [Effective Go](https://go.dev/doc/effective_go)
+- [Go Project Layout](https://github.com/golang-standards/project-layout)
+- [SOLID Principles](https://en.wikipedia.org/wiki/SOLID)
+- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+
+---
+
+**Last Updated**: November 3, 2025
