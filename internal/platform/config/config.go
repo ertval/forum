@@ -115,7 +115,7 @@ func Load() (*Config, error) {
 	cfg.Server.WriteTimeout = getEnvDuration("SERVER_WRITE_TIMEOUT", 15*time.Second)
 	cfg.Server.IdleTimeout = getEnvDuration("SERVER_IDLE_TIMEOUT", 60*time.Second)
 
-	cfg.Database.Path = getEnvString("DATABASE_PATH", "forum.db")
+	cfg.Database.Path = getEnvString("DATABASE_PATH", "./data/forum.db")
 	cfg.Database.MaxOpenConns = getEnvInt("DATABASE_MAX_OPEN_CONNS", 25)
 	cfg.Database.MaxIdleConns = getEnvInt("DATABASE_MAX_IDLE_CONNS", 25)
 	cfg.Database.ConnMaxLifetime = getEnvDuration("DATABASE_CONN_MAX_LIFETIME", 5*time.Minute)
@@ -133,8 +133,8 @@ func Load() (*Config, error) {
 	cfg.Security.MinPasswordLength = getEnvInt("MIN_PASSWORD_LENGTH", 8)
 
 	cfg.Upload.MaxSize = int64(getEnvInt("UPLOAD_MAX_SIZE_MB", 20)) * 1024 * 1024
-	cfg.Upload.AllowedTypes = []string{"static/image/jpeg", "static/image/png", "static/image/gif"}
-	cfg.Upload.UploadDir = getEnvString("UPLOAD_DIR", "./uploads")
+	cfg.Upload.AllowedTypes = []string{"image/jpeg", "image/png", "image/gif"}
+	cfg.Upload.UploadDir = getEnvString("UPLOAD_DIR", "./static/uploads")
 
 	cfg.OAuth.Google.ClientID = getEnvString("GOOGLE_OAUTH_CLIENT_ID", "")
 	cfg.OAuth.Google.ClientSecret = getEnvString("GOOGLE_OAUTH_CLIENT_SECRET", "")
@@ -178,8 +178,8 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate Database configuration
-	if c.Database.Path != "./db/forum.db" {
-		return fmt.Errorf("database path must be 'db/forum.db'")
+	if c.Database.Path != "./data/forum.db" {
+		return fmt.Errorf("database path must be './data/forum.db'")
 	}
 	if c.Database.MaxOpenConns <= 0 {
 		return fmt.Errorf("max open connections must be positive")
@@ -236,18 +236,18 @@ func (c *Config) Validate() error {
 	// OAuth configuration is optional, but if provided, validate it
 	if c.OAuth.Google.ClientID != "" {
 		if c.OAuth.Google.ClientSecret == "" {
-			return fmt.Errorf("Google OAuth client secret cannot be empty when client ID is provided")
+			return fmt.Errorf("google OAuth client secret cannot be empty when client ID is provided")
 		}
 		if c.OAuth.Google.RedirectURL == "" {
-			return fmt.Errorf("Google OAuth redirect URL cannot be empty when client ID is provided")
+			return fmt.Errorf("google OAuth redirect URL cannot be empty when client ID is provided")
 		}
 	}
 	if c.OAuth.GitHub.ClientID != "" {
 		if c.OAuth.GitHub.ClientSecret == "" {
-			return fmt.Errorf("GitHub OAuth client secret cannot be empty when client ID is provided")
+			return fmt.Errorf("gitHub OAuth client secret cannot be empty when client ID is provided")
 		}
 		if c.OAuth.GitHub.RedirectURL == "" {
-			return fmt.Errorf("GitHub OAuth redirect URL cannot be empty when client ID is provided")
+			return fmt.Errorf("gitHub OAuth redirect URL cannot be empty when client ID is provided")
 		}
 	}
 
