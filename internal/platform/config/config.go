@@ -4,6 +4,8 @@
 package config
 
 import (
+	"os"
+	"strconv"
 	"time"
 )
 
@@ -107,7 +109,25 @@ func Load() (*Config, error) {
 	// 2. Load from environment variables
 	// 3. Apply default values
 	// 4. Validate configuration
-	return nil, nil
+	
+	// Initialize Config with default values
+	cfg := &Config{}
+
+	// Server configuration
+	cfg.Server.Host = getEnvString("SERVER_HOST", "localhost")
+	cfg.Server.Port = getEnvInt("SERVER_PORT", 8080)
+	cfg.Server.TLSPort = getEnvInt("SERVER_TLS_PORT", 8443)
+	cfg.Server.Environment = getEnvString("SERVER_ENVIRONMENT", "development")
+	cfg.Server.ReadTimeout = getEnvDuration("SERVER_READ_TIMEOUT", 15*time.Second)
+	cfg.Server.WriteTimeout = getEnvDuration("SERVER_WRITE_TIMEOUT", 15*time.Second)
+	cfg.Server.IdleTimeout = getEnvDuration("SERVER_IDLE_TIMEOUT", 60*time.Second)
+	
+	
+	
+	
+	// Return the populated configuration
+
+	return cfg, nil
 }
 
 // Validate validates the configuration values.
@@ -116,4 +136,47 @@ func Load() (*Config, error) {
 func (c *Config) Validate() error {
 	// Implementation placeholder
 	return nil
+}
+
+func getEnvString(key string, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intValue, err := strconv.Atoi(value); err == nil {
+			return intValue
+		}
+	}
+	return defaultValue
+}
+
+func getEnvInt64(key string, defaultValue int64) int64 {
+	if value := os.Getenv(key); value != "" {
+		if int64Value, err := strconv.ParseInt(value, 10, 64); err == nil {
+			return int64Value
+		}
+	}
+	return defaultValue
+}
+
+func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
+	if value := os.Getenv(key); value != "" {
+		if durationValue, err := time.ParseDuration(value); err == nil {
+			return durationValue
+		}
+	}
+	return defaultValue
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if boolValue, err := strconv.ParseBool(value); err == nil {
+			return boolValue
+		}
+	}
+	return defaultValue
 }
