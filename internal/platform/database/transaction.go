@@ -14,10 +14,12 @@ type Transaction struct {
 
 // Begin starts a new database transaction.
 // Transactions should be committed or rolled back when done.
-// TODO: Implement transaction initialization.
 func (c *Connection) Begin(ctx context.Context) (*Transaction, error) {
-	// Implementation placeholder
-	return nil, nil
+	tx, err := c.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &Transaction{tx: tx}, nil
 }
 
 // Commit commits the transaction.
