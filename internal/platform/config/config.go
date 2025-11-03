@@ -4,6 +4,7 @@
 package config
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -102,18 +103,153 @@ type GitHubOAuthConfig struct {
 // It returns a Config struct with all values populated.
 // TODO: Implement configuration loading logic.
 func Load() (*Config, error) {
-	// Implementation placeholder
-	// 1. Load from .env file
-	// 2. Load from environment variables
-	// 3. Apply default values
-	// 4. Validate configuration
-	return nil, nil
+
+	// Initialize Config with default values
+	cfg := &Config{}
+
+	cfg.Server.Host = getEnvString("SERVER_HOST", "localhost")
+	cfg.Server.Port = getEnvInt("SERVER_PORT", 8080)
+	cfg.Server.TLSPort = getEnvInt("SERVER_TLS_PORT", 8443)
+	cfg.Server.Environment = getEnvString("SERVER_ENVIRONMENT", "development")
+	cfg.Server.ReadTimeout = getEnvDuration("SERVER_READ_TIMEOUT", 15*time.Second)
+	cfg.Server.WriteTimeout = getEnvDuration("SERVER_WRITE_TIMEOUT", 15*time.Second)
+	cfg.Server.IdleTimeout = getEnvDuration("SERVER_IDLE_TIMEOUT", 60*time.Second)
+
+	cfg.Database.Path = getEnvString("DATABASE_PATH", "forum.db")
+	cfg.Database.MaxOpenConns = getEnvInt("DATABASE_MAX_OPEN_CONNS", 25)
+	cfg.Database.MaxIdleConns = getEnvInt("DATABASE_MAX_IDLE_CONNS", 25)
+	cfg.Database.ConnMaxLifetime = getEnvDuration("DATABASE_CONN_MAX_LIFETIME", 5*time.Minute)
+
+	cfg.Session.Secret = getEnvString("SESSION_SECRET", "defaultsecret")
+	cfg.Session.Duration = getEnvDuration("SESSION_DURATION", 24*time.Hour)
+	cfg.Session.CookieName = getEnvString("SESSION_COOKIE_NAME", "forum_session")
+	cfg.Session.Secure = getEnvBool("SESSION_SECURE", false)
+	cfg.Session.HttpOnly = getEnvBool("SESSION_HTTP_ONLY", true)
+
+	cfg.Security.TLSCertFile = getEnvString("TLS_CERT_FILE", "cert.pem")
+	cfg.Security.TLSKeyFile = getEnvString("TLS_KEY_FILE", "key.pem")
+	cfg.Security.RateLimitRequests = getEnvInt("RATE_LIMIT_REQUESTS", 100)
+	cfg.Security.RateLimitWindow = getEnvDuration("RATE_LIMIT_WINDOW", time.Minute)
+	cfg.Security.MinPasswordLength = getEnvInt("MIN_PASSWORD_LENGTH", 8)
+
+	cfg.Upload.MaxSize = int64(getEnvInt("UPLOAD_MAX_SIZE_MB", 20)) * 1024 * 1024
+	cfg.Upload.AllowedTypes = []string{"static/image/jpeg", "static/image/png", "static/image/gif"}
+	cfg.Upload.UploadDir = getEnvString("UPLOAD_DIR", "./uploads")
+
+	cfg.OAuth.Google.ClientID = getEnvString("GOOGLE_OAUTH_CLIENT_ID", "")
+	cfg.OAuth.Google.ClientSecret = getEnvString("GOOGLE_OAUTH_CLIENT_SECRET", "")
+	cfg.OAuth.Google.RedirectURL = getEnvString("GOOGLE_OAUTH_REDIRECT_URL", "")
+
+	cfg.OAuth.GitHub.ClientID = getEnvString("GITHUB_OAUTH_CLIENT_ID", "")
+	cfg.OAuth.GitHub.ClientSecret = getEnvString("GITHUB_OAUTH_CLIENT_SECRET", "")
+	cfg.OAuth.GitHub.RedirectURL = getEnvString("GITHUB_OAUTH_REDIRECT_URL", "")
+
+	// Return the populated configuration
+
+	err := cfg.Validate()
+
+	return cfg, err
 }
 
 // Validate validates the configuration values.
 // Returns an error if any required value is missing or invalid.
-// TODO: Implement validation logic.
 func (c *Config) Validate() error {
-	// Implementation placeholder
+	// Validate Server configuration
+	if c.Server.Port <= 0 || c.Server.Port > 65535 {
+		return fmt.Errorf("invalid server port: %d", c.Server.Port)
+	}
+	if c.Server.TLSPort <= 0 || c.Server.TLSPort > 65535 {
+		return fmt.Errorf("invalid TLS port: %d", c.Server.TLSPort)
+	}
+	if c.Server.Host == "" {
+		return fmt.Errorf("server host cannot be empty")
+	}
+	if c.Server.Environment != "development" && c.Server.Environment != "staging" && c.Server.Environment != "production" {
+		return fmt.Errorf("invalid environment: %s", c.Server.Environment)
+	}
+	if c.Server.ReadTimeout <= 0 {
+		return fmt.Errorf("read timeout must be positive")
+	}
+	if c.Server.WriteTimeout <= 0 {
+		return fmt.Errorf("write timeout must be positive")
+	}
+	if c.Server.IdleTimeout <= 0 {
+		return fmt.Errorf("idle timeout must be positive")
+	}
+
+	// Validate Database configuration
+	if c.Database.Path != "./db/forum.db" {
+		return fmt.Errorf("database path must be 'db/forum.db'")
+	}
+	if c.Database.MaxOpenConns <= 0 {
+		return fmt.Errorf("max open connections must be positive")
+	}
+	if c.Database.MaxIdleConns <= 0 {
+		return fmt.Errorf("max idle connections must be positive")
+	}
+	if c.Database.ConnMaxLifetime <= 0 {
+		return fmt.Errorf("connection max lifetime must be positive")
+	}
+
+	// Validate Session configuration
+	if len(c.Session.Secret) < 32 {
+		return fmt.Errorf("session secret must be at least 32 characters long")
+	}
+	if c.Session.Duration <= 0 {
+		return fmt.Errorf("session duration must be positive")
+	}
+	if c.Session.CookieName == "" {
+		return fmt.Errorf("session cookie name cannot be empty")
+	}
+
+	// Validate Security configuration
+	if c.Security.MinPasswordLength < 8 {
+		return fmt.Errorf("minimum password length must be at least 8 characters")
+	}
+	if c.Security.RateLimitRequests <= 0 {
+		return fmt.Errorf("rate limit requests must be positive")
+	}
+	if c.Security.RateLimitWindow <= 0 {
+		return fmt.Errorf("rate limit window must be positive")
+	}
+	// Validate TLS configuration if environment is production
+	if c.Server.Environment == "production" {
+		if c.Security.TLSCertFile == "" {
+			return fmt.Errorf("TLS certificate file path cannot be empty in production")
+		}
+		if c.Security.TLSKeyFile == "" {
+			return fmt.Errorf("TLS key file path cannot be empty in production")
+		}
+	}
+
+	// Validate Upload configuration
+	if c.Upload.MaxSize <= 0 {
+		return fmt.Errorf("upload max size must be positive")
+	}
+	if len(c.Upload.AllowedTypes) == 0 {
+		return fmt.Errorf("at least one allowed file type must be specified")
+	}
+	if c.Upload.UploadDir != "./static/uploads" {
+		return fmt.Errorf("upload directory path must be './static/uploads'")
+	}
+
+	// OAuth configuration is optional, but if provided, validate it
+	if c.OAuth.Google.ClientID != "" {
+		if c.OAuth.Google.ClientSecret == "" {
+			return fmt.Errorf("Google OAuth client secret cannot be empty when client ID is provided")
+		}
+		if c.OAuth.Google.RedirectURL == "" {
+			return fmt.Errorf("Google OAuth redirect URL cannot be empty when client ID is provided")
+		}
+	}
+	if c.OAuth.GitHub.ClientID != "" {
+		if c.OAuth.GitHub.ClientSecret == "" {
+			return fmt.Errorf("GitHub OAuth client secret cannot be empty when client ID is provided")
+		}
+		if c.OAuth.GitHub.RedirectURL == "" {
+			return fmt.Errorf("GitHub OAuth redirect URL cannot be empty when client ID is provided")
+		}
+	}
+
 	return nil
 }
