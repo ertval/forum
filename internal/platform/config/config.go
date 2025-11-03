@@ -103,11 +103,6 @@ type GitHubOAuthConfig struct {
 // It returns a Config struct with all values populated.
 // TODO: Implement configuration loading logic.
 func Load() (*Config, error) {
-	// Implementation placeholder
-	// 1. Load from .env file
-	// 2. Load from environment variables
-	// 3. Apply default values
-	// 4. Validate configuration
 
 	// Initialize Config with default values
 	cfg := &Config{}
@@ -129,14 +124,14 @@ func Load() (*Config, error) {
 	cfg.Session.Duration = getEnvDuration("SESSION_DURATION", 24*time.Hour)
 	cfg.Session.CookieName = getEnvString("SESSION_COOKIE_NAME", "forum_session")
 	cfg.Session.Secure = getEnvBool("SESSION_SECURE", false)
-	cfg.Session.HttpOnly = getEnvBool("SESSION_HTTP_ONLY", true)	
+	cfg.Session.HttpOnly = getEnvBool("SESSION_HTTP_ONLY", true)
 
 	cfg.Security.TLSCertFile = getEnvString("TLS_CERT_FILE", "cert.pem")
 	cfg.Security.TLSKeyFile = getEnvString("TLS_KEY_FILE", "key.pem")
 	cfg.Security.RateLimitRequests = getEnvInt("RATE_LIMIT_REQUESTS", 100)
 	cfg.Security.RateLimitWindow = getEnvDuration("RATE_LIMIT_WINDOW", time.Minute)
-	cfg.Security.MinPasswordLength = getEnvInt("MIN_PASSWORD_LENGTH", 8)	
-	
+	cfg.Security.MinPasswordLength = getEnvInt("MIN_PASSWORD_LENGTH", 8)
+
 	cfg.Upload.MaxSize = int64(getEnvInt("UPLOAD_MAX_SIZE_MB", 20)) * 1024 * 1024
 	cfg.Upload.AllowedTypes = []string{"static/image/jpeg", "static/image/png", "static/image/gif"}
 	cfg.Upload.UploadDir = getEnvString("UPLOAD_DIR", "./uploads")
@@ -149,9 +144,11 @@ func Load() (*Config, error) {
 	cfg.OAuth.GitHub.ClientSecret = getEnvString("GITHUB_OAUTH_CLIENT_SECRET", "")
 	cfg.OAuth.GitHub.RedirectURL = getEnvString("GITHUB_OAUTH_REDIRECT_URL", "")
 
-
 	// Return the populated configuration
-	return cfg, nil
+
+	err := cfg.Validate()
+
+	return cfg, err
 }
 
 // Validate validates the configuration values.
