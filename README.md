@@ -94,28 +94,100 @@ module/
 
 ``` text
 forum/
+├── bin/                     # Compiled binaries
+│   └── forum               # Main application binary
 ├── cmd/
-│   └── forum/                 # Application entry point
+│   └── forum/              # Application entry point
+│       ├── main.go         # Minimal entry point
+│       └── wire/           # Dependency injection package
+│           ├── app.go      # Application struct and lifecycle
+│           ├── handlers.go # HTTP handler initialization
+│           ├── repos.go    # Repository initialization
+│           ├── services.go # Service initialization
+│           └── README.md   # Wire package documentation
+├── data/                   # Data directory (for databases, etc.)
+├── docs/                   # Documentation
+│   ├── ARCHITECTURE.md     # Architecture documentation
+│   ├── IMPLEMENTATION_ROADMAP.md
+│   ├── requirements.md
+│   ├── morefeats.md
+│   └── copilot-instructions.md
 ├── internal/
-│   ├── modules/              # Business modules (hexagonal architecture)
-│   │   ├── auth/            # Authentication & sessions
-│   │   ├── user/            # User management & roles
-│   │   ├── post/            # Posts & categories
-│   │   ├── comment/         # Comments
-│   │   ├── reaction/        # Likes & dislikes
-│   │   ├── moderation/      # [OPTIONAL] Forum moderation
-│   │   └── notification/    # [OPTIONAL] Notifications
-│   └── platform/            # Shared infrastructure
-│       ├── database/        # SQLite connection & migrations
-│       ├── config/          # Configuration
-│       ├── logger/          # Structured logging
-│       ├── httpserver/      # HTTP server & middleware
-│       ├── errors/          # Error handling
-│       └── validator/       # Input validation
-├── migrations/              # Database migrations
-├── static/                  # Static assets (CSS, JS, images)
-├── templates/               # HTML templates
-└── tests/                   # Unit and integration tests
+│   ├── modules/            # Business modules (hexagonal architecture)
+│   │   ├── auth/          # Authentication & sessions
+│   │   │   ├── adapters/  # HTTP handlers, SQLite repositories
+│   │   │   ├── application/# Business logic orchestration
+│   │   │   ├── domain/    # Pure business logic
+│   │   │   └── ports/     # Interface definitions
+│   │   ├── user/          # User management & roles
+│   │   │   ├── adapters/
+│   │   │   ├── application/
+│   │   │   ├── domain/
+│   │   └── ports/
+│   │   ├── post/          # Posts & categories
+│   │   │   ├── adapters/
+│   │   │   ├── application/
+│   │   │   ├── domain/
+│   │   └── ports/
+│   │   ├── comment/       # Comments
+│   │   │   ├── adapters/
+│   │   │   ├── application/
+│   │   │   ├── domain/
+│   │   └── ports/
+│   │   ├── reaction/      # Likes & dislikes
+│   │   │   ├── adapters/
+│   │   │   ├── application/
+│   │   │   ├── domain/
+│   │   └── ports/
+│   │   ├── moderation/    # [OPTIONAL] Forum moderation
+│   │   │   ├── adapters/
+│   │   │   ├── application/
+│   │   │   ├── domain/
+│   │   └── ports/
+│   │   └── notification/  # [OPTIONAL] Notifications
+│   │       ├── adapters/
+│   │       ├── application/
+│   │       ├── domain/
+│   │       └── ports/
+│   └── platform/          # Shared infrastructure
+│       ├── config/        # Configuration management
+│       │   ├── config.go
+│       │   └── env_parser.go
+│       ├── database/      # SQLite connection & migrations
+│       ├── logger/        # Structured logging
+│       ├── httpserver/    # HTTP server & middleware
+│       ├── errors/        # Error handling
+│       └── validator/     # Input validation
+├── migrations/            # Database migrations
+│   ├── 001_auth_create_sessions.sql
+│   ├── 002_user_create_users.sql
+│   ├── 003_post_create_tables.sql
+│   ├── 004_comment_create_comments.sql
+│   ├── 005_reaction_create_reactions.sql
+│   ├── 006_moderation_create_reports.sql
+│   ├── 007_notification_create_notifications.sql
+│   └── README.md
+├── static/                # Static assets
+│   ├── css/
+│   │   └── style.css
+│   ├── js/
+│   │   └── app.js
+│   └── uploads/           # User uploaded files
+├── templates/             # HTML templates
+│   ├── base.html
+│   └── home.html
+├── tests/                 # Unit and integration tests
+│   ├── integration/
+│   │   ├── integration_test.go
+│   │   └── config/
+│   │       └── main.go
+│   └── unit/
+│       └── unit_test.go
+├── docker-compose.yml     # Docker Compose configuration
+├── Dockerfile             # Docker build configuration
+├── go.mod                 # Go module definition
+├── LICENSE                # License file
+└── README.md              # This file
 ```
 
 ---
@@ -311,13 +383,6 @@ See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for:
 - Hexagonal Architecture patterns
 - Module structure and dependencies
 - Design decisions and rationale
-
-### Project Structure
-
-See [docs/PROJECT_STRUCTURE.md](./docs/PROJECT_STRUCTURE.md) for:
-- Complete directory tree
-- Module organization
-- File naming conventions
 
 ---
 

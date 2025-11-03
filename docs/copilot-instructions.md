@@ -83,16 +83,16 @@ When working on optional features, preserve all `[OPTIONAL FEATURE]` comments in
 
 ## Dependency Injection Pattern
 
-Dependencies are wired manually in `cmd/forum/main.go` following this **exact order**:
+Dependencies are wired manually in `cmd/forum/wire/` package, called from `main.go` following this **exact order**:
 
 1. **Load config** → Initialize logger
-2. **Connect database** → Run migrations
-3. **Create repositories** (output adapters) - all SQLite repos
-4. **Create services** (inject repositories) - application layer services
-5. **Create HTTP handlers** (inject services) - input adapters
-6. **Register routes** → Start server with middleware stack
+2. **Connect database** → Run migrations (in `wire/app.go`)
+3. **Create repositories** (output adapters) - all SQLite repos (in `wire/repos.go`)
+4. **Create services** (inject repositories) - application layer services (in `wire/services.go`)
+5. **Create HTTP handlers** (inject services) - input adapters (in `wire/handlers.go`)
+6. **Register routes** → Start server with middleware stack (in `wire/app.go`)
 
-**Example from main.go:**
+**Example from wire/app.go:**
 ```go
 // 3. Repositories (Output Adapters)
 sessionRepo := authAdapters.NewSQLiteSessionRepository(dbConn.DB())
@@ -101,10 +101,10 @@ authService := authApp.NewAuthService(sessionRepo, authUserRepo)
 // 5. Handlers (Input Adapters)
 authHandler := authAdapters.NewHTTPHandler(authService)
 // 6. Register routes
-authHandler.RegisterRoutes(router)
+authHandler.RegisterRoutes(server.Router())
 ```
 
-**Never use dependency injection frameworks**. All wiring is explicit and visible in `main.go`.
+**Never use dependency injection frameworks**. All wiring is explicit and organized in the wire package.
 
 ## Database & Migrations
 
@@ -238,7 +238,8 @@ docker-compose up
 
 ## Key Files to Reference
 
-- **Main entry point**: `cmd/forum/main.go` - Complete DI setup showing the exact wiring order
+- **Main entry point**: `cmd/forum/main.go` - Minimal lifecycle management
+- **Wire package**: `cmd/forum/wire/` - Complete DI setup and component wiring
 - **Architecture docs**: `docs/ARCHITECTURE.md` - Full design rationale with dependency rules
 - **Implementation status**: `docs/IMPLEMENTATION_ROADMAP.md` - TODO tracking with phase breakdown
 - **Module example**: `internal/modules/auth/` - Reference implementation with all 4 layers
@@ -260,7 +261,7 @@ docker-compose up
 3. Define ports (interfaces) before implementations
 4. Implement application service, then adapters
 5. Update migrations if database changes needed
-6. Wire new components in `main.go`
+6. Wire new components in `cmd/forum/wire/`
 7. Update `IMPLEMENTATION_ROADMAP.md` with progress
 
 **Example workflow for adding a new feature:**
@@ -279,8 +280,11 @@ docker-compose up
 # Edit: internal/modules/post/adapters/sqlite_repository.go
 # 7. Implement HTTP handler
 # Edit: internal/modules/post/adapters/http_handler.go
-# 8. Wire in main.go
-# Edit: cmd/forum/main.go
+# 8. Wire in wire package
+# Edit: cmd/forum/wire/repos.go (add repository)
+# Edit: cmd/forum/wire/services.go (add service)
+# Edit: cmd/forum/wire/handlers.go (add handler)
+# Edit: cmd/forum/wire/app.go (register routes)
 ```
 
 ## Common Pitfalls to Avoid
