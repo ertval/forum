@@ -102,11 +102,6 @@ type GitHubOAuthConfig struct {
 // It returns a Config struct with all values populated.
 // TODO: Implement configuration loading logic.
 func Load() (*Config, error) {
-	// Implementation placeholder
-	// 1. Load from .env file
-	// 2. Load from environment variables
-	// 3. Apply default values
-	// 4. Validate configuration
 
 	// Initialize Config with default values
 	cfg := &Config{}
