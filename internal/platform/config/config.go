@@ -45,6 +45,7 @@ type ServerConfig struct {
 // DatabaseConfig contains database connection settings.
 type DatabaseConfig struct {
 	Path            string        // SQLite database file path
+	MigrationsDir   string        // Database migrations directory
 	MaxOpenConns    int           // Maximum number of open connections
 	MaxIdleConns    int           // Maximum number of idle connections
 	ConnMaxLifetime time.Duration // Maximum connection lifetime
@@ -104,7 +105,6 @@ type GitHubOAuthConfig struct {
 // It returns a Config struct with all values populated.
 // TODO: Implement configuration loading logic.
 func Load() (*Config, error) {
-
 	// Initialize Config with default values
 	cfg := &Config{}
 
@@ -117,6 +117,7 @@ func Load() (*Config, error) {
 	cfg.Server.IdleTimeout = getEnvDuration("SERVER_IDLE_TIMEOUT", 60*time.Second)
 
 	cfg.Database.Path = getEnvString("DATABASE_PATH", "./data/forum.db")
+	cfg.Database.MigrationsDir = getEnvString("DATABASE_MIGRATIONS_DIR", "./migrations")
 	cfg.Database.MaxOpenConns = getEnvInt("DATABASE_MAX_OPEN_CONNS", 25)
 	cfg.Database.MaxIdleConns = getEnvInt("DATABASE_MAX_IDLE_CONNS", 25)
 	cfg.Database.ConnMaxLifetime = getEnvDuration("DATABASE_CONN_MAX_LIFETIME", 5*time.Minute)
