@@ -49,7 +49,6 @@ import (
 
 func main() {
 
-	fmt.Println("This is the begg Forum Application")
 	// 1. Load Configuration
 	cfg, err := config.Load()
 	if err != nil {
