@@ -2,7 +2,6 @@ package database
 // Package database provides database connection management and migrations.
 // This package handles SQLite database initialization, connection pooling,
 // and migration execution for the forum application.
-package database
 
 import (
 	"database/sql"

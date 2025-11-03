@@ -1,7 +1,6 @@
 package ports
 // INPUT PORT - Service Interface
 // Package ports defines the input ports (use cases) for the user module.
-package ports
 
 import (
 	"context"

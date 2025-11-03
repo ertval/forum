@@ -1,7 +1,6 @@
 package adapters
 // INPUT ADAPTER - HTTP Handler
 // Package adapters implements the HTTP handlers for user endpoints.
-package adapters
 
 import (
 	"forum/internal/modules/user/ports"

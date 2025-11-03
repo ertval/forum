@@ -2,6 +2,23 @@
 
 A modern web forum application built with Go, following Hexagonal Architecture principles and organized as a Modular Monolith. This project implements authentication, posts, comments, reactions, moderation, and notification systems with a focus on clean architecture, maintainability, and AI-agent-friendly structure.
 
+## ⚠️ Project Status: Early Development (10% Complete)
+
+**Current State**: Project scaffolding and architecture are complete. Most implementations contain placeholder code with TODO markers.
+
+**What's Complete**:
+- ✅ Project structure and module organization
+- ✅ Database migration files defined
+- ✅ Dependency injection wiring in `main.go`
+- ✅ Domain entities and interfaces defined
+- ✅ Error types and basic validation structures
+
+**What's In Progress**:
+- ⏳ Platform services (config, database, logger, HTTP server) - skeletons exist with TODO markers
+- ⏳ All module implementations - repositories, services, and handlers are placeholder stubs
+
+**For detailed implementation status**, see [docs/IMPLEMENTATION_ROADMAP.md](./docs/IMPLEMENTATION_ROADMAP.md)
+
 ## 🏗️ Architecture
 
 This project follows a **Modular Monolith** architecture with **Hexagonal Architecture** (Ports and Adapters) for each module. For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md).
@@ -74,92 +91,96 @@ module/
   - `// INPUT ADAPTER` - HTTP handlers, CLI, gRPC servers
   - `// OUTPUT ADAPTER` - Database implementations, external APIs
 
-## ✨ Features
+## ✨ Features (Planned & In Development)
 
-### Core Features
+### Core Features (Structure Complete, Implementation Pending)
 
-- ✅ **Authentication & Authorization**
-  - User registration with email, username, and password
-  - Login with session management (UUID-based cookies)
-  - Password encryption (bcrypt)
-  - Session expiration handling
+- 🔄 **Authentication & Authorization** (NOT IMPLEMENTED)
+  - User registration with email, username, and password (TODO)
+  - Login with session management (UUID-based cookies) (TODO)
+  - Password encryption (bcrypt) (TODO)
+  - Session expiration handling (TODO)
 
-- ✅ **Posts & Categories**
-  - Create, read, update, delete posts
-  - Associate multiple categories with posts
-  - Image upload support (JPEG, PNG, GIF, max 20MB)
-  - Public viewing for all users
+- 🔄 **Posts & Categories** (PARTIAL - Structure exists)
+  - Create, read, update, delete posts (TODO)
+  - Associate multiple categories with posts (TODO)
+  - Image upload support (JPEG, PNG, GIF, max 20MB) (TODO)
+  - Public viewing for all users (TODO)
 
-- ✅ **Comments**
-  - Comment on posts
-  - View comments (public)
-  - Edit/delete own comments
+- 🔄 **Comments** (PARTIAL - Structure exists)
+  - Comment on posts (TODO)
+  - View comments (public) (TODO)
+  - Edit/delete own comments (TODO)
 
-- ✅ **Reactions (Likes/Dislikes)**
-  - Like/dislike posts and comments
-  - View reaction counts (public)
-  - Only registered users can react
+- 🔄 **Reactions (Likes/Dislikes)** (PARTIAL - Structure exists)
+  - Like/dislike posts and comments (TODO)
+  - View reaction counts (public) (TODO)
+  - Only registered users can react (TODO)
 
-- ✅ **Filtering**
+- ❌ **Filtering** (NOT STARTED)
   - Filter by categories
   - Filter by user's created posts
   - Filter by user's liked posts
 
-### Security Features
+### Security Features (Structure Defined, Not Implemented)
 
-- ✅ **HTTPS/TLS**
+- ❌ **HTTPS/TLS** (NOT IMPLEMENTED)
   - TLS 1.2+ support
   - Strong cipher suites
   - SSL certificate management
 
-- ✅ **Rate Limiting**
+- ❌ **Rate Limiting** (NOT IMPLEMENTED)
   - Per-endpoint rate limiting
   - Per-user rate limiting
 
-- ✅ **Secure Sessions**
+- ❌ **Secure Sessions** (NOT IMPLEMENTED)
   - UUID-based session identifiers
   - Server-side session storage
   - Secure cookie attributes
 
-### Moderation Features
+### Moderation Features (Optional - Structure exists)
 
-- ✅ **User Roles** [OPTIONAL FEATURE: forum-moderation]
-  - Guest (view only)
-  - User (create, comment, react)
-  - Moderator (monitor, delete, report)
-  - Administrator (manage users, categories, reports)
+- 🔄 **User Roles** [OPTIONAL FEATURE: forum-moderation] (PARTIAL)
+  - Guest (view only) (TODO)
+  - User (create, comment, react) (TODO)
+  - Moderator (monitor, delete, report) (TODO)
+  - Administrator (manage users, categories, reports) (TODO)
 
-- ✅ **Moderation Actions** [OPTIONAL FEATURE: forum-moderation]
-  - Report posts/comments
-  - Delete inappropriate content
-  - Promote/demote moderators
-  - Review moderation reports
+- 🔄 **Moderation Actions** [OPTIONAL FEATURE: forum-moderation] (PARTIAL)
+  - Report posts/comments (TODO)
+  - Delete inappropriate content (TODO)
+  - Promote/demote moderators (TODO)
+  - Review moderation reports (TODO)
 
-### Advanced Features
+### Advanced Features (Optional - Structure exists)
 
-- ✅ **Notifications** [OPTIONAL FEATURE: forum-advanced-features]
-  - Notify on post likes/dislikes
-  - Notify on new comments
-  - Real-time notification system
+- 🔄 **Notifications** [OPTIONAL FEATURE: forum-advanced-features] (PARTIAL)
+  - Notify on post likes/dislikes (TODO)
+  - Notify on new comments (TODO)
+  - Real-time notification system (TODO)
 
-- ✅ **Activity Tracking** [OPTIONAL FEATURE: forum-advanced-features]
+- ❌ **Activity Tracking** [OPTIONAL FEATURE: forum-advanced-features] (NOT STARTED)
   - User's created posts
   - User's likes and dislikes
   - User's comments with context
 
-- ✅ **Content Management**
+- ❌ **Content Management** (NOT STARTED)
   - Edit posts and comments
   - Delete own content
   - Moderator content removal
 
-### Authentication Features
+### Authentication Features (Future)
 
-- ✅ **OAuth Integration**
+- ❌ **OAuth Integration** (NOT STARTED)
   - Google OAuth
   - GitHub OAuth
   - Session management across providers
 
+**Legend**: ✅ Complete | 🔄 In Progress/Partial | ❌ Not Started
+
 ## 🚀 Getting Started
+
+⚠️ **Note**: The application is in early development. Most features are not yet implemented.
 
 ### Prerequisites
 
@@ -180,24 +201,25 @@ module/
    go mod download
    ```
 
-3. **Run the application**
+3. **Run the application** (Currently will fail - implementations pending)
    ```bash
    go run cmd/forum/main.go
    ```
+   
+   ⚠️ **Expected**: The application will fail to start as core platform services (config, database, logger) are not yet implemented.
 
-4. **Access the forum**
-   - HTTP: `http://localhost:8080`
-   - HTTPS: `https://localhost:8443`
+4. **Check implementation status**
+   - See [docs/IMPLEMENTATION_ROADMAP.md](./docs/IMPLEMENTATION_ROADMAP.md) for detailed TODO list
+   - Most files contain `// TODO: Implement...` comments
 
 ### Docker Deployment
+
+⚠️ **Not Functional Yet**: Docker deployment is configured but won't work until core implementations are complete.
 
 1. **Build and run with Docker Compose**
    ```bash
    docker-compose up --build
    ```
-
-2. **Access the forum**
-   - `https://localhost:8443`
 
 ### Environment Configuration
 
@@ -233,22 +255,32 @@ UPLOAD_DIR=./static/uploads
 
 ## 🧪 Testing
 
-### Run all tests
+⚠️ **Status**: Test infrastructure is in place, but actual tests are not yet written.
+
+### Current Test Status
+
+- Test files exist with stub implementations
+- `tests/unit/unit_test.go`: Placeholder with message "Unit tests will be implemented following TDD principles"
+- `tests/integration/integration_test.go`: Placeholder with message "Integration tests will be implemented after core functionality"
+
+### When Implemented
+
+Run all tests:
 ```bash
 go test ./...
 ```
 
-### Run with coverage
+Run with coverage:
 ```bash
 go test -cover ./...
 ```
 
-### Run integration tests
+Run integration tests:
 ```bash
 go test ./tests/integration/...
 ```
 
-### Run specific module tests
+Run specific module tests:
 ```bash
 go test ./internal/modules/auth/...
 ```
@@ -281,8 +313,31 @@ This project is structured to be AI-agent-friendly:
 
 ## 📝 Documentation
 
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - Detailed architecture documentation
+- [ARCHITECTURE.md](./docs/ARCHITECTURE.md) - Detailed architecture documentation
+- [IMPLEMENTATION_ROADMAP.md](./docs/IMPLEMENTATION_ROADMAP.md) - **Current implementation status with detailed TODO tracking**
+- [PROJECT_STRUCTURE.md](./docs/PROJECT_STRUCTURE.md) - Project structure overview
 - Module-specific documentation in each module directory
+
+## 🔨 Development Status
+
+### Next Steps
+
+1. **Implement Platform Services** (Phase 1 - Priority)
+   - Configuration loading (`internal/platform/config/`)
+   - Database connection and migrations (`internal/platform/database/`)
+   - Logger implementation (`internal/platform/logger/`)
+   - HTTP server setup (`internal/platform/httpserver/`)
+   - Middleware implementation
+
+2. **Implement Auth Module** (Phase 2)
+   - Session management
+   - User authentication
+   - Password hashing with bcrypt
+   - HTTP handlers for login/register/logout
+
+3. **Continue with remaining modules** following the roadmap
+
+For detailed checklist, see [docs/IMPLEMENTATION_ROADMAP.md](./docs/IMPLEMENTATION_ROADMAP.md)
 
 ## 🔒 Security
 
