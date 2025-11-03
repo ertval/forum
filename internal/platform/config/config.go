@@ -5,6 +5,7 @@ package config
 
 import (
 	"fmt"
+	"path/filepath"
 	"time"
 )
 
@@ -178,8 +179,11 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate Database configuration
-	if c.Database.Path != "./data/forum.db" {
-		return fmt.Errorf("database path must be './data/forum.db'")
+	// Allow common developer paths: ./data/forum.db, ./forum.db, or any
+	// path whose base name is forum.db (absolute or relative).
+	dbBase := filepath.Base(c.Database.Path)
+	if !(c.Database.Path == "./data/forum.db" || c.Database.Path == "./db/forum.db" || dbBase == "forum.db") {
+		return fmt.Errorf("database path must point to a forum.db file (e.g. './data/forum.db' or './db/forum.db')")
 	}
 	if c.Database.MaxOpenConns <= 0 {
 		return fmt.Errorf("max open connections must be positive")
@@ -192,8 +196,16 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate Session configuration
-	if len(c.Session.Secret) < 32 {
-		return fmt.Errorf("session secret must be at least 32 characters long")
+	// In production require a strong secret (32+). In other environments allow
+	// a shorter dev secret but it must be non-empty and at least 8 chars.
+	if c.Server.Environment == "production" {
+		if len(c.Session.Secret) < 32 {
+			return fmt.Errorf("session secret must be at least 32 characters long in production")
+		}
+	} else {
+		if len(c.Session.Secret) < 8 {
+			return fmt.Errorf("session secret must be at least 8 characters long for non-production environments")
+		}
 	}
 	if c.Session.Duration <= 0 {
 		return fmt.Errorf("session duration must be positive")
@@ -229,8 +241,11 @@ func (c *Config) Validate() error {
 	if len(c.Upload.AllowedTypes) == 0 {
 		return fmt.Errorf("at least one allowed file type must be specified")
 	}
-	if c.Upload.UploadDir != "./static/uploads" {
-		return fmt.Errorf("upload directory path must be './static/uploads'")
+	// Validate Upload configuration
+	// Allow either ./static/uploads or ./uploads or any path ending in 'uploads'.
+	uploadBase := filepath.Base(c.Upload.UploadDir)
+	if !(c.Upload.UploadDir == "./static/uploads" || c.Upload.UploadDir == "./uploads" || uploadBase == "uploads") {
+		return fmt.Errorf("upload directory path must point to an 'uploads' directory (e.g. './static/uploads' or './uploads')")
 	}
 
 	// OAuth configuration is optional, but if provided, validate it
