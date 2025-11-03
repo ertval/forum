@@ -25,13 +25,13 @@ func main() {
 	}
 
 	// 2. Initialize Logger
-	lgr := logger.New(logger.InfoLevel, os.Stdout)
-	lgr.Info("Starting Forum Application")
+	log := logger.New(logger.InfoLevel, os.Stdout)
+	log.Info("Starting Forum Application")
 
 	// 3. Initialize Application (all wiring happens in wire package)
-	app, err := wire.InitializeApp(cfg, lgr)
+	app, err := wire.InitializeApp(cfg, log)
 	if err != nil {
-		lgr.Error("Failed to initialize application", logger.Error(err))
+		log.Error("Failed to initialize application", logger.Error(err))
 		os.Exit(1)
 	}
 	defer app.Cleanup()
@@ -39,12 +39,12 @@ func main() {
 	// 4. Start Server
 	go func() {
 		if err := app.Start(); err != nil {
-			lgr.Error("Server failed to start", logger.Error(err))
+			log.Error("Server failed to start", logger.Error(err))
 			os.Exit(1)
 		}
 	}()
 
-	lgr.Info(fmt.Sprintf("Forum server started on port %d (HTTP) and %d (HTTPS)",
+	log.Info(fmt.Sprintf("Forum server started on port %d (HTTP) and %d (HTTPS)",
 		cfg.Server.Port, cfg.Server.TLSPort))
 
 	// 5. Graceful Shutdown
@@ -52,19 +52,19 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	lgr.Info("Shutting down server...")
+	log.Info("Shutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := app.Shutdown(); err != nil {
-		lgr.Error("Server forced to shutdown", logger.Error(err))
+		log.Error("Server forced to shutdown", logger.Error(err))
 	}
 
 	select {
 	case <-ctx.Done():
-		lgr.Info("Timeout of 30 seconds exceeded")
+		log.Info("Timeout of 30 seconds exceeded")
 	default:
-		lgr.Info("Server exited gracefully")
+		log.Info("Server exited gracefully")
 	}
 }
