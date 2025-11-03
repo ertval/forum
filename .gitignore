@@ -1,3 +1,19 @@
+# Ignore local sqlite database files
+/forum.db
+/data/*.db
+*.db
+
+# Ignore uploads and generated static files
+/static/uploads/
+
+# OS files
+*.DS_Store
+Thumbs.db
+
+# IDE/editor
+.vscode/
+*.swp
+.idea/
 # Binaries for programs and plugins
 *.exe
 *.exe~

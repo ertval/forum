@@ -21,7 +21,7 @@ Focus: Implement essential features from requirements.md to get a working forum 
 **Goal**: Make the app start and serve HTTP
 
 **Platform Layer Implementation:**
-- [ ] Config loading from environment variables (config.go)
+- [x] Config loading from environment variables (config.go)
 - [ ] Database connection (SQLite with mattn/go-sqlite3) (connection.go)
 - [ ] Database migrator - apply migrations on startup (migrator.go)
 - [ ] Basic HTTP server with standard lib http.ServeMux (server.go)
