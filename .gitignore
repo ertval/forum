@@ -4,8 +4,6 @@
 *.dll
 *.so
 *.dylib
-*.test
-
 
 # Test binary, built with `go test -c`
 *.test
@@ -14,12 +12,14 @@
 *.out
 coverage.txt
 coverage.html
+*.coverprofile
 
 # Dependency directories
 vendor/
 
 # Go workspace file
 go.work
+go.work.sum
 
 # IDE specific files
 .vscode/
@@ -27,25 +27,50 @@ go.work
 *.swp
 *.swo
 *~
+.DS_Store
 
 # Database files
 *.db
 *.sqlite
 *.sqlite3
+*.db-shm
+*.db-wal
 
 # Environment files
 .env
 .env.local
+.env.*.local
 
 # Docker
-.docker/
+.dockerignore
 
 # Logs
 *.log
+logs/
 
-# OS specific
-.DS_Store
+# TLS/SSL certificates (for development)
+*.pem
+*.key
+*.crt
+*.csr
+certs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build artifacts
+bin/
+build/
+
+# OS files
 Thumbs.db
+.DS_Store
+
+# Uploaded files (images, etc.)
+uploads/
+static/uploads/
 
 # AI related files
 .agents/
