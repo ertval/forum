@@ -6,15 +6,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"forum/cmd/forum/wire"
+	"forum/internal/platform/config"
+	"forum/internal/platform/logger"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"forum/cmd/forum/wire"
-	"forum/internal/platform/config"
-	"forum/internal/platform/logger"
 )
 
 func main() {
