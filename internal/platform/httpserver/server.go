@@ -19,7 +19,7 @@ type Server struct {
 	config     Config
 }
 
-// Config contains HTTP server configuration.
+// Config contains HTTP and HTTPS server configuration.
 type Config struct {
 	Host         string
 	Port         int
