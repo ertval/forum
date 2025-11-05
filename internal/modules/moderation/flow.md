@@ -51,94 +51,40 @@ moderation/
 
 ## Detailed Architecture Diagram
 
-```text
-┌──────────────────────────────────────────────────────────┐
-│                   HTTP CLIENT                            │
-│              POST /api/reports                           │
-│   {target_type: "post", target_id: 123, reason: "..."}  │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  INPUT ADAPTER: http_handler.go                          │
-│  • CreateReport(w, r)  [User role required]              │
-│  • ReviewReport(w, r)  [Moderator role required]         │
-│  • DeleteContent(w, r) [Moderator role required]         │
-│  • Parse JSON, extract session user_id                   │
-│  • Call moderationService methods                        │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  INPUT PORT: ports/service.go                            │
-│  type ModerationService interface {                      │
-│      CreateReport(reporterID, targetType, targetID,      │
-│                   reason string) (*Report, error)        │
-│      ListReports(filters Filters) ([]*Report, error)     │
-│      ReviewReport(reportID, moderatorID int64,           │
-│                   action, notes string) error            │
-│      PromoteUser(userID, targetRole int64) error         │
-│      DeleteContent(targetType, targetID, modID) error    │
-│  }                                                       │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  APPLICATION: application/service.go                     │
-│  • Implements ModerationService interface                │
-│  • Business logic:                                       │
-│    - Role-based authorization (moderator/admin)          │
-│    - Prevent duplicate reports from same user            │
-│    - Track moderation actions                            │
-│    - Cascade delete content with reactions/comments      │
-│  • Uses ReportRepository interface                       │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  OUTPUT PORT: ports/repository.go                        │
-│  type ReportRepository interface {                       │
-│      Create(report *Report) error                        │
-│      FindByID(id int64) (*Report, error)                 │
-│      FindAll(filters Filters) ([]*Report, error)         │
-│      Update(report *Report) error                        │
-│      FindByReporterAndTarget(reporterID, targetType,     │
-│                              targetID) (*Report, error)  │
-│  }                                                       │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  OUTPUT ADAPTER: sqlite_repository.go                    │
-│  • Implements ReportRepository interface                 │
-│  • SQL queries for reports table                         │
-│  • Handles status transitions (pending → reviewed)       │
-│  • Filters: status, target_type, moderator_id            │
-└──────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A["HTTP CLIENT<br/>POST /api/reports<br/>{target_type: 'post', target_id: 123, reason: '...'}"] --> B["INPUT ADAPTER: http_handler.go<br/>• CreateReport(w, r) [User role required]<br/>• ReviewReport(w, r) [Moderator role required]<br/>• DeleteContent(w, r) [Moderator role required]<br/>• Parse JSON, extract session user_id<br/>• Call moderationService methods"]
+    B --> C["INPUT PORT: ports/service.go<br/>type ModerationService interface {<br/>CreateReport(reporterID, targetType, targetID,<br/>reason string) (*Report, error)<br/>ListReports(filters Filters) ([]*Report, error)<br/>ReviewReport(reportID, moderatorID int64,<br/>action, notes string) error<br/>PromoteUser(userID, targetRole int64) error<br/>DeleteContent(targetType, targetID, modID) error<br/>}"]
+    C --> D["APPLICATION: application/service.go<br/>• Implements ModerationService interface<br/>• Business logic:<br/>- Role-based authorization (moderator/admin)<br/>- Prevent duplicate reports from same user<br/>- Track moderation actions<br/>- Cascade delete content with reactions/comments<br/>• Uses ReportRepository interface"]
+    D --> E["OUTPUT PORT: ports/repository.go<br/>type ReportRepository interface {<br/>Create(report *Report) error<br/>FindByID(id int64) (*Report, error)<br/>FindAll(filters Filters) ([]*Report, error)<br/>Update(report *Report) error<br/>FindByReporterAndTarget(reporterID, targetType,<br/>targetID) (*Report, error)<br/>}"]
+    E --> F["OUTPUT ADAPTER: sqlite_repository.go<br/>• Implements ReportRepository interface<br/>• SQL queries for reports table<br/>• Handles status transitions (pending → reviewed)<br/>• Filters: status, target_type, moderator_id"]
 ```
 
-## Dependency Direction
+## Dependency Flow
 
-```text
-┌──────────────────┐
-│  http_handler    │ ──┐
-└──────────────────┘   │
-                       │ Both import
-┌──────────────────┐   │ ports & domain
-│sqlite_repository │ ──┤
-└──────────────────┘   │
-                       ▼
-┌──────────────────┐  ┌───────────────┐
-│   application    │─→│     ports     │
-│   /service.go    │  │  (interfaces) │
-└──────────────────┘  └───────┬───────┘
-                              │
-                              ▼
-                       ┌──────────────┐
-                       │    domain    │
-                       │  /report.go  │
-                       └──────────────┘
-                     (NO dependencies)
+Direction: Everything depends on DOMAIN (center of hexagon)
+
+```mermaid
+graph TD
+    subgraph Adapters
+        A[http_handler]
+        D[sqlite_repository]
+    end
+    subgraph Application
+        E["application<br/>/service.go"]
+    end
+    subgraph Ports
+        B["ports<br/>(interfaces)"]
+    end
+    subgraph Domain
+        C["domain<br/>/report.go<br/>(NO dependencies)"]
+    end
+    A -->|"imports"| B
+    A -->|"imports"| C
+    D -->|"imports"| B
+    D -->|"imports"| C
+    E -->|"imports"| B
+    B -->|"imports"| C
 ```
 
 ## Key Components
@@ -406,31 +352,28 @@ notificationService.NotifyAffectedUsers(...)  ← Optional
 
 ## Database Schema Relationships
 
-```text
-┌─────────────┐
-│    users    │
-├─────────────┤
-│ id (PK)     │
-│ role (enum) │ ← guest, user, moderator, administrator
-└─────────────┘
-       ↑
-       │
-       │ reporter_id / moderator_id
-       │
-┌────────────────────────┐
-│       reports          │
-├────────────────────────┤
-│ id (PK)                │
-│ reporter_id (FK)       │───┐
-│ target_type (enum)     │   │
-│ target_id (int)        │───┼─── References posts or comments
-│ reason (text)          │   │     (polymorphic)
-│ status (enum)          │   │     (pending, reviewed, dismissed)
-│ moderator_id (FK)      │───┘
-│ notes (text)           │
-│ created_at             │
-│ reviewed_at            │
-└────────────────────────┘
+```mermaid
+erDiagram
+    users {
+        int id PK
+        string role "enum: guest, user, moderator, administrator"
+    }
+    
+    reports {
+        int id PK
+        int reporter_id FK
+        string target_type "enum: post, comment"
+        int target_id
+        string reason
+        string status "enum: pending, reviewed, dismissed"
+        int moderator_id FK
+        string notes
+        datetime created_at
+        datetime reviewed_at
+    }
+    
+    users ||--o{ reports : "reports_as_reporter"
+    users ||--o{ reports : "moderates_as_moderator"
 ```
 
 ## Moderation Workflow

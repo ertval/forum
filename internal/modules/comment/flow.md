@@ -52,90 +52,42 @@ comment/
 
 ## Detailed Architecture Diagram
 
-```text
-┌──────────────────────────────────────────────────────────┐
-│                   HTTP CLIENT                            │
-│         POST /api/posts/123/comments                     │
-│         {content: "Nice!", parent_id: null}              │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  INPUT ADAPTER: http_handler.go                          │
-│  • CreateComment(w, r)                                   │
-│  • Parse post_id from URL path                           │
-│  • Parse JSON body for content & parent_id               │
-│  • Extract user_id from session context                  │
-│  • Call commentService.Create(...)                       │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  INPUT PORT: ports/service.go                            │
-│  type CommentService interface {                         │
-│      Create(postID, userID int64, content string,        │
-│             parentID *int64) (*Comment, error)           │
-│      GetByPostID(postID int64) ([]*Comment, error)       │
-│      Update(id, userID int64, content string) error      │
-│      Delete(id, userID int64) error                      │
-│  }                                                       │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  APPLICATION: application/service.go                     │
-│  • Implements CommentService interface                   │
-│  • Business logic:                                       │
-│    - Verify post exists (via PostService port)           │
-│    - Validate parent comment if nested                   │
-│    - Check ownership for edit/delete                     │
-│  • Uses CommentRepository interface                      │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  OUTPUT PORT: ports/repository.go                        │
-│  type CommentRepository interface {                      │
-│      Create(comment *Comment) error                      │
-│      FindByID(id int64) (*Comment, error)                │
-│      FindByPostID(postID int64) ([]*Comment, error)      │
-│      Update(comment *Comment) error                      │
-│      Delete(id int64) error                              │
-│  }                                                       │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  OUTPUT ADAPTER: sqlite_repository.go                    │
-│  • Implements CommentRepository interface                │
-│  • SQL queries for comments table                        │
-│  • Handles parent_id for nested comments                 │
-│  • Maps rows to domain.Comment entities                  │
-└──────────────────────────────────────────────────────────┘
+```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 100, 'rankSpacing': 100}}}%%
+flowchart TD
+    A["&nbsp;&nbsp;HTTP&nbsp;CLIENT&nbsp;POST /api/posts/123/comments<br/>{content:&nbsp;'Nice!',&nbsp;parent_id:&nbsp;null}&nbsp;&nbsp;"] 
+    A --> B["&nbsp;INPUT&nbsp;ADAPTER:&nbsp;http_handler.go<br/>•&nbsp;CreateComment(w,&nbsp;r)<br/>•&nbsp;Parse&nbsp;post_id&nbsp;from&nbsp;URL&nbsp;path<br/>•&nbsp;Parse&nbsp;JSON&nbsp;body&nbsp;for&nbsp;content&nbsp;&&nbsp;parent_id<br/>•&nbsp;Extract&nbsp;user_id&nbsp;from&nbsp;session&nbsp;context<br/>•&nbsp;Call&nbsp;commentService.Create(...)&nbsp;"]
+    B --> C["&nbsp;INPUT&nbsp;PORT:&nbsp;ports/service.go<br/>type&nbsp;CommentService&nbsp;interface&nbsp;{<br/>Create(postID,&nbsp;userID&nbsp;int64,&nbsp;content&nbsp;string,<br/>parentID&nbsp;*int64)&nbsp;(*Comment,&nbsp;error)<br/>GetByPostID(postID&nbsp;int64)&nbsp;([]*Comment,&nbsp;error)<br/>Update(id,&nbsp;userID&nbsp;int64,&nbsp;content&nbsp;string)&nbsp;error<br/>Delete(id,&nbsp;userID&nbsp;int64)&nbsp;error<br/>}&nbsp;"]
+    C --> D["&nbsp;APPLICATION:&nbsp;application/service.go<br/>•&nbsp;Implements&nbsp;CommentService&nbsp;interface<br/>•&nbsp;Business&nbsp;logic:<br/>-&nbsp;Verify&nbsp;post&nbsp;exists&nbsp;(via&nbsp;PostService&nbsp;port)<br/>-&nbsp;Validate&nbsp;parent&nbsp;comment&nbsp;if&nbsp;nested<br/>-&nbsp;Check&nbsp;ownership&nbsp;for&nbsp;edit/delete<br/>•&nbsp;Uses&nbsp;CommentRepository&nbsp;interface&nbsp;"]
+    D --> E["&nbsp;OUTPUT&nbsp;PORT:&nbsp;ports/repository.go<br/>type&nbsp;CommentRepository&nbsp;interface&nbsp;{<br/>Create(comment&nbsp;*Comment)&nbsp;error<br/>FindByID(id&nbsp;int64)&nbsp;(*Comment,&nbsp;error)<br/>FindByPostID(postID&nbsp;int64)&nbsp;([]*Comment,&nbsp;error)<br/>Update(comment&nbsp;*Comment)&nbsp;error<br/>Delete(id&nbsp;int64)&nbsp;error<br/>}&nbsp;"]
+    E --> F["&nbsp;OUTPUT&nbsp;ADAPTER:&nbsp;sqlite_repository.go<br/>•&nbsp;Implements&nbsp;CommentRepository&nbsp;interface<br/>•&nbsp;SQL&nbsp;queries&nbsp;for&nbsp;comments&nbsp;table<br/>•&nbsp;Handles&nbsp;parent_id&nbsp;for&nbsp;nested&nbsp;comments<br/>•&nbsp;Maps&nbsp;rows&nbsp;to&nbsp;domain.Comment&nbsp;entities&nbsp;"]
 ```
 
-## Dependency Direction
+## Dependency Flow
 
-```text
-┌──────────────────┐
-│  http_handler    │ ──┐
-└──────────────────┘   │
-                       │ Both import
-┌──────────────────┐   │ ports & domain
-│sqlite_repository │ ──┤
-└──────────────────┘   │
-                       ▼
-┌──────────────────┐  ┌───────────────┐
-│   application    │─→│     ports     │
-│   /service.go    │  │  (interfaces) │
-└──────────────────┘  └───────┬───────┘
-                              │
-                              ▼
-                       ┌──────────────┐
-                       │    domain    │
-                       │ /comment.go  │
-                       └──────────────┘
-                     (NO dependencies)
+Direction: Everything depends on DOMAIN (center of hexagon)
+
+```mermaid
+graph TD
+    subgraph Adapters
+        A[http_handler]
+        D[sqlite_repository]
+    end
+    subgraph Application
+        E["application<br/>/service.go"]
+    end
+    subgraph Ports
+        B["ports<br/>(interfaces)"]
+    end
+    subgraph Domain
+        C["domain<br/>/comment.go<br/>(NO dependencies)"]
+    end
+    A -->|"imports"| B
+    A -->|"imports"| C
+    D -->|"imports"| B
+    D -->|"imports"| C
+    E -->|"imports"| B
+    B -->|"imports"| C
 ```
 
 ## Key Components
@@ -367,30 +319,37 @@ notificationService.NotifyPostAuthor(...)  ← Optional notification
 
 ## Database Schema Relationships
 
-```text
-┌─────────────┐        ┌──────────────────┐
-│    users    │        │      posts       │
-├─────────────┤        ├──────────────────┤
-│ id (PK)     │        │ id (PK)          │
-│ username    │        │ user_id (FK)     │
-└─────────────┘        │ title            │
-       ↑               │ content          │
-       │               └──────────────────┘
-       │                       ↑
-       │                       │
-┌──────────────────┐           │
-│    comments      │           │
-├──────────────────┤           │
-│ id (PK)          │           │
-│ post_id (FK)     │───────────┘
-│ user_id (FK)     │───────────┘
-│ parent_id (FK)   │───┐  (self-reference)
-│ content          │   │
-│ created_at       │   │
-│ updated_at       │   │
-└──────────────────┘   │
-        ↑              │
-        └──────────────┘
+```mermaid
+erDiagram
+    users {
+        int id PK
+        string username
+    }
+    
+    posts {
+        int id PK
+        int user_id FK
+        string title
+        string content
+        string image_path
+        datetime created_at
+        datetime updated_at
+    }
+    
+    comments {
+        int id PK
+        int post_id FK
+        int user_id FK
+        int parent_id FK
+        string content
+        datetime created_at
+        datetime updated_at
+    }
+    
+    users ||--o{ posts : "creates"
+    users ||--o{ comments : "writes"
+    posts ||--o{ comments : "has"
+    comments ||--o{ comments : "replies_to"
 ```
 
 ## Why This Architecture?

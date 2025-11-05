@@ -55,97 +55,40 @@ post/
 
 ## Detailed Architecture Diagram
 
-```text
-┌─────────────────────────────────────────────────────────┐
-│                    HTTP CLIENT                          │
-│              POST /api/posts                            │
-│  {title: "...", content: "...", categories: [1,2]}      │
-└──────────────────────┬──────────────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────┐
-│  INPUT ADAPTER: http_handler.go                         │
-│  • CreatePost(w, r)                                     │
-│  • Parse form data (multipart for images)               │
-│  • Validate input                                       │
-│  • Extract user from session                            │
-│  • Call postService.Create(...)                         │
-└──────────────────────┬──────────────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────┐
-│  INPUT PORT: ports/service.go                           │
-│  type PostService interface {                           │
-│      Create(data CreatePostData) (*Post, error)         │
-│      GetByID(id int64) (*Post, error)                   │
-│      List(filters ListFilters) ([]*Post, error)         │
-│      Update(id int64, data UpdateData) error            │
-│      Delete(id int64, userID int64) error               │
-│      GetByCategory(categoryID int64) ([]*Post, error)   │
-│  }                                                      │
-└──────────────────────┬──────────────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────┐
-│  APPLICATION: application/service.go                    │
-│  • Implements PostService interface                     │
-│  • Business logic:                                      │
-│    - Check user owns post (for edit/delete)             │
-│    - Validate categories exist                          │
-│    - Handle image upload                                │
-│    - Enforce post constraints                           │
-│  • Uses PostRepository interface                        │
-└──────────────────────┬──────────────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────┐
-│  OUTPUT PORT: ports/repository.go                       │
-│  type PostRepository interface {                        │
-│      Create(post *Post) error                           │
-│      FindByID(id int64) (*Post, error)                  │
-│      FindAll(filters Filters) ([]*Post, error)          │
-│      Update(post *Post) error                           │
-│      Delete(id int64) error                             │
-│      AddCategories(postID int64, catIDs []int64) error  │
-│      GetCategories(postID int64) ([]*Category, error)   │
-│  }                                                      │
-└──────────────────────┬──────────────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────┐
-│  OUTPUT ADAPTER: sqlite_repository.go                   │
-│  • Implements PostRepository interface                  │
-│  • SQL queries:                                         │
-│    - INSERT INTO posts (...)                            │
-│    - SELECT * FROM posts WHERE ...                      │
-│    - JOIN post_categories for filtering                 │
-│  • Row mapping to domain entities                       │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A["HTTP CLIENT<br/>POST /api/posts<br/>{title: '...', content: '...', categories: [1,2]}"] --> B["INPUT ADAPTER: http_handler.go<br/>• CreatePost(w, r)<br/>• Parse form data (multipart for images)<br/>• Validate input<br/>• Extract user from session<br/>• Call postService.Create(...)"]
+    B --> C["INPUT PORT: ports/service.go<br/>type PostService interface {<br/>Create(data CreatePostData) (*Post, error)<br/>GetByID(id int64) (*Post, error)<br/>List(filters ListFilters) ([]*Post, error)<br/>Update(id int64, data UpdateData) error<br/>Delete(id int64, userID int64) error<br/>GetByCategory(categoryID int64) ([]*Post, error)<br/>}"]
+    C --> D["APPLICATION: application/service.go<br/>• Implements PostService interface<br/>• Business logic:<br/>- Check user owns post (for edit/delete)<br/>- Validate categories exist<br/>- Handle image upload<br/>- Enforce post constraints<br/>• Uses PostRepository interface"]
+    D --> E["OUTPUT PORT: ports/repository.go<br/>type PostRepository interface {<br/>Create(post *Post) error<br/>FindByID(id int64) (*Post, error)<br/>FindAll(filters Filters) ([]*Post, error)<br/>Update(post *Post) error<br/>Delete(id int64) error<br/>AddCategories(postID int64, catIDs []int64) error<br/>GetCategories(postID int64) ([]*Category, error)<br/>}"]
+    E --> F["OUTPUT ADAPTER: sqlite_repository.go<br/>• Implements PostRepository interface<br/>• SQL queries:<br/>- INSERT INTO posts (...)<br/>- SELECT * FROM posts WHERE ...<br/>- JOIN post_categories for filtering<br/>• Row mapping to domain entities"]
 ```
 
-## Dependency Direction
+## Dependency Flow
 
-```text
-┌──────────────────┐
-│  http_handler    │ ──┐
-└──────────────────┘   │
-                       │ Both import
-┌──────────────────┐   │ ports & domain
-│sqlite_repository │ ──┤
-└──────────────────┘   │
-                       ▼
-┌──────────────────┐  ┌───────────────┐
-│   application    │─→│     ports     │
-│   /service.go    │  │  (interfaces) │
-└──────────────────┘  └───────┬───────┘
-                              │
-                              ▼
-                       ┌──────────────┐
-                       │    domain    │
-                       │   /post.go   │
-                       │ /category.go │
-                       └──────────────┘
-                     (NO dependencies)
+Direction: Everything depends on DOMAIN (center of hexagon)
+
+```mermaid
+graph TD
+    subgraph Adapters
+        A[http_handler]
+        D[sqlite_repository]
+    end
+    subgraph Application
+        E["application<br/>/service.go"]
+    end
+    subgraph Ports
+        B["ports<br/>(interfaces)"]
+    end
+    subgraph Domain
+        C["domain<br/>/post.go<br/>(NO dependencies)"]
+    end
+    A -->|"imports"| B
+    A -->|"imports"| C
+    D -->|"imports"| B
+    D -->|"imports"| C
+    E -->|"imports"| B
+    B -->|"imports"| C
 ```
 
 ## Key Components
@@ -327,26 +270,38 @@ Aggregate and return full post data
 
 ## Database Schema Relationships
 
-```text
-┌─────────────┐        ┌──────────────────┐       ┌────────────┐
-│    users    │        │      posts       │       │ categories │
-├─────────────┤        ├──────────────────┤       ├────────────┤
-│ id (PK)     │←───────│ user_id (FK)     │       │ id (PK)    │
-│ username    │        │ id (PK)          │       │ name       │
-│ email       │        │ title            │       │ desc       │
-└─────────────┘        │ content          │       └────────────┘
-                       │ image_path       │              ↑
-                       │ created_at       │              │
-                       │ updated_at       │              │
-                       └──────────────────┘              │
-                                ↓                        │
-                       ┌──────────────────┐              │
-                       │ post_categories  │              │
-                       ├──────────────────┤              │
-                       │ post_id (FK)     │──────────────┘
-                       │ category_id (FK) │
-                       └──────────────────┘
-                       (Many-to-Many join)
+```mermaid
+erDiagram
+    users {
+        int id PK
+        string username
+        string email
+    }
+    
+    posts {
+        int id PK
+        int user_id FK
+        string title
+        string content
+        string image_path
+        datetime created_at
+        datetime updated_at
+    }
+    
+    categories {
+        int id PK
+        string name
+        string desc
+    }
+    
+    post_categories {
+        int post_id FK
+        int category_id FK
+    }
+    
+    users ||--o{ posts : "creates"
+    posts ||--o{ post_categories : "categorized_by"
+    categories ||--o{ post_categories : "contains"
 ```
 
 ## Why This Architecture?

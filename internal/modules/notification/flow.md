@@ -48,88 +48,40 @@ notification/
 
 ## Detailed Architecture Diagram
 
-```text
-┌──────────────────────────────────────────────────────────┐
-│             TRIGGERING EVENT                             │
-│   (User 456 likes Post 123, authored by User 789)       │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  CALLING MODULE (e.g., reaction/application/service.go)  │
-│  After creating reaction:                                │
-│  notificationService.NotifyReaction(789, 456, "post", 123)│
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  INPUT PORT: ports/service.go                            │
-│  type NotificationService interface {                    │
-│      NotifyReaction(recipientID, actorID int64,          │
-│                     targetType, targetID) error          │
-│      NotifyComment(recipientID, actorID, postID) error   │
-│      GetByUser(userID int64) ([]*Notification, error)    │
-│      MarkAsRead(notificationID int64) error              │
-│      MarkAllAsRead(userID int64) error                   │
-│  }                                                       │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  APPLICATION: application/service.go                     │
-│  • Implements NotificationService interface              │
-│  • Business logic:                                       │
-│    - Don't notify if actor = recipient (self-actions)    │
-│    - Check user notification preferences                 │
-│    - Batch similar notifications (optional)              │
-│    - Generate notification message                       │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  OUTPUT PORT: ports/repository.go                        │
-│  type NotificationRepository interface {                 │
-│      Create(notification *Notification) error            │
-│      FindByID(id int64) (*Notification, error)           │
-│      FindByUser(userID int64, unreadOnly bool)           │
-│                    ([]*Notification, error)              │
-│      MarkAsRead(id int64) error                          │
-│      MarkAllAsRead(userID int64) error                   │
-│  }                                                       │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  OUTPUT ADAPTER: sqlite_repository.go                    │
-│  • Implements NotificationRepository interface           │
-│  • SQL queries for notifications table                   │
-│  • Handles is_read flag                                  │
-│  • Ordered by created_at DESC (newest first)             │
-└──────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A["TRIGGERING EVENT<br/>(User 456 likes Post 123, authored by User 789)"] --> B["CALLING MODULE (e.g., reaction/application/service.go)<br/>After creating reaction:<br/>notificationService.NotifyReaction(789, 456, 'post', 123)"]
+    B --> C["INPUT PORT: ports/service.go<br/>type NotificationService interface {<br/>NotifyReaction(recipientID, actorID int64,<br/>targetType, targetID) error<br/>NotifyComment(recipientID, actorID, postID) error<br/>GetByUser(userID int64) ([]*Notification, error)<br/>MarkAsRead(notificationID int64) error<br/>MarkAllAsRead(userID int64) error<br/>}"]
+    C --> D["APPLICATION: application/service.go<br/>• Implements NotificationService interface<br/>• Business logic:<br/>- Don't notify if actor = recipient (self-actions)<br/>- Check user notification preferences<br/>- Batch similar notifications (optional)<br/>- Generate notification message"]
+    D --> E["OUTPUT PORT: ports/repository.go<br/>type NotificationRepository interface {<br/>Create(notification *Notification) error<br/>FindByID(id int64) (*Notification, error)<br/>FindByUser(userID int64, unreadOnly bool)<br/>([]*Notification, error)<br/>MarkAsRead(id int64) error<br/>MarkAllAsRead(userID int64) error<br/>}"]
+    E --> F["OUTPUT ADAPTER: sqlite_repository.go<br/>• Implements NotificationRepository interface<br/>• SQL queries for notifications table<br/>• Handles is_read flag<br/>• Ordered by created_at DESC (newest first)"]
 ```
 
-## Dependency Direction
+## Dependency Flow
 
-```text
-┌──────────────────┐
-│  http_handler    │ ──┐
-└──────────────────┘   │
-                       │ Both import
-┌──────────────────┐   │ ports & domain
-│sqlite_repository │ ──┤
-└──────────────────┘   │
-                       ▼
-┌──────────────────┐  ┌───────────────┐
-│   application    │─→│     ports     │
-│   /service.go    │  │  (interfaces) │
-└──────────────────┘  └───────┬───────┘
-                              │
-                              ▼
-                       ┌──────────────────┐
-                       │      domain      │
-                       │ /notification.go │
-                       └──────────────────┘
-                       (NO dependencies)
+Direction: Everything depends on DOMAIN (center of hexagon)
+
+```mermaid
+graph TD
+    subgraph Adapters
+        A[http_handler]
+        D[sqlite_repository]
+    end
+    subgraph Application
+        E["application<br/>/service.go"]
+    end
+    subgraph Ports
+        B["ports<br/>(interfaces)"]
+    end
+    subgraph Domain
+        C["domain<br/>/notification.go<br/>(NO dependencies)"]
+    end
+    A -->|"imports"| B
+    A -->|"imports"| C
+    D -->|"imports"| B
+    D -->|"imports"| C
+    E -->|"imports"| B
+    B -->|"imports"| C
 ```
 
 ## Key Components
@@ -433,34 +385,31 @@ Moderation: "Your {target_type} was removed by a moderator"
 
 ## Database Schema Relationships
 
-```text
-┌─────────────┐
-│    users    │
-├─────────────┤
-│ id (PK)     │
-└─────────────┘
-       ↑
-       │
-       │ recipient_id / actor_id
-       │
-┌─────────────────────────┐
-│    notifications        │
-├─────────────────────────┤
-│ id (PK)                 │
-│ recipient_id (FK)       │──┐  User who receives notification
-│ actor_id (FK)           │──┘  User who triggered the action
-│ type (enum)             │     reaction, comment, reply, mention, moderation
-│ target_type (enum)      │     post, comment
-│ target_id (int)         │     ID of target post/comment
-│ message (text)          │     Human-readable notification text
-│ is_read (boolean)       │     false = unread, true = read
-│ created_at              │
-│ read_at (nullable)      │     When notification was read
-└─────────────────────────┘
-
-Indexes:
-  - (recipient_id, created_at DESC) - Fast user notification lookup
-  - (recipient_id, is_read) - Fast unread count
+```mermaid
+erDiagram
+    users {
+        int id PK
+    }
+    
+    notifications {
+        int id PK
+        int recipient_id FK
+        int actor_id FK
+        string type "enum: reaction, comment, reply, mention, moderation"
+        string target_type "enum: post, comment"
+        int target_id
+        string message
+        boolean is_read
+        datetime created_at
+        datetime read_at "nullable"
+    }
+    
+    users ||--o{ notifications : "receives_as_recipient"
+    users ||--o{ notifications : "triggers_as_actor"
+    
+    %% Indexes:
+    %% - (recipient_id, created_at DESC) - Fast user notification lookup
+    %% - (recipient_id, is_read) - Fast unread count
 ```
 
 ## Real-Time Notifications (Optional Enhancement)

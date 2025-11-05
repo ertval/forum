@@ -48,84 +48,40 @@ user/
 
 ## Detailed Architecture Diagram
 
-```text
-┌────────────────────────────────────────────────────┐
-│              HTTP CLIENT                           │
-│           GET /api/users/123                       │
-└────────────────────┬───────────────────────────────┘
-                     │
-                     ▼
-┌────────────────────────────────────────────────────┐
-│  INPUT ADAPTER: http_handler.go                    │
-│  • GetUser(w, r)                                   │
-│  • Parse user ID from URL                          │
-│  • Call userService.GetByID(id)                    │
-│  • Return JSON response                            │
-└────────────────────┬───────────────────────────────┘
-                     │
-                     ▼
-┌────────────────────────────────────────────────────┐
-│  INPUT PORT: ports/service.go                      │
-│  type UserService interface {                      │
-│      GetByID(id int64) (*User, error)              │
-│      Update(id int64, data UpdateData) error       │
-│      GetActivity(id int64) (*Activity, error)      │
-│  }                                                 │
-└────────────────────┬───────────────────────────────┘
-                     │
-                     ▼
-┌────────────────────────────────────────────────────┐
-│  APPLICATION: application/service.go               │
-│  • Implements UserService interface                │
-│  • Orchestrates business logic                     │
-│  • Validates permissions                           │
-│  • Calls UserRepository methods                    │
-└────────────────────┬───────────────────────────────┘
-                     │
-                     ▼
-┌────────────────────────────────────────────────────┐
-│  OUTPUT PORT: ports/repository.go                  │
-│  type UserRepository interface {                   │
-│      FindByID(id int64) (*User, error)             │
-│      FindByEmail(email string) (*User, error)      │
-│      Create(user *User) error                      │
-│      Update(user *User) error                      │
-│  }                                                 │
-└────────────────────┬───────────────────────────────┘
-                     │
-                     ▼
-┌────────────────────────────────────────────────────┐
-│  OUTPUT ADAPTER: sqlite_repository.go              │
-│  • Implements UserRepository interface             │
-│  • SQL queries with database/sql                   │
-│  • Maps rows to domain.User entities               │
-└────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A["HTTP CLIENT<br/>GET /api/users/123"] --> B["INPUT ADAPTER: http_handler.go<br/>• GetUser(w, r)<br/>• Parse user ID from URL<br/>• Call userService.GetByID(id)<br/>• Return JSON response"]
+    B --> C["INPUT PORT: ports/service.go<br/>type UserService interface {<br/>GetByID(id int64) (*User, error)<br/>Update(id int64, data UpdateData) error<br/>GetActivity(id int64) (*Activity, error)<br/>}"]
+    C --> D["APPLICATION: application/service.go<br/>• Implements UserService interface<br/>• Orchestrates business logic<br/>• Validates permissions<br/>• Calls UserRepository methods"]
+    D --> E["OUTPUT PORT: ports/repository.go<br/>type UserRepository interface {<br/>FindByID(id int64) (*User, error)<br/>FindByEmail(email string) (*User, error)<br/>Create(user *User) error<br/>Update(user *User) error<br/>}"]
+    E --> F["OUTPUT ADAPTER: sqlite_repository.go<br/>• Implements UserRepository interface<br/>• SQL queries with database/sql<br/>• Maps rows to domain.User entities"]
 ```
 
 ## Dependency Flow
 
-```text
 Direction: Everything depends on DOMAIN (center of hexagon)
 
-┌──────────────────┐
-│   http_handler   │ ───┐
-└──────────────────┘    │
-                        │ Imports
-┌──────────────────┐    │ ports & domain
-│ sqlite_repository│ ───┤
-└──────────────────┘    │
-                        ▼
-┌──────────────────┐  ┌──────────────┐
-│   application    │─→│    ports     │
-│   /service.go    │  │  (interfaces)│
-└──────────────────┘  └──────┬───────┘
-                             │
-                             ▼
-                      ┌──────────────┐
-                      │   domain     │
-                      │  /user.go    │
-                      └──────────────┘
-                    (NO dependencies)
+```mermaid
+graph TD
+    subgraph Adapters
+        A[http_handler]
+        D[sqlite_repository]
+    end
+    subgraph Application
+        E["application<br/>/service.go"]
+    end
+    subgraph Ports
+        B["ports<br/>(interfaces)"]
+    end
+    subgraph Domain
+        C["domain<br/>/user.go<br/>(NO dependencies)"]
+    end
+    A -->|"imports"| B
+    A -->|"imports"| C
+    D -->|"imports"| B
+    D -->|"imports"| C
+    E -->|"imports"| B
+    B -->|"imports"| C
 ```
 
 ## Key Components Explained

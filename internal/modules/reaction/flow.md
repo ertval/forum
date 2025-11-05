@@ -56,90 +56,40 @@ reaction/
 
 ## Detailed Architecture Diagram
 
-```text
-┌──────────────────────────────────────────────────────────┐
-│                   HTTP CLIENT                            │
-│              POST /api/reactions                         │
-│   {target_type: "post", target_id: 123, type: "like"}   │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  INPUT ADAPTER: http_handler.go                          │
-│  • ToggleReaction(w, r)                                  │
-│  • Parse JSON: target_type, target_id, reaction_type     │
-│  • Extract user_id from session context                  │
-│  • Call reactionService.Toggle(...)                      │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  INPUT PORT: ports/service.go                            │
-│  type ReactionService interface {                        │
-│      Toggle(userID int64, targetType string,             │
-│             targetID int64, type ReactionType)           │
-│             (*Reaction, error)                           │
-│      GetCounts(targetType string, targetID int64)        │
-│                (likes, dislikes int, error)              │
-│      GetByUser(userID int64) ([]*Reaction, error)        │
-│  }                                                       │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  APPLICATION: application/service.go                     │
-│  • Implements ReactionService interface                  │
-│  • Toggle logic (same/different/new)                     │
-│  • Business rules:                                       │
-│    - Target (post/comment) must exist                    │
-│    - Can't like and dislike simultaneously               │
-│    - Clicking same reaction removes it                   │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  OUTPUT PORT: ports/repository.go                        │
-│  type ReactionRepository interface {                     │
-│      Create(reaction *Reaction) error                    │
-│      FindByUserAndTarget(userID, targetType, targetID)   │
-│      Update(reaction *Reaction) error                    │
-│      Delete(id int64) error                              │
-│      CountByTarget(targetType, targetID, type) (int)     │
-│  }                                                       │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────────────────────────┐
-│  OUTPUT ADAPTER: sqlite_repository.go                    │
-│  • Implements ReactionRepository interface               │
-│  • SQL queries for reactions table                       │
-│  • Handles target_type (post/comment) polymorphism       │
-│  • Aggregate queries for counts                          │
-└──────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A["HTTP CLIENT<br/>POST /api/reactions<br/>{target_type: 'post', target_id: 123, type: 'like'}"] --> B["INPUT ADAPTER: http_handler.go<br/>• ToggleReaction(w, r)<br/>• Parse JSON: target_type, target_id, reaction_type<br/>• Extract user_id from session context<br/>• Call reactionService.Toggle(...)"]
+    B --> C["INPUT PORT: ports/service.go<br/>type ReactionService interface {<br/>Toggle(userID int64, targetType string,<br/>targetID int64, type ReactionType)<br/>( *Reaction, error)<br/>GetCounts(targetType string, targetID int64)<br/>(likes, dislikes int, error)<br/>GetByUser(userID int64) ([]*Reaction, error)<br/>}"]
+    C --> D["APPLICATION: application/service.go<br/>• Implements ReactionService interface<br/>• Toggle logic (same/different/new)<br/>• Business rules:<br/>- Target (post/comment) must exist<br/>- Can't like and dislike simultaneously<br/>- Clicking same reaction removes it"]
+    D --> E["OUTPUT PORT: ports/repository.go<br/>type ReactionRepository interface {<br/>Create(reaction *Reaction) error<br/>FindByUserAndTarget(userID, targetType, targetID)<br/>Update(reaction *Reaction) error<br/>Delete(id int64) error<br/>CountByTarget(targetType, targetID, type) (int)<br/>}"]
+    E --> F["OUTPUT ADAPTER: sqlite_repository.go<br/>• Implements ReactionRepository interface<br/>• SQL queries for reactions table<br/>• Handles target_type (post/comment) polymorphism<br/>• Aggregate queries for counts"]
 ```
 
-## Dependency Direction
+## Dependency Flow
 
-```text
-┌──────────────────┐
-│  http_handler    │ ──┐
-└──────────────────┘   │
-                       │ Both import
-┌──────────────────┐   │ ports & domain
-│sqlite_repository │ ──┤
-└──────────────────┘   │
-                       ▼
-┌──────────────────┐  ┌───────────────┐
-│   application    │─→│     ports     │
-│   /service.go    │  │  (interfaces) │
-└──────────────────┘  └───────┬───────┘
-                              │
-                              ▼
-                       ┌──────────────┐
-                       │    domain    │
-                       │ /reaction.go │
-                       └──────────────┘
-                     (NO dependencies)
+Direction: Everything depends on DOMAIN (center of hexagon)
+
+```mermaid
+graph TD
+    subgraph Adapters
+        A[http_handler]
+        D[sqlite_repository]
+    end
+    subgraph Application
+        E["application<br/>/service.go"]
+    end
+    subgraph Ports
+        B["ports<br/>(interfaces)"]
+    end
+    subgraph Domain
+        C["domain<br/>/reaction.go<br/>(NO dependencies)"]
+    end
+    A -->|"imports"| B
+    A -->|"imports"| C
+    D -->|"imports"| B
+    D -->|"imports"| C
+    E -->|"imports"| B
+    B -->|"imports"| C
 ```
 
 ## Key Components
@@ -362,30 +312,38 @@ notificationService.NotifyAuthor(...)  ← Optional notification
 
 ## Database Schema Relationships
 
-```text
-┌─────────────┐
-│    users    │
-├─────────────┤
-│ id (PK)     │
-└─────────────┘
-       ↑
-       │
-┌──────────────────────┐       ┌──────────────────┐
-│     reactions        │       │      posts       │
-├──────────────────────┤       ├──────────────────┤
-│ id (PK)              │       │ id (PK)          │
-│ user_id (FK)         │──┐    │ ...              │
-│ target_type (enum)   │  │    └──────────────────┘
-│ target_id (int)      │──┼────┐       ↑
-│ type (like/dislike)  │  │    │       │
-│ created_at           │  │    │  ┌────────────────┐
-└──────────────────────┘  │    │  │   comments     │
-         ↑                 │    │  ├────────────────┤
-         │                 │    └──│ id (PK)        │
-UNIQUE(user_id,           │       │ ...            │
-       target_type,       │       └────────────────┘
-       target_id)         │
-                          └───────┘
+```mermaid
+erDiagram
+    users {
+        int id PK
+    }
+    
+    reactions {
+        int id PK
+        int user_id FK
+        string target_type "enum: post, comment"
+        int target_id
+        string type "like/dislike"
+        datetime created_at
+    }
+    
+    posts {
+        int id PK
+        string title
+        string content
+    }
+    
+    comments {
+        int id PK
+        string content
+    }
+    
+    users ||--o{ reactions : "creates"
+    reactions ||--o{ posts : "targets_post"
+    reactions ||--o{ comments : "targets_comment"
+    
+    %% Note: Polymorphic relationship - target_type determines if target_id refers to posts or comments
+    %% UNIQUE constraint: (user_id, target_type, target_id) - user can only have one reaction per target
 ```
 
 **Key Design**: Polymorphic association using target_type + target_id

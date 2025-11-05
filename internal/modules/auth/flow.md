@@ -46,79 +46,30 @@ auth/
 9. HTTP Response with session cookie
 ```
 
-## Detailed Flow Diagram
+## Detailed Architecture Diagram
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                     HTTP CLIENT                         │
-│                  POST /api/auth/login                   │
-│              {email: "", password: ""}                  │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│  INPUT ADAPTER: http_handler.go                         │
-│  • Parses request                                       │
-│  • Validates input format                               │
-│  • Calls service.Login(email, password)                 │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│  INPUT PORT: ports/service.go (AuthService interface)   │
-│  type AuthService interface {                           │
-│      Login(email, password string) (*Session, error)    │
-│  }                                                       │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│  APPLICATION: application/service.go                    │
-│  1. Find user by email (via UserRepository)             │
-│  2. Verify password (bcrypt)                            │
-│  3. Create new session (domain logic)                   │
-│  4. Save session (via SessionRepository)                │
-│  5. Return session                                      │
-└────────┬────────────────────────────────┬───────────────┘
-         │                                │
-         ▼                                ▼
-┌─────────────────────┐      ┌──────────────────────────┐
-│ OUTPUT PORT         │      │ OUTPUT PORT              │
-│ UserRepository      │      │ SessionRepository        │
-│ • FindByEmail()     │      │ • Create()               │
-└─────────┬───────────┘      └──────────┬───────────────┘
-          │                             │
-          ▼                             ▼
-┌─────────────────────┐      ┌──────────────────────────┐
-│ OUTPUT ADAPTER      │      │ OUTPUT ADAPTER           │
-│ sqlite_user_repo.go │      │ sqlite_session_repo.go   │
-│ • SQL queries       │      │ • SQL queries            │
-│ • DB interactions   │      │ • DB interactions        │
-└─────────────────────┘      └──────────────────────────┘
+```mermaid
+flowchart TD
+    A["HTTP CLIENT<br/>POST /api/auth/login<br/>{email: '', password: ''}"] --> B["INPUT ADAPTER: http_handler.go<br/>• Parses request<br/>• Validates input format<br/>• Calls service.Login(email, password)"]
+    B --> C["INPUT PORT: ports/service.go<br/>type AuthService interface {<br/>Login(email, password string) (*Session, error)<br/>}"]
+    C --> D["APPLICATION: application/service.go<br/>1. Find user by email (via UserRepository)<br/>2. Verify password (bcrypt)<br/>3. Create new session (domain logic)<br/>4. Save session (via SessionRepository)<br/>5. Return session"]
+    D --> E["OUTPUT PORT<br/>UserRepository<br/>• FindByEmail()"]
+    D --> F["OUTPUT PORT<br/>SessionRepository<br/>• Create()"]
+    E --> G["OUTPUT ADAPTER<br/>sqlite_user_repo.go<br/>• SQL queries<br/>• DB interactions"]
+    F --> H["OUTPUT ADAPTER<br/>sqlite_session_repo.go<br/>• SQL queries<br/>• DB interactions"]
+    H --> I["DOMAIN<br/>domain/session.go<br/>• Session entity with validation<br/>• Business rules (expiration, etc.)"]
 ```
 
-## Dependency Direction
+## Dependency Flow
 
-```
-┌──────────────┐
-│  Adapters    │  ←─── Depend on ───┐
-└──────────────┘                     │
-       ↑                             │
-       │                             │
-┌──────────────┐                     │
-│ Application  │  ←─── Depend on ───┤
-└──────────────┘                     │
-       ↑                             │
-       │                             │
-┌──────────────┐                     │
-│    Ports     │  ←─── Depend on ───┤
-└──────────────┘                     │
-       ↑                             │
-       │                             │
-┌──────────────┐                     │
-│   Domain     │  ←─── Everything ───┘
-└──────────────┘
-  (NO dependencies)
+```mermaid
+graph TD
+    A[Adapters] --> B[Ports]
+    A --> C[Domain]
+    D[Application] --> B
+    D --> C
+    B --> C
+    C --> C
 ```
 
 **Key Rule**: Dependencies point INWARD. Domain has zero external dependencies.
