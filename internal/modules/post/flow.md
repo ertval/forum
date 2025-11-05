@@ -603,7 +603,7 @@ func (r *sqlitePostRepository) AddCategoriesWithTx(
 
 ### Summary: Function Call Chain
 
-```
+```text
 1. POST /api/posts (multipart form data)
    ↓
 2. post/adapters/http_handler.go → CreatePost(w, r)

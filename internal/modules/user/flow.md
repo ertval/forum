@@ -371,7 +371,7 @@ func (r *sqlitePostRepository) FindByUserID(ctx context.Context, userID int64) (
 
 ### Summary: Function Call Chain
 
-```
+```text
 1. GET /api/users/456/activity
    ↓
 2. user/adapters/http_handler.go → GetActivity(w, r)

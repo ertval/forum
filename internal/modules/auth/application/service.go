@@ -5,22 +5,23 @@ package application
 import (
 	"context"
 	"forum/internal/modules/auth/domain"
-	"forum/internal/modules/auth/ports"
+	authPort "forum/internal/modules/auth/ports"
+	userPort "forum/internal/modules/user/ports"
 	"time"
 )
 
 // Service implements the AuthService interface.
 // It coordinates authentication operations using domain logic and repositories.
 type Service struct {
-	sessionRepo     ports.SessionRepository
-	userRepo        ports.UserRepository
+	sessionRepo     authPort.SessionRepository
+	userRepo        userPort.UserRepository
 	sessionDuration time.Duration
 }
 
 // NewService creates a new auth service with the required dependencies.
 func NewService(
-	sessionRepo ports.SessionRepository,
-	userRepo ports.UserRepository,
+	sessionRepo authPort.SessionRepository,
+	userRepo userPort.UserRepository,
 	sessionDuration time.Duration,
 ) *Service {
 	return &Service{

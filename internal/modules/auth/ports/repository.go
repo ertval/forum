@@ -39,23 +39,3 @@ type SessionRepository interface {
 	// This should be called periodically to clean up old sessions.
 	DeleteExpired(ctx context.Context) error
 }
-
-// UserRepository defines the data access contract for user-related operations needed by auth.
-// This interface is defined here to avoid circular dependencies with the user module.
-type UserRepository interface {
-	// Create stores a new user in the repository.
-	// Returns the created user's ID or an error if creation fails.
-	Create(ctx context.Context, email, username, passwordHash string) (int, error)
-
-	// GetByEmail retrieves a user by email address.
-	// Returns the user ID and password hash, or an error if not found.
-	GetByEmail(ctx context.Context, email string) (userID int, passwordHash string, err error)
-
-	// ExistsByEmail checks if a user with the given email already exists.
-	// Returns true if the user exists, false otherwise.
-	ExistsByEmail(ctx context.Context, email string) (bool, error)
-
-	// ExistsByUsername checks if a user with the given username already exists.
-	// Returns true if the user exists, false otherwise.
-	ExistsByUsername(ctx context.Context, username string) (bool, error)
-}
