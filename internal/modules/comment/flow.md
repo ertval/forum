@@ -381,6 +381,7 @@ This section shows **exact file paths**, **function calls**, and **cross-module 
 ### Where Are API Routes Registered?
 
 **File: `/home/ertval/code/zone-modules/forum/cmd/forum/main.go`**
+
 ```go
 func main() {
     cfg := config.Load()
@@ -394,6 +395,7 @@ func main() {
 ```
 
 **File: `/home/ertval/code/zone-modules/forum/cmd/forum/wire/handlers.go`**
+
 ```go
 func initHandlers(
     authService ports.AuthService,
@@ -418,6 +420,7 @@ func initHandlers(
 ```
 
 **File: `/home/ertval/code/zone-modules/forum/internal/modules/comment/adapters/http_handler.go`**
+
 ```go
 type Handler struct {
     service ports.CommentService  // Interface, not concrete type
@@ -443,13 +446,14 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 ### Complete Flow: User Comments on a Post (With Cross-Module Communication)
 
 **Scenario**: User 999 comments on Post 123. We need to:
+
 1. Verify the post exists (cross-module call to Post module)
 2. Create the comment
 3. Notify the post author (cross-module call to Notification module)
 
 #### Step 1: HTTP Request Arrives
 
-```
+```text
 POST /api/posts/123/comments
 Headers: Cookie: session_token=abc-xyz
 Body: {"content": "Great post!", "parent_id": null}
@@ -580,6 +584,7 @@ func (s *service) Create(
 ```
 
 **Key Points**:
+
 - We call `postService.GetByID()` - this is the **Post module's INPUT PORT**
 - We call `notifService.NotifyComment()` - this is the **Notification module's INPUT PORT**
 - We only import **interfaces** (ports), never concrete implementations
@@ -762,7 +767,7 @@ func (s *service) NotifyComment(
 
 ### Summary of Function Calls (Create Comment with Cross-Module Communication)
 
-```
+```text
 1. HTTP Request: POST /api/posts/123/comments
    ↓
 2. comment/adapters/http_handler.go → CreateComment(w, r)
@@ -820,6 +825,7 @@ func initCommentService(
 ```
 
 **Key Points**:
+
 1. Comment service receives **interfaces** of other services
 2. It doesn't know or care about concrete implementations
 3. Wire package handles all the wiring
@@ -827,7 +833,7 @@ func initCommentService(
 
 ### File Structure for Cross-Module Communication
 
-```
+```text
 internal/modules/
 ├── comment/
 │   ├── application/

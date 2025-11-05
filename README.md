@@ -190,7 +190,6 @@ forum/
 └── README.md              # This file
 ```
 
----
 
 ## Getting Started
 
@@ -203,23 +202,27 @@ forum/
 ### Local Development
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd forum
    ```
 
 2. **Install dependencies**
+
    ```bash
    go mod download
    ```
 
 3. **Configure environment** (optional - has defaults)
+
    ```bash
    cp .env.example .env
    # Edit .env with your configuration
    ```
 
 4. **Run the application**
+
    ```bash
    go run cmd/forum/main.go
    ```
@@ -231,6 +234,7 @@ forum/
 ### Docker Deployment
 
 1. **Build and run with Docker Compose**
+
    ```bash
    docker-compose up --build
    ```
@@ -379,6 +383,7 @@ See [docs/IMPLEMENTATION_ROADMAP.md](./docs/IMPLEMENTATION_ROADMAP.md) for:
 ### Architecture Documentation
 
 See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for:
+
 - Detailed architecture explanation
 - Hexagonal Architecture patterns
 - Module structure and dependencies
@@ -408,11 +413,13 @@ docker run -p 8080:8080 forum:latest
 ### Production Deployment
 
 1. Build with optimizations:
+
    ```bash
    CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o forum cmd/forum/main.go
    ```
 
 2. Set production environment:
+
    ```env
    ENVIRONMENT=production
    SESSION_SECRET=<strong-secret-key>
@@ -421,6 +428,7 @@ docker run -p 8080:8080 forum:latest
    ```
 
 3. Run with TLS:
+
    ```bash
    ./forum
    ```
