@@ -6,7 +6,7 @@ The `wire` package centralizes all dependency injection and application wiring, 
 
 ## Directory Structure
 
-```
+```text
 cmd/forum/
 ├── main.go              # Minimal entry point (40 lines)
 │                        # - Load config
@@ -39,7 +39,7 @@ cmd/forum/
 
 ## Dependency Flow
 
-```
+```texst
 main.go
    │
    ├─► wire.InitializeApp()
@@ -66,21 +66,25 @@ main.go
 ## Key Benefits
 
 ### 1. **Separation of Concerns**
+
 - `main.go` - Lifecycle management only (config, start, shutdown)
 - `wire/` - All dependency construction and wiring
 - Clean, focused responsibilities
 
 ### 2. **Testability**
+
 - Can test initialization logic independently
 - Can create test apps with different configurations
 - Mock dependencies easily in tests
 
 ### 3. **Explicitness**
+
 - All dependencies visible in one place
 - Clear initialization order
 - No hidden magic or reflection
 
 ### 4. **Maintainability**
+
 - Adding a new module? Update 4 files in `wire/`:
   - `repos.go` - Add repository
   - `services.go` - Add service
@@ -89,6 +93,7 @@ main.go
 - `main.go` never changes
 
 ### 5. **Idiomatic Go**
+
 - Manual dependency injection (no frameworks)
 - Explicit over implicit
 - Simple, readable code
@@ -118,7 +123,8 @@ func main() {
 ### Adding a New Module
 
 1. **Create module** with hexagonal structure:
-   ```
+
+   ```text
    internal/modules/newmodule/
    ├── domain/
    ├── ports/
@@ -127,6 +133,7 @@ func main() {
    ```
 
 2. **Update wire/repos.go**:
+
    ```go
    type Repositories struct {
        // ... existing
@@ -142,6 +149,7 @@ func main() {
    ```
 
 3. **Update wire/services.go**:
+
    ```go
    type Services struct {
        // ... existing
@@ -157,6 +165,7 @@ func main() {
    ```
 
 4. **Update wire/handlers.go**:
+
    ```go
    type Handlers struct {
        // ... existing
@@ -172,6 +181,7 @@ func main() {
    ```
 
 5. **Update wire/app.go** (initServer function):
+
    ```go
    handlers.NewModule.RegisterRoutes(server.Router())
    ```
@@ -193,6 +203,7 @@ The wire package sits **outside** the hexagon, connecting all the pieces togethe
 ## Comparison with Original main.go
 
 ### Before (154 lines in main.go)
+
 - All imports in main.go
 - All repository initialization in main.go
 - All service initialization in main.go
@@ -201,6 +212,7 @@ The wire package sits **outside** the hexagon, connecting all the pieces togethe
 - All route registration in main.go
 
 ### After (47 lines in main.go + organized wire package)
+
 - `main.go`: Config, logger, app lifecycle only
 - `wire/`: All dependency injection logic, organized by concern
 - Clear separation, better testing, easier maintenance
@@ -228,6 +240,7 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 ```
 
 However, **manual wiring is recommended** for this project because:
+
 - More explicit and easier to understand
 - No build-time code generation
 - Follows Go's simplicity principle

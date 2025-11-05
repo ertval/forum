@@ -36,12 +36,13 @@ func main() {
 	defer app.Cleanup()
 
 	// 4. Start Server
-	go func() {
-		if err := app.Start(); err != nil {
-			log.Error("Server failed to start", logger.Error(err))
-			os.Exit(1)
-		}
-	}()
+	// Call Start synchronously. Server.Start launches the HTTP(S) listeners
+	// in their own goroutines and returns quickly, so wrapping this call in
+	// an extra goroutine is unnecessary and adds complexity.
+	if err := app.Start(); err != nil {
+		log.Error("Server failed to start", logger.Error(err))
+		os.Exit(1)
+	}
 
 	log.Info(fmt.Sprintf("Forum server started on port %d (HTTP) and %d (HTTPS)",
 		cfg.Server.Port, cfg.Server.TLSPort))
