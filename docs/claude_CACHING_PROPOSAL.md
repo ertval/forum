@@ -112,18 +112,32 @@ type Cache interface {
 	// Not all backends support this efficiently (e.g., Redis SCAN vs full scan).
 	DeletePattern(ctx context.Context, pattern string) error
 
-	// Exists checks if a key exists without retrieving its value.
-	Exists(ctx context.Context, key string) (bool, error)
+    // TagKey associates a cache key with one or more tags for bulk invalidation.
+    // Used primarily by HTTP caching layer for efficient cache invalidation.
+    TagKey(ctx context.Context, key string, tags []string) error
 
-	// Clear removes all keys from the cache.
-	// Use with caution in production.
-	Clear(ctx context.Context) error
+    // UntagKey removes tag associations for a cache key.
+    UntagKey(ctx context.Context, key string, tags []string) error
 
-	// Ping checks cache backend health.
-	Ping(ctx context.Context) error
+    // DeleteByTag removes all cache entries associated with a specific tag.
+    DeleteByTag(ctx context.Context, tag string) error
 
-	// Close cleanly shuts down cache connections.
-	Close() error
+    // GetKeysByTag returns all cache keys associated with a specific tag.
+    // Primarily used for debugging and monitoring.
+    GetKeysByTag(ctx context.Context, tag string) ([]string, error)
+
+    // Exists checks if a key exists without retrieving its value.
+    Exists(ctx context.Context, key string) (bool, error)
+
+    // Clear removes all keys from the cache.
+    // Use with caution in production.
+    Clear(ctx context.Context) error
+
+    // Ping checks cache backend health.
+    Ping(ctx context.Context) error
+
+    // Close cleanly shuts down cache connections.
+    Close() error
 }
 
 // Common errors
@@ -132,27 +146,40 @@ var (
 	ErrCacheDisabled = errors.New("cache: caching is disabled")
 )
 
-// Config holds cache configuration.
+// Config holds unified cache configuration for both repository and HTTP caching layers.
+// This config is stored in internal/platform/config/cache.go
 type Config struct {
-	// Backend type: "inmemory", "redis", "memcached", "none"
-	Backend string
+    // Global cache settings
+    Enabled    bool          // Master switch for all caching
+    Backend    string        // "inmemory", "redis", "memcached", "none"
+    DefaultTTL time.Duration // Default TTL for cached items
 
-	// DefaultTTL for cached items (0 means no expiration)
-	DefaultTTL time.Duration
+    // Layer-specific enablement
+    RepositoryEnabled bool // Enable repository-level caching
+    HTTPEnabled       bool // Enable HTTP-level caching
 
-	// Redis-specific settings
-	RedisAddr     string
-	RedisPassword string
-	RedisDB       int
+    // Backend-specific settings
+    RedisAddr     string   // Redis server address
+    RedisPassword string   // Redis password (optional)
+    RedisDB       int      // Redis database number
+    MemcachedServers []string // Memcached server list
+    MaxEntries    int      // Max items in memory cache (LRU eviction)
 
-	// Memcached-specific settings
-	MemcachedServers []string
+    // HTTP caching strategies (only used when HTTPEnabled=true)
+    HTTPRoutes map[string]CacheStrategy // Route-specific caching strategies
 
-	// In-memory cache settings
-	MaxEntries int // Max items in memory cache (LRU eviction)
-	
-	// Metrics and observability
-	EnableMetrics bool
+    // Observability
+    EnableMetrics bool // Enable cache metrics collection
+}
+
+// CacheStrategy defines how HTTP routes should be cached.
+// Used only when HTTPEnabled=true.
+type CacheStrategy struct {
+    Enabled      bool          // Enable caching for this route
+    TTL          time.Duration // TTL for cached responses
+    Tags         []string      // Tags for bulk invalidation
+    SkipAuth     bool          // Cache responses for unauthenticated users only
+    VaryHeaders  []string      // Headers to vary cache by (e.g., "Accept-Language")
 }
 
 // KeyBuilder helps construct consistent cache keys.
@@ -175,15 +202,23 @@ func (kb *KeyBuilder) Build(parts ...string) string {
 	return key
 }
 
-// Metrics tracks cache performance.
-type Metrics struct {
-	Hits          int64
-	Misses        int64
-	Sets          int64
-	Deletes       int64
-	Errors        int64
-	HitRate       float64 // Calculated: hits / (hits + misses)
-	AvgGetLatency time.Duration
+// CacheMetrics provides unified metrics for both repository and HTTP caching layers.
+type CacheMetrics struct {
+    Layer            string        // "repository" or "http"
+    Hits             int64         // Cache hits
+    Misses           int64         // Cache misses
+    Sets             int64         // Items stored in cache
+    Deletes          int64         // Items deleted from cache
+    Errors           int64         // Cache operation errors
+    HitRate          float64       // Calculated: hits / (hits + misses)
+    AvgGetLatency    time.Duration // Average time for cache gets
+
+    // HTTP-specific metrics
+    ResponsesServed  int64 // Complete responses served from cache
+    BytesServed      int64 // Total bytes served from HTTP cache
+
+    // Tag-specific metrics
+    TagInvalidations int64 // Number of tag-based invalidations
 }
 ```
 
@@ -766,18 +801,23 @@ func initRepositories(db *database.Connection, cache cache.Cache, cfg *config.Co
 Add to `.env` or environment:
 
 ```bash
-# Caching Configuration
-CACHE_ENABLED=true
-CACHE_BACKEND=redis          # Options: inmemory, redis, memcached, none
-CACHE_DEFAULT_TTL=5m         # Default TTL for cached items
+# Unified Caching Configuration
+CACHE_ENABLED=true                    # Master switch for all caching
+CACHE_BACKEND=redis                   # Options: inmemory, redis, memcached, none
+CACHE_DEFAULT_TTL=5m                  # Default TTL for cached items
 
-# Redis Configuration (if CACHE_BACKEND=redis)
+# Layer-specific enablement
+CACHE_REPOSITORY_ENABLED=true         # Enable repository-level caching
+CACHE_HTTP_ENABLED=true               # Enable HTTP-level caching
+
+# Backend Configuration
 REDIS_ADDR=localhost:6379
-REDIS_PASSWORD=              # Optional
-REDIS_DB=0                   # Redis database number
+REDIS_PASSWORD=                       # Optional
+REDIS_DB=0                            # Redis database number
+CACHE_MAX_ENTRIES=10000               # Maximum items in memory cache
 
-# In-Memory Cache (if CACHE_BACKEND=inmemory)
-CACHE_MAX_ENTRIES=10000      # Maximum items in memory
+# Observability
+CACHE_ENABLE_METRICS=true             # Enable cache metrics collection
 ```
 
 ---
@@ -797,7 +837,10 @@ services:
     environment:
       - CACHE_ENABLED=true
       - CACHE_BACKEND=redis
+      - CACHE_REPOSITORY_ENABLED=true
+      - CACHE_HTTP_ENABLED=true
       - REDIS_ADDR=redis:6379
+      - CACHE_ENABLE_METRICS=true
       - DATABASE_PATH=/data/forum.db
     volumes:
       - ./data:/data
