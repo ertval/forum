@@ -94,8 +94,9 @@ func initDatabase(cfg *config.Config, lgr *logger.Logger) (*database.Connection,
 func initServer(cfg *config.Config, handlers *Handlers, lgr *logger.Logger) *httpserver.Server {
 	lgr.Info("Initializing HTTP server")
 
-	// Create server
-	serverCfg := httpserver.Config{
+	// Create server with only the options it needs
+	// This follows the Interface Segregation Principle - server depends only on what it uses
+	serverOpts := httpserver.Options{
 		Host:         cfg.Server.Host,
 		Port:         cfg.Server.Port,
 		TLSPort:      cfg.Server.TLSPort,
@@ -105,7 +106,7 @@ func initServer(cfg *config.Config, handlers *Handlers, lgr *logger.Logger) *htt
 		TLSCertFile:  cfg.Security.TLSCertFile,
 		TLSKeyFile:   cfg.Security.TLSKeyFile,
 	}
-	server := httpserver.New(serverCfg)
+	server := httpserver.New(serverOpts)
 
 	// Register global middleware
 	server.RegisterMiddleware(httpserver.Recovery())
