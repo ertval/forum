@@ -243,7 +243,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 #### Step 1: HTTP Request
 
-```
+```text
 GET /api/users/456/activity
 ```
 
@@ -418,6 +418,7 @@ func initUserService(
 ```
 
 **Key Points**:
+
 - User service receives interfaces from other modules
 - It can call their methods to aggregate data
 - No direct dependencies on implementations

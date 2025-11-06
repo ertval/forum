@@ -129,6 +129,7 @@ Next middleware/handler
 ## Module Dependencies
 
 Auth module imports:
+
 - ✅ `platform/database` - For DB connection
 - ✅ `platform/logger` - For logging
 - ✅ `golang.org/x/crypto/bcrypt` - For password hashing
