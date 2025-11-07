@@ -5,14 +5,18 @@ import "time"
 
 // Post represents a forum post.
 type Post struct {
-	ID         int       // Unique post identifier
-	UserID     int       // ID of the user who created the post
-	Title      string    // Post title
-	Content    string    // Post content (body text)
-	ImageURL   string    // Optional image URL/path
-	Categories []string  // List of category names associated with the post
-	CreatedAt  time.Time // Post creation timestamp
-	UpdatedAt  time.Time // Last update timestamp
+	ID             string    // Unique post identifier (UUID)
+	UserID         string    // ID of the user who created the post (UUID)
+	AuthorUsername string    // Username of the post author (for display)
+	Title          string    // Post title
+	Content        string    // Post content (body text)
+	ImageURL       string    // Optional image URL/path
+	Categories     []string  // List of category names associated with the post
+	LikeCount      int       // Number of likes
+	DislikeCount   int       // Number of dislikes
+	CommentCount   int       // Number of comments
+	CreatedAt      time.Time // Post creation timestamp
+	UpdatedAt      time.Time // Last update timestamp
 }
 
 // Validate checks if the post is valid.

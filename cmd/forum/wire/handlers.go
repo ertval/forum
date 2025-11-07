@@ -24,10 +24,13 @@ type Handlers struct {
 
 // initHandlers creates all HTTP handler instances.
 func initHandlers(services *Services) *Handlers {
+	postHandler := postAdapters.NewHTTPHandler(services.Post)
+	postHandler.SetCategoryService(services.Category)
+
 	return &Handlers{
 		Auth:         authAdapters.NewHTTPHandler(services.Auth),
 		User:         userAdapters.NewHTTPHandler(services.User),
-		Post:         postAdapters.NewHTTPHandler(services.Post),
+		Post:         postHandler,
 		Comment:      commentAdapters.NewHTTPHandler(services.Comment),
 		Reaction:     reactionAdapters.NewHTTPHandler(services.Reaction),
 		Moderation:   moderationAdapters.NewHTTPHandler(services.Moderation),
