@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"forum/internal/platform/config"
 )
 
 // Server represents an HTTP server with middleware support.
@@ -16,44 +18,30 @@ type Server struct {
 	router     *http.ServeMux
 	handler    http.Handler
 	middleware []Middleware
-	options    Options
+	config     *config.Config
 }
 
-// Options contains HTTP and HTTPS server configuration.
-// This struct receives specific values needed by the server,
-// following the Dependency Inversion Principle.
-type Options struct {
-	Host         string
-	Port         int
-	TLSPort      int
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-	IdleTimeout  time.Duration
-	TLSCertFile  string
-	TLSKeyFile   string
-}
-
-// New creates a new HTTP server with the specified options.
-// It accepts only the configuration values it needs, not the entire application config.
-func New(opts Options) *Server {
+// New creates a new HTTP server with the specified config.
+// It uses the ServerConfig substruct directly as the single source of truth.
+func New(cfg *config.Config) *Server {
 	router := http.NewServeMux()
 
 	httpServer := &http.Server{
-		Addr:         fmt.Sprintf("%s:%d", opts.Host, opts.Port),
+		Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
 		Handler:      router,
-		ReadTimeout:  opts.ReadTimeout,
-		WriteTimeout: opts.WriteTimeout,
-		IdleTimeout:  opts.IdleTimeout,
+		ReadTimeout:  cfg.Server.ReadTimeout,
+		WriteTimeout: cfg.Server.WriteTimeout,
+		IdleTimeout:  cfg.Server.IdleTimeout,
 	}
 
 	var tlsServer *http.Server
-	if opts.TLSCertFile != "" && opts.TLSKeyFile != "" {
+	if cfg.Security.TLSCertFile != "" && cfg.Security.TLSKeyFile != "" {
 		tlsServer = &http.Server{
-			Addr:         fmt.Sprintf("%s:%d", opts.Host, opts.TLSPort),
+			Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.TLSPort),
 			Handler:      router,
-			ReadTimeout:  opts.ReadTimeout,
-			WriteTimeout: opts.WriteTimeout,
-			IdleTimeout:  opts.IdleTimeout,
+			ReadTimeout:  cfg.Server.ReadTimeout,
+			WriteTimeout: cfg.Server.WriteTimeout,
+			IdleTimeout:  cfg.Server.IdleTimeout,
 		}
 	}
 
@@ -63,7 +51,7 @@ func New(opts Options) *Server {
 		router:     router,
 		handler:    router,
 		middleware: []Middleware{},
-		options:    opts,
+		config:     cfg,
 	}
 }
 
@@ -100,9 +88,9 @@ func (s *Server) Start() error {
 	}()
 
 	// Start HTTPS server if TLS is configured
-	if s.tlsServer != nil && s.options.TLSCertFile != "" && s.options.TLSKeyFile != "" && false {
+	if s.tlsServer != nil && s.config.Security.TLSCertFile != "" && s.config.Security.TLSKeyFile != "" && false {
 		go func() {
-			if err := s.tlsServer.ListenAndServeTLS(s.options.TLSCertFile, s.options.TLSKeyFile); err != nil && err != http.ErrServerClosed {
+			if err := s.tlsServer.ListenAndServeTLS(s.config.Security.TLSCertFile, s.config.Security.TLSKeyFile); err != nil && err != http.ErrServerClosed {
 				errChan <- fmt.Errorf("HTTPS server error: %w", err)
 			}
 		}()
