@@ -122,7 +122,7 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 	}
 
 	// Merge persistent fields and call-site fields into a map
-	data := make(map[string]interface{})
+	data := make(map[string]any)
 	for _, f := range l.fields {
 		// later fields override earlier ones
 		data[f.Key] = f.Value
@@ -135,7 +135,7 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 	entry := map[string]any{
 		"level": levelToString(level),
 		"msg":   msg,
-		"ts":    time.Now().Format(time.RFC3339Nano),
+		"ts":    time.Now().Format(time.StampMilli),
 	}
 
 	// attach fields
