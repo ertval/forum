@@ -692,7 +692,7 @@ func (r *sqlitePostRepository) Delete(ctx context.Context, id int64) error {
 
 ### Summary: Function Call Chain (Review Report & Delete Content)
 
-```
+```text
 1. PUT /api/reports/789
    Body: {action: "delete_content", notes: "Confirmed spam"}
    ↓

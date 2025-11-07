@@ -4,7 +4,7 @@
 The **auth** module handles user authentication and session management using hexagonal architecture.
 
 ## Module Structure
-```
+```text
 auth/
 ├── domain/          # Pure business logic (no dependencies)
 ├── ports/           # Interface contracts
@@ -15,7 +15,7 @@ auth/
 ## Information Flow
 
 ### Request Flow (User Login Example)
-```
+```text
 1. HTTP Request
    ↓
 2. INPUT ADAPTER (http_handler.go)
@@ -129,6 +129,7 @@ Next middleware/handler
 ## Module Dependencies
 
 Auth module imports:
+
 - ✅ `platform/database` - For DB connection
 - ✅ `platform/logger` - For logging
 - ✅ `golang.org/x/crypto/bcrypt` - For password hashing
@@ -417,7 +418,7 @@ func (r *sqliteSessionRepository) Create(ctx context.Context, session *domain.Se
 
 ### Summary of Function Calls (Login Flow)
 
-```
+```text
 1. main.go → wire.InitializeApp()
    ↓
 2. wire/app.go → authHandler.RegisterRoutes(mux)
@@ -448,7 +449,7 @@ func (r *sqliteSessionRepository) Create(ctx context.Context, session *domain.Se
 
 ### File Structure Summary
 
-```
+```text
 cmd/forum/
 ├── main.go                          ← Entry point
 └── wire/

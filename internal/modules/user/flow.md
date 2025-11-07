@@ -243,7 +243,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 #### Step 1: HTTP Request
 
-```
+```text
 GET /api/users/456/activity
 ```
 
@@ -371,7 +371,7 @@ func (r *sqlitePostRepository) FindByUserID(ctx context.Context, userID int64) (
 
 ### Summary: Function Call Chain
 
-```
+```text
 1. GET /api/users/456/activity
    ↓
 2. user/adapters/http_handler.go → GetActivity(w, r)
@@ -418,6 +418,7 @@ func initUserService(
 ```
 
 **Key Points**:
+
 - User service receives interfaces from other modules
 - It can call their methods to aggregate data
 - No direct dependencies on implementations

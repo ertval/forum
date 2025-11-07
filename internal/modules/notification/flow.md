@@ -795,7 +795,7 @@ func (r *sqliteNotificationRepository) MarkAsRead(ctx context.Context, id int64)
 
 ### Summary: Complete Notification Lifecycle
 
-```
+```text
 === NOTIFICATION CREATION ===
 
 1. User 456 likes Post 123 (authored by User 789)
@@ -853,7 +853,7 @@ func (r *sqliteNotificationRepository) MarkAsRead(ctx context.Context, id int64)
 
 ### How Different Modules Trigger Notifications
 
-```
+```text
 ┌──────────────────┐
 │ Reaction Module  │ → NotifyReaction(recipientID, actorID, targetType, targetID)
 └──────────────────┘   "User456 liked your post"

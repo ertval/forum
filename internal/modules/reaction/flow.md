@@ -623,7 +623,7 @@ func (s *service) NotifyReaction(
 
 ### Summary: Function Call Chain (Toggle Reaction)
 
-```
+```text
 1. POST /api/reactions
    Body: {target_type: "post", target_id: 123, type: "like"}
    ↓
@@ -659,7 +659,7 @@ func (s *service) NotifyReaction(
 
 ### Toggle Logic Decision Tree
 
-```
+```text
 User clicks reaction button
          ↓
 Find existing reaction for (userID, targetType, targetID)

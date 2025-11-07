@@ -24,7 +24,6 @@ import (
 // Repositories holds all repository instances.
 type Repositories struct {
 	Session      authPorts.SessionRepository
-	AuthUser     authPorts.UserRepository
 	User         userPorts.UserRepository
 	Post         postPorts.PostRepository
 	Comment      commentPorts.CommentRepository
@@ -37,7 +36,6 @@ type Repositories struct {
 func initRepositories(db *sql.DB) *Repositories {
 	return &Repositories{
 		Session:      authAdapters.NewSQLiteSessionRepository(db),
-		AuthUser:     authAdapters.NewSQLiteUserRepository(db),
 		User:         userAdapters.NewSQLiteUserRepository(db),
 		Post:         postAdapters.NewSQLitePostRepository(db),
 		Comment:      commentAdapters.NewSQLiteCommentRepository(db),

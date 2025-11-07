@@ -35,7 +35,7 @@ type Services struct {
 // initServices creates all service instances with their dependencies.
 func initServices(repos *Repositories, sessionDuration time.Duration) *Services {
 	return &Services{
-		Auth:         authApp.NewService(repos.Session, repos.AuthUser, sessionDuration),
+		Auth:         authApp.NewService(repos.Session, repos.User, sessionDuration),
 		User:         userApp.NewService(repos.User),
 		Post:         postApp.NewService(repos.Post, nil), // TODO: Add categoryRepo when implemented
 		Comment:      commentApp.NewService(repos.Comment),
