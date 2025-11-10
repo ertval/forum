@@ -115,7 +115,6 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 		"MyPosts":          myPosts,
 		"LikedPosts":       likedPosts,
 		"User":             currentUser,
-		"PageType":         "home",
 	}
 
 	// Render template

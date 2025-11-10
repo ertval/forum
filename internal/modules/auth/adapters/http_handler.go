@@ -29,7 +29,6 @@ func NewHTTPHandler(authService ports.AuthService, templates *template.Template)
 
 // RegisterRoutes registers all authentication routes with the router.
 func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
-	// API routes
 	router.HandleFunc("POST /auth/register", h.RegisterAPI)
 	router.HandleFunc("POST /auth/login", h.LoginAPI)
 	router.HandleFunc("POST /auth/logout", h.Logout)
@@ -164,36 +163,6 @@ func (h *HTTPHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// LoginPage renders the login page.
-func (h *HTTPHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
-	// Prepare template data for login page
-	data := map[string]interface{}{
-		"Title":    "Login",
-		"PageType": "login",
-	}
-
-	// Render template
-	if err := h.templates.ExecuteTemplate(w, "base.html", data); err != nil {
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
-		return
-	}
-}
-
-// RegisterPage renders the registration page.
-func (h *HTTPHandler) RegisterPage(w http.ResponseWriter, r *http.Request) {
-	// Prepare template data for register page
-	data := map[string]interface{}{
-		"Title":    "Register",
-		"PageType": "register",
-	}
-
-	// Render template
-	if err := h.templates.ExecuteTemplate(w, "base.html", data); err != nil {
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
-		return
-	}
-}
-
 // GetSession retrieves the current session information.
 func (h *HTTPHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 	// Get session token from cookie
@@ -222,6 +191,24 @@ func (h *HTTPHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.writeJSON(w, http.StatusOK, resp)
+}
+
+// LoginPage renders the login page.
+func (h *HTTPHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
+	// Execute the login template directly
+	if err := h.templates.ExecuteTemplate(w, "login.html", nil); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to render login page: %v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+// RegisterPage renders the registration page.
+func (h *HTTPHandler) RegisterPage(w http.ResponseWriter, r *http.Request) {
+	// Execute the register template directly
+	if err := h.templates.ExecuteTemplate(w, "register.html", nil); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to render register page: %v", err), http.StatusInternalServerError)
+		return
+	}
 }
 
 // writeJSON writes a JSON response.
