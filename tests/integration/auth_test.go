@@ -7,9 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"forum/internal/modules/auth/application"
 	authDomain "forum/internal/modules/auth/domain"
 	authAdapters "forum/internal/modules/auth/adapters"
@@ -23,7 +20,9 @@ import (
 func TestAuthIntegration(t *testing.T) {
 	// Setup in-memory database
 	db, err := sql.Open("sqlite3", ":memory:")
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("Failed to open in-memory database: %v", err)
+	}
 	defer db.Close()
 
 	// Initialize config
@@ -68,7 +67,9 @@ func TestAuthIntegration(t *testing.T) {
 		CREATE INDEX idx_sessions_user_id ON sessions(user_id);
 		CREATE INDEX idx_sessions_expires_at ON sessions(expires_at);
 	`)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("Failed to create tables: %v", err)
+	}
 
 	// Setup service
 	authService := application.NewService(sessionRepo, userRepo, cfg.Session.Duration)
@@ -80,36 +81,66 @@ func TestAuthIntegration(t *testing.T) {
 		password := "password123"
 
 		userID, session, err := authService.Register(context.Background(), email, username, password)
-		require.NoError(t, err)
-		assert.Greater(t, userID, 0)
-		assert.NotNil(t, session)
-		assert.NotEmpty(t, session.Token)
+		if err != nil {
+			t.Fatalf("Expected no error during registration, got: %v", err)
+		}
+		if userID <= 0 {
+			t.Fatalf("Expected userID > 0, got: %d", userID)
+		}
+		if session == nil {
+			t.Fatal("Expected session to not be nil")
+		}
+		if session.Token == "" {
+			t.Fatal("Expected session token to not be empty")
+		}
 
 		// Test login with correct credentials
 		loginSession, err := authService.Login(context.Background(), email, password)
-		require.NoError(t, err)
-		assert.NotNil(t, loginSession)
-		assert.Equal(t, userID, loginSession.UserID)
-		assert.NotEmpty(t, loginSession.Token)
+		if err != nil {
+			t.Fatalf("Expected no error during login, got: %v", err)
+		}
+		if loginSession == nil {
+			t.Fatal("Expected login session to not be nil")
+		}
+		if loginSession.UserID != userID {
+			t.Fatalf("Expected userID %d, got: %d", userID, loginSession.UserID)
+		}
+		if loginSession.Token == "" {
+			t.Fatal("Expected login session token to not be empty")
+		}
 
 		// Test login with incorrect password
 		_, err = authService.Login(context.Background(), email, "wrongpassword")
-		assert.Error(t, err)
-		assert.Equal(t, authDomain.ErrInvalidCredentials, err)
+		if err == nil {
+			t.Fatal("Expected error when logging in with wrong password")
+		}
+		if err != authDomain.ErrInvalidCredentials {
+			t.Fatalf("Expected ErrInvalidCredentials, got: %v", err)
+		}
 
 		// Test session validation
 		validatedSession, err := authService.ValidateSession(context.Background(), loginSession.Token)
-		require.NoError(t, err)
-		assert.Equal(t, userID, validatedSession.UserID)
+		if err != nil {
+			t.Fatalf("Expected no error during session validation, got: %v", err)
+		}
+		if validatedSession.UserID != userID {
+			t.Fatalf("Expected validated session userID %d, got: %d", userID, validatedSession.UserID)
+		}
 
 		// Test logout
 		err = authService.Logout(context.Background(), loginSession.Token)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("Expected no error during logout, got: %v", err)
+		}
 
 		// Session should be invalid after logout
 		_, err = authService.ValidateSession(context.Background(), loginSession.Token)
-		assert.Error(t, err)
-		assert.Equal(t, authDomain.ErrSessionNotFound, err)
+		if err == nil {
+			t.Fatal("Expected error during session validation after logout")
+		}
+		if err != authDomain.ErrSessionNotFound {
+			t.Fatalf("Expected ErrSessionNotFound after logout, got: %v", err)
+		}
 	})
 
 	t.Run("Registration Validation", func(t *testing.T) {
@@ -120,18 +151,28 @@ func TestAuthIntegration(t *testing.T) {
 
 		// First registration should succeed
 		_, _, err := authService.Register(context.Background(), email, username, password)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatalf("Expected no error for first registration, got: %v", err)
+		}
 
 		// Second registration with same email should fail
 		_, _, err = authService.Register(context.Background(), email, username+"2", password)
-		assert.Error(t, err)
-		assert.Equal(t, authDomain.ErrUserAlreadyExists, err)
+		if err == nil {
+			t.Fatal("Expected error for duplicate email registration")
+		}
+		if err != authDomain.ErrUserAlreadyExists {
+			t.Fatalf("Expected ErrUserAlreadyExists for duplicate email, got: %v", err)
+		}
 
 		// Test duplicate username
 		email2 := fmt.Sprintf("dupetest2%d@example.com", time.Now().UnixNano()%1000000)
 		_, _, err = authService.Register(context.Background(), email2, username, password)
-		assert.Error(t, err)
-		assert.Equal(t, authDomain.ErrUserAlreadyExists, err)
+		if err == nil {
+			t.Fatal("Expected error for duplicate username registration")
+		}
+		if err != authDomain.ErrUserAlreadyExists {
+			t.Fatalf("Expected ErrUserAlreadyExists for duplicate username, got: %v", err)
+		}
 	})
 
 	t.Run("Session Management", func(t *testing.T) {
@@ -141,21 +182,39 @@ func TestAuthIntegration(t *testing.T) {
 
 		// Register user
 		userID, session, err := authService.Register(context.Background(), email, username, password)
-		require.NoError(t, err)
-		assert.Greater(t, userID, 0)
-		assert.NotNil(t, session)
+		if err != nil {
+			t.Fatalf("Expected no error during registration, got: %v", err)
+		}
+		if userID <= 0 {
+			t.Fatalf("Expected userID > 0, got: %d", userID)
+		}
+		if session == nil {
+			t.Fatal("Expected session to not be nil")
+		}
 
 		// Test GetSession
 		retrievedSession, err := authService.GetSession(context.Background(), session.Token)
-		require.NoError(t, err)
-		assert.Equal(t, userID, retrievedSession.UserID)
-		assert.Equal(t, session.Token, retrievedSession.Token)
+		if err != nil {
+			t.Fatalf("Expected no error during GetSession, got: %v", err)
+		}
+		if retrievedSession.UserID != userID {
+			t.Fatalf("Expected retrieved session userID %d, got: %d", userID, retrievedSession.UserID)
+		}
+		if retrievedSession.Token != session.Token {
+			t.Fatalf("Expected retrieved session token %s, got: %s", session.Token, retrievedSession.Token)
+		}
 
 		// Test RefreshSession
 		originalExpiresAt := retrievedSession.ExpiresAt
 		refreshedSession, err := authService.RefreshSession(context.Background(), session.Token)
-		require.NoError(t, err)
-		assert.Equal(t, session.Token, refreshedSession.Token)
-		assert.True(t, refreshedSession.ExpiresAt.After(originalExpiresAt))
+		if err != nil {
+			t.Fatalf("Expected no error during RefreshSession, got: %v", err)
+		}
+		if refreshedSession.Token != session.Token {
+			t.Fatalf("Expected refreshed session token %s, got: %s", session.Token, refreshedSession.Token)
+		}
+		if !refreshedSession.ExpiresAt.After(originalExpiresAt) {
+			t.Fatalf("Expected refreshed session to have later expiry time")
+		}
 	})
 }
