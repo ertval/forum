@@ -37,6 +37,7 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	// Frontend routes for auth pages
 	router.HandleFunc("GET /login", h.LoginPage)
 	router.HandleFunc("GET /register", h.RegisterPage)
+	router.HandleFunc("GET /logout", h.FrontendLogout)
 }
 
 // RegisterAPI handles user registration API requests.
@@ -209,6 +210,30 @@ func (h *HTTPHandler) RegisterPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to render register page: %v", err), http.StatusInternalServerError)
 		return
 	}
+}
+
+// FrontendLogout handles the frontend logout by invalidating the session and redirecting.
+func (h *HTTPHandler) FrontendLogout(w http.ResponseWriter, r *http.Request) {
+	// Get session token from cookie
+	cookie, err := r.Cookie("session_token")
+	if err == nil && cookie.Value != "" {
+		// Call the service to logout the user (invalidate the session)
+		_ = h.authService.Logout(r.Context(), cookie.Value) // We ignore the error for frontend UX
+	}
+
+	// Clear the session cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1, // Delete the cookie
+		HttpOnly: true,
+		Secure:   false, // Set to true in production with HTTPS
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	// Redirect to home page after logout
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 // writeJSON writes a JSON response.
