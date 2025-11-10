@@ -5,6 +5,7 @@ package adapters
 import (
 	"fmt"
 	authPorts "forum/internal/modules/auth/ports"
+	userPorts "forum/internal/modules/user/ports"
 	"forum/internal/modules/post/domain"
 	postPorts "forum/internal/modules/post/ports"
 	"html/template"
@@ -16,14 +17,16 @@ type HTTPHandler struct {
 	postService     postPorts.PostService
 	categoryService postPorts.CategoryService
 	authService     authPorts.AuthService
+	userService     userPorts.UserService
 	templates       *template.Template
 }
 
 // NewHTTPHandler creates a new HTTP handler for posts.
-func NewHTTPHandler(postService postPorts.PostService, authService authPorts.AuthService) *HTTPHandler {
+func NewHTTPHandler(postService postPorts.PostService, authService authPorts.AuthService, userService userPorts.UserService) *HTTPHandler {
 	return &HTTPHandler{
 		postService: postService,
 		authService: authService,
+		userService: userService,
 		// Templates will be set via SetTemplates method
 	}
 }
@@ -73,16 +76,25 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 
 	// Get session token from cookie
 	cookie, err := r.Cookie("session_token")
-	var currentUser interface{} // This will hold user info if logged in
+	var currentUser interface{} = nil // This will hold user info if logged in
 	
 	if err == nil && cookie.Value != "" {
 		// Validate the session using the auth service
 		session, err := h.authService.ValidateSession(ctx, cookie.Value)
 		if err == nil && session != nil {
-			// Create a simple user object to pass to the template
-			currentUser = map[string]interface{}{
-				"ID":       session.UserID,
-				"Username": "user" + fmt.Sprintf("%d", session.UserID), // Placeholder - in real app would fetch from DB
+			// Get actual user details using user service
+			user, err := h.userService.GetByID(ctx, session.UserID)
+			if err == nil && user != nil {
+				currentUser = map[string]interface{}{
+					"ID":       user.ID,
+					"Username": user.Username,
+				}
+			} else {
+				// If we can't get user details, still create with minimal info
+				currentUser = map[string]interface{}{
+					"ID":       session.UserID,
+					"Username": "user" + fmt.Sprintf("%d", session.UserID),
+				}
 			}
 		}
 	}

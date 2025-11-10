@@ -32,7 +32,7 @@ func initHandlers(services *Services) *Handlers {
 		panic(err)
 	}
 
-	postHandler := postAdapters.NewHTTPHandler(services.Post, services.Auth)
+	postHandler := postAdapters.NewHTTPHandler(services.Post, services.Auth, services.User)
 	// Set the shared templates
 	postHandler.SetTemplates(templates)
 	postHandler.SetCategoryService(services.Category)
