@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"forum/internal/modules/auth/ports"
+	"html/template"
 	"net/http"
 	"time"
 )
@@ -15,25 +16,32 @@ import (
 // It receives HTTP requests, validates input, calls the service, and returns responses.
 type HTTPHandler struct {
 	authService ports.AuthService
+	templates   *template.Template
 }
 
 // NewHTTPHandler creates a new HTTP handler for authentication.
-func NewHTTPHandler(authService ports.AuthService) *HTTPHandler {
+func NewHTTPHandler(authService ports.AuthService, templates *template.Template) *HTTPHandler {
 	return &HTTPHandler{
 		authService: authService,
+		templates:   templates,
 	}
 }
 
 // RegisterRoutes registers all authentication routes with the router.
 func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
-	router.HandleFunc("POST /auth/register", h.Register)
-	router.HandleFunc("POST /auth/login", h.Login)
+	// API routes
+	router.HandleFunc("POST /auth/register", h.RegisterAPI)
+	router.HandleFunc("POST /auth/login", h.LoginAPI)
 	router.HandleFunc("POST /auth/logout", h.Logout)
 	router.HandleFunc("GET /auth/session", h.GetSession)
+	
+	// Frontend routes for auth pages
+	router.HandleFunc("GET /login", h.LoginPage)
+	router.HandleFunc("GET /register", h.RegisterPage)
 }
 
-// Register handles user registration requests.
-func (h *HTTPHandler) Register(w http.ResponseWriter, r *http.Request) {
+// RegisterAPI handles user registration API requests.
+func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Email    string `json:"email"`
 		Username string `json:"username"`
@@ -77,8 +85,8 @@ func (h *HTTPHandler) Register(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusCreated, resp)
 }
 
-// Login handles user login requests.
-func (h *HTTPHandler) Login(w http.ResponseWriter, r *http.Request) {
+// LoginAPI handles user login API requests.
+func (h *HTTPHandler) LoginAPI(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -154,6 +162,36 @@ func (h *HTTPHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}{
 		Message: "Successfully logged out",
 	})
+}
+
+// LoginPage renders the login page.
+func (h *HTTPHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
+	// Prepare template data for login page
+	data := map[string]interface{}{
+		"Title":    "Login",
+		"PageType": "login",
+	}
+
+	// Render template
+	if err := h.templates.ExecuteTemplate(w, "base.html", data); err != nil {
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		return
+	}
+}
+
+// RegisterPage renders the registration page.
+func (h *HTTPHandler) RegisterPage(w http.ResponseWriter, r *http.Request) {
+	// Prepare template data for register page
+	data := map[string]interface{}{
+		"Title":    "Register",
+		"PageType": "register",
+	}
+
+	// Render template
+	if err := h.templates.ExecuteTemplate(w, "base.html", data); err != nil {
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		return
+	}
 }
 
 // GetSession retrieves the current session information.

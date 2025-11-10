@@ -38,7 +38,7 @@ func initHandlers(services *Services) *Handlers {
 	postHandler.SetCategoryService(services.Category)
 
 	return &Handlers{
-		Auth:         authAdapters.NewHTTPHandler(services.Auth),
+		Auth:         authAdapters.NewHTTPHandler(services.Auth, templates),
 		User:         userAdapters.NewHTTPHandler(services.User),
 		Post:         postHandler,
 		Comment:      commentAdapters.NewHTTPHandler(services.Comment),

@@ -37,8 +37,6 @@ func (h *HTTPHandler) SetTemplates(templates *template.Template) {
 // RegisterRoutes registers all post routes.
 func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	router.HandleFunc("/", h.HomePage)
-	router.HandleFunc("/login", h.HomePage)  // Handle login page
-	router.HandleFunc("/register", h.HomePage)  // Handle register page
 	router.HandleFunc("/posts", h.ListPosts)
 	router.HandleFunc("/posts/", h.handlePostRoutes)
 }
@@ -62,85 +60,62 @@ func (h *HTTPHandler) handlePostRoutes(w http.ResponseWriter, r *http.Request) {
 
 // HomePage handles the homepage rendering with post list.
 func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
-	// Determine which page to show based on path
-	pageType := "home"  // default
-	if r.URL.Path == "/login" {
-		pageType = "login"
-	} else if r.URL.Path == "/register" {
-		pageType = "register"
+	ctx := r.Context()
+
+	// Parse filter parameters
+	category := r.URL.Query().Get("category")
+	myPosts := r.URL.Query().Get("my_posts") == "true"
+	likedPosts := r.URL.Query().Get("liked_posts") == "true"
+
+	// Build filter
+	filter := ports.PostFilter{
+		Limit: 50, // Default limit
 	}
-	
-	// For login and register pages, we'll prepare different data
-	var data map[string]interface{}
-	
-	switch pageType {
-	case "login":
-		data = map[string]interface{}{
-			"Title":    "Login",
-			"PageType": "login",
-		}
-	case "register":
-		data = map[string]interface{}{
-			"Title":    "Register",
-			"PageType": "register",
-		}
-	default: // home page
-		// Parse filter parameters for home page
-		category := r.URL.Query().Get("category")
-		myPosts := r.URL.Query().Get("my_posts") == "true"
-		likedPosts := r.URL.Query().Get("liked_posts") == "true"
 
-		// Build filter
-		filter := ports.PostFilter{
-			Limit: 50, // Default limit
-		}
+	if category != "" {
+		filter.Categories = []string{category}
+	}
 
-		if category != "" {
-			filter.Categories = []string{category}
-		}
+	// TODO: Get user from session context
+	// For now, we'll skip user-specific filters
+	var currentUser interface{}
+	// currentUser = ctx.Value("user")
 
-		// TODO: Get user from session context
-		// For now, we'll skip user-specific filters
-		var currentUser interface{}
-		// currentUser = ctx.Value("user")
+	if myPosts && currentUser != nil {
+		// filter.UserID = currentUser.ID
+	}
 
-		if myPosts && currentUser != nil {
-			// filter.UserID = currentUser.ID
-		}
+	if likedPosts && currentUser != nil {
+		// filter.LikedByUserID = currentUser.ID
+	}
 
-		if likedPosts && currentUser != nil {
-			// filter.LikedByUserID = currentUser.ID
-		}
+	// Fetch posts
+	posts, err := h.postService.ListPosts(ctx, filter)
+	if err != nil {
+		http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+		return
+	}
 
-		// Fetch posts
-		ctx := r.Context()
-		posts, err := h.postService.ListPosts(ctx, filter)
+	// Fetch all categories for filter dropdown
+	var categories []*domain.Category
+	if h.categoryService != nil {
+		categories, err = h.categoryService.List(ctx)
 		if err != nil {
-			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
-			return
+			// Log error but continue - categories are not critical
+			categories = []*domain.Category{}
 		}
+	}
 
-		// Fetch all categories for filter dropdown
-		var categories []*domain.Category
-		if h.categoryService != nil {
-			categories, err = h.categoryService.List(ctx)
-			if err != nil {
-				// Log error but continue - categories are not critical
-				categories = []*domain.Category{}
-			}
-		}
-
-		// Prepare template data for home page
-		data = map[string]interface{}{
-			"Title":            "Home",
-			"Posts":            posts,
-			"Categories":       categories,
-			"SelectedCategory": category,
-			"MyPosts":          myPosts,
-			"LikedPosts":       likedPosts,
-			"User":             currentUser,
-			"PageType":         "home",
-		}
+	// Prepare template data for home page
+	data := map[string]interface{}{
+		"Title":            "Home",
+		"Posts":            posts,
+		"Categories":       categories,
+		"SelectedCategory": category,
+		"MyPosts":          myPosts,
+		"LikedPosts":       likedPosts,
+		"User":             currentUser,
+		"PageType":         "home",
 	}
 
 	// Render template
