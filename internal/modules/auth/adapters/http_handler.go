@@ -39,19 +39,19 @@ func (h *HTTPHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Username string `json:"username"`
 		Password string `json:"password"`
 	}
-	
+
 	if err := h.parseJSON(r, &req); err != nil {
 		h.writeError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
-	
+
 	// Call the service to register the user
 	userID, session, err := h.authService.Register(r.Context(), req.Email, req.Username, req.Password)
 	if err != nil {
 		h.writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	
+
 	// Set the session cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
@@ -62,7 +62,7 @@ func (h *HTTPHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Secure:   false, // Set to true in production with HTTPS
 		SameSite: http.SameSiteLaxMode,
 	})
-	
+
 	// Return success response
 	resp := struct {
 		UserID int    `json:"user_id"`
@@ -73,7 +73,7 @@ func (h *HTTPHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Email:  req.Email,
 		Token:  session.Token,
 	}
-	
+
 	h.writeJSON(w, http.StatusCreated, resp)
 }
 
@@ -83,19 +83,19 @@ func (h *HTTPHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
-	
+
 	if err := h.parseJSON(r, &req); err != nil {
 		h.writeError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
-	
+
 	// Call the service to login the user
 	session, err := h.authService.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
 		h.writeError(w, http.StatusUnauthorized, "Invalid email or password")
 		return
 	}
-	
+
 	// Set the session cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
@@ -106,7 +106,7 @@ func (h *HTTPHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Secure:   false, // Set to true in production with HTTPS
 		SameSite: http.SameSiteLaxMode,
 	})
-	
+
 	// Return success response
 	resp := struct {
 		UserID int    `json:"user_id"`
@@ -117,7 +117,7 @@ func (h *HTTPHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Email:  req.Email,
 		Token:  session.Token,
 	}
-	
+
 	h.writeJSON(w, http.StatusOK, resp)
 }
 
@@ -129,14 +129,14 @@ func (h *HTTPHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, http.StatusBadRequest, "No session token found")
 		return
 	}
-	
+
 	// Call the service to logout the user
 	err = h.authService.Logout(r.Context(), cookie.Value)
 	if err != nil {
 		h.writeError(w, http.StatusInternalServerError, "Failed to logout")
 		return
 	}
-	
+
 	// Clear the session cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
@@ -147,7 +147,7 @@ func (h *HTTPHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		Secure:   false, // Set to true in production with HTTPS
 		SameSite: http.SameSiteLaxMode,
 	})
-	
+
 	// Return success response
 	h.writeJSON(w, http.StatusOK, struct {
 		Message string `json:"message"`
@@ -164,14 +164,14 @@ func (h *HTTPHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, http.StatusUnauthorized, "No session token found")
 		return
 	}
-	
+
 	// Call the service to validate the session
 	session, err := h.authService.ValidateSession(r.Context(), cookie.Value)
 	if err != nil {
 		h.writeError(w, http.StatusUnauthorized, "Invalid or expired session")
 		return
 	}
-	
+
 	// Return session info
 	resp := struct {
 		UserID    int       `json:"user_id"`
@@ -182,7 +182,7 @@ func (h *HTTPHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 		Token:     session.Token,
 		ExpiresAt: session.ExpiresAt,
 	}
-	
+
 	h.writeJSON(w, http.StatusOK, resp)
 }
 
@@ -190,7 +190,7 @@ func (h *HTTPHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	
+
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		// Log the error, but don't send it to the client
 		fmt.Printf("Error encoding JSON response: %v\n", err)
@@ -201,13 +201,13 @@ func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interfac
 func (h *HTTPHandler) writeError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	
+
 	errResp := struct {
 		Error string `json:"error"`
 	}{
 		Error: message,
 	}
-	
+
 	if err := json.NewEncoder(w).Encode(errResp); err != nil {
 		// Log the error, but don't send it to the client
 		fmt.Printf("Error encoding error response: %v\n", err)
@@ -220,10 +220,10 @@ func (h *HTTPHandler) parseJSON(r *http.Request, v interface{}) error {
 	if r.Header.Get("Content-Type") != "application/json" {
 		return fmt.Errorf("content type is not application/json")
 	}
-	
+
 	// Decode the JSON
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields() // This makes parsing stricter
-	
+
 	return decoder.Decode(v)
 }
