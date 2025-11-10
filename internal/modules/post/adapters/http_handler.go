@@ -3,29 +3,33 @@
 package adapters
 
 import (
+	"fmt"
+	authPorts "forum/internal/modules/auth/ports"
 	"forum/internal/modules/post/domain"
-	"forum/internal/modules/post/ports"
+	postPorts "forum/internal/modules/post/ports"
 	"html/template"
 	"net/http"
 )
 
 // HTTPHandler handles HTTP requests for posts.
 type HTTPHandler struct {
-	postService     ports.PostService
-	categoryService ports.CategoryService
+	postService     postPorts.PostService
+	categoryService postPorts.CategoryService
+	authService     authPorts.AuthService
 	templates       *template.Template
 }
 
 // NewHTTPHandler creates a new HTTP handler for posts.
-func NewHTTPHandler(postService ports.PostService) *HTTPHandler {
+func NewHTTPHandler(postService postPorts.PostService, authService authPorts.AuthService) *HTTPHandler {
 	return &HTTPHandler{
 		postService: postService,
+		authService: authService,
 		// Templates will be set via SetTemplates method
 	}
 }
 
 // SetCategoryService sets the category service (optional dependency).
-func (h *HTTPHandler) SetCategoryService(categoryService ports.CategoryService) {
+func (h *HTTPHandler) SetCategoryService(categoryService postPorts.CategoryService) {
 	h.categoryService = categoryService
 }
 
@@ -60,7 +64,28 @@ func (h *HTTPHandler) handlePostRoutes(w http.ResponseWriter, r *http.Request) {
 
 // HomePage handles the homepage rendering with post list.
 func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
 	ctx := r.Context()
+
+	// Get session token from cookie
+	cookie, err := r.Cookie("session_token")
+	var currentUser interface{} // This will hold user info if logged in
+	
+	if err == nil && cookie.Value != "" {
+		// Validate the session using the auth service
+		session, err := h.authService.ValidateSession(ctx, cookie.Value)
+		if err == nil && session != nil {
+			// Create a simple user object to pass to the template
+			currentUser = map[string]interface{}{
+				"ID":       session.UserID,
+				"Username": "user" + fmt.Sprintf("%d", session.UserID), // Placeholder - in real app would fetch from DB
+			}
+		}
+	}
 
 	// Parse filter parameters
 	category := r.URL.Query().Get("category")
@@ -68,18 +93,13 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 	likedPosts := r.URL.Query().Get("liked_posts") == "true"
 
 	// Build filter
-	filter := ports.PostFilter{
+	filter := postPorts.PostFilter{
 		Limit: 50, // Default limit
 	}
 
 	if category != "" {
 		filter.Categories = []string{category}
 	}
-
-	// TODO: Get user from session context
-	// For now, we'll skip user-specific filters
-	var currentUser interface{}
-	// currentUser = ctx.Value("user")
 
 	if myPosts && currentUser != nil {
 		// filter.UserID = currentUser.ID
