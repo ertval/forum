@@ -2,6 +2,8 @@
 package wire
 
 import (
+	"html/template"
+
 	authAdapters "forum/internal/modules/auth/adapters"
 	commentAdapters "forum/internal/modules/comment/adapters"
 	moderationAdapters "forum/internal/modules/moderation/adapters"
@@ -24,11 +26,19 @@ type Handlers struct {
 
 // initHandlers creates all HTTP handler instances.
 func initHandlers(services *Services) *Handlers {
-	postHandler := postAdapters.NewHTTPHandler(services.Post)
+	// Parse templates once and share between handlers that need them
+	templates, err := template.ParseGlob("templates/*.html")
+	if err != nil {
+		panic(err)
+	}
+
+	postHandler := postAdapters.NewHTTPHandler(services.Post, services.Auth, services.User)
+	// Set the shared templates
+	postHandler.SetTemplates(templates)
 	postHandler.SetCategoryService(services.Category)
 
 	return &Handlers{
-		Auth:         authAdapters.NewHTTPHandler(services.Auth),
+		Auth:         authAdapters.NewHTTPHandler(services.Auth, templates),
 		User:         userAdapters.NewHTTPHandler(services.User),
 		Post:         postHandler,
 		Comment:      commentAdapters.NewHTTPHandler(services.Comment),

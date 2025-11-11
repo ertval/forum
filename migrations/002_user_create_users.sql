@@ -4,15 +4,16 @@
 
 -- +migrate Up
 CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
     username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'user',
     oauth_provider TEXT,
     oauth_provider_id TEXT,
     created_at DATETIME NOT NULL,
-    updated_at DATETIME NOT NULL
+    updated_at DATETIME NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE INDEX idx_users_email ON users(email);

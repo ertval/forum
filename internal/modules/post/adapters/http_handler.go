@@ -4,36 +4,41 @@ package adapters
 
 import (
 	"fmt"
+	authPorts "forum/internal/modules/auth/ports"
+	userPorts "forum/internal/modules/user/ports"
 	"forum/internal/modules/post/domain"
-	"forum/internal/modules/post/ports"
+	postPorts "forum/internal/modules/post/ports"
 	"html/template"
 	"net/http"
 )
 
 // HTTPHandler handles HTTP requests for posts.
 type HTTPHandler struct {
-	postService     ports.PostService
-	categoryService ports.CategoryService
+	postService     postPorts.PostService
+	categoryService postPorts.CategoryService
+	authService     authPorts.AuthService
+	userService     userPorts.UserService
 	templates       *template.Template
 }
 
 // NewHTTPHandler creates a new HTTP handler for posts.
-func NewHTTPHandler(postService ports.PostService) *HTTPHandler {
-	// Parse templates
-	tmpl, err := template.ParseGlob("templates/*.html")
-	if err != nil {
-		panic(fmt.Sprintf("failed to parse templates: %v", err))
-	}
-
+func NewHTTPHandler(postService postPorts.PostService, authService authPorts.AuthService, userService userPorts.UserService) *HTTPHandler {
 	return &HTTPHandler{
 		postService: postService,
-		templates:   tmpl,
+		authService: authService,
+		userService: userService,
+		// Templates will be set via SetTemplates method
 	}
 }
 
 // SetCategoryService sets the category service (optional dependency).
-func (h *HTTPHandler) SetCategoryService(categoryService ports.CategoryService) {
+func (h *HTTPHandler) SetCategoryService(categoryService postPorts.CategoryService) {
 	h.categoryService = categoryService
+}
+
+// SetTemplates sets the template collection for the handler.
+func (h *HTTPHandler) SetTemplates(templates *template.Template) {
+	h.templates = templates
 }
 
 // RegisterRoutes registers all post routes.
@@ -69,24 +74,44 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
+	// Get session token from cookie
+	cookie, err := r.Cookie("session_token")
+	var currentUser interface{} = nil // This will hold user info if logged in
+	
+	if err == nil && cookie.Value != "" {
+		// Validate the session using the auth service
+		session, err := h.authService.ValidateSession(ctx, cookie.Value)
+		if err == nil && session != nil {
+			// Get actual user details using user service
+			user, err := h.userService.GetByID(ctx, session.UserID)
+			if err == nil && user != nil {
+				currentUser = map[string]interface{}{
+					"ID":       user.ID,
+					"Username": user.Username,
+				}
+			} else {
+				// If we can't get user details, still create with minimal info
+				currentUser = map[string]interface{}{
+					"ID":       session.UserID,
+					"Username": "user" + fmt.Sprintf("%d", session.UserID),
+				}
+			}
+		}
+	}
+
 	// Parse filter parameters
 	category := r.URL.Query().Get("category")
 	myPosts := r.URL.Query().Get("my_posts") == "true"
 	likedPosts := r.URL.Query().Get("liked_posts") == "true"
 
 	// Build filter
-	filter := ports.PostFilter{
+	filter := postPorts.PostFilter{
 		Limit: 50, // Default limit
 	}
 
 	if category != "" {
 		filter.Categories = []string{category}
 	}
-
-	// TODO: Get user from session context
-	// For now, we'll skip user-specific filters
-	var currentUser interface{}
-	// currentUser = ctx.Value("user")
 
 	if myPosts && currentUser != nil {
 		// filter.UserID = currentUser.ID
@@ -113,7 +138,7 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Prepare template data
+	// Prepare template data for home page
 	data := map[string]interface{}{
 		"Title":            "Home",
 		"Posts":            posts,
