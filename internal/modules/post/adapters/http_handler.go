@@ -4,12 +4,14 @@ package adapters
 
 import (
 	"fmt"
-	authPorts "forum/internal/modules/auth/ports"
-	"forum/internal/modules/post/domain"
-	postPorts "forum/internal/modules/post/ports"
-	userPorts "forum/internal/modules/user/ports"
 	"html/template"
 	"net/http"
+
+	authPorts "forum/internal/modules/auth/ports"
+	userPorts "forum/internal/modules/user/ports"
+
+	postDomain "forum/internal/modules/post/domain"
+	postPorts "forum/internal/modules/post/ports"
 )
 
 // HTTPHandler handles HTTP requests for posts.
@@ -75,7 +77,7 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 
 	// Get session token from cookie
 	cookie, err := r.Cookie("session_token")
-	var currentUser interface{} = nil // This will hold user info if logged in
+	var currentUser any = nil // This will hold user info if logged in
 
 	if err == nil && cookie.Value != "" {
 		// Validate the session using the auth service
@@ -128,12 +130,12 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch all categories for filter dropdown
-	var categories []*domain.Category
+	var categories []*postDomain.Category
 	if h.categoryService != nil {
 		categories, err = h.categoryService.List(ctx)
 		if err != nil {
 			// Log error but continue - categories are not critical
-			categories = []*domain.Category{}
+			categories = []*postDomain.Category{}
 		}
 	}
 
