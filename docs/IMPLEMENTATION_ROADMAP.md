@@ -24,10 +24,10 @@ Focus: Implement essential features from requirements.md to get a working forum 
 - [x] Config loading from environment variables (config.go)
 - [X] Database connection (SQLite with mattn/go-sqlite3) (connection.go)
 - [X] Database migrator - apply migrations on startup (migrator.go)
-- [ ] Basic HTTP server with standard lib http.ServeMux (server.go)
-- [ ] Structured logger with levels (Debug, Info, Warn, Error) (logger.go)
+- [X] Basic HTTP server with standard lib http.ServeMux (server.go)
+- [X] Structured logger with levels (Debug, Info, Warn, Error) (logger.go)
 - [ ] Recovery middleware (panic handling) (middleware.go)
-- [ ] Logger middleware (request logging) (middleware.go)
+- [X] Logger middleware (request logging) (middleware.go)
 - [ ] Basic error responses with HTTP status mapping (errors.go)
 - [ ] Input validator (email, password strength) (validator.go)
 
