@@ -5,17 +5,27 @@ package adapters
 
 import (
 	"forum/internal/modules/moderation/ports"
+	"html/template"
 	"net/http"
 )
 
 // HTTPHandler handles HTTP requests for moderation.
 type HTTPHandler struct {
 	moderationService ports.ModerationService
+	templates         *template.Template
 }
 
-// NewHTTPHandler creates a new HTTP handler for moderation.
-func NewHTTPHandler(moderationService ports.ModerationService) *HTTPHandler {
-	return &HTTPHandler{moderationService: moderationService}
+// ServiceContainer defines the minimal interface needed by this handler.
+type ServiceContainer interface {
+	Moderation() ports.ModerationService
+}
+
+// NewHTTPHandler creates a new HTTP handler for moderation with unified dependency injection.
+func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
+	return &HTTPHandler{
+		moderationService: services.Moderation(),
+		templates:         templates,
+	}
 }
 
 // RegisterRoutes registers all moderation routes.

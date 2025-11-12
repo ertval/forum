@@ -14,15 +14,15 @@ import (
 
 // App encapsulates the entire application with all its dependencies.
 type App struct {
-	Server *httpserver.Server
-	DB     *database.Connection
-	Logger *logger.Logger
+	Server   *httpserver.Server
+	Database *database.Connection
+	Logger   *logger.Logger
 }
 
 // Cleanup performs graceful cleanup of application resources.
 func (a *App) Cleanup() error {
 	a.Logger.Info("Cleaning up application resources")
-	if err := a.DB.Close(); err != nil {
+	if err := a.Database.Close(); err != nil {
 		a.Logger.Error("Failed to close database connection", logger.Error(err))
 		return err
 	}
@@ -60,14 +60,14 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 	handlers := initHandlers(services)
 
 	// 5. Initialize HTTP Server
-	server := initServer(cfg, handlers, lgr)
+	server := initServer(cfg, lgr, handlers)
 
 	lgr.Info("Application initialization complete")
 
 	return &App{
-		Server: server,
-		DB:     db,
-		Logger: lgr,
+		Server:   server,
+		Database: db,
+		Logger:   lgr,
 	}, nil
 }
 
@@ -91,7 +91,7 @@ func initDatabase(cfg *config.Config, lgr *logger.Logger) (*database.Connection,
 }
 
 // initServer creates and configures the HTTP server with all routes and middleware.
-func initServer(cfg *config.Config, handlers *Handlers, lgr *logger.Logger) *httpserver.Server {
+func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers) *httpserver.Server {
 	lgr.Info("Initializing HTTP server")
 
 	// Create server with config as single source of truth

@@ -4,17 +4,27 @@ package adapters
 
 import (
 	"forum/internal/modules/comment/ports"
+	"html/template"
 	"net/http"
 )
 
 // HTTPHandler handles HTTP requests for comments.
 type HTTPHandler struct {
 	commentService ports.CommentService
+	templates      *template.Template
 }
 
-// NewHTTPHandler creates a new HTTP handler for comments.
-func NewHTTPHandler(commentService ports.CommentService) *HTTPHandler {
-	return &HTTPHandler{commentService: commentService}
+// ServiceContainer defines the minimal interface needed by this handler.
+type ServiceContainer interface {
+	Comment() ports.CommentService
+}
+
+// NewHTTPHandler creates a new HTTP handler for comments with unified dependency injection.
+func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
+	return &HTTPHandler{
+		commentService: services.Comment(),
+		templates:      templates,
+	}
 }
 
 // RegisterRoutes registers all comment routes.
