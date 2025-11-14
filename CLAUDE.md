@@ -348,12 +348,14 @@ docker-compose up
 ## Workflow Conventions
 
 **Test-Driven Development (TDD):**
+
 1. Write tests first, see them fail
 2. Implement minimal code to pass tests
 3. Refactor while keeping tests green
 4. Commit after each complete feature
 
 **Development Cycle:**
+
 - Follow idiomatic Go patterns - consistency is critical
 - Check `docs/IMPLEMENTATION_ROADMAP.md` for current progress
 - Update roadmap checkboxes as you complete tasks
@@ -361,12 +363,14 @@ docker-compose up
 - Update README.md if endpoints or Docker usage changes
 
 **Audit Requirements:**
+
 - **DO NOT modify** `.github/audit.md` - it's the authoritative test specification
 - All audit questions must be covered by integration/e2e tests in `tests/integration/`
 - Test every scenario described in `audit.md` including edge cases
 - Project is only complete when all audit requirements pass
 
 **Git Practices:**
+
 - Commit frequently with descriptive messages
 - Format: `[module] Brief description` (e.g., `[auth] Implement session validation`)
 - One feature/fix per commit when possible
