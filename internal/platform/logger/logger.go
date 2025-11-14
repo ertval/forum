@@ -135,7 +135,7 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 	entry := map[string]any{
 		"level": levelToString(level),
 		"msg":   msg,
-		"ts":    time.Now().Format(time.RFC3339Nano),
+		"ts":    time.Now().Format(time.StampMilli),
 	}
 
 	// attach fields
