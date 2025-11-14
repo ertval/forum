@@ -3,7 +3,7 @@ package domain
 
 // Category represents a post category.
 type Category struct {
-	ID          int    // Unique category identifier
+	ID          string // Unique category identifier (UUID)
 	Name        string // Category name (unique, used for filtering)
 	Description string // Category description
 }

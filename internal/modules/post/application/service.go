@@ -21,9 +21,50 @@ func NewService(postRepo ports.PostRepository, categoryRepo ports.CategoryReposi
 	}
 }
 
+// CategoryService implements the CategoryService interface.
+type CategoryService struct {
+	categoryRepo ports.CategoryRepository
+}
+
+// NewCategoryService creates a new category service.
+func NewCategoryService(categoryRepo ports.CategoryRepository) ports.CategoryService {
+	return &CategoryService{
+		categoryRepo: categoryRepo,
+	}
+}
+
+// Create creates a new category.
+func (s *CategoryService) Create(ctx context.Context, name, description string) (*domain.Category, error) {
+	category := &domain.Category{
+		Name:        name,
+		Description: description,
+	}
+
+	if err := s.categoryRepo.Create(ctx, category); err != nil {
+		return nil, err
+	}
+
+	return category, nil
+}
+
+// Get retrieves a category by ID.
+func (s *CategoryService) Get(ctx context.Context, categoryID string) (*domain.Category, error) {
+	return s.categoryRepo.GetByID(ctx, categoryID)
+}
+
+// List retrieves all categories.
+func (s *CategoryService) List(ctx context.Context) ([]*domain.Category, error) {
+	return s.categoryRepo.List(ctx)
+}
+
+// Delete deletes a category.
+func (s *CategoryService) Delete(ctx context.Context, categoryID string) error {
+	return s.categoryRepo.Delete(ctx, categoryID)
+}
+
 // CreatePost creates a new post.
 // TODO: Implement post creation with image upload.
-func (s *Service) CreatePost(ctx context.Context, userID int, title, content string, categories []string, image []byte) (*domain.Post, error) {
+func (s *Service) CreatePost(ctx context.Context, userID string, title, content string, categories []string, image []byte) (*domain.Post, error) {
 	// Implementation placeholder
 	// 1. Validate title, content, and categories
 	// 2. Verify categories exist in database
@@ -37,13 +78,13 @@ func (s *Service) CreatePost(ctx context.Context, userID int, title, content str
 }
 
 // GetPost retrieves a post by ID.
-func (s *Service) GetPost(ctx context.Context, postID int) (*domain.Post, error) {
+func (s *Service) GetPost(ctx context.Context, postID string) (*domain.Post, error) {
 	return s.postRepo.GetByID(ctx, postID)
 }
 
 // UpdatePost updates a post.
 // TODO: Implement post update.
-func (s *Service) UpdatePost(ctx context.Context, postID int, title, content string) error {
+func (s *Service) UpdatePost(ctx context.Context, postID string, title, content string) error {
 	// Implementation placeholder
 	// 1. Retrieve existing post
 	// 2. Validate new title and content
@@ -54,7 +95,7 @@ func (s *Service) UpdatePost(ctx context.Context, postID int, title, content str
 
 // DeletePost deletes a post.
 // TODO: Implement post deletion.
-func (s *Service) DeletePost(ctx context.Context, postID int) error {
+func (s *Service) DeletePost(ctx context.Context, postID string) error {
 	return s.postRepo.Delete(ctx, postID)
 }
 

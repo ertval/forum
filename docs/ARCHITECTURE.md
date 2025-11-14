@@ -4,9 +4,14 @@
 
 A modular monolith web forum built with Go, following **Hexagonal Architecture** (Ports and Adapters). Clean boundaries, testable components, idiomatic Go.
 
+Current status: this repository contains an initial scaffolding of the application where module structure and many placeholder files are present but significant business logic is still to be implemented. The project is roughly 10% complete. Many files contain TODOs and reference the implementation roadmap — see `docs/IMPLEMENTATION_ROADMAP.md` for priorities and milestones.
+
+Note on migrations: the project includes SQL migrations in the `migrations/` directory. The intended startup flow (see wiring in `cmd/forum/wire/`) runs migrations automatically when the database connection is established. Migration files use the `-- +migrate Up`/`-- +migrate Down` markers and follow the repository's conventions.
+
 ## Core Principles
 
 ### Go Philosophy
+
 - **Simplicity**: Straightforward solutions over clever tricks
 - **Readability**: Code clarity over brevity
 - **Explicitness**: No hidden magic or implicit behavior
@@ -14,6 +19,7 @@ A modular monolith web forum built with Go, following **Hexagonal Architecture**
 - **Composition**: Build complexity through composition
 
 ### SOLID + KISS
+
 - Single Responsibility: One reason to change per component
 - Interface Segregation: Small, focused interfaces
 - Dependency Inversion: Depend on abstractions

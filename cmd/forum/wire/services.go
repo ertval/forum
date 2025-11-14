@@ -26,6 +26,7 @@ type Services struct {
 	Auth         authPorts.AuthService
 	User         userPorts.UserService
 	Post         postPorts.PostService
+	Category     postPorts.CategoryService
 	Comment      commentPorts.CommentService
 	Reaction     reactionPorts.ReactionService
 	Moderation   moderationPorts.ModerationService
@@ -35,9 +36,10 @@ type Services struct {
 // initServices creates all service instances with their dependencies.
 func initServices(repos *Repositories, sessionDuration time.Duration) *Services {
 	return &Services{
-		Auth:         authApp.NewService(repos.Session, repos.AuthUser, sessionDuration),
+		Auth:         authApp.NewService(repos.Session, repos.User, sessionDuration),
 		User:         userApp.NewService(repos.User),
-		Post:         postApp.NewService(repos.Post, nil), // TODO: Add categoryRepo when implemented
+		Post:         postApp.NewService(repos.Post, repos.Category),
+		Category:     postApp.NewCategoryService(repos.Category),
 		Comment:      commentApp.NewService(repos.Comment),
 		Reaction:     reactionApp.NewService(repos.Reaction),
 		Moderation:   moderationApp.NewService(repos.Moderation),

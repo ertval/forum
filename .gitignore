@@ -20,6 +20,7 @@ Thumbs.db
 *.dll
 *.so
 *.dylib
+forum
 
 # Test binary, built with `go test -c`
 *.test
@@ -95,5 +96,8 @@ static/uploads/
 *.prompt
 *.response
 *.history
+
+# Cookie files generated during testing
+cookies.txt
 
 # Dev

@@ -94,18 +94,8 @@ func initDatabase(cfg *config.Config, lgr *logger.Logger) (*database.Connection,
 func initServer(cfg *config.Config, handlers *Handlers, lgr *logger.Logger) *httpserver.Server {
 	lgr.Info("Initializing HTTP server")
 
-	// Create server
-	serverCfg := httpserver.Config{
-		Host:         cfg.Server.Host,
-		Port:         cfg.Server.Port,
-		TLSPort:      cfg.Server.TLSPort,
-		ReadTimeout:  cfg.Server.ReadTimeout,
-		WriteTimeout: cfg.Server.WriteTimeout,
-		IdleTimeout:  cfg.Server.IdleTimeout,
-		TLSCertFile:  cfg.Security.TLSCertFile,
-		TLSKeyFile:   cfg.Security.TLSKeyFile,
-	}
-	server := httpserver.New(serverCfg)
+	// Create server with config as single source of truth
+	server := httpserver.New(cfg)
 
 	// Register global middleware
 	server.RegisterMiddleware(httpserver.Recovery())
