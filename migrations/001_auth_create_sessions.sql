@@ -5,7 +5,7 @@
 -- +migrate Up
 CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
     token TEXT UNIQUE NOT NULL,
     expires_at DATETIME NOT NULL,
     created_at DATETIME NOT NULL,
