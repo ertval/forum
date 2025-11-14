@@ -2,7 +2,7 @@
 
 ## Architecture Overview
 
-This is a **Modular Monolith** Go application implementing a forum system. Each module follows **Hexagonal Architecture** (Ports & Adapters) with a strict 4-directory structure:
+This is a **Modular Monolith** Go 1.24+ application implementing a forum system. Each module follows **Hexagonal Architecture** (Ports & Adapters) with a strict 4-directory structure:
 
 ```
 module/
@@ -22,6 +22,15 @@ Every file in `ports/` and `adapters/` MUST have a header comment declaring its 
 
 **Example**: See `internal/modules/auth/ports/service.go` and `internal/modules/auth/adapters/http_handler.go`
 
+### Dependency Rules (Strict)
+```
+domain      → Can import: stdlib ONLY
+ports       → Can import: domain only
+application → Can import: domain, ports
+adapters    → Can import: domain, ports
+```
+**Cross-module communication**: Import `ports.XService` interface only, never internal implementations.
+
 ## Module Categories
 
 **Core Modules** (required): auth, user, post, comment, reaction  
@@ -29,15 +38,69 @@ Every file in `ports/` and `adapters/` MUST have a header comment declaring its 
 
 When working on optional features, preserve all `[OPTIONAL FEATURE]` comments in code and documentation.
 
-## Current Implementation Status
+## Current Implementation Status (~10% Complete)
 
-⚠️ **This project is in initial scaffolding phase (~10% complete)**:
-- Module structure is fully scaffolded with placeholder files
+⚠️ **Initial scaffolding phase**:
+- Module structure fully scaffolded with placeholder files
 - Most implementations contain `// TODO:` comments marking unfinished work
-- Database migrations are defined but services are not fully implemented
+- Database migrations defined in `migrations/` (auto-applied on startup via `database.Migrator`)
 - When implementing features, **replace TODO placeholders** with actual logic
-- Follow the exact patterns shown in the architecture documentation
 - See `docs/IMPLEMENTATION_ROADMAP.md` for detailed phase breakdown and priorities
+
+## Critical Workflows
+
+### Adding a New Feature (Follow This Exact Order)
+
+```text
+# 1. Domain layer
+internal/modules/{module}/domain/{entity}.go      # Add entities
+internal/modules/{module}/domain/errors.go        # Add domain errors
+
+# 2. Ports (interfaces)
+internal/modules/{module}/ports/service.go        # Define use cases (INPUT PORT)
+internal/modules/{module}/ports/repository.go     # Define data access (OUTPUT PORT)
+
+# 3. Application layer
+internal/modules/{module}/application/service.go  # Implement business logic
+
+# 4. Adapters
+internal/modules/{module}/adapters/sqlite_repository.go  # Implement data access
+internal/modules/{module}/adapters/http_handler.go       # Implement HTTP handlers
+
+# 5. Wire in cmd/forum/wire/ (critical for DI)
+cmd/forum/wire/repositories.go    # Add NewRepository() call
+cmd/forum/wire/services.go        # Add NewService() call
+cmd/forum/wire/handlers.go        # Add NewHTTPHandler() call
+cmd/forum/wire/app.go             # Register routes: handler.RegisterRoutes(server.Router())
+
+# 6. Database (if schema changes)
+migrations/NNN_{module}_{description}.sql  # Add migration with Up/Down markers
+```
+
+### Dependency Injection Wiring Order (cmd/forum/wire/)
+
+All DI happens in `cmd/forum/wire/` called from `main.go`:
+
+1. **Config & Logger** → `config.Load()`, `logger.New()` (in main.go)
+2. **Database** → Connect & run migrations (in `wire/app.go:initDatabase()`)
+3. **Repositories** → All SQLite repos (in `wire/repositories.go`)
+4. **Services** → Inject repos into services (in `wire/services.go`)
+5. **Handlers** → Inject services into handlers (in `wire/handlers.go`)
+6. **Routes** → Register via `handler.RegisterRoutes(router)` (in `wire/app.go`)
+
+**Example from wire/app.go:**
+```go
+// 3. Repositories (Output Adapters)
+sessionRepo := authAdapters.NewSQLiteSessionRepository(dbConn.DB())
+// 4. Services (Application Layer)
+authService := authApp.NewAuthService(sessionRepo, authUserRepo)
+// 5. Handlers (Input Adapters)
+authHandler := authAdapters.NewHTTPHandler(authService)
+// 6. Register routes
+authHandler.RegisterRoutes(server.Router())
+```
+
+**Never use dependency injection frameworks**. All wiring is explicit.
 
 ## Feature Implementation Requirements
 
@@ -81,38 +144,15 @@ When working on optional features, preserve all `[OPTIONAL FEATURE]` comments in
 - Moderator: delete content, create reports
 - Administrator: promote/demote users, manage categories, review reports
 
-## Dependency Injection Pattern
-
-Dependencies are wired manually in `cmd/forum/wire/` package, called from `main.go` following this **exact order**:
-
-1. **Load config** → Initialize logger
-2. **Connect database** → Run migrations (in `wire/app.go`)
-3. **Create repositories** (output adapters) - all SQLite repos (in `wire/repos.go`)
-4. **Create services** (inject repositories) - application layer services (in `wire/services.go`)
-5. **Create HTTP handlers** (inject services) - input adapters (in `wire/handlers.go`)
-6. **Register routes** → Start server with middleware stack (in `wire/app.go`)
-
-**Example from wire/app.go:**
-```go
-// 3. Repositories (Output Adapters)
-sessionRepo := authAdapters.NewSQLiteSessionRepository(dbConn.DB())
-// 4. Services (Application Layer)
-authService := authApp.NewAuthService(sessionRepo, authUserRepo)
-// 5. Handlers (Input Adapters)
-authHandler := authAdapters.NewHTTPHandler(authService)
-// 6. Register routes
-authHandler.RegisterRoutes(server.Router())
-```
-
-**Never use dependency injection frameworks**. All wiring is explicit and organized in the wire package.
 
 ## Database & Migrations
 
 - **Database**: SQLite with `github.com/mattn/go-sqlite3` (requires CGO)
 - **Migrations**: Sequential numbered SQL files in `migrations/`, named `NNN_module_description.sql`
+- **Auto-apply**: Migrations run automatically on startup via `database.Migrator` in `main.go`
 - **Pattern**: Each migration includes `-- +migrate Up` and `-- +migrate Down` markers
 - **Foreign keys**: Always include `ON DELETE CASCADE` where appropriate
-- **Indexes**: Create indexes for frequently queried columns (tokens, user_id, expires_at)
+- **Indexes**: Create for frequently queried columns (tokens, user_id, expires_at)
 
 **Example migration structure (`migrations/001_auth_create_sessions.sql`):**
 ```sql
@@ -130,8 +170,6 @@ CREATE INDEX idx_sessions_token ON sessions(token);
 DROP INDEX IF EXISTS idx_sessions_token;
 DROP TABLE IF EXISTS sessions;
 ```
-
-Migrations are automatically applied on startup via `database.Migrator` in `main.go`.
 
 ## Error Handling
 
@@ -265,7 +303,7 @@ docker-compose up
 7. Update `IMPLEMENTATION_ROADMAP.md` with progress
 
 **Example workflow for adding a new feature:**
-```bash
+```text
 # 1. Add domain entity
 # Edit: internal/modules/post/domain/post.go
 # 2. Add domain errors
@@ -295,6 +333,7 @@ docker-compose up
 - ❌ Don't use external frameworks unnecessarily - prefer standard library
 - ❌ Don't forget to mark optional features with `[OPTIONAL FEATURE]` comments
 - ❌ Don't hard-code configuration - use the config system
+- ❌ Don't modify `docs/requirements.md` or `docs/morefeats.md` - they're the authoritative specs
 
 ## Code Style
 

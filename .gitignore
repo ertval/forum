@@ -97,4 +97,7 @@ static/uploads/
 *.response
 *.history
 
+# Cookie files generated during testing
+cookies.txt
+
 # Dev

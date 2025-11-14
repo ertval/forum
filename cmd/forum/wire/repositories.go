@@ -26,6 +26,7 @@ type Repositories struct {
 	Session      authPorts.SessionRepository
 	User         userPorts.UserRepository
 	Post         postPorts.PostRepository
+	Category     postPorts.CategoryRepository
 	Comment      commentPorts.CommentRepository
 	Reaction     reactionPorts.ReactionRepository
 	Moderation   moderationPorts.ReportRepository
@@ -38,6 +39,7 @@ func initRepositories(db *sql.DB) *Repositories {
 		Session:      authAdapters.NewSQLiteSessionRepository(db),
 		User:         userAdapters.NewSQLiteUserRepository(db),
 		Post:         postAdapters.NewSQLitePostRepository(db),
+		Category:     postAdapters.NewSQLiteCategoryRepository(db),
 		Comment:      commentAdapters.NewSQLiteCommentRepository(db),
 		Reaction:     reactionAdapters.NewSQLiteReactionRepository(db),
 		Moderation:   moderationAdapters.NewSQLiteReportRepository(db),

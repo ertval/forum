@@ -2,6 +2,8 @@
 
 A modern web forum built with Go, following Hexagonal Architecture principles. Clean, testable, idiomatic Go code organized as a Modular Monolith.
 
+Current status: This repository contains an initial scaffolding of the application (most modules and files are present with placeholders and TODO notes). The project is approximately 10% complete — there are many unfinished implementations and TODOs. See `docs/IMPLEMENTATION_ROADMAP.md` for the prioritized plan and next steps.
+
 ## Features
 
 ### Core Features

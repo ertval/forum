@@ -3,31 +3,157 @@
 package adapters
 
 import (
-	"forum/internal/modules/post/ports"
+	"fmt"
+	authPorts "forum/internal/modules/auth/ports"
+	userPorts "forum/internal/modules/user/ports"
+	"forum/internal/modules/post/domain"
+	postPorts "forum/internal/modules/post/ports"
+	"html/template"
 	"net/http"
 )
 
 // HTTPHandler handles HTTP requests for posts.
 type HTTPHandler struct {
-	postService ports.PostService
+	postService     postPorts.PostService
+	categoryService postPorts.CategoryService
+	authService     authPorts.AuthService
+	userService     userPorts.UserService
+	templates       *template.Template
 }
 
 // NewHTTPHandler creates a new HTTP handler for posts.
-func NewHTTPHandler(postService ports.PostService) *HTTPHandler {
+func NewHTTPHandler(postService postPorts.PostService, authService authPorts.AuthService, userService userPorts.UserService) *HTTPHandler {
 	return &HTTPHandler{
 		postService: postService,
+		authService: authService,
+		userService: userService,
+		// Templates will be set via SetTemplates method
 	}
 }
 
+// SetCategoryService sets the category service (optional dependency).
+func (h *HTTPHandler) SetCategoryService(categoryService postPorts.CategoryService) {
+	h.categoryService = categoryService
+}
+
+// SetTemplates sets the template collection for the handler.
+func (h *HTTPHandler) SetTemplates(templates *template.Template) {
+	h.templates = templates
+}
+
 // RegisterRoutes registers all post routes.
-// TODO: Implement route registration.
 func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
-	// Implementation placeholder
-	// POST /posts - Create post (with multipart/form-data for image)
-	// GET /posts/{id} - Get post
-	// PUT /posts/{id} - Update post
-	// DELETE /posts/{id} - Delete post
-	// GET /posts - List posts with filters (query params: category, userID, likedBy, offset, limit)
+	router.HandleFunc("/", h.HomePage)
+	router.HandleFunc("/posts", h.ListPosts)
+	router.HandleFunc("/posts/", h.handlePostRoutes)
+}
+
+// handlePostRoutes handles routes with post ID parameter.
+func (h *HTTPHandler) handlePostRoutes(w http.ResponseWriter, r *http.Request) {
+	// Extract post ID from path
+	// For now, just handle basic CRUD operations
+	// TODO: Implement proper routing for /posts/{id}
+	switch r.Method {
+	case http.MethodGet:
+		h.GetPost(w, r)
+	case http.MethodPut:
+		h.UpdatePost(w, r)
+	case http.MethodDelete:
+		h.DeletePost(w, r)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// HomePage handles the homepage rendering with post list.
+func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
+	ctx := r.Context()
+
+	// Get session token from cookie
+	cookie, err := r.Cookie("session_token")
+	var currentUser interface{} = nil // This will hold user info if logged in
+	
+	if err == nil && cookie.Value != "" {
+		// Validate the session using the auth service
+		session, err := h.authService.ValidateSession(ctx, cookie.Value)
+		if err == nil && session != nil {
+			// Get actual user details using user service
+			user, err := h.userService.GetByID(ctx, session.UserID)
+			if err == nil && user != nil {
+				currentUser = map[string]interface{}{
+					"ID":       user.ID,
+					"Username": user.Username,
+				}
+			} else {
+				// If we can't get user details, still create with minimal info
+				currentUser = map[string]interface{}{
+					"ID":       session.UserID,
+					"Username": "user" + fmt.Sprintf("%d", session.UserID),
+				}
+			}
+		}
+	}
+
+	// Parse filter parameters
+	category := r.URL.Query().Get("category")
+	myPosts := r.URL.Query().Get("my_posts") == "true"
+	likedPosts := r.URL.Query().Get("liked_posts") == "true"
+
+	// Build filter
+	filter := postPorts.PostFilter{
+		Limit: 50, // Default limit
+	}
+
+	if category != "" {
+		filter.Categories = []string{category}
+	}
+
+	if myPosts && currentUser != nil {
+		// filter.UserID = currentUser.ID
+	}
+
+	if likedPosts && currentUser != nil {
+		// filter.LikedByUserID = currentUser.ID
+	}
+
+	// Fetch posts
+	posts, err := h.postService.ListPosts(ctx, filter)
+	if err != nil {
+		http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+		return
+	}
+
+	// Fetch all categories for filter dropdown
+	var categories []*domain.Category
+	if h.categoryService != nil {
+		categories, err = h.categoryService.List(ctx)
+		if err != nil {
+			// Log error but continue - categories are not critical
+			categories = []*domain.Category{}
+		}
+	}
+
+	// Prepare template data for home page
+	data := map[string]interface{}{
+		"Title":            "Home",
+		"Posts":            posts,
+		"Categories":       categories,
+		"SelectedCategory": category,
+		"MyPosts":          myPosts,
+		"LikedPosts":       likedPosts,
+		"User":             currentUser,
+	}
+
+	// Render template
+	if err := h.templates.ExecuteTemplate(w, "base.html", data); err != nil {
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		return
+	}
 }
 
 // CreatePost handles post creation requests.
