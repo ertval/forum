@@ -103,6 +103,18 @@
         {{else}}
             <p class="no-posts">No posts found. {{if .User}}<a href="/posts/new">Create the first post!</a>{{else}}<a href="/register">Register</a> to create posts.{{end}}</p>
         {{end}}
+
+        <!-- Load More Button -->
+        {{if .Posts}}
+            <div class="load-more-container">
+                <button id="load-more-btn"
+                        class="btn"
+                        data-offset="{{len .Posts}}"
+                        data-category="{{if .SelectedCategory}}{{.SelectedCategory}}{{end}}"
+                        data-my-posts="{{.MyPosts}}"
+                        data-liked-posts="{{.LikedPosts}}">Load More</button>
+            </div>
+        {{end}}
     </div>
 </div>
         </div>
@@ -115,6 +127,7 @@
         </div>
     </footer>
 
+    <script src="/static/js/load-more-posts.js"></script>
     <script src="/static/js/app.js"></script>
 </body>
 </html>

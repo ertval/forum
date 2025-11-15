@@ -54,6 +54,7 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	router.HandleFunc("GET /", h.HomePage)
 	router.HandleFunc("GET /posts", h.ListPostsAPI)
 	router.HandleFunc("GET /posts/{id}", h.GetPostAPI)
+	router.HandleFunc("GET /api/posts/load-more", h.LoadMorePostsAPI)
 
 	// Protected routes (require authentication)
 	// Wrap handlers with RequireAuth middleware
@@ -108,7 +109,7 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 
 	// Build filter
 	filter := postPorts.PostFilter{
-		Limit: 50, // Default limit
+		Limit: 10, // Default limit - show only 10 posts on homepage by default
 	}
 
 	if category != "" {
@@ -508,6 +509,80 @@ func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.writeJSON(w, http.StatusOK, posts)
+}
+
+// LoadMorePostsAPI handles loading additional posts for the homepage.
+func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Parse query parameters
+	filter := postPorts.PostFilter{
+		Limit:  10, // Load 10 posts at a time
+		Offset: 0,
+	}
+
+	// Category filter (for when user has filtered by category)
+	if category := r.URL.Query().Get("category"); category != "" {
+		filter.Categories = []string{category}
+	}
+
+	// User's own posts filter (requires auth)
+	if r.URL.Query().Get("my_posts") == "true" {
+		userID := authAdapters.GetUserID(r.Context())
+		if userID != "" {
+			filter.UserID = userID
+		}
+	}
+
+	// Liked posts filter (requires auth)
+	if r.URL.Query().Get("liked_posts") == "true" {
+		userID := authAdapters.GetUserID(r.Context())
+		if userID != "" {
+			filter.LikedByUserID = userID
+		}
+	}
+
+	// Pagination - get offset from query parameter (how many posts have been loaded already)
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if offset, err := strconv.Atoi(offsetStr); err == nil && offset >= 0 {
+			filter.Offset = offset
+		}
+	}
+
+	// Get posts
+	posts, err := h.postService.ListPosts(r.Context(), filter)
+	if err != nil {
+		h.writeError(w, http.StatusInternalServerError, "Failed to retrieve posts")
+		return
+	}
+
+	// Create preview content for posts (similar to HomePage function)
+	previewPosts := make([]map[string]interface{}, len(posts))
+	for i, post := range posts {
+		previewPost := make(map[string]interface{})
+
+		// Copy all fields from the original post
+		previewPost["ID"] = post.ID
+		previewPost["UserID"] = post.UserID
+		previewPost["AuthorUsername"] = post.AuthorUsername
+		previewPost["Author"] = post.Author
+		previewPost["Title"] = post.Title
+		previewPost["Content"] = createPostPreview(post.Content) // Use preview instead of full content
+		previewPost["ImageURL"] = post.ImageURL
+		previewPost["Categories"] = post.Categories
+		previewPost["LikeCount"] = post.LikeCount
+		previewPost["DislikeCount"] = post.DislikeCount
+		previewPost["CommentCount"] = post.CommentCount
+		previewPost["CreatedAt"] = post.CreatedAt
+		previewPost["UpdatedAt"] = post.UpdatedAt
+
+		previewPosts[i] = previewPost
+	}
+
+	h.writeJSON(w, http.StatusOK, previewPosts)
 }
 
 // CreatePostPage renders the post creation form.

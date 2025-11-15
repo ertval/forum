@@ -70,7 +70,7 @@
                 {{if eq .User.ID .Post.UserID}}
                 <div class="post-owner-actions">
                     <a href="/posts/{{.Post.ID}}/edit" class="btn btn-secondary">Edit</a>
-                    <button class="btn btn-danger" onclick="deletePost({{.Post.ID}})">Delete</button>
+                    <button class="btn btn-danger btn-delete-post" data-post-id="{{.Post.ID}}">Delete</button>
                 </div>
                 {{end}}
             {{end}}
@@ -136,6 +136,7 @@
         </div>
     </footer>
 
+    <script src="/static/js/post-detail.js"></script>
     <script src="/static/js/app.js"></script>
 </body>
 </html>

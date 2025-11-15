@@ -4,6 +4,7 @@ package wire
 // It initializes all components and returns a fully configured App instance.
 
 import (
+	"database/sql"
 	"fmt"
 	"forum/internal/platform/config"
 	"forum/internal/platform/database"
@@ -52,20 +53,17 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
 
-	// 2. Initialize Health Checker
-	healthChecker := health.NewChecker(db.DB())
-
-	// 3. Initialize Repositories (Output Adapters)
+	// 2. Initialize Repositories (Output Adapters)
 	repos := initRepositories(db.DB())
 
-	// 4. Initialize Services (Application Layer)
+	// 3. Initialize Services (Application Layer)
 	services := initServices(repos, cfg.Session.Duration)
 
-	// 5. Initialize HTTP Handlers (Input Adapters)
+	// 4. Initialize HTTP Handlers (Input Adapters)
 	handlers := initHandlers(services)
 
-	// 6. Initialize HTTP Server
-	server := initServer(cfg, lgr, handlers, healthChecker)
+	// 5. Initialize HTTP Server
+	server := initServer(cfg, lgr, handlers, db.DB())
 
 	lgr.Info("Application initialization complete")
 
@@ -96,8 +94,11 @@ func initDatabase(cfg *config.Config, lgr *logger.Logger) (*database.Connection,
 }
 
 // initServer creates and configures the HTTP server with all routes and middleware.
-func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, healthChecker *health.Checker) *httpserver.Server {
+func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *sql.DB) *httpserver.Server {
 	lgr.Info("Initializing HTTP server")
+
+	// Create health checker
+	healthChecker := health.NewChecker(db)
 
 	// Create server with config as single source of truth
 	server := httpserver.New(cfg)

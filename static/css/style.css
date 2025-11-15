@@ -44,7 +44,7 @@ header h1 a {
     color: #5a5a5a;
     text-decoration: none;
     font-size: 1.5rem;
-    font-weight: 800; /* Bolder */
+    font-weight: 600; /* Changed to match System Health header */
     display: flex;
     align-items: center;
     gap: 0.5rem; /* Space for emoji/image */
@@ -54,9 +54,9 @@ header h1 a {
 }
 
 header h1 a:hover {
-    background: linear-gradient(135deg, #c2f2e9 0%, #d4f5ee 100%) !important; /* Match Apply Filters button hover - lighter green */
+    background: linear-gradient(135deg, #e8f4fa 0%, #f0f8fc 100%) !important; /* Lighter blue gradient derived from header background */
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(181, 234, 215, 0.4); /* Match Apply Filters button shadow */
+    box-shadow: 0 4px 8px rgba(200, 224, 240, 0.4); /* Blue-tinged shadow */
     color: #5a5a5a !important; /* Keep text color instead of white */
 }
 
@@ -83,9 +83,9 @@ header nav a {
 }
 
 header nav a:hover {
-    background: linear-gradient(135deg, #c2f2e9 0%, #d4f5ee 100%); /* Match Apply Filters button hover - lighter green */
+    background: linear-gradient(135deg, #e8f4fa 0%, #f0f8fc 100%); /* Lighter blue gradient derived from header background */
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(181, 234, 215, 0.4); /* Match Apply Filters button shadow */
+    box-shadow: 0 4px 8px rgba(200, 224, 240, 0.4); /* Blue-tinged shadow */
     color: #5a5a5a; /* Keep text color instead of white */
 }
 
@@ -312,9 +312,9 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .category-tag:hover {
-    background: linear-gradient(135deg, #c0d0e0 0%, #d8e4ee 100%);
+    background: linear-gradient(135deg, #e8f4fa 0%, #f0f8fc 100%); /* Lighter blue gradient for header consistency */
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(211, 224, 234, 0.5);
+    box-shadow: 0 4px 8px rgba(200, 224, 240, 0.5); /* Blue-tinged shadow */
     color: #5a5a5a;
 }
 
@@ -391,15 +391,18 @@ footer p {
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: calc(100vh - 200px);
-    padding: 2rem 0;
-    background: linear-gradient(135deg, #d3e0ea 0%, #f0f9f5 70%); /* Diagonal gradient from pastel blue to green */
+    min-height: calc(100vh - 250px); /* Reduced to ensure footer is visible */
+    padding: 1rem 0;
+    border-radius: 8px; /* Added rounded corners to match login button */
+    background: linear-gradient(135deg, #d3e0ea 0%, #f9f9f9 100%); /* Diagonal gradient from pastel blue to body background color for smooth transition */
+    background-clip: padding-box; /* Ensures background doesn't extend beyond rounded corners */
+    overflow: hidden; /* Ensures child elements don't extend beyond rounded corners */
 }
 
 .auth-form {
     background: #ffffff; /* White */
     padding: 2rem;
-    border-radius: 16px;
+    border-radius: 8px; /* Changed to match the login button */
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
     width: 100%;
     max-width: 400px;
@@ -409,13 +412,9 @@ footer p {
 .auth-form h2 {
     text-align: center;
     margin-bottom: 1.5rem;
-    color: #5a5a5a;
+    color: #5a5a5a; /* Changed to match login button text color */
     font-size: 1.5rem;
-    background: linear-gradient(135deg, #d3bfe0 0%, #dce2ca 100%); /* Soft Lavender to Soft Sage */
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-weight: 700;
+    font-weight: 600; /* Changed to match System Health header */
 }
 
 .form-group {
@@ -581,9 +580,9 @@ footer p {
 
 .category-badge:hover,
 .category-tag:hover {
-    background: linear-gradient(135deg, #c0d0e0 0%, #d8e4ee 100%);
+    background: linear-gradient(135deg, #e8f4fa 0%, #f0f8fc 100%); /* Lighter blue gradient for header consistency */
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(211, 224, 234, 0.5);
+    box-shadow: 0 4px 8px rgba(200, 224, 240, 0.5); /* Blue-tinged shadow */
     color: #5a5a5a;
 }
 
