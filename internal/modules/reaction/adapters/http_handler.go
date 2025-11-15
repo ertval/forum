@@ -4,17 +4,27 @@ package adapters
 
 import (
 	"forum/internal/modules/reaction/ports"
+	"html/template"
 	"net/http"
 )
 
 // HTTPHandler handles HTTP requests for reactions.
 type HTTPHandler struct {
 	reactionService ports.ReactionService
+	templates       *template.Template
 }
 
-// NewHTTPHandler creates a new HTTP handler for reactions.
-func NewHTTPHandler(reactionService ports.ReactionService) *HTTPHandler {
-	return &HTTPHandler{reactionService: reactionService}
+// ServiceContainer defines the minimal interface needed by this handler.
+type ServiceContainer interface {
+	Reaction() ports.ReactionService
+}
+
+// NewHTTPHandler creates a new HTTP handler for reactions with unified dependency injection.
+func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
+	return &HTTPHandler{
+		reactionService: services.Reaction(),
+		templates:       templates,
+	}
 }
 
 // RegisterRoutes registers all reaction routes.

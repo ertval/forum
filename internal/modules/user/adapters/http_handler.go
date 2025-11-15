@@ -1,21 +1,30 @@
 package adapters
+
 // INPUT ADAPTER - HTTP Handler
 // Package adapters implements the HTTP handlers for user endpoints.
 
 import (
 	"forum/internal/modules/user/ports"
+	"html/template"
 	"net/http"
 )
 
 // HTTPHandler handles HTTP requests for user operations.
 type HTTPHandler struct {
 	userService ports.UserService
+	templates   *template.Template
 }
 
-// NewHTTPHandler creates a new HTTP handler for users.
-func NewHTTPHandler(userService ports.UserService) *HTTPHandler {
+// ServiceContainer defines the minimal interface needed by this handler.
+type ServiceContainer interface {
+	User() ports.UserService
+}
+
+// NewHTTPHandler creates a new HTTP handler for users with unified dependency injection.
+func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
 	return &HTTPHandler{
-		userService: userService,
+		userService: services.User(),
+		templates:   templates,
 	}
 }
 

@@ -6,14 +6,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"forum/cmd/forum/wire"
-	"forum/internal/platform/config"
-	"forum/internal/platform/logger"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"forum/cmd/forum/wire"
+	"forum/internal/platform/config"
+	"forum/internal/platform/logger"
 )
 
 func main() {
@@ -37,8 +38,7 @@ func main() {
 
 	// 4. Start Server
 	// Call Start synchronously. Server.Start launches the HTTP(S) listeners
-	// in their own goroutines and returns quickly, so wrapping this call in
-	// an extra goroutine is unnecessary and adds complexity.
+	// in their own goroutines and returns quickly, so this call won't block.
 	if err := app.Start(); err != nil {
 		log.Error("Server failed to start", logger.Error(err))
 		os.Exit(1)

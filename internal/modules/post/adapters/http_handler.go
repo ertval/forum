@@ -4,12 +4,14 @@ package adapters
 
 import (
 	"fmt"
-	authPorts "forum/internal/modules/auth/ports"
-	userPorts "forum/internal/modules/user/ports"
-	"forum/internal/modules/post/domain"
-	postPorts "forum/internal/modules/post/ports"
 	"html/template"
 	"net/http"
+
+	authPorts "forum/internal/modules/auth/ports"
+	userPorts "forum/internal/modules/user/ports"
+
+	postDomain "forum/internal/modules/post/domain"
+	postPorts "forum/internal/modules/post/ports"
 )
 
 // HTTPHandler handles HTTP requests for posts.
@@ -21,24 +23,23 @@ type HTTPHandler struct {
 	templates       *template.Template
 }
 
-// NewHTTPHandler creates a new HTTP handler for posts.
-func NewHTTPHandler(postService postPorts.PostService, authService authPorts.AuthService, userService userPorts.UserService) *HTTPHandler {
+// ServiceContainer defines the minimal interface needed by this handler.
+type ServiceContainer interface {
+	Post() postPorts.PostService
+	Category() postPorts.CategoryService
+	Auth() authPorts.AuthService
+	User() userPorts.UserService
+}
+
+// NewHTTPHandler creates a new HTTP handler for posts with unified dependency injection.
+func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
 	return &HTTPHandler{
-		postService: postService,
-		authService: authService,
-		userService: userService,
-		// Templates will be set via SetTemplates method
+		postService:     services.Post(),
+		categoryService: services.Category(),
+		authService:     services.Auth(),
+		userService:     services.User(),
+		templates:       templates,
 	}
-}
-
-// SetCategoryService sets the category service (optional dependency).
-func (h *HTTPHandler) SetCategoryService(categoryService postPorts.CategoryService) {
-	h.categoryService = categoryService
-}
-
-// SetTemplates sets the template collection for the handler.
-func (h *HTTPHandler) SetTemplates(templates *template.Template) {
-	h.templates = templates
 }
 
 // RegisterRoutes registers all post routes.
@@ -76,8 +77,8 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 
 	// Get session token from cookie
 	cookie, err := r.Cookie("session_token")
-	var currentUser interface{} = nil // This will hold user info if logged in
-	
+	var currentUser any = nil // This will hold user info if logged in
+
 	if err == nil && cookie.Value != "" {
 		// Validate the session using the auth service
 		session, err := h.authService.ValidateSession(ctx, cookie.Value)
@@ -129,12 +130,12 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch all categories for filter dropdown
-	var categories []*domain.Category
+	var categories []*postDomain.Category
 	if h.categoryService != nil {
 		categories, err = h.categoryService.List(ctx)
 		if err != nil {
 			// Log error but continue - categories are not critical
-			categories = []*domain.Category{}
+			categories = []*postDomain.Category{}
 		}
 	}
 
