@@ -40,7 +40,7 @@
             {{if .Post.Categories}}
             <div class="post-categories">
                 {{range .Post.Categories}}
-                <a class="category-badge" href="/posts?category={{urlquery .}}">{{.}}</a>
+                <a class="category-tag" href="/?category={{urlquery .}}">{{.}}</a>
                 {{end}}
             </div>
             {{end}}
@@ -132,7 +132,7 @@
     <footer>
         <div class="container">
             <p>&copy; 2025 Forum. All rights reserved.</p>
-            <p><a href="/health" class="health-status-link">Health Status</a></p>
+            <p><a href="/health" class="category-tag">Health Status</a></p>
         </div>
     </footer>
 

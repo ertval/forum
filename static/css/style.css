@@ -41,10 +41,20 @@ header h1 a {
     color: #5a5a5a;
     text-decoration: none;
     font-size: 1.5rem;
-    font-weight: 700; /* Bolder */
+    font-weight: 800; /* Bolder */
     display: flex;
     align-items: center;
     gap: 0.5rem; /* Space for emoji/image */
+    padding: 0.35rem 0.8rem;
+    border-radius: 20px; /* Rounded like category tags */
+    transition: all 0.5s ease; /* Slower transition like font color change */
+}
+
+header h1 a:hover {
+    background: linear-gradient(135deg, #c0d0e0 0%, #d8e4ee 100%) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(211, 224, 234, 0.5);
+    color: #5a5a5a !important; /* Keep text color instead of white */
 }
 
 header h1 a img {
@@ -62,15 +72,18 @@ header nav ul {
 header nav a {
     color: #5a5a5a;
     text-decoration: none;
-    transition: color 0.3s ease;
+    transition: all 0.5s ease; /* Slower transition like font color change */
     font-weight: 500;
-    padding: 0.5rem 0.75rem;
-    border-radius: 4px;
+    padding: 0.35rem 0.8rem; /* Match category tag padding */
+    border-radius: 20px; /* Rounded like category tags */
+    display: inline-block;
 }
 
 header nav a:hover {
-    background-color: #a2d5c6; /* Darker Pastel Green */
-    color: white;
+    background: linear-gradient(135deg, #c0d0e0 0%, #d8e4ee 100%); /* Match category tag hover */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(211, 224, 234, 0.5);
+    color: #5a5a5a; /* Keep text color instead of white */
 }
 
 /* Main Content */
@@ -344,16 +357,6 @@ footer p {
     font-size: 0.9rem;
 }
 
-.health-status-link {
-    background: linear-gradient(135deg, #e0f7e9 0%, #d3e0ea 100%); /* Pastel green to blue */
-    padding: 0.35rem 0.8rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    color: #5a5a5a;
-    font-weight: 500;
-    border: 1px solid #c0d0e0; /* Pastel blue */
-    text-decoration: none;
-}
 
 /* Responsive Design */
 @media (max-width: 768px) {
@@ -548,22 +551,24 @@ footer p {
     box-shadow: 0 4px 8px rgba(241, 194, 142, 0.5);
 }
 
-/* Category badges and tags */
-.category-badge {
-    display: inline-block;
-    background: linear-gradient(135deg, #d3e0ea 0%, #e0f7e9 100%); /* Pastel blue to green */
+/* Category badges and tags - unified styling */
+.category-badge,
+.category-tag {
+    background: linear-gradient(135deg, #e0f7e9 0%, #d3e0ea 100%); /* Pastel green to blue */
     padding: 0.35rem 0.8rem;
     border-radius: 20px;
     font-size: 0.85rem;
     color: #5a5a5a;
     font-weight: 500;
-    margin: 0.25rem;
     border: 1px solid #c0d0e0; /* Pastel blue */
+    display: inline-block;
+    margin: 0.25rem;
     text-decoration: none;
     transition: all 0.3s ease;
 }
 
-.category-badge:hover {
+.category-badge:hover,
+.category-tag:hover {
     background: linear-gradient(135deg, #c0d0e0 0%, #d8e4ee 100%);
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(211, 224, 234, 0.5);

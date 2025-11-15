@@ -30,6 +30,19 @@ PASSED=0
 FAILED=0
 SKIPPED=0
 
+# Category failure counters
+FAILED_MIDDLEWARE=0
+FAILED_AUTH=0
+FAILED_POSTS=0
+FAILED_COMMENTS=0
+FAILED_REACTIONS=0
+FAILED_SESSION=0
+FAILED_CONCURRENCY=0
+FAILED_PERFORMANCE=0
+FAILED_RATE=0
+FAILED_DATA=0
+FAILED_EDGE=0
+
 # Performance thresholds (milliseconds)
 MAX_RESPONSE_TIME_MS=1000
 MAX_DB_OPERATION_MS=500
@@ -64,6 +77,30 @@ print_test() {
             echo -e "   ${RED}Reason:${NC} $message"
         fi
         FAILED=$((FAILED + 1))
+        # Increment category failure counter
+        if [ "$name" -ge 1 ] && [ "$name" -le 4 ]; then
+            FAILED_MIDDLEWARE=$((FAILED_MIDDLEWARE + 1))
+        elif [ "$name" -ge 5 ] && [ "$name" -le 20 ]; then
+            FAILED_AUTH=$((FAILED_AUTH + 1))
+        elif [ "$name" -ge 21 ] && [ "$name" -le 38 ]; then
+            FAILED_POSTS=$((FAILED_POSTS + 1))
+        elif [ "$name" -ge 39 ] && [ "$name" -le 44 ]; then
+            FAILED_COMMENTS=$((FAILED_COMMENTS + 1))
+        elif [ "$name" -ge 45 ] && [ "$name" -le 49 ]; then
+            FAILED_REACTIONS=$((FAILED_REACTIONS + 1))
+        elif [ "$name" -ge 50 ] && [ "$name" -le 61 ]; then
+            FAILED_SESSION=$((FAILED_SESSION + 1))
+        elif [ "$name" -ge 62 ] && [ "$name" -le 65 ]; then
+            FAILED_CONCURRENCY=$((FAILED_CONCURRENCY + 1))
+        elif [ "$name" -ge 66 ] && [ "$name" -le 68 ]; then
+            FAILED_PERFORMANCE=$((FAILED_PERFORMANCE + 1))
+        elif [ "$name" -ge 69 ] && [ "$name" -le 70 ]; then
+            FAILED_RATE=$((FAILED_RATE + 1))
+        elif [ "$name" -ge 71 ] && [ "$name" -le 73 ]; then
+            FAILED_DATA=$((FAILED_DATA + 1))
+        elif [ "$name" -ge 74 ] && [ "$name" -le 78 ]; then
+            FAILED_EDGE=$((FAILED_EDGE + 1))
+        fi
     fi
 }
 
@@ -1672,17 +1709,17 @@ echo -e "${YELLOW}Test Summary${NC}"
 echo -e "${YELLOW}========================================${NC}"
 echo ""
 echo -e "${BLUE}Test Coverage:${NC}"
-echo "  • Middleware & Security: Tests 1-4"
-echo "  • Authentication: Tests 5-20"
-echo "  • Posts: Tests 21-38"
-echo "  • Comments: Tests 39-44"
-echo "  • Reactions: Tests 45-49"
-echo "  • Session Management: Tests 50-61"
-echo "  • Concurrency: Tests 62-65"
-echo "  • Performance: Tests 66-68"
-echo "  • Rate Limiting: Tests 69-70"
-echo "  • Data Integrity: Tests 71-73"
-echo "  • Edge Cases: Tests 74-78"
+echo "  • Middleware & Security: Tests 1-4 ${YELLOW}($FAILED_MIDDLEWARE Failed)${NC}"
+echo "  • Authentication: Tests 5-20 ${YELLOW}($FAILED_AUTH Failed)${NC}"
+echo "  • Posts: Tests 21-38 ${YELLOW}($FAILED_POSTS Failed)${NC}"
+echo "  • Comments: Tests 39-44 ${YELLOW}($FAILED_COMMENTS Failed)${NC}"
+echo "  • Reactions: Tests 45-49 ${YELLOW}($FAILED_REACTIONS Failed)${NC}"
+echo "  • Session Management: Tests 50-61 ${YELLOW}($FAILED_SESSION Failed)${NC}"
+echo "  • Concurrency: Tests 62-65 ${YELLOW}($FAILED_CONCURRENCY Failed)${NC}"
+echo "  • Performance: Tests 66-68 ${YELLOW}($FAILED_PERFORMANCE Failed)${NC}"
+echo "  • Rate Limiting: Tests 69-70 ${YELLOW}($FAILED_RATE Failed)${NC}"
+echo "  • Data Integrity: Tests 71-73 ${YELLOW}($FAILED_DATA Failed)${NC}"
+echo "  • Edge Cases: Tests 74-78 ${YELLOW}($FAILED_EDGE Failed)${NC}"
 echo ""
 echo -e "${GREEN}Passed:${NC} $PASSED"
 echo -e "${RED}Failed:${NC} $FAILED"

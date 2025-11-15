@@ -112,8 +112,8 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, heal
 	))
 
 	// Register health check routes
-	server.Router().Handle("GET /health", httpserver.HealthHandler(healthChecker))
-	server.Router().Handle("GET /health-ui", httpserver.HealthUIHandler(healthChecker))
+	server.Router().Handle("GET /health", httpserver.HealthUIHandler(healthChecker))
+	server.Router().Handle("GET /health-api", httpserver.HealthHandler(healthChecker))
 
 	// Register module routes
 	handlers.Auth.RegisterRoutes(server.Router())
