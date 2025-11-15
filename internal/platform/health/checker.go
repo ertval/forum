@@ -41,43 +41,103 @@ func (c *Checker) Check(ctx context.Context) map[string]string {
 
 // checkAPIEndpoints checks the availability of API endpoints for each module
 func (c *Checker) checkAPIEndpoints(ctx context.Context, results map[string]string) {
-	// Check one representative endpoint per module to determine if the module is available
+	// Check all endpoints per module and only mark the module as "up" if ALL endpoints are accessible
 
-	// Check auth module by testing one of its endpoints
-	authUp := c.isRouteRegistered(ctx, "POST", "/auth/register")
-	results["auth_api"] = map[bool]string{true: "up", false: "down"}[authUp]
+	// Auth module endpoints
+	authEndpoints := []struct{method, path string}{
+		{"POST", "/auth/register"},
+		{"POST", "/auth/login"},
+		{"POST", "/auth/logout"},
+		{"GET", "/auth/session"},
+	}
+	authAllUp := c.areAllRoutesRegistered(ctx, authEndpoints)
+	results["auth_api"] = map[bool]string{true: "up", false: "down"}[authAllUp]
 
-	// Check post module by testing one of its endpoints
-	postUp := c.isRouteRegistered(ctx, "GET", "/posts")
-	results["post_api"] = map[bool]string{true: "up", false: "down"}[postUp]
+	// Post module endpoints
+	postEndpoints := []struct{method, path string}{
+		{"GET", "/"}, // homepage
+		{"GET", "/posts"}, // list posts
+		{"POST", "/posts"}, // create post
+		{"GET", "/posts/{id}"}, // get post (parameterized)
+		{"PUT", "/posts/{id}"}, // update post (parameterized)
+		{"DELETE", "/posts/{id}"}, // delete post (parameterized)
+	}
+	postAllUp := c.areAllRoutesRegistered(ctx, postEndpoints)
+	results["post_api"] = map[bool]string{true: "up", false: "down"}[postAllUp]
 
-	// For other modules, check if they have any registered endpoints
-	userUp := c.isRouteRegistered(ctx, "GET", "/users/1") // Testing a potential user endpoint
-	results["user_api"] = map[bool]string{true: "up", false: "down"}[userUp]
+	// User module endpoints
+	userEndpoints := []struct{method, path string}{
+		{"GET", "/users/{id}"},
+		{"GET", "/users"},
+		{"PUT", "/users/{id}/role"},
+		{"PUT", "/users/{id}/deactivate"},
+	}
+	userAllUp := c.areAllRoutesRegistered(ctx, userEndpoints)
+	results["user_api"] = map[bool]string{true: "up", false: "down"}[userAllUp]
 
-	commentUp := c.isRouteRegistered(ctx, "POST", "/comments") // Testing a potential comment endpoint
-	results["comment_api"] = map[bool]string{true: "up", false: "down"}[commentUp]
+	// Comment module endpoints
+	commentEndpoints := []struct{method, path string}{
+		{"POST", "/comments"},
+		{"GET", "/comments/{id}"},
+		{"PUT", "/comments/{id}"},
+		{"DELETE", "/comments/{id}"},
+		{"GET", "/posts/{postId}/comments"},
+	}
+	commentAllUp := c.areAllRoutesRegistered(ctx, commentEndpoints)
+	results["comment_api"] = map[bool]string{true: "up", false: "down"}[commentAllUp]
 
-	reactionUp := c.isRouteRegistered(ctx, "POST", "/reactions") // Testing a potential reaction endpoint
-	results["reaction_api"] = map[bool]string{true: "up", false: "down"}[reactionUp]
+	// Reaction module endpoints
+	reactionEndpoints := []struct{method, path string}{
+		{"POST", "/reactions"},
+		{"DELETE", "/reactions"},
+		{"GET", "/reactions/{targetType}/{targetId}"},
+		{"GET", "/reactions/{targetType}/{targetId}/count"},
+	}
+	reactionAllUp := c.areAllRoutesRegistered(ctx, reactionEndpoints)
+	results["reaction_api"] = map[bool]string{true: "up", false: "down"}[reactionAllUp]
 
-	moderationUp := c.isRouteRegistered(ctx, "POST", "/reports") // Testing a potential moderation endpoint
-	results["moderation_api"] = map[bool]string{true: "up", false: "down"}[moderationUp]
+	// Moderation module endpoints
+	moderationEndpoints := []struct{method, path string}{
+		{"POST", "/reports"},
+		{"GET", "/reports"},
+		{"PUT", "/reports/{id}"},
+	}
+	moderationAllUp := c.areAllRoutesRegistered(ctx, moderationEndpoints)
+	results["moderation_api"] = map[bool]string{true: "up", false: "down"}[moderationAllUp]
 
-	notificationUp := c.isRouteRegistered(ctx, "GET", "/notifications") // Testing a potential notification endpoint
-	results["notification_api"] = map[bool]string{true: "up", false: "down"}[notificationUp]
+	// Notification module endpoints
+	notificationEndpoints := []struct{method, path string}{
+		{"GET", "/notifications"},
+		{"PUT", "/notifications/{id}/read"},
+	}
+	notificationAllUp := c.areAllRoutesRegistered(ctx, notificationEndpoints)
+	results["notification_api"] = map[bool]string{true: "up", false: "down"}[notificationAllUp]
+}
+
+// areAllRoutesRegistered checks if all routes in the list are registered in the router
+func (c *Checker) areAllRoutesRegistered(ctx context.Context, endpoints []struct{method, path string}) bool {
+	for _, endpoint := range endpoints {
+		if !c.isRouteRegistered(ctx, endpoint.method, endpoint.path) {
+			return false
+		}
+	}
+	return true
 }
 
 // isRouteRegistered checks if a specific route is registered in the router
 func (c *Checker) isRouteRegistered(ctx context.Context, method, path string) bool {
-	// For parameterized routes like /posts/{id}, we'll try to make a test request
-	// to an actual instance of the route (e.g., /posts/1)
+	// For parameterized routes, we'll try to make a test request
+	// to an actual instance of the route (e.g., /posts/1 for /posts/{id})
 	testPath := path
 	if strings.Contains(path, "{") && strings.Contains(path, "}") {
-		// Replace parameters with actual values for testing
-		testPath = strings.Replace(path, "{id}", "1", -1)
-		testPath = strings.Replace(testPath, "{", "1", -1) // Handle other parameter formats
-		testPath = strings.Replace(testPath, "}", "", -1)
+		// Handle common parameter names in routes
+		testPath = strings.Replace(testPath, "{id}", "1", -1)
+		testPath = strings.Replace(testPath, "{postId}", "1", -1)
+		testPath = strings.Replace(testPath, "{targetType}", "post", -1)
+		testPath = strings.Replace(testPath, "{targetId}", "1", -1)
+		// Remove any remaining brackets that weren't matched by the specific replacements
+		testPath = strings.ReplaceAll(testPath, "{", "1") // fallback for other parameter names
+		testPath = strings.ReplaceAll(testPath, "}", "")
 	}
 
 	// Create a test request with the appropriate method and test path
