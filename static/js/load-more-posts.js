@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Start with the current offset (how many posts are already displayed)
-        let currentOffset = parseInt(loadMoreBtn.getAttribute('data-offset')) || document.querySelectorAll('.posts .post-card').length;
+        let currentOffset = parseInt(loadMoreBtn.getAttribute('data-offset')) || 0;
 
         try {
             // Keep loading more posts until no more are available
@@ -231,24 +231,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Brief pause to be respectful to the server
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
-
-            // Optionally hide the load more button after loading all
-            if (loadMoreBtn) {
-                loadMoreBtn.style.display = 'none';
-            }
-            loadAllBtn.textContent = 'All Loaded';
-            loadAllBtn.disabled = true;
-
-        } catch (error) {
-            console.error('Error loading all posts:', error);
-            loadAllBtn.textContent = 'Load All';
-            loadAllBtn.disabled = false;
-            if (loadMoreBtn) {
-                loadMoreBtn.disabled = false;
-            }
-            alert('Failed to load all posts. Please try again.');
-        }
-    }
 
             // Optionally hide the load more button after loading all
             if (loadMoreBtn) {
