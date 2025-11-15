@@ -104,15 +104,20 @@
             <p class="no-posts">No posts found. {{if .User}}<a href="/posts/new">Create the first post!</a>{{else}}<a href="/register">Register</a> to create posts.{{end}}</p>
         {{end}}
 
-        <!-- Load More Button -->
+        <!-- Load More and Load All Buttons -->
         {{if .Posts}}
             <div class="load-more-container">
                 <button id="load-more-btn"
-                        class="btn"
+                        class="btn btn-primary"
                         data-offset="{{len .Posts}}"
                         data-category="{{if .SelectedCategory}}{{.SelectedCategory}}{{end}}"
                         data-my-posts="{{.MyPosts}}"
                         data-liked-posts="{{.LikedPosts}}">Load More</button>
+                <button id="load-all-btn"
+                        class="btn btn-secondary"
+                        data-category="{{if .SelectedCategory}}{{.SelectedCategory}}{{end}}"
+                        data-my-posts="{{.MyPosts}}"
+                        data-liked-posts="{{.LikedPosts}}">Load All</button>
             </div>
         {{end}}
     </div>

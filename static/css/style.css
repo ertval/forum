@@ -770,6 +770,16 @@ footer p {
     border: 1px solid #e0e0e0;
 }
 
+/* Load More Container */
+.load-more-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #c0d0e0; /* Pastel blue */
+}
+
 /* Checkbox labels */
 .checkbox-label {
     display: flex;

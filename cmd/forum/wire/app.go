@@ -97,9 +97,6 @@ func initDatabase(cfg *config.Config, lgr *logger.Logger) (*database.Connection,
 func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *sql.DB) *httpserver.Server {
 	lgr.Info("Initializing HTTP server")
 
-	// Create health checker
-	healthChecker := health.NewChecker(db)
-
 	// Create server with config as single source of truth
 	server := httpserver.New(cfg)
 
@@ -112,11 +109,7 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *
 		int(cfg.Security.RateLimitWindow.Seconds()),
 	))
 
-	// Register health check routes
-	server.Router().Handle("GET /health", httpserver.HealthUIHandler(healthChecker))
-	server.Router().Handle("GET /health-api", httpserver.HealthHandler(healthChecker))
-
-	// Register module routes
+	// Register module routes first so they are available for the health check
 	handlers.Auth.RegisterRoutes(server.Router())
 	handlers.User.RegisterRoutes(server.Router())
 	handlers.Post.RegisterRoutes(server.Router())
@@ -124,6 +117,13 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *
 	handlers.Reaction.RegisterRoutes(server.Router())
 	handlers.Moderation.RegisterRoutes(server.Router())
 	handlers.Notification.RegisterRoutes(server.Router())
+
+	// Create health checker after routes are registered
+	healthChecker := health.NewChecker(db, server.Router())
+
+	// Register health check routes
+	server.Router().Handle("GET /health", httpserver.HealthUIHandler(healthChecker))
+	server.Router().Handle("GET /health-api", httpserver.HealthHandler(healthChecker))
 
 	// Serve static files (optional - skip if directory doesn't exist)
 	// This allows tests to run without static files

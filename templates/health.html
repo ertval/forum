@@ -1,8 +1,10 @@
 {{define "content"}}
 <h2>System Health Status</h2>
-<p>This page shows the current status of the application's core dependencies.</p>
+<p>This page shows the current status of the application's core dependencies and module API endpoints.</p>
 
 <div class="health-status">
+    <!-- Core Services -->
+    <h3>Core Services</h3>
     <table>
         <thead>
             <tr>
@@ -12,15 +14,119 @@
         </thead>
         <tbody>
             {{range $service, $status := .Health}}
-            <tr>
-                <td>{{$service}}</td>
-                <td>
-                    <span class="status-badge status-{{$status}}">{{$status}}</span>
-                </td>
-            </tr>
+                {{if eq $service "database"}}
+                    <tr>
+                        <td>{{$service}}</td>
+                        <td>
+                            <span class="status-badge status-{{$status}}">{{$status}}</span>
+                        </td>
+                    </tr>
+                {{end}}
             {{end}}
         </tbody>
     </table>
+
+    <!-- Module API Endpoints -->
+    <h3>Module API Status</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Module</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range $service, $status := .Health}}
+                {{if eq $service "auth_api"}}
+                    <tr>
+                        <td>Authentication Module API</td>
+                        <td>
+                            <span class="status-badge status-{{$status}}">{{$status}}</span>
+                        </td>
+                    </tr>
+                {{end}}
+                {{if eq $service "post_api"}}
+                    <tr>
+                        <td>Post Module API</td>
+                        <td>
+                            <span class="status-badge status-{{$status}}">{{$status}}</span>
+                        </td>
+                    </tr>
+                {{end}}
+                {{if eq $service "user_api"}}
+                    <tr>
+                        <td>User Module API</td>
+                        <td>
+                            <span class="status-badge status-{{$status}}">{{$status}}</span>
+                        </td>
+                    </tr>
+                {{end}}
+                {{if eq $service "comment_api"}}
+                    <tr>
+                        <td>Comment Module API</td>
+                        <td>
+                            <span class="status-badge status-{{$status}}">{{$status}}</span>
+                        </td>
+                    </tr>
+                {{end}}
+                {{if eq $service "reaction_api"}}
+                    <tr>
+                        <td>Reaction Module API</td>
+                        <td>
+                            <span class="status-badge status-{{$status}}">{{$status}}</span>
+                        </td>
+                    </tr>
+                {{end}}
+                {{if eq $service "moderation_api"}}
+                    <tr>
+                        <td>Moderation Module API</td>
+                        <td>
+                            <span class="status-badge status-{{$status}}">{{$status}}</span>
+                        </td>
+                    </tr>
+                {{end}}
+                {{if eq $service "notification_api"}}
+                    <tr>
+                        <td>Notification Module API</td>
+                        <td>
+                            <span class="status-badge status-{{$status}}">{{$status}}</span>
+                        </td>
+                    </tr>
+                {{end}}
+            {{end}}
+        </tbody>
+    </table>
+
+    <!-- Other Services -->
+    {{ $hasOtherServices := false }}
+    {{range $service, $status := .Health}}
+        {{if and (ne $service "database") (ne $service "auth_api") (ne $service "post_api") (ne $service "user_api") (ne $service "comment_api") (ne $service "reaction_api") (ne $service "moderation_api") (ne $service "notification_api")}}
+            {{ $hasOtherServices = true }}
+        {{end}}
+    {{end}}
+    {{if $hasOtherServices}}
+        <h3>Other Services</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range $service, $status := .Health}}
+                    {{if and (ne $service "database") (ne $service "auth_api") (ne $service "post_api") (ne $service "user_api") (ne $service "comment_api") (ne $service "reaction_api") (ne $service "moderation_api") (ne $service "notification_api")}}
+                    <tr>
+                        <td>{{$service}}</td>
+                        <td>
+                            <span class="status-badge status-{{$status}}">{{$status}}</span>
+                        </td>
+                    </tr>
+                    {{end}}
+                {{end}}
+            </tbody>
+        </table>
+    {{end}}
 </div>
 
 <style>
@@ -28,6 +134,7 @@
         width: 100%;
         border-collapse: collapse;
         margin-top: 20px;
+        margin-bottom: 30px;
     }
     .health-status th, .health-status td {
         border: 1px solid #ddd;
@@ -50,6 +157,13 @@
     }
     .status-down {
         background-color: #dc3545; /* Red */
+    }
+    h3 {
+        margin-top: 25px;
+        margin-bottom: 10px;
+        color: #333;
+        border-bottom: 2px solid #eee;
+        padding-bottom: 5px;
     }
 </style>
 {{end}}
