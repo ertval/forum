@@ -673,7 +673,7 @@ func (h *HTTPHandler) writeError(w http.ResponseWriter, status int, message stri
 
 // createPostPreview creates a preview of the post content with a fixed length.
 func createPostPreview(content string) string {
-	const previewLength = 200 // Characters to show in preview
+	const previewLength = 100 // Characters to show in preview
 	if len(content) <= previewLength {
 		return content
 	}

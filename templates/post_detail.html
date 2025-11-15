@@ -34,7 +34,7 @@
             <h1>{{.Post.Title}}</h1>
             <div class="post-meta">
                 <span class="author">by {{.Post.AuthorUsername}}</span>
-                <span class="date">{{.Post.CreatedAt.Format "Jan 02, 2006 at 3:04 PM"}}</span>
+                <span class="date" style="margin-left: auto;">{{.Post.CreatedAt.Format "Jan 02, 2006 at 3:04 PM"}}</span>
             </div>
             
             {{if .Post.Categories}}
@@ -52,7 +52,7 @@
         </div>
         {{end}}
 
-        <div class="post-content">
+        <div class="post-detail-content">
             {{.Post.Content}}
         </div>
 
