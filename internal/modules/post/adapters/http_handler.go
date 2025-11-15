@@ -48,6 +48,11 @@ func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HT
 	}
 }
 
+// Templates returns the shared templates (helper for other handlers).
+func (h *HTTPHandler) Templates() *template.Template {
+	return h.templates
+}
+
 // RegisterRoutes registers all post routes.
 func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	// Public routes (no auth required)
@@ -89,7 +94,7 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 			user, err := h.userService.GetByID(ctx, session.UserID)
 			if err == nil && user != nil {
 				currentUser = map[string]interface{}{
-					"ID":       user.ID,
+					"ID":       strconv.Itoa(user.ID), // Convert to string for template comparison
 					"Username": user.Username,
 				}
 			} else {
@@ -598,7 +603,7 @@ func (h *HTTPHandler) CreatePostPage(w http.ResponseWriter, r *http.Request) {
 			user, err := h.userService.GetByID(ctx, userID)
 			if err == nil && user != nil {
 				currentUser = map[string]interface{}{
-					"ID":       user.ID,
+					"ID":       strconv.Itoa(user.ID), // Convert to string for template comparison
 					"Username": user.Username,
 				}
 			}
@@ -666,7 +671,7 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 		user, err := h.userService.GetByID(ctx, userIDInt)
 		if err == nil && user != nil {
 			currentUser = map[string]interface{}{
-				"ID":       user.ID,
+				"ID":       strconv.Itoa(user.ID), // Convert to string for template comparison
 				"Username": user.Username,
 			}
 		}
@@ -704,7 +709,7 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 			user, err := h.userService.GetByID(ctx, session.UserID)
 			if err == nil && user != nil {
 				currentUser = map[string]interface{}{
-					"ID":       user.ID,
+					"ID":       strconv.Itoa(user.ID), // Convert to string for template comparison with Post.UserID
 					"Username": user.Username,
 				}
 			}
@@ -724,11 +729,13 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	var buf bytes.Buffer
 	if err := h.templates.ExecuteTemplate(&buf, "post_detail", data); err != nil {
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		// Log the actual template error for debugging
+		fmt.Printf("Template error: %v\n", err)
+		http.Error(w, fmt.Sprintf("Failed to render page: %v", err), http.StatusInternalServerError)
 		return
 	}
 	if _, err := buf.WriteTo(w); err != nil {
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		http.Error(w, "Failed to write response", http.StatusInternalServerError)
 	}
 }
 

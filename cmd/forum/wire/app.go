@@ -121,8 +121,12 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *
 	// Create health checker after routes are registered
 	healthChecker := health.NewChecker(db, server.Router())
 
-	// Register health check routes
-	server.Router().Handle("GET /health", httpserver.HealthUIHandler(healthChecker))
+	// Register health check routes with proper configuration
+	server.Router().Handle("GET /health", httpserver.HealthUIHandler(httpserver.HealthUIHandlerConfig{
+		Checker:   healthChecker,
+		Templates: handlers.Post.Templates(), // Reuse shared templates
+		AuthFunc:  handlers.Auth.GetCurrentUser,
+	}))
 	server.Router().Handle("GET /health-api", httpserver.HealthHandler(healthChecker))
 
 	// Serve static files (optional - skip if directory doesn't exist)

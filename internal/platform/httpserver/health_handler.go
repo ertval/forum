@@ -33,24 +33,49 @@ func HealthHandler(checker *health.Checker) http.HandlerFunc {
 	}
 }
 
+// HealthUIHandlerConfig holds dependencies for the health UI handler.
+type HealthUIHandlerConfig struct {
+	Checker   *health.Checker
+	Templates *template.Template
+	AuthFunc  func(r *http.Request) (userID int, username string)
+}
+
 // HealthUIHandler renders an HTML page with the system's health status.
-func HealthUIHandler(checker *health.Checker) http.HandlerFunc {
+// Now accepts shared templates and auth function to preserve session.
+func HealthUIHandler(cfg HealthUIHandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Perform checks
-		results := checker.Check(r.Context())
+		results := cfg.Checker.Check(r.Context())
+
+		// Get current user if logged in
+		var currentUser interface{}
+		if cfg.AuthFunc != nil {
+			if userID, username := cfg.AuthFunc(r); userID > 0 {
+				currentUser = map[string]interface{}{
+					"ID":       userID,
+					"Username": username,
+				}
+			}
+		}
 
 		// Prepare data for the template
 		data := map[string]interface{}{
 			"Title":  "System Health",
 			"Health": results,
-			"User":   nil, // No user context for health page
+			"User":   currentUser,
 		}
 
-		// Parse templates
-		tmpl, err := template.ParseFiles("templates/base.html", "templates/health.html")
-		if err != nil {
-			http.Error(w, "Could not parse templates", http.StatusInternalServerError)
-			return
+		// Use shared templates if available, otherwise parse on demand
+		var tmpl *template.Template
+		var err error
+		if cfg.Templates != nil {
+			tmpl = cfg.Templates
+		} else {
+			tmpl, err = template.ParseFiles("templates/base.html", "templates/health.html")
+			if err != nil {
+				http.Error(w, "Could not parse templates", http.StatusInternalServerError)
+				return
+			}
 		}
 
 		// Execute the template
