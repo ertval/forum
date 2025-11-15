@@ -16,7 +16,8 @@ INSERT OR IGNORE INTO categories (id, name, description, created_at) VALUES
 ('tech-id', 'tech', 'Technology topics', datetime('now')),
 ('news-id', 'news', 'News and current events', datetime('now')),
 ('gaming-id', 'gaming', 'Gaming discussions', datetime('now')),
-('music-id', 'music', 'Music and entertainment', datetime('now'));
+('music-id', 'music', 'Music and entertainment', datetime('now')),
+('tests-id', 'tests', 'Automated test posts', datetime('now'));
 EOF
 
 echo "Categories added successfully!"

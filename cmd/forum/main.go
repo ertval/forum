@@ -46,7 +46,10 @@ func main() {
 
 	log.Info(fmt.Sprintf("Forum server started on port %d (HTTP) and %d (HTTPS)",
 		cfg.Server.Port, cfg.Server.TLSPort))
-	log.Info(fmt.Sprintf("Access the forum at: http://localhost:%d", cfg.Server.Port))
+	log.Info(fmt.Sprintf("HTTPS access: http://localhost:%d", cfg.Server.Port))
+	if cfg.Security.TLSCertFile != "" && cfg.Security.TLSKeyFile != "" {
+		log.Info(fmt.Sprintf("HTTPS access: https://localhost:%d", cfg.Server.TLSPort))
+	}
 
 	// 5. Graceful Shutdown
 	quit := make(chan os.Signal, 1)

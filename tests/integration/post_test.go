@@ -27,10 +27,10 @@ func TestPostCreationAndRetrieval(t *testing.T) {
 	sessionToken := registerAndLogin(t, app, "user@test.com", "testuser", "pass123")
 
 	// Create category
-	createCategory(t, app, "general")
+	createCategory(t, app, "tests")
 
 	// Create post
-	postID := createPost(t, app, sessionToken, "Test Post", "Test Content", []string{"general"})
+	postID := createPost(t, app, sessionToken, "Test Post", "Test Content", []string{"tests"})
 
 	// Get post (public access)
 	req := httptest.NewRequest("GET", "/posts/"+postID, nil)
@@ -51,7 +51,7 @@ func TestUnauthorizedPostCreation(t *testing.T) {
 	postData := map[string]interface{}{
 		"title":      "Test",
 		"content":    "Content",
-		"categories": []string{"general"},
+		"categories": []string{"tests"},
 	}
 
 	body, _ := json.Marshal(postData)
@@ -78,7 +78,7 @@ func TestEmptyPostValidation(t *testing.T) {
 	postData := map[string]interface{}{
 		"title":      "",
 		"content":    "Content",
-		"categories": []string{"general"},
+		"categories": []string{"tests"},
 	}
 
 	body, _ := json.Marshal(postData)
@@ -100,7 +100,7 @@ func TestFormPostCreation(t *testing.T) {
 	defer app.Cleanup()
 
 	sessionToken := registerAndLogin(t, app, "user3@test.com", "user3", "pass123")
-	createCategory(t, app, "general")
+	createCategory(t, app, "tests")
 	createCategory(t, app, "news")
 
 	var body bytes.Buffer
@@ -111,7 +111,7 @@ func TestFormPostCreation(t *testing.T) {
 	if err := writer.WriteField("content", "Form body"); err != nil {
 		t.Fatalf("failed to write content field: %v", err)
 	}
-	if err := writer.WriteField("categories[]", "general"); err != nil {
+	if err := writer.WriteField("categories[]", "tests"); err != nil {
 		t.Fatalf("failed to write category field: %v", err)
 	}
 	if err := writer.WriteField("categories[]", "news"); err != nil {

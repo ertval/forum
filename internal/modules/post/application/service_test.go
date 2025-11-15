@@ -114,7 +114,7 @@ func TestService_CreatePost(t *testing.T) {
 			userID:     "user-1",
 			title:      "Test Post",
 			content:    "This is a test post content",
-			categories: []string{"general"},
+			categories: []string{"tests"},
 			image:      nil,
 			setupMocks: func(mpr *mockPostRepository, mcr *mockCategoryRepository) {
 				mcr.getByNameFunc = func(ctx context.Context, name string) (*domain.Category, error) {
@@ -131,7 +131,7 @@ func TestService_CreatePost(t *testing.T) {
 			userID:     "user-1",
 			title:      "",
 			content:    "Valid content",
-			categories: []string{"general"},
+			categories: []string{"tests"},
 			image:      nil,
 			setupMocks: func(mpr *mockPostRepository, mcr *mockCategoryRepository) {
 			},
@@ -142,7 +142,7 @@ func TestService_CreatePost(t *testing.T) {
 			userID:     "user-1",
 			title:      "Valid Title",
 			content:    "",
-			categories: []string{"general"},
+			categories: []string{"tests"},
 			image:      nil,
 			setupMocks: func(mpr *mockPostRepository, mcr *mockCategoryRepository) {
 			},
@@ -240,7 +240,7 @@ func TestService_UpdatePost(t *testing.T) {
 						UserID:     "user-1",
 						Title:      "Old Title",
 						Content:    "Old content",
-						Categories: []string{"general"},
+						Categories: []string{"tests"},
 						CreatedAt:  time.Now(),
 						UpdatedAt:  time.Now(),
 					}, nil
@@ -275,7 +275,7 @@ func TestService_UpdatePost(t *testing.T) {
 						UserID:     "user-1",
 						Title:      "Old Title",
 						Content:    "Old content",
-						Categories: []string{"general"},
+						Categories: []string{"tests"},
 						CreatedAt:  time.Now(),
 						UpdatedAt:  time.Now(),
 					}, nil

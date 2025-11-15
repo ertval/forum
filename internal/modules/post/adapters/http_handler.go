@@ -130,6 +130,29 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create preview content for posts on home page
+	previewPosts := make([]map[string]interface{}, len(posts))
+	for i, post := range posts {
+		previewPost := make(map[string]interface{})
+
+		// Copy all fields from the original post
+		previewPost["ID"] = post.ID
+		previewPost["UserID"] = post.UserID
+		previewPost["AuthorUsername"] = post.AuthorUsername
+		previewPost["Author"] = post.Author
+		previewPost["Title"] = post.Title
+		previewPost["Content"] = createPostPreview(post.Content) // Use preview instead of full content
+		previewPost["ImageURL"] = post.ImageURL
+		previewPost["Categories"] = post.Categories
+		previewPost["LikeCount"] = post.LikeCount
+		previewPost["DislikeCount"] = post.DislikeCount
+		previewPost["CommentCount"] = post.CommentCount
+		previewPost["CreatedAt"] = post.CreatedAt
+		previewPost["UpdatedAt"] = post.UpdatedAt
+
+		previewPosts[i] = previewPost
+	}
+
 	// Fetch all categories for filter dropdown
 	var categories []*postDomain.Category
 	if h.categoryService != nil {
@@ -143,7 +166,7 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 	// Prepare template data for home page
 	data := map[string]interface{}{
 		"Title":            "Home",
-		"Posts":            posts,
+		"Posts":            previewPosts,
 		"Categories":       categories,
 		"SelectedCategory": category,
 		"MyPosts":          myPosts,
@@ -646,4 +669,32 @@ func (h *HTTPHandler) writeError(w http.ResponseWriter, status int, message stri
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(map[string]string{"error": message})
+}
+
+// createPostPreview creates a preview of the post content with a fixed length.
+func createPostPreview(content string) string {
+	const previewLength = 200 // Characters to show in preview
+	if len(content) <= previewLength {
+		return content
+	}
+
+	// Ensure we don't cut in the middle of a word if possible
+	preview := content[:previewLength]
+	if len(content) > previewLength {
+		// Find the last space to avoid cutting in the middle of a word
+		lastSpaceIndex := previewLength
+		for i := previewLength - 1; i >= 0; i-- {
+			if content[i] == ' ' {
+				lastSpaceIndex = i
+				break
+			}
+		}
+
+		// If we found a space and it's not too close to the beginning, use it
+		if lastSpaceIndex > previewLength/2 {
+			preview = content[:lastSpaceIndex]
+		}
+	}
+
+	return preview + "..."
 }

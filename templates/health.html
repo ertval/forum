@@ -1,0 +1,55 @@
+{{define "content"}}
+<h2>System Health Status</h2>
+<p>This page shows the current status of the application's core dependencies.</p>
+
+<div class="health-status">
+    <table>
+        <thead>
+            <tr>
+                <th>Service</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range $service, $status := .Health}}
+            <tr>
+                <td>{{$service}}</td>
+                <td>
+                    <span class="status-badge status-{{$status}}">{{$status}}</span>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+
+<style>
+    .health-status table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    .health-status th, .health-status td {
+        border: 1px solid #ddd;
+        padding: 12px;
+        text-align: left;
+    }
+    .health-status th {
+        background-color: #f7f7f7;
+    }
+    .status-badge {
+        padding: 5px 10px;
+        border-radius: 15px;
+        color: white;
+        font-weight: bold;
+        text-transform: uppercase;
+        font-size: 0.8em;
+    }
+    .status-up {
+        background-color: #28a745; /* Green */
+    }
+    .status-down {
+        background-color: #dc3545; /* Red */
+    }
+</style>
+{{end}}

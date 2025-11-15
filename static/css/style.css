@@ -69,7 +69,7 @@ header nav a {
 }
 
 header nav a:hover {
-    background-color: #b5ead7; /* Pastel Green */
+    background-color: #a2d5c6; /* Darker Pastel Green */
     color: white;
 }
 
@@ -164,7 +164,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .filters button:hover {
-    background: linear-gradient(135deg, #a2d5c6 0%, #b5ead7 100%); /* Pastel Green gradient */
+    background: linear-gradient(135deg, #c2f2e9 0%, #d4f5ee 100%); /* Lighter Pastel Green gradient */
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(181, 234, 215, 0.4);
 }
@@ -197,6 +197,10 @@ h1, h2, h3, h4, h5, h6 {
     background: #ffffff; /* White */
     transition: all 0.3s ease;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    max-height: 500px; /* Maximum height for the card */
+    overflow: hidden;
 }
 
 .post-card:hover {
@@ -243,6 +247,14 @@ h1, h2, h3, h4, h5, h6 {
     margin: 1rem 0;
     color: #555;
     line-height: 1.6;
+    flex: 1; /* Take remaining space */
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 5; /* Show only 5 lines */
+    -webkit-box-orient: vertical;
+    max-height: 120px; /* Limit height based on line height */
+    overflow: hidden;
+    position: relative;
 }
 
 .post-footer {

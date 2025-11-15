@@ -39,6 +39,9 @@ INSERT OR IGNORE INTO categories (id, name, description, created_at) VALUES
 ('sports', 'Sports', 'Sports news and discussions', datetime('now', '-9 days')),
 ('health', 'Health', 'Health and wellness topics', datetime('now', '-7 days')),
 ('education', 'Education', 'Learning and educational content', datetime('now', '-5 days'));
+-- Add Tests category for automated test posts
+INSERT OR IGNORE INTO categories (id, name, description, created_at) VALUES
+('tests', 'Tests', 'Automated test posts category', datetime('now'));
 
 -- Insert test posts (TEXT PRIMARY KEY, INTEGER author_id)
 INSERT OR IGNORE INTO posts (id, title, content, author_id, created_at, updated_at) VALUES

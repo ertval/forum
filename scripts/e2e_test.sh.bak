@@ -554,7 +554,7 @@ SESSION_TOKEN=$(cat "$SESSION_COOKIE_FILE" 2>/dev/null || echo "")
 echo "Test 21: Create post without authentication"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
     -H "Content-Type: application/json" \
-    -d '{"title":"Test Post","content":"Test content","categories":["Tests"]}')
+    -d '{"title":"Test Post","content":"Test content","categories":["general"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then
     print_test "21" "PASS"
@@ -568,7 +568,7 @@ START_TIME=$(date +%s%N)
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
     -H "Content-Type: application/json" \
     -H "Cookie: session_token=$SESSION_TOKEN" \
-    -d '{"title":"My First Post","content":"This is the content of my first post","categories":["Tests"]}')
+    -d '{"title":"My First Post","content":"This is the content of my first post","categories":["general"]}')
 END_TIME=$(date +%s%N)
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
@@ -595,7 +595,7 @@ echo "Test 23: Create post with empty title"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
     -H "Content-Type: application/json" \
     -H "Cookie: session_token=$SESSION_TOKEN" \
-    -d '{"title":"","content":"Valid content","categories":["Tests"]}')
+    -d '{"title":"","content":"Valid content","categories":["general"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
 if [ "$HTTP_CODE" = "400" ]; then
@@ -613,7 +613,7 @@ echo "Test 24: Create post with empty content"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
     -H "Content-Type: application/json" \
     -H "Cookie: session_token=$SESSION_TOKEN" \
-    -d '{"title":"Valid title","content":"","categories":["Tests"]}')
+    -d '{"title":"Valid title","content":"","categories":["general"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
 if [ "$HTTP_CODE" = "400" ]; then
@@ -650,7 +650,7 @@ LONG_TITLE=$(printf 'A%.0s' {1..300})
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
     -H "Content-Type: application/json" \
     -H "Cookie: session_token=$SESSION_TOKEN" \
-    -d "{\"title\":\"$LONG_TITLE\",\"content\":\"Valid content\",\"categories\":[\"Tests\"]}")
+    -d "{\"title\":\"$LONG_TITLE\",\"content\":\"Valid content\",\"categories\":[\"general\"]}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "400" ]; then
     print_test "26" "PASS"
@@ -722,12 +722,12 @@ fi
 
 # Test 30: Filter posts by category
 echo "Test 30: Filter posts by category"
-RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/posts?category=Tests")
+RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/posts?category=general")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
 if [ "$HTTP_CODE" = "200" ]; then
     # Verify it returns posts (or empty array)
-    if echo "$BODY" | grep -q "Tests\|posts\|\["; then
+    if echo "$BODY" | grep -q "general\|posts\|\["; then
         print_test "30" "PASS"
     else
         print_test "30" "FAIL" "Invalid category filter response"
@@ -817,7 +817,7 @@ echo "Test 35: Create second post for deletion"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
     -H "Content-Type: application/json" \
     -H "Cookie: session_token=$SESSION_TOKEN" \
-    -d '{"title":"Post to Delete","content":"This post will be deleted","categories":["Tests"]}')
+    -d '{"title":"Post to Delete","content":"This post will be deleted","categories":["general"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
 DELETE_POST_ID=$(extract_json_field "$BODY" "id")
@@ -1144,7 +1144,7 @@ echo "Test 54: Create post as first user"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
     -H "Content-Type: application/json" \
     -H "Cookie: session_token=$SESSION_TOKEN1" \
-    -d '{"title":"User1 Post","content":"Content from user 1","categories":["Tests"]}')
+    -d '{"title":"User1 Post","content":"Content from user 1","categories":["general"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
 USER1_POST_ID=$(extract_json_field "$BODY" "id")
@@ -1302,19 +1302,19 @@ if [ -n "$SESSION_TOKEN1_NEW" ] && [ -n "$SESSION_TOKEN2" ] && [ -n "$SESSION_TO
     (curl -s -X POST "$BASE_URL/posts" \
         -H "Content-Type: application/json" \
         -H "Cookie: session_token=$SESSION_TOKEN1_NEW" \
-        -d '{"title":"Concurrent Post 1","content":"From user 1","categories":["Tests"]}' > /dev/null 2>&1) &
+        -d '{"title":"Concurrent Post 1","content":"From user 1","categories":["general"]}' > /dev/null 2>&1) &
     PID1=$!
     
     (curl -s -X POST "$BASE_URL/posts" \
         -H "Content-Type: application/json" \
         -H "Cookie: session_token=$SESSION_TOKEN2" \
-        -d '{"title":"Concurrent Post 2","content":"From user 2","categories":["Tests"]}' > /dev/null 2>&1) &
+        -d '{"title":"Concurrent Post 2","content":"From user 2","categories":["general"]}' > /dev/null 2>&1) &
     PID2=$!
     
     (curl -s -X POST "$BASE_URL/posts" \
         -H "Content-Type: application/json" \
         -H "Cookie: session_token=$SESSION_TOKEN3" \
-        -d '{"title":"Concurrent Post 3","content":"From user 3","categories":["Tests"]}' > /dev/null 2>&1) &
+        -d '{"title":"Concurrent Post 3","content":"From user 3","categories":["general"]}' > /dev/null 2>&1) &
     PID3=$!
     
     # Wait for all to complete
@@ -1428,7 +1428,7 @@ if [ -n "$SESSION_TOKEN1_NEW" ]; then
         RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
             -H "Content-Type: application/json" \
             -H "Cookie: session_token=$SESSION_TOKEN1_NEW" \
-            -d "{\"title\":\"Bulk Post $i\",\"content\":\"Content for bulk post $i\",\"categories\":[\"Tests\"]}")
+            -d "{\"title\":\"Bulk Post $i\",\"content\":\"Content for bulk post $i\",\"categories\":[\"general\"]}")
         HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
         if [ "$HTTP_CODE" = "201" ]; then
             BULK_SUCCESS=$((BULK_SUCCESS + 1))
@@ -1487,7 +1487,7 @@ if [ -n "$SESSION_TOKEN3" ]; then
         RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
             -H "Content-Type: application/json" \
             -H "Cookie: session_token=$SESSION_TOKEN3" \
-            -d "{\"title\":\"Rate Test $i\",\"content\":\"Testing rate limits\",\"categories\":[\"Tests\"]}" 2>/dev/null)
+            -d "{\"title\":\"Rate Test $i\",\"content\":\"Testing rate limits\",\"categories\":[\"general\"]}" 2>/dev/null)
         HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
         if [ "$HTTP_CODE" = "429" ]; then
             RATE_LIMIT_HIT=true
@@ -1570,7 +1570,7 @@ if [ -n "$SESSION_TOKEN1_NEW" ]; then
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
         -H "Content-Type: application/json" \
         -H "Cookie: session_token=$SESSION_TOKEN1_NEW" \
-        -d "{\"title\":\"Large Content Post\",\"content\":\"$LARGE_CONTENT\",\"categories\":[\"Tests\"]}" 2>/dev/null)
+        -d "{\"title\":\"Large Content Post\",\"content\":\"$LARGE_CONTENT\",\"categories\":[\"general\"]}" 2>/dev/null)
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     # Should either succeed (200) or fail with validation (400)
     if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "400" ]; then
@@ -1589,7 +1589,7 @@ if [ -n "$SESSION_TOKEN1_NEW" ]; then
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
         -H "Content-Type: application/json" \
         -H "Cookie: session_token=$SESSION_TOKEN1_NEW" \
-        -d '{"title":"Test'\'' OR 1=1; DROP TABLE posts; --","content":"Testing SQL injection","categories":["Tests"]}')
+        -d '{"title":"Test'\'' OR 1=1; DROP TABLE posts; --","content":"Testing SQL injection","categories":["general"]}')
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     # Server should handle this gracefully (either reject or sanitize)
     if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "400" ]; then
@@ -1614,7 +1614,7 @@ if [ -n "$SESSION_TOKEN1_NEW" ]; then
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
         -H "Content-Type: application/json" \
         -H "Cookie: session_token=$SESSION_TOKEN1_NEW" \
-        -d '{"title":"XSS Test","content":"<script>alert(\"XSS\")</script>","categories":["Tests"]}')
+        -d '{"title":"XSS Test","content":"<script>alert(\"XSS\")</script>","categories":["general"]}')
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     BODY=$(echo "$RESPONSE" | sed '$d')
     if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "400" ]; then
@@ -1633,7 +1633,7 @@ if [ -n "$SESSION_TOKEN1_NEW" ]; then
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
         -H "Content-Type: application/json; charset=utf-8" \
         -H "Cookie: session_token=$SESSION_TOKEN1_NEW" \
-        -d '{"title":"Unicode Test 你好 🎉","content":"Testing émojis 🚀 and spëcial çharacters","categories":["Tests"]}')
+        -d '{"title":"Unicode Test 你好 🎉","content":"Testing émojis 🚀 and spëcial çharacters","categories":["general"]}')
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     if [ "$HTTP_CODE" = "201" ]; then
         print_test "77" "PASS"
@@ -1650,7 +1650,7 @@ if [ -n "$SESSION_TOKEN1_NEW" ]; then
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
         -H "Content-Type: application/json" \
         -H "Cookie: session_token=$SESSION_TOKEN1_NEW" \
-        -d $'{"title":"Null\x00Test","content":"Content with null byte","categories":["Tests"]}' 2>/dev/null)
+        -d $'{"title":"Null\x00Test","content":"Content with null byte","categories":["general"]}' 2>/dev/null)
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     # Should reject or handle gracefully
     if [ "$HTTP_CODE" = "400" ] || [ "$HTTP_CODE" = "201" ]; then

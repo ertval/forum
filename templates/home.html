@@ -88,7 +88,7 @@
                 <div class="post-footer">
                     <div class="categories">
                         {{range .Categories}}
-                            <span class="category-tag">{{.}}</span>
+                            <a class="category-tag" href="/posts?category={{urlquery .}}">{{.}}</a>
                         {{end}}
                     </div>
                     

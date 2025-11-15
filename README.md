@@ -309,17 +309,17 @@ GITHUB_CLIENT_SECRET=your-github-client-secret
 ### Posts ✅
 
 - `POST /posts` - Create post (requires auth)
-  - Body: `{"title": "Post Title", "content": "Post content...", "categories": ["general"]}`
+  - Body: `{"title": "Post Title", "content": "Post content...", "categories": ["Tests"]}`
   - Returns: 201 Created with post object
   - Errors: 400 (validation - empty title/content, no categories), 401 (not authenticated), 404 (category not found), 500
 - `GET /posts` - List posts (public)
-  - Query params: `?category=general` (filter by category)
+  - Query params: `?category=Tests` (filter by category)
   - Returns: 200 OK with array of posts (includes author, categories, reaction counts)
 - `GET /posts/{id}` - Get post by ID (public)
   - Returns: 200 OK with post object (includes author, categories, reaction counts)
   - Errors: 404 (post not found), 500
 - `PUT /posts/{id}` - Update post (requires auth + ownership)
-  - Body: `{"title": "Updated Title", "content": "Updated content...", "categories": ["general"]}`
+  - Body: `{"title": "Updated Title", "content": "Updated content...", "categories": ["Tests"]}`
   - Returns: 200 OK with updated post object
   - Errors: 400 (validation), 401 (not authenticated), 403 (not owner), 404 (post not found), 500
 - `DELETE /posts/{id}` - Delete post (requires auth + ownership)

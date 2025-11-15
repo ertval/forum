@@ -79,7 +79,7 @@ echo "---"
 
 # Create post without auth
 test_endpoint "Create post without auth" "POST" "$BASE_URL/posts" \
-    '{"title":"Test","content":"Content","categories":["general"]}' \
+    '{"title":"Test","content":"Content","categories":["Tests"]}' \
     "" "401"
 
 # Create post with auth
@@ -87,7 +87,7 @@ if [ -n "$TOKEN" ]; then
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
         -H "Content-Type: application/json" \
         -H "Cookie: session_token=$TOKEN" \
-        -d '{"title":"Authenticated Post","content":"This is from an authenticated user","categories":["general"]}')
+        -d '{"title":"Authenticated Post","content":"This is from an authenticated user","categories":["Tests"]}')
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     BODY=$(echo "$RESPONSE" | sed '$d')
     POST_ID=$(echo "$BODY" | grep -o '"id":"[^"]*"' | head -n1 | sed 's/"id":"\([^"]*\)"/\1/')
@@ -108,14 +108,14 @@ fi
 
 # Empty title
 test_endpoint "Create post with empty title" "POST" "$BASE_URL/posts" \
-    '{"title":"","content":"Content","categories":["general"]}' \
+    '{"title":"","content":"Content","categories":["Tests"]}' \
     "-H \"Cookie: session_token=$TOKEN\"" "400"
 
 # List posts
 test_endpoint "List all posts" "GET" "$BASE_URL/posts" "" "" "200"
 
 # Filter by category
-test_endpoint "Filter posts by category" "GET" "$BASE_URL/posts?category=general" "" "" "200"
+test_endpoint "Filter posts by category" "GET" "$BASE_URL/posts?category=Tests" "" "" "200"
 
 echo ""
 echo "HTML PAGES"

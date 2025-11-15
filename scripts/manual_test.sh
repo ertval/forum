@@ -35,7 +35,7 @@ echo "5. Testing POST /posts (create post with auth)..."
 curl -s -w "\nStatus: %{http_code}\n" -X POST "$BASE_URL/posts" \
     -H "Content-Type: application/json" \
     -H "Cookie: session_token=$SESSION_TOKEN" \
-    -d '{"title":"Test Post","content":"This is a test post","categories":["general"]}'
+    -d '{"title":"Test Post","content":"This is a test post","categories":["Tests"]}'
 echo ""
 
 echo "6. Testing GET /posts (list posts)..."
@@ -45,7 +45,7 @@ echo ""
 echo "7. Testing POST /posts without auth (should fail)..."
 curl -s -w "\nStatus: %{http_code}\n" -X POST "$BASE_URL/posts" \
     -H "Content-Type: application/json" \
-    -d '{"title":"Unauthorized Post","content":"This should fail","categories":["general"]}'
+    -d '{"title":"Unauthorized Post","content":"This should fail","categories":["Tests"]}'
 echo ""
 
 echo "8. Testing POST /auth/logout..."
