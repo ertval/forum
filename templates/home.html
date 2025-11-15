@@ -88,10 +88,10 @@
                 <div class="post-footer">
                     <div class="categories">
                         {{range .Categories}}
-                            <a class="category-tag" href="/posts?category={{urlquery .}}">{{.}}</a>
+                            <a class="category-tag" href="/?category={{urlquery .}}">{{.}}</a>
                         {{end}}
                     </div>
-                    
+
                     <div class="post-actions">
                         <span class="likes">👍 {{.LikeCount}}</span>
                         <span class="dislikes">👎 {{.DislikeCount}}</span>
@@ -111,6 +111,7 @@
     <footer>
         <div class="container">
             <p>&copy; 2025 Forum. All rights reserved.</p>
+            <p><a href="/health" class="health-status-link">Health Status</a></p>
         </div>
     </footer>
 
