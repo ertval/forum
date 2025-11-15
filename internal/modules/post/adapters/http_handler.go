@@ -56,6 +56,8 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	// Protected routes (require authentication)
 	// Wrap handlers with RequireAuth middleware
 	authMiddleware := authAdapters.RequireAuth(h.authService)
+	router.Handle("GET /posts/new", authMiddleware(http.HandlerFunc(h.ShowCreateForm)))
+	router.Handle("GET /posts/{id}/edit", authMiddleware(http.HandlerFunc(h.ShowEditForm)))
 	router.Handle("POST /posts", authMiddleware(http.HandlerFunc(h.CreatePost)))
 	router.Handle("PUT /posts/{id}", authMiddleware(http.HandlerFunc(h.UpdatePost)))
 	router.Handle("DELETE /posts/{id}", authMiddleware(http.HandlerFunc(h.DeletePost)))
@@ -165,7 +167,8 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Render template
-	if err := h.templates.ExecuteTemplate(w, "base.html", data); err != nil {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.templates.ExecuteTemplate(w, "home", data); err != nil {
 		http.Error(w, "Failed to render page", http.StatusInternalServerError)
 		return
 	}
@@ -222,6 +225,8 @@ func (h *HTTPHandler) GetPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx := r.Context()
+
 	// Extract post ID from path variable (Go 1.22+ pattern)
 	postID := r.PathValue("id")
 	if postID == "" {
@@ -230,21 +235,31 @@ func (h *HTTPHandler) GetPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if postID == "" || postID == "/posts" {
-		h.writeError(w, http.StatusBadRequest, "Post ID required")
+		http.Error(w, "Post ID required", http.StatusBadRequest)
 		return
 	}
 
 	// Get post
-	post, err := h.postService.GetPost(r.Context(), postID)
+	post, err := h.postService.GetPost(ctx, postID)
 	if err != nil {
 		if err == postDomain.ErrPostNotFound {
-			h.writeError(w, http.StatusNotFound, "Post not found")
+			http.Error(w, "Post not found", http.StatusNotFound)
 		} else {
-			h.writeError(w, http.StatusInternalServerError, "Failed to retrieve post")
+			http.Error(w, "Failed to retrieve post", http.StatusInternalServerError)
 		}
 		return
 	}
 
+	// Check if this is an HTML request (browser) or API request
+	accept := r.Header.Get("Accept")
+	wantsJSON := strings.Contains(accept, "application/json")
+	if h.templates != nil && !wantsJSON {
+		// Render HTML template for browsers
+		h.renderPostDetail(w, r, post)
+		return
+	}
+
+	// Return JSON for API requests
 	h.writeJSON(w, http.StatusOK, post)
 }
 
@@ -421,6 +436,148 @@ func (h *HTTPHandler) ListPosts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.writeJSON(w, http.StatusOK, posts)
+}
+
+// ShowCreateForm renders the post creation form.
+func (h *HTTPHandler) ShowCreateForm(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get current user
+	userIDStr := authAdapters.GetUserID(ctx)
+	var currentUser interface{}
+	if userIDStr != "" {
+		userID, err := strconv.Atoi(userIDStr)
+		if err == nil {
+			user, err := h.userService.GetByID(ctx, userID)
+			if err == nil && user != nil {
+				currentUser = map[string]interface{}{
+					"ID":       user.ID,
+					"Username": user.Username,
+				}
+			}
+		}
+	}
+
+	// Fetch all categories
+	categories, err := h.categoryService.List(ctx)
+	if err != nil {
+		categories = []*postDomain.Category{}
+	}
+
+	data := map[string]interface{}{
+		"Title":      "Create Post",
+		"User":       currentUser,
+		"Categories": categories,
+	}
+
+	// Render template
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.templates.ExecuteTemplate(w, "post_create", data); err != nil {
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+	}
+}
+
+// ShowEditForm renders the post edit form.
+func (h *HTTPHandler) ShowEditForm(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get user ID
+	userID := authAdapters.GetUserID(ctx)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Extract post ID
+	postID := r.PathValue("id")
+	if postID == "" {
+		http.Error(w, "Post ID required", http.StatusBadRequest)
+		return
+	}
+
+	// Get post
+	post, err := h.postService.GetPost(ctx, postID)
+	if err != nil {
+		if err == postDomain.ErrPostNotFound {
+			http.Error(w, "Post not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Failed to retrieve post", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Check ownership
+	if post.UserID != userID {
+		http.Error(w, "You can only edit your own posts", http.StatusForbidden)
+		return
+	}
+
+	// Get current user info
+	userIDInt, err := strconv.Atoi(userID)
+	var currentUser interface{}
+	if err == nil {
+		user, err := h.userService.GetByID(ctx, userIDInt)
+		if err == nil && user != nil {
+			currentUser = map[string]interface{}{
+				"ID":       user.ID,
+				"Username": user.Username,
+			}
+		}
+	}
+
+	// Fetch all categories
+	categories, err := h.categoryService.List(ctx)
+	if err != nil {
+		categories = []*postDomain.Category{}
+	}
+
+	data := map[string]interface{}{
+		"Title":      "Edit Post",
+		"User":       currentUser,
+		"Post":       post,
+		"Categories": categories,
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.templates.ExecuteTemplate(w, "post_edit", data); err != nil {
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+	}
+}
+
+// renderPostDetail renders the post detail page with comments.
+func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, post *postDomain.Post) {
+	ctx := r.Context()
+
+	// Get current user if logged in
+	var currentUser interface{}
+	cookie, err := r.Cookie("session_token")
+	if err == nil && cookie.Value != "" {
+		session, err := h.authService.ValidateSession(ctx, cookie.Value)
+		if err == nil && session != nil {
+			user, err := h.userService.GetByID(ctx, session.UserID)
+			if err == nil && user != nil {
+				currentUser = map[string]interface{}{
+					"ID":       user.ID,
+					"Username": user.Username,
+				}
+			}
+		}
+	}
+
+	// TODO: Fetch comments for this post when comment service is implemented
+	var comments []interface{}
+
+	data := map[string]interface{}{
+		"Title":    post.Title,
+		"User":     currentUser,
+		"Post":     post,
+		"Comments": comments,
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.templates.ExecuteTemplate(w, "post_detail", data); err != nil {
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+	}
 }
 
 // writeJSON writes a JSON response.

@@ -1,0 +1,141 @@
+{{define "post_detail"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} - Forum</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="container">
+                <h1><a href="/">Forum</a></h1>
+                <ul>
+                    {{if .User}}
+                        <li>Welcome, {{.User.Username}}</li>
+                        <li><a href="/posts/new">Create Post</a></li>
+                        <li><a href="/logout">Logout</a></li>
+                    {{else}}
+                        <li><a href="/login">Login</a></li>
+                        <li><a href="/register">Register</a></li>
+                    {{end}}
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+<div class="post-detail">
+    <article class="post">
+        <div class="post-header">
+            <h1>{{.Post.Title}}</h1>
+            <div class="post-meta">
+                <span class="author">by {{.Post.AuthorUsername}}</span>
+                <span class="date">{{.Post.CreatedAt.Format "Jan 02, 2006 at 3:04 PM"}}</span>
+            </div>
+            
+            {{if .Post.Categories}}
+            <div class="post-categories">
+                {{range .Post.Categories}}
+                <span class="category-badge">{{.}}</span>
+                {{end}}
+            </div>
+            {{end}}
+        </div>
+
+        {{if .Post.ImageURL}}
+        <div class="post-image">
+            <img src="{{.Post.ImageURL}}" alt="{{.Post.Title}}">
+        </div>
+        {{end}}
+
+        <div class="post-content">
+            {{.Post.Content}}
+        </div>
+
+        <div class="post-actions">
+            <div class="reactions">
+                <button class="btn-like" data-post-id="{{.Post.ID}}">
+                    👍 Like ({{.Post.LikeCount}})
+                </button>
+                <button class="btn-dislike" data-post-id="{{.Post.ID}}">
+                    👎 Dislike ({{.Post.DislikeCount}})
+                </button>
+            </div>
+
+            {{if .User}}
+                {{if eq .User.ID .Post.UserID}}
+                <div class="post-owner-actions">
+                    <a href="/posts/{{.Post.ID}}/edit" class="btn btn-secondary">Edit</a>
+                    <button class="btn btn-danger" onclick="deletePost({{.Post.ID}})">Delete</button>
+                </div>
+                {{end}}
+            {{end}}
+        </div>
+    </article>
+
+    <section class="comments-section">
+        <h2>Comments ({{len .Comments}})</h2>
+
+        {{if .User}}
+        <div class="comment-form">
+            <h3>Add a Comment</h3>
+            <form id="comment-form" data-post-id="{{.Post.ID}}">
+                <textarea name="content" rows="4" placeholder="Write your comment..." required></textarea>
+                <button type="submit" class="btn btn-primary">Post Comment</button>
+            </form>
+        </div>
+        {{else}}
+        <div class="login-prompt">
+            <p>Please <a href="/login">login</a> to comment.</p>
+        </div>
+        {{end}}
+
+        <div class="comments-list">
+            {{if .Comments}}
+                {{range .Comments}}
+                <article class="comment" id="comment-{{.ID}}">
+                    <div class="comment-header">
+                        <span class="comment-author">{{.AuthorUsername}}</span>
+                        <span class="comment-date">{{.CreatedAt.Format "Jan 02, 2006 at 3:04 PM"}}</span>
+                    </div>
+                    <div class="comment-content">
+                        {{.Content}}
+                    </div>
+                    <div class="comment-actions">
+                        <button class="btn-like-comment" data-comment-id="{{.ID}}">
+                            👍 ({{.Likes}})
+                        </button>
+                        <button class="btn-dislike-comment" data-comment-id="{{.ID}}">
+                            👎 ({{.Dislikes}})
+                        </button>
+                        {{if $.User}}
+                            {{if eq $.User.ID .AuthorID}}
+                            <button class="btn-delete-comment" data-comment-id="{{.ID}}">Delete</button>
+                            {{end}}
+                        {{end}}
+                    </div>
+                </article>
+                {{end}}
+            {{else}}
+                <p class="no-comments">No comments yet. Be the first to comment!</p>
+            {{end}}
+        </div>
+    </section>
+</div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Forum. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
+{{end}}

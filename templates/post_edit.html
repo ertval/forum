@@ -1,0 +1,211 @@
+{{define "post_edit"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} - Forum</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="container">
+                <h1><a href="/">Forum</a></h1>
+                <ul>
+                    {{if .User}}
+                        <li>Welcome, {{.User.Username}}</li>
+                        <li><a href="/posts/new">Create Post</a></li>
+                        <li><a href="/logout">Logout</a></li>
+                    {{else}}
+                        <li><a href="/login">Login</a></li>
+                        <li><a href="/register">Register</a></li>
+                    {{end}}
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+<div class="post-edit">
+    <h1>Edit Post</h1>
+
+    <form id="post-edit-form" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="title">Title *</label>
+            <input 
+                type="text" 
+                id="title" 
+                name="title" 
+                maxlength="200" 
+                required 
+                value="{{.Post.Title}}"
+                placeholder="Enter post title">
+            <span class="form-help">Maximum 200 characters</span>
+        </div>
+
+        <div class="form-group">
+            <label for="content">Content *</label>
+            <textarea 
+                id="content" 
+                name="content" 
+                rows="10" 
+                required 
+                placeholder="Write your post content...">{{.Post.Content}}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="categories">Categories *</label>
+            <div class="category-checkboxes">
+                {{if .Categories}}
+                    {{range .Categories}}
+                    <label class="checkbox-label">
+                        <input 
+                            type="checkbox" 
+                            name="categories" 
+                            value="{{.Name}}"
+                            {{range $.Post.Categories}}{{if eq . $.Name}}checked{{end}}{{end}}>
+                        {{.Name}}
+                    </label>
+                    {{end}}
+                {{else}}
+                    <p class="form-help">No categories available</p>
+                {{end}}
+            </div>
+            <span class="form-help">Select at least one category</span>
+        </div>
+
+        {{if .Post.ImageURL}}
+        <div class="form-group">
+            <label>Current Image</label>
+            <div class="current-image">
+                <img src="{{.Post.ImageURL}}" alt="Current image">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="remove-image" name="remove_image">
+                    Remove current image
+                </label>
+            </div>
+        </div>
+        {{end}}
+
+        <div class="form-group">
+            <label for="image">{{if .Post.ImageURL}}Replace Image{{else}}Add Image{{end}} (Optional)</label>
+            <input 
+                type="file" 
+                id="image" 
+                name="image" 
+                accept="image/jpeg,image/png,image/gif">
+            <span class="form-help">JPEG, PNG, or GIF. Maximum 20MB</span>
+            <div id="image-preview" class="image-preview"></div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Update Post</button>
+            <a href="/posts/{{.Post.ID}}" class="btn btn-secondary">Cancel</a>
+        </div>
+
+        <div id="form-errors" class="form-errors"></div>
+    </form>
+</div>
+
+<script>
+const postId = {{.Post.ID}};
+
+// Image preview
+document.getElementById('image').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    const preview = document.getElementById('image-preview');
+    
+    if (file) {
+        if (file.size > 20 * 1024 * 1024) {
+            alert('Image must be less than 20MB');
+            e.target.value = '';
+            preview.innerHTML = '';
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+        };
+        reader.readAsDataURL(file);
+    } else {
+        preview.innerHTML = '';
+    }
+});
+
+// Form submission
+document.getElementById('post-edit-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formErrors = document.getElementById('form-errors');
+    formErrors.innerHTML = '';
+    
+    const title = document.getElementById('title').value.trim();
+    const content = document.getElementById('content').value.trim();
+    const categoryCheckboxes = document.querySelectorAll('input[name="categories"]:checked');
+    const categories = Array.from(categoryCheckboxes).map(cb => cb.value);
+    
+    // Validation
+    if (!title) {
+        formErrors.innerHTML = '<p class="error">Title is required</p>';
+        return;
+    }
+    
+    if (!content) {
+        formErrors.innerHTML = '<p class="error">Content is required</p>';
+        return;
+    }
+    
+    if (categories.length === 0) {
+        formErrors.innerHTML = '<p class="error">Please select at least one category</p>';
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('content', content);
+    categories.forEach(cat => formData.append('categories[]', cat));
+    
+    const removeImage = document.getElementById('remove-image');
+    if (removeImage && removeImage.checked) {
+        formData.append('remove_image', 'true');
+    }
+    
+    const imageFile = document.getElementById('image').files[0];
+    if (imageFile) {
+        formData.append('image', imageFile);
+    }
+    
+    try {
+        const response = await fetch(`/posts/${postId}`, {
+            method: 'PUT',
+            body: formData
+        });
+        
+        if (response.ok) {
+            window.location.href = `/posts/${postId}`;
+        } else {
+            const error = await response.json();
+            formErrors.innerHTML = `<p class="error">${error.error || 'Failed to update post'}</p>`;
+        }
+    } catch (error) {
+        formErrors.innerHTML = '<p class="error">Network error. Please try again.</p>';
+    }
+});
+</script>
+</div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Forum. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
+{{end}}
