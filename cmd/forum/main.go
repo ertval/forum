@@ -46,6 +46,7 @@ func main() {
 
 	log.Info(fmt.Sprintf("Forum server started on port %d (HTTP) and %d (HTTPS)",
 		cfg.Server.Port, cfg.Server.TLSPort))
+	log.Info(fmt.Sprintf("Access the forum at: http://localhost:%d", cfg.Server.Port))
 
 	// 5. Graceful Shutdown
 	quit := make(chan os.Signal, 1)

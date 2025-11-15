@@ -1,4 +1,4 @@
-.PHONY: build run test clean fmt vet mod tidy migrate up down docker-build docker-run help
+.PHONY: build run go test clean fmt vet mod tidy migrate migration docker-build docker-run docker-up docker-down up down help
 
 # Go parameters
 GOCMD=go
@@ -42,6 +42,11 @@ build:
 run: build
 	@echo "$(BLUE)Running $(BINARY_NAME)...$(NC)"
 	./$(BINARY_NAME)
+
+# Run the application with `go run` (no build step)
+go:
+	@echo "$(BLUE)Running with go run ($(MAIN_PACKAGE))...$(NC)"
+	CGO_ENABLED=$(CGO_ENABLED) $(GOCMD) run $(MAIN_PACKAGE)
 
 # Run tests
 test:
@@ -129,6 +134,11 @@ docker-down:
 	@echo "$(BLUE)Stopping Docker Compose...$(NC)"
 	docker-compose down
 
+# Aliases for convenience
+up: docker-up
+
+down: docker-down
+
 # Cross compilation for Linux
 build-linux:
 	@echo "$(BLUE)Building for Linux...$(NC)"
@@ -163,6 +173,7 @@ help:
 	@echo "  $(GREEN)all$(NC)             - Run clean, mod, fmt, vet, test, build"
 	@echo "  $(GREEN)build$(NC)           - Build the binary"
 	@echo "  $(GREEN)run$(NC)             - Build and run the application"
+	@echo "  $(GREEN)run-go$(NC)          - Run the application with 'go run' (no build)"
 	@echo "  $(GREEN)test$(NC)            - Run tests"
 	@echo "  $(GREEN)test-coverage$(NC)   - Run tests with coverage report"
 	@echo "  $(GREEN)clean$(NC)           - Clean build artifacts"
@@ -176,10 +187,11 @@ help:
 	@echo "  $(GREEN)docker-run$(NC)      - Run Docker container"
 	@echo "  $(GREEN)docker-up$(NC)       - Start Docker Compose"
 	@echo "  $(GREEN)docker-down$(NC)     - Stop Docker Compose"
+	@echo "  $(GREEN)up$(NC)              - Alias for docker-up"
+	@echo "  $(GREEN)down$(NC)            - Alias for docker-down"
 	@echo "  $(GREEN)build-linux$(NC)     - Cross compile for Linux"
 	@echo "  $(GREEN)dev-setup$(NC)       - Setup development environment"
 	@echo "  $(GREEN)dev$(NC)             - Run with hot reload"
 	@echo "  $(GREEN)check-schema$(NC)    - Check database schema"
 	@echo "  $(GREEN)seed$(NC)            - Seed database"
-	@echo "  $(GREEN)help$(NC)            - Show this help"</content>
-<parameter name="filePath">/home/ertval/code/zone-modules/forum/Makefile
+	@echo "  $(GREEN)help$(NC)            - Show this help"
