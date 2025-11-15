@@ -9,9 +9,15 @@ type Category struct {
 }
 
 // Validate checks if the category is valid.
-// TODO: Implement category validation.
 func (c *Category) Validate() error {
-	// Check name is not empty
-	// Check name length
+	if c.Name == "" {
+		return ErrEmptyCategoryName
+	}
+	if len(c.Name) > 50 {
+		return ErrCategoryNameTooLong
+	}
+	if len(c.Description) > 500 {
+		return ErrCategoryDescriptionTooLong
+	}
 	return nil
 }

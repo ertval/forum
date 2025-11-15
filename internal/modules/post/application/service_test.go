@@ -1,0 +1,495 @@
+package application
+
+import (
+	"context"
+	"errors"
+	"forum/internal/modules/post/domain"
+	"forum/internal/modules/post/ports"
+	"testing"
+	"time"
+)
+
+// Mock repositories for testing
+type mockPostRepository struct {
+	createFunc  func(ctx context.Context, post *domain.Post) error
+	getByIDFunc func(ctx context.Context, postID string) (*domain.Post, error)
+	updateFunc  func(ctx context.Context, post *domain.Post) error
+	deleteFunc  func(ctx context.Context, postID string) error
+	listFunc    func(ctx context.Context, filter ports.PostFilter) ([]*domain.Post, error)
+}
+
+func (m *mockPostRepository) Create(ctx context.Context, post *domain.Post) error {
+	if m.createFunc != nil {
+		return m.createFunc(ctx, post)
+	}
+	return nil
+}
+
+func (m *mockPostRepository) GetByID(ctx context.Context, postID string) (*domain.Post, error) {
+	if m.getByIDFunc != nil {
+		return m.getByIDFunc(ctx, postID)
+	}
+	return nil, nil
+}
+
+func (m *mockPostRepository) Update(ctx context.Context, post *domain.Post) error {
+	if m.updateFunc != nil {
+		return m.updateFunc(ctx, post)
+	}
+	return nil
+}
+
+func (m *mockPostRepository) Delete(ctx context.Context, postID string) error {
+	if m.deleteFunc != nil {
+		return m.deleteFunc(ctx, postID)
+	}
+	return nil
+}
+
+func (m *mockPostRepository) List(ctx context.Context, filter ports.PostFilter) ([]*domain.Post, error) {
+	if m.listFunc != nil {
+		return m.listFunc(ctx, filter)
+	}
+	return nil, nil
+}
+
+type mockCategoryRepository struct {
+	createFunc    func(ctx context.Context, category *domain.Category) error
+	getByIDFunc   func(ctx context.Context, categoryID string) (*domain.Category, error)
+	getByNameFunc func(ctx context.Context, name string) (*domain.Category, error)
+	listFunc      func(ctx context.Context) ([]*domain.Category, error)
+	deleteFunc    func(ctx context.Context, categoryID string) error
+}
+
+func (m *mockCategoryRepository) Create(ctx context.Context, category *domain.Category) error {
+	if m.createFunc != nil {
+		return m.createFunc(ctx, category)
+	}
+	return nil
+}
+
+func (m *mockCategoryRepository) GetByID(ctx context.Context, categoryID string) (*domain.Category, error) {
+	if m.getByIDFunc != nil {
+		return m.getByIDFunc(ctx, categoryID)
+	}
+	return nil, nil
+}
+
+func (m *mockCategoryRepository) GetByName(ctx context.Context, name string) (*domain.Category, error) {
+	if m.getByNameFunc != nil {
+		return m.getByNameFunc(ctx, name)
+	}
+	return nil, nil
+}
+
+func (m *mockCategoryRepository) List(ctx context.Context) ([]*domain.Category, error) {
+	if m.listFunc != nil {
+		return m.listFunc(ctx)
+	}
+	return nil, nil
+}
+
+func (m *mockCategoryRepository) Delete(ctx context.Context, categoryID string) error {
+	if m.deleteFunc != nil {
+		return m.deleteFunc(ctx, categoryID)
+	}
+	return nil
+}
+
+func TestService_CreatePost(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name          string
+		userID        string
+		title         string
+		content       string
+		categories    []string
+		image         []byte
+		setupMocks    func(*mockPostRepository, *mockCategoryRepository)
+		expectedError error
+	}{
+		{
+			name:       "valid post without image",
+			userID:     "user-1",
+			title:      "Test Post",
+			content:    "This is a test post content",
+			categories: []string{"general"},
+			image:      nil,
+			setupMocks: func(mpr *mockPostRepository, mcr *mockCategoryRepository) {
+				mcr.getByNameFunc = func(ctx context.Context, name string) (*domain.Category, error) {
+					return &domain.Category{ID: "cat-1", Name: name}, nil
+				}
+				mpr.createFunc = func(ctx context.Context, post *domain.Post) error {
+					return nil
+				}
+			},
+			expectedError: nil,
+		},
+		{
+			name:       "empty title",
+			userID:     "user-1",
+			title:      "",
+			content:    "Valid content",
+			categories: []string{"general"},
+			image:      nil,
+			setupMocks: func(mpr *mockPostRepository, mcr *mockCategoryRepository) {
+			},
+			expectedError: domain.ErrEmptyTitle,
+		},
+		{
+			name:       "empty content",
+			userID:     "user-1",
+			title:      "Valid Title",
+			content:    "",
+			categories: []string{"general"},
+			image:      nil,
+			setupMocks: func(mpr *mockPostRepository, mcr *mockCategoryRepository) {
+			},
+			expectedError: domain.ErrEmptyContent,
+		},
+		{
+			name:       "no categories",
+			userID:     "user-1",
+			title:      "Valid Title",
+			content:    "Valid content",
+			categories: []string{},
+			image:      nil,
+			setupMocks: func(mpr *mockPostRepository, mcr *mockCategoryRepository) {
+			},
+			expectedError: domain.ErrNoCategories,
+		},
+		{
+			name:       "category not found",
+			userID:     "user-1",
+			title:      "Valid Title",
+			content:    "Valid content",
+			categories: []string{"nonexistent"},
+			image:      nil,
+			setupMocks: func(mpr *mockPostRepository, mcr *mockCategoryRepository) {
+				mcr.getByNameFunc = func(ctx context.Context, name string) (*domain.Category, error) {
+					return nil, domain.ErrCategoryNotFound
+				}
+			},
+			expectedError: domain.ErrCategoryNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockPostRepo := &mockPostRepository{}
+			mockCategoryRepo := &mockCategoryRepository{}
+
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockPostRepo, mockCategoryRepo)
+			}
+
+			service := NewService(mockPostRepo, mockCategoryRepo)
+
+			post, err := service.CreatePost(ctx, tt.userID, tt.title, tt.content, tt.categories, tt.image)
+
+			if tt.expectedError != nil {
+				if err == nil {
+					t.Errorf("expected error %v, got nil", tt.expectedError)
+				} else if !errors.Is(err, tt.expectedError) {
+					t.Errorf("expected error %v, got %v", tt.expectedError, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if post == nil {
+					t.Error("expected post to be created, got nil")
+				}
+				if post != nil {
+					if post.Title != tt.title {
+						t.Errorf("expected title %s, got %s", tt.title, post.Title)
+					}
+					if post.Content != tt.content {
+						t.Errorf("expected content %s, got %s", tt.content, post.Content)
+					}
+					if post.UserID != tt.userID {
+						t.Errorf("expected userID %s, got %s", tt.userID, post.UserID)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestService_UpdatePost(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name          string
+		postID        string
+		title         string
+		content       string
+		setupMocks    func(*mockPostRepository)
+		expectedError error
+	}{
+		{
+			name:    "valid update",
+			postID:  "post-1",
+			title:   "Updated Title",
+			content: "Updated content",
+			setupMocks: func(mpr *mockPostRepository) {
+				mpr.getByIDFunc = func(ctx context.Context, postID string) (*domain.Post, error) {
+					return &domain.Post{
+						ID:         postID,
+						UserID:     "user-1",
+						Title:      "Old Title",
+						Content:    "Old content",
+						Categories: []string{"general"},
+						CreatedAt:  time.Now(),
+						UpdatedAt:  time.Now(),
+					}, nil
+				}
+				mpr.updateFunc = func(ctx context.Context, post *domain.Post) error {
+					return nil
+				}
+			},
+			expectedError: nil,
+		},
+		{
+			name:    "post not found",
+			postID:  "nonexistent",
+			title:   "Updated Title",
+			content: "Updated content",
+			setupMocks: func(mpr *mockPostRepository) {
+				mpr.getByIDFunc = func(ctx context.Context, postID string) (*domain.Post, error) {
+					return nil, domain.ErrPostNotFound
+				}
+			},
+			expectedError: domain.ErrPostNotFound,
+		},
+		{
+			name:    "empty title",
+			postID:  "post-1",
+			title:   "",
+			content: "Valid content",
+			setupMocks: func(mpr *mockPostRepository) {
+				mpr.getByIDFunc = func(ctx context.Context, postID string) (*domain.Post, error) {
+					return &domain.Post{
+						ID:         postID,
+						UserID:     "user-1",
+						Title:      "Old Title",
+						Content:    "Old content",
+						Categories: []string{"general"},
+						CreatedAt:  time.Now(),
+						UpdatedAt:  time.Now(),
+					}, nil
+				}
+			},
+			expectedError: domain.ErrEmptyTitle,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockPostRepo := &mockPostRepository{}
+
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockPostRepo)
+			}
+
+			service := NewService(mockPostRepo, nil)
+
+			err := service.UpdatePost(ctx, tt.postID, tt.title, tt.content)
+
+			if tt.expectedError != nil {
+				if err == nil {
+					t.Errorf("expected error %v, got nil", tt.expectedError)
+				} else if !errors.Is(err, tt.expectedError) {
+					t.Errorf("expected error %v, got %v", tt.expectedError, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestService_GetPost(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name          string
+		postID        string
+		setupMocks    func(*mockPostRepository)
+		expectedError error
+	}{
+		{
+			name:   "post found",
+			postID: "post-1",
+			setupMocks: func(mpr *mockPostRepository) {
+				mpr.getByIDFunc = func(ctx context.Context, postID string) (*domain.Post, error) {
+					return &domain.Post{
+						ID:      postID,
+						UserID:  "user-1",
+						Title:   "Test Post",
+						Content: "Test content",
+					}, nil
+				}
+			},
+			expectedError: nil,
+		},
+		{
+			name:   "post not found",
+			postID: "nonexistent",
+			setupMocks: func(mpr *mockPostRepository) {
+				mpr.getByIDFunc = func(ctx context.Context, postID string) (*domain.Post, error) {
+					return nil, domain.ErrPostNotFound
+				}
+			},
+			expectedError: domain.ErrPostNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockPostRepo := &mockPostRepository{}
+
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockPostRepo)
+			}
+
+			service := NewService(mockPostRepo, nil)
+
+			post, err := service.GetPost(ctx, tt.postID)
+
+			if tt.expectedError != nil {
+				if err == nil {
+					t.Errorf("expected error %v, got nil", tt.expectedError)
+				} else if !errors.Is(err, tt.expectedError) {
+					t.Errorf("expected error %v, got %v", tt.expectedError, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if post == nil {
+					t.Error("expected post to be returned, got nil")
+				}
+			}
+		})
+	}
+}
+
+func TestService_DeletePost(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name          string
+		postID        string
+		setupMocks    func(*mockPostRepository)
+		expectedError error
+	}{
+		{
+			name:   "successful deletion",
+			postID: "post-1",
+			setupMocks: func(mpr *mockPostRepository) {
+				mpr.deleteFunc = func(ctx context.Context, postID string) error {
+					return nil
+				}
+			},
+			expectedError: nil,
+		},
+		{
+			name:   "post not found",
+			postID: "nonexistent",
+			setupMocks: func(mpr *mockPostRepository) {
+				mpr.deleteFunc = func(ctx context.Context, postID string) error {
+					return domain.ErrPostNotFound
+				}
+			},
+			expectedError: domain.ErrPostNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockPostRepo := &mockPostRepository{}
+
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockPostRepo)
+			}
+
+			service := NewService(mockPostRepo, nil)
+
+			err := service.DeletePost(ctx, tt.postID)
+
+			if tt.expectedError != nil {
+				if err == nil {
+					t.Errorf("expected error %v, got nil", tt.expectedError)
+				} else if !errors.Is(err, tt.expectedError) {
+					t.Errorf("expected error %v, got %v", tt.expectedError, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestService_ListPosts(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name       string
+		filter     ports.PostFilter
+		setupMocks func(*mockPostRepository)
+		wantCount  int
+	}{
+		{
+			name:   "list all posts",
+			filter: ports.PostFilter{Limit: 10, Offset: 0},
+			setupMocks: func(mpr *mockPostRepository) {
+				mpr.listFunc = func(ctx context.Context, filter ports.PostFilter) ([]*domain.Post, error) {
+					return []*domain.Post{
+						{ID: "post-1", Title: "Post 1"},
+						{ID: "post-2", Title: "Post 2"},
+					}, nil
+				}
+			},
+			wantCount: 2,
+		},
+		{
+			name:   "filter by user",
+			filter: ports.PostFilter{UserID: "user-1", Limit: 10, Offset: 0},
+			setupMocks: func(mpr *mockPostRepository) {
+				mpr.listFunc = func(ctx context.Context, filter ports.PostFilter) ([]*domain.Post, error) {
+					return []*domain.Post{
+						{ID: "post-1", UserID: "user-1", Title: "Post 1"},
+					}, nil
+				}
+			},
+			wantCount: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockPostRepo := &mockPostRepository{}
+
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockPostRepo)
+			}
+
+			service := NewService(mockPostRepo, nil)
+
+			posts, err := service.ListPosts(ctx, tt.filter)
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if len(posts) != tt.wantCount {
+				t.Errorf("expected %d posts, got %d", tt.wantCount, len(posts))
+			}
+		})
+	}
+}

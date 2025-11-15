@@ -9,10 +9,11 @@ import (
 	authPort "forum/internal/modules/auth/ports"
 	userDomain "forum/internal/modules/user/domain"
 	userPort "forum/internal/modules/user/ports"
-	"time"
-	"golang.org/x/crypto/bcrypt"
-	"github.com/gofrs/uuid/v5"
 	"forum/internal/platform/validator"
+	"time"
+
+	"github.com/gofrs/uuid/v5"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Service implements the AuthService interface.
@@ -40,27 +41,23 @@ func NewService(
 // It validates input, checks for duplicates, hashes the password, and creates a session.
 func (s *Service) Register(ctx context.Context, email, username, password string) (userID int, session *domain.Session, err error) {
 	// 1. Validate input
-	validation := validator.New()
-	validation.Required("email", email)
-	if email != "" {
-		validation.Email("email", email)
+	creds := &domain.Credentials{Email: email, Password: password}
+	err = ValidateCredentials(creds)
+	if err != nil {
+		return 0, nil, err
 	}
+
+	validation := validator.New()
 	validation.Required("username", username)
 	if username != "" {
 		validation.Username("username", username)
 	}
-	validation.Required("password", password)
-	if password != "" {
-		validation.Password("password", password, 6) // Minimum 6 characters
-	}
-	
 	if !validation.Valid() {
-		// Return the first error found
 		for _, msg := range validation.Errors() {
 			return 0, nil, errors.New(msg)
 		}
 	}
-	
+
 	// 2. Check if email or username already exists
 	emailExists, err := s.userRepo.ExistsByEmail(ctx, email)
 	if err != nil {
@@ -69,7 +66,7 @@ func (s *Service) Register(ctx context.Context, email, username, password string
 	if emailExists {
 		return 0, nil, domain.ErrUserAlreadyExists
 	}
-	
+
 	usernameExists, err := s.userRepo.ExistsByUsername(ctx, username)
 	if err != nil {
 		return 0, nil, err
@@ -77,13 +74,13 @@ func (s *Service) Register(ctx context.Context, email, username, password string
 	if usernameExists {
 		return 0, nil, domain.ErrUserAlreadyExists
 	}
-	
+
 	// 3. Hash the password
 	passwordHash, err := s.hashPassword(password)
 	if err != nil {
 		return 0, nil, err
 	}
-	
+
 	// 4. Create user in repository
 	user := &userDomain.User{
 		Email:        email,
@@ -94,18 +91,18 @@ func (s *Service) Register(ctx context.Context, email, username, password string
 		UpdatedAt:    time.Now(),
 		IsActive:     true,
 	}
-	
+
 	err = s.userRepo.Create(ctx, user)
 	if err != nil {
 		return 0, nil, err
 	}
-	
+
 	// 5. Create session for the new user
 	sessionToken, err := s.generateSessionToken()
 	if err != nil {
 		return 0, nil, err
 	}
-	
+
 	session = &domain.Session{
 		ID:        sessionToken, // Use the token as the ID for simplicity
 		UserID:    user.ID,
@@ -115,12 +112,12 @@ func (s *Service) Register(ctx context.Context, email, username, password string
 		IPAddress: "", // Will be set from request in the HTTP handler
 		UserAgent: "", // Will be set from request in the HTTP handler
 	}
-	
+
 	err = s.sessionRepo.Create(ctx, session)
 	if err != nil {
 		return 0, nil, err
 	}
-	
+
 	return user.ID, session, nil
 }
 
@@ -128,36 +125,38 @@ func (s *Service) Register(ctx context.Context, email, username, password string
 // It validates credentials and creates a new session on success.
 func (s *Service) Login(ctx context.Context, email, password string) (*domain.Session, error) {
 	// 1. Validate input
-	if email == "" || password == "" {
+	creds := &domain.Credentials{Email: email, Password: password}
+	err := ValidateCredentials(creds)
+	if err != nil {
 		return nil, domain.ErrInvalidCredentials
 	}
-	
+
 	// 2. Retrieve user by email
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		// If user doesn't exist, return invalid credentials to avoid user enumeration
 		return nil, domain.ErrInvalidCredentials
 	}
-	
+
 	// 3. Compare password hash using bcrypt
 	err = s.comparePassword(user.PasswordHash, password)
 	if err != nil {
 		return nil, domain.ErrInvalidCredentials
 	}
-	
+
 	// 4. If valid, delete any existing sessions for this user (one session per user)
 	err = s.sessionRepo.DeleteByUserID(ctx, user.ID)
 	if err != nil {
 		// If we can't delete existing sessions, continue anyway
 		// This might result in multiple active sessions, but login should still work
 	}
-	
+
 	// 5. Create new session
 	sessionToken, err := s.generateSessionToken()
 	if err != nil {
 		return nil, err
 	}
-	
+
 	session := &domain.Session{
 		ID:        sessionToken, // Use the token as the ID for simplicity
 		UserID:    user.ID,
@@ -167,12 +166,12 @@ func (s *Service) Login(ctx context.Context, email, password string) (*domain.Se
 		IPAddress: "", // Will be set from request in the HTTP handler
 		UserAgent: "", // Will be set from request in the HTTP handler
 	}
-	
+
 	err = s.sessionRepo.Create(ctx, session)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return session, nil
 }
 
@@ -189,14 +188,14 @@ func (s *Service) ValidateSession(ctx context.Context, sessionToken string) (*do
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// 2. Check if session is expired
 	if session.IsExpired() {
 		// Clean up expired session
 		_ = s.sessionRepo.Delete(ctx, sessionToken) // Best effort cleanup
 		return nil, domain.ErrSessionExpired
 	}
-	
+
 	// 3. Return session
 	return session, nil
 }
@@ -208,23 +207,23 @@ func (s *Service) RefreshSession(ctx context.Context, sessionToken string) (*dom
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// 2. Check if session is expired
 	if session.IsExpired() {
 		// Clean up expired session
 		_ = s.sessionRepo.Delete(ctx, sessionToken) // Best effort cleanup
 		return nil, domain.ErrSessionExpired
 	}
-	
+
 	// 3. Update expiration time
 	session.ExpiresAt = time.Now().Add(s.sessionDuration)
-	
+
 	// 4. Save updated session
 	err = s.sessionRepo.Update(ctx, session)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// 5. Return updated session
 	return session, nil
 }
@@ -236,14 +235,14 @@ func (s *Service) GetSession(ctx context.Context, sessionToken string) (*domain.
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// 2. Check if session is expired
 	if session.IsExpired() {
 		// Clean up expired session
 		_ = s.sessionRepo.Delete(ctx, sessionToken) // Best effort cleanup
 		return nil, domain.ErrSessionExpired
 	}
-	
+
 	return session, nil
 }
 
@@ -268,4 +267,31 @@ func (s *Service) hashPassword(password string) (string, error) {
 // comparePassword compares a plaintext password with a hash.
 func (s *Service) comparePassword(hash, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+}
+
+// ValidateCredentials validates the credentials.
+// Returns an error if the credentials are invalid.
+func ValidateCredentials(c *domain.Credentials) error {
+	validator := validator.New()
+
+	validator.Required("email", c.Email)
+	if c.Email != "" {
+		validator.Email("email", c.Email)
+	}
+
+	validator.Required("password", c.Password)
+	if c.Password != "" {
+		// Using minimum 6 characters for basic validation, can be increased for production
+		validator.Password("password", c.Password, 6)
+	}
+
+	if !validator.Valid() {
+		// Convert validator errors to error string for now
+		// In a real implementation, you might want to return a more structured error
+		for _, msg := range validator.Errors() {
+			return errors.New(msg)
+		}
+	}
+
+	return nil
 }

@@ -3,9 +3,7 @@
 package domain
 
 import (
-	"errors"
 	"time"
-	"forum/internal/platform/validator"
 )
 
 // Session represents an authenticated user session.
@@ -34,31 +32,4 @@ func (s *Session) IsValid() bool {
 type Credentials struct {
 	Email    string // User's email address
 	Password string // User's password (plaintext, will be hashed)
-}
-
-// Validate validates the credentials.
-// Returns an error if the credentials are invalid.
-func (c *Credentials) Validate() error {
-	validator := validator.New()
-	
-	validator.Required("email", c.Email)
-	if c.Email != "" {
-		validator.Email("email", c.Email)
-	}
-	
-	validator.Required("password", c.Password)
-	if c.Password != "" {
-		// Using minimum 6 characters for basic validation, can be increased for production
-		validator.Password("password", c.Password, 6)
-	}
-	
-	if !validator.Valid() {
-		// Convert validator errors to error string for now
-		// In a real implementation, you might want to return a more structured error
-		for _, msg := range validator.Errors() {
-			return errors.New(msg)
-		}
-	}
-	
-	return nil
 }

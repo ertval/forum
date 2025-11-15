@@ -20,11 +20,22 @@ type Post struct {
 }
 
 // Validate checks if the post is valid.
-// TODO: Implement post validation (title, content, categories).
 func (p *Post) Validate() error {
-	// Check title is not empty and within length limits
-	// Check content is not empty
-	// Check categories list has at least one category
+	if p.Title == "" {
+		return ErrEmptyTitle
+	}
+	if len(p.Title) > 300 {
+		return ErrTitleTooLong
+	}
+	if p.Content == "" {
+		return ErrEmptyContent
+	}
+	if len(p.Content) > 50000 {
+		return ErrContentTooLong
+	}
+	if len(p.Categories) == 0 {
+		return ErrNoCategories
+	}
 	return nil
 }
 

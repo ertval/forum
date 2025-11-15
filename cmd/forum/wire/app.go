@@ -10,6 +10,7 @@ import (
 	"forum/internal/platform/httpserver"
 	"forum/internal/platform/logger"
 	"net/http"
+	"os"
 )
 
 // App encapsulates the entire application with all its dependencies.
@@ -82,7 +83,7 @@ func initDatabase(cfg *config.Config, lgr *logger.Logger) (*database.Connection,
 
 	lgr.Info("Running database migrations")
 	migrator := database.NewMigrator(dbConn)
-	if err := migrator.Migrate("./migrations"); err != nil {
+	if err := migrator.Migrate(cfg.Database.MigrationsDir); err != nil {
 		dbConn.Close()
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
@@ -115,9 +116,13 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers) *htt
 	handlers.Moderation.RegisterRoutes(server.Router())
 	handlers.Notification.RegisterRoutes(server.Router())
 
-	// Serve static files
-	lgr.Info("Registering static file handler")
-	server.Router().Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
+	// Serve static files (optional - skip if directory doesn't exist)
+	// This allows tests to run without static files
+	lgr.Info("Checking for static directory")
+	if _, err := os.Stat("./static"); err == nil {
+		lgr.Info("Registering static file handler")
+		server.Router().Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
+	}
 
 	return server
 }

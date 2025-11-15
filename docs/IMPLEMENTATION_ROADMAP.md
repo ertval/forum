@@ -4,18 +4,21 @@ Fast path to functional forum MVP following core requirements, then complete rem
 
 ## Current Status
 
-**Project Phase**: MVP Core Features (60% Complete)
+**Project Phase**: MVP Core Features (75% Complete)
 - ✅ Project structure created
 - ✅ Module scaffolding complete
 - ✅ Database migrations defined
 - ✅ Platform layer fully implemented (config, database, logger, httpserver, errors, validator)
 - ✅ Authentication module fully implemented (registration, login, sessions, validation)
 - ✅ User module domain and repository implemented
-- ⚠️ Most other modules are placeholders with TODO comments
+- ✅ Post module fully implemented (CRUD operations with validation)
+- ✅ Category module fully implemented (CRUD operations)
+- ✅ Authentication middleware (RequireAuth, OptionalAuth)
+- ⚠️ Comment, Reaction, and optional modules (Moderation, Notification) are placeholders with TODO comments
 
 ---
 
-## PART 1: MVP - CORE REQUIREMENTS (Minimal Functional Forum) - 60% Complete
+## PART 1: MVP - CORE REQUIREMENTS (Minimal Functional Forum) - 75% Complete
 
 Focus: Implement essential features from requirements.md to get a working forum ASAP.
 
@@ -95,8 +98,8 @@ Focus: Implement essential features from requirements.md to get a working forum 
   - [x] Return 204 No Content
 
 **Middleware:**
-- [ ] Implement RequireAuth middleware (validate session cookie, inject user into context)
-- [ ] Implement OptionalAuth middleware (for guest vs registered user views)
+- [x] Implement RequireAuth middleware (validate session cookie, inject user into context)
+- [x] Implement OptionalAuth middleware (for guest vs registered user views)
 
 **User Module (Basic):**
 - [x] User domain entity (id, email, username, password_hash, role, created_at)
@@ -110,40 +113,59 @@ Focus: Implement essential features from requirements.md to get a working forum 
 
 ---
 
-### Phase 3: Posts - Create & View (REQUIREMENT: Communication - Posts) - NEXT PRIORITY
+### Phase 3: Posts - Create & View (REQUIREMENT: Communication - Posts) ✅ COMPLETE
 
 **Goal**: Registered users can create posts (title + content). All users can view posts.
 
 **Post Module - Domain Layer:**
-- [ ] Post entity (id, user_id, title, content, created_at, updated_at) (post.go)
-- [ ] Domain errors (ErrPostNotFound, ErrUnauthorized, etc.) (errors.go)
+- [x] Post entity (id, user_id, title, content, created_at, updated_at) (post.go)
+- [x] Post validation (title max 300, content max 50000, categories required) (post.go)
+- [x] Category entity (id, name, description) (category.go)
+- [x] Category validation (name max 50, description max 500) (category.go)
+- [x] Domain errors (ErrPostNotFound, ErrEmptyTitle, ErrEmptyContent, ErrNoCategories, etc.) (errors.go)
+- [x] Unit tests for domain validation (post_test.go, category_test.go)
 
 **Post Module - Repository (Output Adapter):**
-- [ ] Implement SQLite post repository (sqlite_repository.go)
-  - [ ] Create(post) - create new post
-  - [ ] GetByID(postID) - retrieve single post
-  - [ ] List(limit, offset) - list all posts with pagination
-  - [ ] Update(post) - edit post
-  - [ ] Delete(postID) - delete post
-  - [ ] GetByUserID(userID) - filter user's posts
+- [x] Implement SQLite post repository (sqlite_repository.go)
+  - [x] Create(post) - create new post with category associations
+  - [x] GetByID(postID) - retrieve single post with categories and counts
+  - [x] List(filter) - list posts with pagination and filtering
+  - [x] Update(post) - edit post and update category associations
+  - [x] Delete(postID) - delete post
+  - [x] GetByUserID(userID) - filter user's posts
+- [x] Implement SQLite category repository (sqlite_repository.go)
+  - [x] Create(category) - create new category
+  - [x] GetByID(categoryID) - retrieve category
+  - [x] GetByName(name) - retrieve category by name
+  - [x] List() - list all categories
+  - [x] ExistsByName(name) - check if category exists
 
 **Post Module - Application Service:**
-- [ ] Implement CreatePost use case
-  - [ ] Validate title and content (not empty)
-  - [ ] Check user is authenticated
-  - [ ] Create post in database
-  - [ ] Return post
-- [ ] Implement GetPost use case
-- [ ] Implement ListPosts use case (with pagination)
-- [ ] Implement UpdatePost use case (only owner can edit)
-- [ ] Implement DeletePost use case (only owner can delete)
+- [x] Implement CreatePost use case
+  - [x] Validate title and content (not empty, length limits)
+  - [x] Validate categories (at least one, all must exist)
+  - [x] Check user is authenticated
+  - [x] Create post in database with category associations
+  - [x] Return post
+- [x] Implement GetPost use case (retrieve post with categories and counts)
+- [x] Implement ListPosts use case (with filtering by category, user)
+- [x] Implement UpdatePost use case (only owner can edit, validates input)
+- [x] Implement DeletePost use case (only owner can delete)
+- [x] Unit tests with mock repositories (service_test.go)
 
 **Post Module - HTTP Handlers:**
-- [ ] POST /posts - create post (requires auth)
-- [ ] GET /posts - list all posts (public)
-- [ ] GET /posts/{id} - view single post (public)
-- [ ] PUT /posts/{id} - edit post (requires auth + ownership)
-- [ ] DELETE /posts/{id} - delete post (requires auth + ownership)
+- [x] POST /posts - create post (requires auth, JSON API)
+- [x] GET /posts - list all posts (public, supports filtering)
+- [x] GET /posts/{id} - view single post (public)
+- [x] PUT /posts/{id} - edit post (requires auth + ownership)
+- [x] DELETE /posts/{id} - delete post (requires auth + ownership)
+- [x] GET / - homepage with post list
+- [x] Routes wrapped with RequireAuth middleware for protected endpoints
+
+**Integration Tests:**
+- [x] TestPostCreationAndRetrieval - create and retrieve post
+- [x] TestUnauthorizedPostCreation - verify guests cannot create posts
+- [x] TestEmptyPostValidation - verify empty posts are rejected
 
 **Frontend (Basic Templates):**
 - [ ] templates/base.html - base layout with navigation

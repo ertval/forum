@@ -28,4 +28,22 @@ var (
 
 	// ErrNoCategories is returned when no categories are specified.
 	ErrNoCategories = errors.New("post must have at least one category")
+
+	// ErrTitleTooLong is returned when post title exceeds max length.
+	ErrTitleTooLong = errors.New("post title too long (max 300 characters)")
+
+	// ErrContentTooLong is returned when post content exceeds max length.
+	ErrContentTooLong = errors.New("post content too long (max 50000 characters)")
+
+	// ErrEmptyCategoryName is returned when category name is empty.
+	ErrEmptyCategoryName = errors.New("category name cannot be empty")
+
+	// ErrCategoryNameTooLong is returned when category name exceeds max length.
+	ErrCategoryNameTooLong = errors.New("category name too long (max 50 characters)")
+
+	// ErrCategoryDescriptionTooLong is returned when category description exceeds max length.
+	ErrCategoryDescriptionTooLong = errors.New("category description too long (max 500 characters)")
+
+	// ErrUnauthorized is returned when user is not authorized.
+	ErrUnauthorized = errors.New("unauthorized")
 )

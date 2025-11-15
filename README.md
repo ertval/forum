@@ -2,32 +2,39 @@
 
 A modern web forum built with Go, following Hexagonal Architecture principles. Clean, testable, idiomatic Go code organized as a Modular Monolith.
 
-Current status: This repository contains an initial scaffolding of the application (most modules and files are present with placeholders and TODO notes). The project is approximately 10% complete — there are many unfinished implementations and TODOs. See `docs/IMPLEMENTATION_ROADMAP.md` for the prioritized plan and next steps.
+**Current status**: MVP Core Features - 75% Complete. Authentication, Posts, and Categories are fully implemented with comprehensive tests. See `docs/IMPLEMENTATION_ROADMAP.md` for detailed progress and next steps.
 
 ## Features
 
-### Core Features
+### Core Features (Implemented ✅)
 
-- **Authentication & Authorization**
+- **Authentication & Authorization** ✅
   - User registration with email, username, and password
   - Session-based authentication (UUID cookies, server-side storage)
   - Secure password hashing (bcrypt)
-  - Session expiration and management
+  - Session expiration and management (24h default)
   - Cookie security (HttpOnly, Secure, SameSite)
+  - Only ONE active session per user
+  - Middleware for protected routes (RequireAuth, OptionalAuth)
 
-- **Posts & Categories**
+- **Posts & Categories** ✅
   - Create, read, update, delete posts
-  - Multiple categories per post
-  - Image upload support (JPEG, PNG, GIF, max 20MB)
-  - Filter by category
-  - Public viewing (all users)
-  - Post ownership (edit/delete own posts)
+  - Multiple categories per post (minimum 1 required)
+  - Title validation (max 300 characters)
+  - Content validation (max 50,000 characters)
+  - Category management (create, list, retrieve)
+  - Public viewing (all users can view posts)
+  - Post ownership (only owner can edit/delete)
+  - Filter posts by category
+  - Image upload support (planned - JPEG, PNG, GIF, max 20MB)
+
+### Core Features (Planned)
 
 - **Comments**
   - Comment on posts
   - Edit/delete own comments
-  - Nested comment threads
-  - Public viewing
+  - Comments visible to all
+  - Empty comments rejected
 
 - **Reactions**
   - Like/dislike posts and comments
@@ -38,7 +45,8 @@ Current status: This repository contains an initial scaffolding of the applicati
 - **User Profiles**
   - View user profiles
   - Activity tracking (created posts, comments, reactions)
-  - Profile editing
+  - Filter by created posts
+  - Filter by liked posts
 
 ### Security
 
@@ -282,55 +290,82 @@ GITHUB_CLIENT_SECRET=your-github-client-secret
 
 ## API Endpoints
 
-### Authentication
+### Authentication ✅
 
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login
-- `POST /api/auth/logout` - Logout
-- `GET /api/auth/session` - Get current session
+- `POST /auth/register` - Register new user
+  - Body: `{"email": "user@example.com", "username": "user", "password": "password123"}`
+  - Returns: 201 Created with session cookie
+  - Errors: 400 (validation), 409 (duplicate email/username), 500
+- `POST /auth/login` - Login
+  - Body: `{"email": "user@example.com", "password": "password123"}`
+  - Returns: 200 OK with session cookie
+  - Errors: 401 (invalid credentials), 500
+- `POST /auth/logout` - Logout (requires auth)
+  - Returns: 204 No Content
+- `GET /auth/session` - Get current session (requires auth)
+  - Returns: 200 OK with user info
+  - Errors: 401 (not authenticated)
 
-### Posts
+### Posts ✅
 
-- `POST /api/posts` - Create post
-- `GET /api/posts` - List posts (with filters)
-- `GET /api/posts/:id` - Get post by ID
-- `PUT /api/posts/:id` - Update post
-- `DELETE /api/posts/:id` - Delete post
+- `POST /posts` - Create post (requires auth)
+  - Body: `{"title": "Post Title", "content": "Post content...", "categories": ["general"]}`
+  - Returns: 201 Created with post object
+  - Errors: 400 (validation - empty title/content, no categories), 401 (not authenticated), 404 (category not found), 500
+- `GET /posts` - List posts (public)
+  - Query params: `?category=general` (filter by category)
+  - Returns: 200 OK with array of posts (includes author, categories, reaction counts)
+- `GET /posts/{id}` - Get post by ID (public)
+  - Returns: 200 OK with post object (includes author, categories, reaction counts)
+  - Errors: 404 (post not found), 500
+- `PUT /posts/{id}` - Update post (requires auth + ownership)
+  - Body: `{"title": "Updated Title", "content": "Updated content...", "categories": ["general"]}`
+  - Returns: 200 OK with updated post object
+  - Errors: 400 (validation), 401 (not authenticated), 403 (not owner), 404 (post not found), 500
+- `DELETE /posts/{id}` - Delete post (requires auth + ownership)
+  - Returns: 204 No Content
+  - Errors: 401 (not authenticated), 403 (not owner), 404 (post not found), 500
 
-### Comments
+### Categories ✅
 
-- `POST /api/posts/:id/comments` - Add comment
-- `GET /api/posts/:id/comments` - List comments
-- `PUT /api/comments/:id` - Update comment
-- `DELETE /api/comments/:id` - Delete comment
+- Categories are managed internally and associated with posts
+- Available categories are retrieved via post listing
+- Future: Dedicated category management endpoints
 
-### Reactions
+### Comments (Planned)
 
-- `POST /api/reactions` - Add/toggle reaction
-- `DELETE /api/reactions/:id` - Remove reaction
-- `GET /api/posts/:id/reactions` - Get reaction counts
-- `GET /api/comments/:id/reactions` - Get reaction counts
+- `POST /posts/:id/comments` - Add comment
+- `GET /posts/:id/comments` - List comments
+- `PUT /comments/:id` - Update comment
+- `DELETE /comments/:id` - Delete comment
 
-### Users
+### Reactions (Planned)
 
-- `GET /api/users/:id` - Get user profile
-- `PUT /api/users/:id` - Update profile
-- `GET /api/users/:id/posts` - User's posts
-- `GET /api/users/:id/activity` - User's activity
+- `POST /reactions` - Add/toggle reaction
+- `DELETE /reactions/:id` - Remove reaction
+- `GET /posts/:id/reactions` - Get reaction counts
+- `GET /comments/:id/reactions` - Get reaction counts
+
+### Users (Planned)
+
+- `GET /users/:id` - Get user profile
+- `PUT /users/:id` - Update profile
+- `GET /users/:id/posts` - User's posts
+- `GET /users/:id/activity` - User's activity
 
 ### Moderation [OPTIONAL]
 
-- `POST /api/reports` - Create report
-- `GET /api/reports` - List reports (moderators)
-- `PUT /api/reports/:id` - Review report (moderators)
-- `DELETE /api/posts/:id` - Delete post (moderators)
-- `DELETE /api/comments/:id` - Delete comment (moderators)
+- `POST /reports` - Create report
+- `GET /reports` - List reports (moderators)
+- `PUT /reports/:id` - Review report (moderators)
+- `DELETE /posts/:id` - Delete post (moderators)
+- `DELETE /comments/:id` - Delete comment (moderators)
 
 ### Notifications [OPTIONAL]
 
-- `GET /api/notifications` - List notifications
-- `PUT /api/notifications/:id/read` - Mark as read
-- `PUT /api/notifications/read-all` - Mark all as read
+- `GET /notifications` - List notifications
+- `PUT /notifications/:id/read` - Mark as read
+- `PUT /notifications/read-all` - Mark all as read
 
 ---
 
