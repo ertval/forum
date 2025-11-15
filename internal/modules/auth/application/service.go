@@ -53,8 +53,10 @@ func (s *Service) Register(ctx context.Context, email, username, password string
 		validation.Username("username", username)
 	}
 	if !validation.Valid() {
-		for _, msg := range validation.Errors() {
-			return 0, nil, errors.New(msg)
+		for field := range validation.Errors() {
+			if field == "username" {
+				return 0, nil, domain.ErrInvalidUsername
+			}
 		}
 	}
 
@@ -286,9 +288,21 @@ func ValidateCredentials(c *domain.Credentials) error {
 	}
 
 	if !validator.Valid() {
-		// Convert validator errors to error string for now
-		// In a real implementation, you might want to return a more structured error
-		for _, msg := range validator.Errors() {
+		// Convert validator errors to domain-specific errors
+		for field, msg := range validator.Errors() {
+			if field == "email" {
+				if msg == "This field is required" {
+					return domain.ErrInvalidEmail
+				}
+				return domain.ErrInvalidEmail
+			}
+			if field == "password" {
+				if msg == "This field is required" {
+					return domain.ErrWeakPassword
+				}
+				return domain.ErrWeakPassword
+			}
+			// Fallback to generic error
 			return errors.New(msg)
 		}
 	}

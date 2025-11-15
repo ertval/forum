@@ -37,9 +37,9 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	// GET /reactions/{targetType}/{targetId}/count - Count reactions
 }
 
-// AddReaction handles reaction creation/update requests.
-// TODO: Implement reaction handler.
-func (h *HTTPHandler) AddReaction(w http.ResponseWriter, r *http.Request) {
+// AddReactionAPI handles adding a reaction to a post or comment.
+// TODO: Implement reaction addition handler.
+func (h *HTTPHandler) AddReactionAPI(w http.ResponseWriter, r *http.Request) {
 	// Implementation placeholder
 	// 1. Parse request body (targetID, targetType, reactionType)
 	// 2. Get userID from session
@@ -47,20 +47,20 @@ func (h *HTTPHandler) AddReaction(w http.ResponseWriter, r *http.Request) {
 	// 4. Return 200 OK
 }
 
-// RemoveReaction handles reaction removal requests.
+// RemoveReactionAPI handles removing a reaction from a post or comment.
 // TODO: Implement reaction removal handler.
-func (h *HTTPHandler) RemoveReaction(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPHandler) RemoveReactionAPI(w http.ResponseWriter, r *http.Request) {
 	// Implementation placeholder
 }
 
-// GetReactions handles retrieving reactions for a target.
-// TODO: Implement get reactions handler.
-func (h *HTTPHandler) GetReactions(w http.ResponseWriter, r *http.Request) {
+// GetReactionsAPI handles retrieving reactions for a post or comment.
+// TODO: Implement reaction retrieval handler.
+func (h *HTTPHandler) GetReactionsAPI(w http.ResponseWriter, r *http.Request) {
 	// Implementation placeholder
 }
 
-// CountReactions handles counting reactions for a target.
+// CountReactionsAPI handles counting reactions for a target.
 // TODO: Implement count reactions handler.
-func (h *HTTPHandler) CountReactions(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPHandler) CountReactionsAPI(w http.ResponseWriter, r *http.Request) {
 	// Implementation placeholder
 }

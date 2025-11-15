@@ -3,9 +3,11 @@
 package adapters
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -50,37 +52,20 @@ func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HT
 func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	// Public routes (no auth required)
 	router.HandleFunc("GET /", h.HomePage)
-	router.HandleFunc("GET /posts", h.ListPosts)
-	router.HandleFunc("GET /posts/{id}", h.GetPost)
+	router.HandleFunc("GET /posts", h.ListPostsAPI)
+	router.HandleFunc("GET /posts/{id}", h.GetPostAPI)
 
 	// Protected routes (require authentication)
 	// Wrap handlers with RequireAuth middleware
 	authMiddleware := authAdapters.RequireAuth(h.authService)
-	router.Handle("GET /posts/new", authMiddleware(http.HandlerFunc(h.ShowCreateForm)))
-	router.Handle("GET /posts/{id}/edit", authMiddleware(http.HandlerFunc(h.ShowEditForm)))
-	router.Handle("POST /posts", authMiddleware(http.HandlerFunc(h.CreatePost)))
-	router.Handle("PUT /posts/{id}", authMiddleware(http.HandlerFunc(h.UpdatePost)))
-	router.Handle("DELETE /posts/{id}", authMiddleware(http.HandlerFunc(h.DeletePost)))
+	router.Handle("GET /posts/new", authMiddleware(http.HandlerFunc(h.CreatePostPage)))
+	router.Handle("GET /posts/{id}/edit", authMiddleware(http.HandlerFunc(h.EditPostPage)))
+	router.Handle("POST /posts", authMiddleware(http.HandlerFunc(h.CreatePostAPI)))
+	router.Handle("PUT /posts/{id}", authMiddleware(http.HandlerFunc(h.UpdatePostAPI)))
+	router.Handle("DELETE /posts/{id}", authMiddleware(http.HandlerFunc(h.DeletePostAPI)))
 }
 
 // HomePage handles the homepage rendering with post list.
-
-// handlePostRoutes handles routes with post ID parameter.
-func (h *HTTPHandler) handlePostRoutes(w http.ResponseWriter, r *http.Request) {
-	// Extract post ID from path
-	// For now, just handle basic CRUD operations
-	// TODO: Implement proper routing for /posts/{id}
-	switch r.Method {
-	case http.MethodGet:
-		h.GetPost(w, r)
-	case http.MethodPut:
-		h.UpdatePost(w, r)
-	case http.MethodDelete:
-		h.DeletePost(w, r)
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	}
-}
 
 // HomePage handles the homepage rendering with post list.
 func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
@@ -174,8 +159,8 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// CreatePost handles post creation requests.
-func (h *HTTPHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
+// CreatePostAPI handles post creation requests.
+func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -188,20 +173,81 @@ func (h *HTTPHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse JSON request
-	var req struct {
-		Title      string   `json:"title"`
-		Content    string   `json:"content"`
-		Categories []string `json:"categories"`
-	}
+	// Parse request body (JSON or multipart form submissions from browser)
+	const maxUploadSize = 20 << 20 // 20MB limit
+	var (
+		req struct {
+			Title      string   `json:"title"`
+			Content    string   `json:"content"`
+			Categories []string `json:"categories"`
+		}
+		imageData []byte
+	)
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "Invalid request body")
+	contentType := r.Header.Get("Content-Type")
+	switch {
+	case strings.HasPrefix(contentType, "multipart/form-data"):
+		if err := r.ParseMultipartForm(maxUploadSize); err != nil {
+			h.writeError(w, http.StatusBadRequest, "Invalid form data")
+			return
+		}
+
+		req.Title = strings.TrimSpace(r.FormValue("title"))
+		req.Content = strings.TrimSpace(r.FormValue("content"))
+		req.Categories = r.Form["categories[]"]
+		if len(req.Categories) == 0 {
+			req.Categories = r.Form["categories"]
+		}
+		if len(req.Categories) == 0 {
+			if csv := strings.TrimSpace(r.FormValue("categories")); csv != "" {
+				req.Categories = strings.Split(csv, ",")
+				for i := range req.Categories {
+					req.Categories[i] = strings.TrimSpace(req.Categories[i])
+				}
+			}
+		}
+
+		file, header, err := r.FormFile("image")
+		if err == nil {
+			defer file.Close()
+			if header.Size > maxUploadSize {
+				h.writeError(w, http.StatusRequestEntityTooLarge, "Image exceeds 20MB limit")
+				return
+			}
+			imageData, err = io.ReadAll(io.LimitReader(file, maxUploadSize))
+			if err != nil {
+				h.writeError(w, http.StatusBadRequest, "Failed to read image upload")
+				return
+			}
+		} else if err != http.ErrMissingFile {
+			h.writeError(w, http.StatusBadRequest, "Invalid image upload")
+			return
+		}
+
+	case strings.HasPrefix(contentType, "application/json"), strings.HasPrefix(contentType, "text/json"), contentType == "":
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			h.writeError(w, http.StatusBadRequest, "Invalid request body")
+			return
+		}
+	default:
+		h.writeError(w, http.StatusUnsupportedMediaType, "Unsupported content type")
 		return
 	}
 
+	req.Title = strings.TrimSpace(req.Title)
+	req.Content = strings.TrimSpace(req.Content)
+	if len(req.Categories) > 0 {
+		filtered := make([]string, 0, len(req.Categories))
+		for _, cat := range req.Categories {
+			if trimmed := strings.TrimSpace(cat); trimmed != "" {
+				filtered = append(filtered, trimmed)
+			}
+		}
+		req.Categories = filtered
+	}
+
 	// Create post
-	post, err := h.postService.CreatePost(r.Context(), userID, req.Title, req.Content, req.Categories, nil)
+	post, err := h.postService.CreatePost(r.Context(), userID, req.Title, req.Content, req.Categories, imageData)
 	if err != nil {
 		switch err {
 		case postDomain.ErrEmptyTitle, postDomain.ErrEmptyContent, postDomain.ErrNoCategories,
@@ -218,8 +264,8 @@ func (h *HTTPHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusCreated, post)
 }
 
-// GetPost handles post retrieval requests.
-func (h *HTTPHandler) GetPost(w http.ResponseWriter, r *http.Request) {
+// GetPostAPI handles post retrieval requests.
+func (h *HTTPHandler) GetPostAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -251,8 +297,11 @@ func (h *HTTPHandler) GetPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if this is an HTML request (browser) or API request
+	// Default to HTML if templates are available and no explicit JSON request
 	accept := r.Header.Get("Accept")
 	wantsJSON := strings.Contains(accept, "application/json")
+
+	// Render HTML by default if templates exist and not explicitly requesting JSON
 	if h.templates != nil && !wantsJSON {
 		// Render HTML template for browsers
 		h.renderPostDetail(w, r, post)
@@ -263,8 +312,8 @@ func (h *HTTPHandler) GetPost(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusOK, post)
 }
 
-// UpdatePost handles post update requests.
-func (h *HTTPHandler) UpdatePost(w http.ResponseWriter, r *http.Request) {
+// UpdatePostAPI handles post update requests.
+func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -328,8 +377,8 @@ func (h *HTTPHandler) UpdatePost(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// DeletePost handles post deletion requests.
-func (h *HTTPHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
+// DeletePostAPI handles post deletion requests.
+func (h *HTTPHandler) DeletePostAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -382,8 +431,8 @@ func (h *HTTPHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ListPosts handles listing posts with filters.
-func (h *HTTPHandler) ListPosts(w http.ResponseWriter, r *http.Request) {
+// ListPostsAPI handles listing posts with filters.
+func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -438,8 +487,8 @@ func (h *HTTPHandler) ListPosts(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusOK, posts)
 }
 
-// ShowCreateForm renders the post creation form.
-func (h *HTTPHandler) ShowCreateForm(w http.ResponseWriter, r *http.Request) {
+// CreatePostPage renders the post creation form.
+func (h *HTTPHandler) CreatePostPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get current user
@@ -477,8 +526,8 @@ func (h *HTTPHandler) ShowCreateForm(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ShowEditForm renders the post edit form.
-func (h *HTTPHandler) ShowEditForm(w http.ResponseWriter, r *http.Request) {
+// EditPostPage renders the post edit form.
+func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user ID
@@ -575,7 +624,12 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.templates.ExecuteTemplate(w, "post_detail", data); err != nil {
+	var buf bytes.Buffer
+	if err := h.templates.ExecuteTemplate(&buf, "post_detail", data); err != nil {
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		return
+	}
+	if _, err := buf.WriteTo(w); err != nil {
 		http.Error(w, "Failed to render page", http.StatusInternalServerError)
 	}
 }

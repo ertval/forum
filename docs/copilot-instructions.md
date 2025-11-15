@@ -234,6 +234,15 @@ Routes registered per-module via `handler.RegisterRoutes(router)` pattern.
 - Log all 500 errors with full context
 - Never expose internal errors to clients
 
+## Handler Naming Pattern
+
+HTTP handlers follow a consistent naming pattern based on their response type:
+
+- **API Handlers** (return JSON): End with `API` (e.g., `RegisterAPI`, `LoginAPI`, `LogoutAPI`)
+- **Page Handlers** (render HTML or redirect): End with `Page` (e.g., `LoginPage`, `RegisterPage`, `LogoutPage`)
+
+Handlers are grouped in code with API handlers first, followed by Page handlers. This pattern ensures clear separation between programmatic API endpoints and user-facing page endpoints.
+
 ## Testing Strategy
 
 - **Unit tests**: `tests/unit/` - Test business logic in isolation

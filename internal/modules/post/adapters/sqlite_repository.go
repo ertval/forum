@@ -53,9 +53,9 @@ func (r *SQLitePostRepository) Create(ctx context.Context, post *domain.Post) er
 
 	// Insert post-category associations
 	for _, categoryName := range post.Categories {
-		// Get category ID by name
+		// Get category ID by name (case-insensitive)
 		var categoryID string
-		err := tx.QueryRowContext(ctx, "SELECT id FROM categories WHERE name = ?", categoryName).Scan(&categoryID)
+		err := tx.QueryRowContext(ctx, "SELECT id FROM categories WHERE LOWER(name) = LOWER(?)", categoryName).Scan(&categoryID)
 		if err != nil {
 			return fmt.Errorf("category %s not found: %w", categoryName, err)
 		}
@@ -132,6 +132,7 @@ func (r *SQLitePostRepository) GetByID(ctx context.Context, postID string) (*dom
 	}
 	if username.Valid {
 		post.AuthorUsername = username.String
+		post.Author = username.String // Set both fields for compatibility
 	}
 
 	// Load categories
@@ -304,6 +305,7 @@ func (r *SQLitePostRepository) List(ctx context.Context, filter ports.PostFilter
 		}
 		if username.Valid {
 			post.AuthorUsername = username.String
+			post.Author = username.String // Set both fields for compatibility
 		}
 
 		// Load categories for this post
@@ -414,9 +416,9 @@ func (r *SQLiteCategoryRepository) GetByID(ctx context.Context, categoryID strin
 	return &category, nil
 }
 
-// GetByName retrieves a category by name.
+// GetByName retrieves a category by name (case-insensitive).
 func (r *SQLiteCategoryRepository) GetByName(ctx context.Context, name string) (*domain.Category, error) {
-	query := "SELECT id, name, description FROM categories WHERE name = ?"
+	query := "SELECT id, name, description FROM categories WHERE LOWER(name) = LOWER(?)"
 
 	var category domain.Category
 	var description sql.NullString

@@ -10,7 +10,7 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     line-height: 1.6;
     color: #5a5a5a;
-    background-color: #f7e7ce; /* Soft Beige */
+    background-color: #f9f9f9; /* Light gray closer to white */
 }
 
 .container {
@@ -21,9 +21,9 @@ body {
 
 /* Header */
 header {
-    background-color: #d3e0ea; /* Soft Blue */
+    background: linear-gradient(135deg, #d3e0ea 0%, #e0f0f7 100%); /* Soft Blue gradient */
     color: #5a5a5a;
-    padding: 1rem 0;
+    padding: 0.75rem 0; /* Reduced padding */
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
 }
 
@@ -41,7 +41,16 @@ header h1 a {
     color: #5a5a5a;
     text-decoration: none;
     font-size: 1.5rem;
-    font-weight: 600;
+    font-weight: 700; /* Bolder */
+    display: flex;
+    align-items: center;
+    gap: 0.5rem; /* Space for emoji/image */
+}
+
+header h1 a img {
+    height: 1.5rem;
+    width: auto;
+    vertical-align: middle;
 }
 
 header nav ul {
@@ -60,7 +69,7 @@ header nav a {
 }
 
 header nav a:hover {
-    background-color: #ffb7c9; /* Soft Coral */
+    background-color: #b5ead7; /* Pastel Green */
     color: white;
 }
 
@@ -72,7 +81,7 @@ main {
 
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
-    color: #d3bfe0; /* Soft Lavender */
+    color: #4a4a4a; /* Darker color for better readability */
     font-weight: 600;
     margin-bottom: 1rem;
 }
@@ -86,14 +95,14 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Filters */
 .filters {
-    background: #dce2ca; /* Soft Sage */
+    background: #ffffff; /* White */
     padding: 1.5rem;
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     height: fit-content;
     position: sticky;
     top: 20px;
-    border: 1px solid #d0d9c0;
+    border: 1px solid #c0d0e0; /* Pastel blue */
 }
 
 .filters h2 {
@@ -129,35 +138,35 @@ h1, h2, h3, h4, h5, h6 {
 .filter-group select:focus,
 .filter-group input[type="text"]:focus {
     outline: none;
-    border-color: #ffb7c9; /* Soft Coral */
-    box-shadow: 0 0 0 2px rgba(255, 183, 201, 0.2);
+    border-color: #a3d9c5; /* Darker pastel green with blue tint */
+    box-shadow: 0 0 0 2px rgba(163, 217, 197, 0.2);
 }
 
 .filter-group input[type="checkbox"] {
     margin-right: 0.5rem;
     width: 18px;
     height: 18px;
-    accent-color: #ffb7c9; /* Soft Coral */
+    accent-color: #a3d9c5; /* Darker pastel green with blue tint */
 }
 
 .filters button {
     width: 100%;
     padding: 0.75rem;
-    background: linear-gradient(135deg, #ffb7c9 0%, #ffcad4 100%); /* Soft Coral to Soft Pink */
-    color: white;
+    background: linear-gradient(135deg, #a3d9c5 0%, #c2f2e9 100%); /* Darker to lighter pastel green with blue tint */
+    color: #5a5a5a;
     border: none;
     border-radius: 8px;
     cursor: pointer;
     font-size: 1rem;
     font-weight: 500;
     transition: all 0.3s ease;
-    box-shadow: 0 2px 6px rgba(255, 183, 201, 0.3);
+    box-shadow: 0 2px 6px rgba(163, 217, 197, 0.3);
 }
 
 .filters button:hover {
-    background: linear-gradient(135deg, #ff9fb0 0%, #ffb7c9 100%);
+    background: linear-gradient(135deg, #a2d5c6 0%, #b5ead7 100%); /* Pastel Green gradient */
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(255, 183, 201, 0.4);
+    box-shadow: 0 4px 8px rgba(181, 234, 215, 0.4);
 }
 
 .filters button:active {
@@ -166,11 +175,11 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Posts */
 .posts {
-    background: #dce2ca; /* Soft Sage */
+    background: #ffffff; /* White */
     padding: 1.5rem;
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    border: 1px solid #d0d9c0;
+    border: 1px solid #e0e0e0;
 }
 
 .posts h2 {
@@ -181,11 +190,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .post-card {
-    border: 1px solid #c5d0b8;
+    border: 1px solid #c0d0e0; /* Pastel blue */
     border-radius: 12px;
     padding: 1.5rem;
     margin-bottom: 1.5rem;
-    background: #f0f4e8; /* Light background */
+    background: #ffffff; /* White */
     transition: all 0.3s ease;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
@@ -208,7 +217,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .post-header h3 a:hover {
-    color: #ffb7c9; /* Soft Coral */
+    color: #a3d9c5; /* Darker pastel green with blue tint */
 }
 
 .post-meta {
@@ -242,7 +251,7 @@ h1, h2, h3, h4, h5, h6 {
     align-items: center;
     margin-top: 1rem;
     padding-top: 1rem;
-    border-top: 1px solid #d0d9c0;
+    border-top: 1px solid #c0d0e0; /* Pastel blue */
 }
 
 .categories {
@@ -252,13 +261,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .category-tag {
-    background-color: #ffe5d9; /* Soft Peach */
+    background: linear-gradient(135deg, #e0f7e9 0%, #d3e0ea 100%); /* Pastel green to blue */
     padding: 0.35rem 0.8rem;
     border-radius: 20px;
     font-size: 0.85rem;
     color: #5a5a5a;
     font-weight: 500;
-    border: 1px solid #ffd3c1;
+    border: 1px solid #c0d0e0; /* Pastel blue */
 }
 
 .post-actions {
@@ -269,7 +278,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .post-actions span {
     color: #7a7a7a;
-    background-color: #ffe5d9; /* Soft Peach */
+    background-color: #e0f7e9; /* Pastel green */
     padding: 0.25rem 0.75rem;
     border-radius: 16px;
 }
@@ -282,21 +291,22 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .no-posts a {
-    color: #ffb7c9; /* Soft Coral */
+    color: #a3d9c5; /* Darker pastel green with blue tint */
     text-decoration: none;
     font-weight: 500;
 }
 
 .no-posts a:hover {
+    color: #7fb8a5; /* Even darker green for hover */
     text-decoration: underline;
 }
 
 /* Footer */
 footer {
-    background-color: #d3e0ea; /* Soft Blue */
+    background: linear-gradient(135deg, #d3e0ea 0%, #e0f0f7 100%); /* Soft Blue gradient */
     color: #5a5a5a;
     text-align: center;
-    padding: 1.5rem 0;
+    padding: 1rem 0; /* Reduced padding */
     margin-top: 3rem;
     border-top: 1px solid #c0d0e0;
 }
@@ -329,17 +339,17 @@ footer p {
     align-items: center;
     min-height: calc(100vh - 200px);
     padding: 2rem 0;
-    background: linear-gradient(135deg, #f7e7ce 0%, #d3e0ea 100%); /* Soft Beige to Soft Blue */
+    background: linear-gradient(135deg, #d3e0ea 0%, #f0f9f5 70%); /* Diagonal gradient from pastel blue to green */
 }
 
 .auth-form {
-    background: #f0f4e8; /* Soft Sage light */
+    background: #ffffff; /* White */
     padding: 2rem;
     border-radius: 16px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
     width: 100%;
     max-width: 400px;
-    border: 1px solid #d0d9c0;
+    border: 1px solid #e0e0e0;
 }
 
 .auth-form h2 {
@@ -378,29 +388,29 @@ footer p {
 
 .form-group input:focus {
     outline: none;
-    border-color: #ffb7c9; /* Soft Coral */
-    box-shadow: 0 0 0 2px rgba(255, 183, 201, 0.3);
+    border-color: #a3d9c5; /* Darker pastel green with blue tint */
+    box-shadow: 0 0 0 2px rgba(163, 217, 197, 0.3);
 }
 
 .auth-form button {
     width: 100%;
     padding: 0.75rem;
-    background: linear-gradient(135deg, #ffb7c9 0%, #ffcad4 100%); /* Soft Coral to Soft Pink */
-    color: white;
+    background: linear-gradient(135deg, #a3d9c5 0%, #c2f2e9 100%); /* Darker to lighter pastel green with blue tint */
+    color: #5a5a5a;
     border: none;
     border-radius: 8px;
     font-size: 1rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 8px rgba(255, 183, 201, 0.3);
+    box-shadow: 0 4px 8px rgba(163, 217, 197, 0.3);
     font-weight: 600;
 }
 
 .auth-form button:hover {
-    background: linear-gradient(135deg, #ff9fb0 0%, #ffb7c9 100%);
+    background: linear-gradient(135deg, #a2d5c6 0%, #b5ead7 100%); /* Pastel Green gradient */
     transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(255, 183, 201, 0.4);
+    box-shadow: 0 6px 12px rgba(181, 234, 215, 0.4);
 }
 
 .auth-link {
@@ -415,8 +425,14 @@ footer p {
     font-weight: 500;
 }
 
+.auth-link a {
+    color: #a3d9c5; /* Darker pastel green with blue tint */
+    text-decoration: none;
+    font-weight: 500;
+}
+
 .auth-link a:hover {
-    color: #ffb7c9; /* Soft Coral */
+    color: #7fb8a5; /* Even darker green for hover */
     text-decoration: underline;
 }
 
@@ -436,8 +452,8 @@ footer p {
 
 .form-group textarea:focus {
     outline: none;
-    border-color: #ffb7c9; /* Soft Coral */
-    box-shadow: 0 0 0 2px rgba(255, 183, 201, 0.3);
+    border-color: #a3d9c5; /* Darker pastel green with blue tint */
+    box-shadow: 0 0 0 2px rgba(163, 217, 197, 0.3);
 }
 
 /* Buttons */
@@ -481,44 +497,45 @@ footer p {
 }
 
 .btn-danger {
-    background: linear-gradient(135deg, #ffcad4 0%, #ffdce3 100%); /* Soft Pink */
+    background: linear-gradient(135deg, #f1c28e 0%, #f5d9b6 100%); /* Pastel orange for danger */
     color: #5a5a5a;
-    border: 1px solid #ffc0cc;
-    box-shadow: 0 2px 6px rgba(255, 202, 212, 0.4);
+    border: 1px solid #ecc198;
+    box-shadow: 0 2px 6px rgba(241, 194, 142, 0.4);
 }
 
 .btn-danger:hover {
-    background: linear-gradient(135deg, #ffadb7 0%, #ffcfd7 100%);
+    background: linear-gradient(135deg, #e9ae6d 0%, #f1c9a3 100%);
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(255, 202, 212, 0.5);
+    box-shadow: 0 4px 8px rgba(241, 194, 142, 0.5);
 }
 
 /* Category badges and tags */
 .category-badge {
     display: inline-block;
-    background: linear-gradient(135deg, #ffe5d9 0%, #fff2ee 100%); /* Soft Peach */
+    background: linear-gradient(135deg, #d3e0ea 0%, #e0f7e9 100%); /* Pastel blue to green */
     padding: 0.35rem 0.8rem;
     border-radius: 20px;
     font-size: 0.85rem;
     color: #5a5a5a;
     font-weight: 500;
     margin: 0.25rem;
-    border: 1px solid #ffd3c1;
+    border: 1px solid #c0d0e0; /* Pastel blue */
 }
 
 /* Comment section styles */
 .comments-section {
     margin-top: 2rem;
     padding-top: 2rem;
-    border-top: 1px solid #d0d9c0;
+    border-top: 1px solid #c0d0e0; /* Pastel blue */
 }
 
 .comment {
-    background: #f0f4e8;
+    background: #ffffff; /* White */
     padding: 1rem;
     border-radius: 8px;
     margin-bottom: 1rem;
-    border-left: 3px solid #d3e0ea; /* Soft Blue */
+    border: 1px solid #d3e0ea; /* Soft Blue */
+    border-left: 3px solid #a3d9c5; /* Darker green for accent */
 }
 
 .comment-header {
@@ -550,7 +567,7 @@ footer p {
 }
 
 .comment-actions button {
-    background: #ffe5d9; /* Soft Peach */
+    background: #e0f7e9; /* Pastel green */
     border: none;
     padding: 0.35rem 0.75rem;
     border-radius: 16px;
@@ -558,12 +575,12 @@ footer p {
     font-size: 0.85rem;
     color: #5a5a5a;
     transition: all 0.3s ease;
-    border: 1px solid #ffd3c1;
+    border: 1px solid #c2e6d6;
 }
 
 .comment-actions button:hover {
-    background: #ffb7c9; /* Soft Coral */
-    color: white;
+    background: #b5ead7; /* Pastel Green */
+    color: #5a5a5a;
 }
 
 /* Post detail page styles */
@@ -574,7 +591,7 @@ footer p {
 
 .post-header h1 {
     font-size: 1.8rem;
-    color: #d3bfe0; /* Soft Lavender */
+    color: #4a4a4a; /* Darker for better readability */
     margin-bottom: 0.5rem;
 }
 
@@ -582,10 +599,10 @@ footer p {
     display: flex;
     gap: 1.5rem;
     font-size: 0.9rem;
-    color: #7a7a7a;
+    color: #6a85a8; /* Pastel blue */
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
-    border-bottom: 1px solid #d0d9c0;
+    border-bottom: 1px solid #c0d0e0; /* Pastel blue */
 }
 
 .post-categories {
@@ -605,7 +622,7 @@ footer p {
     align-items: center;
     margin-top: 1.5rem;
     padding-top: 1.5rem;
-    border-top: 1px solid #d0d9c0;
+    border-top: 1px solid #c0d0e0; /* Pastel blue */
 }
 
 .reactions {
@@ -614,7 +631,7 @@ footer p {
 }
 
 .reactions button {
-    background: #ffe5d9; /* Soft Peach */
+    background: #e0f7e9; /* Pastel green */
     border: none;
     padding: 0.5rem 1rem;
     border-radius: 20px;
@@ -622,15 +639,15 @@ footer p {
     font-size: 0.95rem;
     color: #5a5a5a;
     transition: all 0.3s ease;
-    border: 1px solid #ffd3c1;
+    border: 1px solid #c2e6d6;
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
 .reactions button:hover {
-    background: #ffb7c9; /* Soft Coral */
-    color: white;
+    background: #b5ead7; /* Pastel Green */
+    color: #5a5a5a;
 }
 
 .post-owner-actions {
@@ -650,9 +667,9 @@ footer p {
     margin-top: 1rem;
     padding: 0.75rem;
     border-radius: 8px;
-    background-color: #ffcad4; /* Soft Pink */
+    background-color: #f9e6a8; /* Pastel yellow for errors */
     color: #5a5a5a;
-    border: 1px solid #ffc0cc;
+    border: 1px solid #f5d98f;
 }
 
 .error {
@@ -677,9 +694,9 @@ footer p {
     max-width: 800px;
     margin: 0 auto;
     padding: 1.5rem;
-    background: #f0f4e8; /* Soft Sage */
+    background: #ffffff; /* White */
     border-radius: 12px;
-    border: 1px solid #d0d9c0;
+    border: 1px solid #e0e0e0;
 }
 
 /* Checkbox labels */
@@ -694,7 +711,7 @@ footer p {
     margin-right: 0.5rem;
     width: 18px;
     height: 18px;
-    accent-color: #ffb7c9; /* Soft Coral */
+    accent-color: #a3d9c5; /* Darker pastel green with blue tint */
 }
 
 /* Responsive Design */

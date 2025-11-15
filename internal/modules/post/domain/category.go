@@ -1,11 +1,14 @@
 // Package domain contains the core business entities for the post module.
 package domain
 
+import "time"
+
 // Category represents a post category.
 type Category struct {
-	ID          string // Unique category identifier (UUID)
-	Name        string // Category name (unique, used for filtering)
-	Description string // Category description
+	ID          string    `json:"id"`                    // Unique category identifier (UUID)
+	Name        string    `json:"name"`                  // Category name (unique, used for filtering)
+	Description string    `json:"description,omitempty"` // Category description
+	CreatedAt   time.Time `json:"created_at"`            // Category creation timestamp
 }
 
 // Validate checks if the category is valid.

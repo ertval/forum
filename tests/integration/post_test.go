@@ -3,6 +3,7 @@ package integration
 import (
 	"bytes"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -93,6 +94,45 @@ func TestEmptyPostValidation(t *testing.T) {
 	}
 }
 
+// TestFormPostCreation ensures browser form submissions (multipart) succeed with multiple categories.
+func TestFormPostCreation(t *testing.T) {
+	app := setupTestApp(t)
+	defer app.Cleanup()
+
+	sessionToken := registerAndLogin(t, app, "user3@test.com", "user3", "pass123")
+	createCategory(t, app, "general")
+	createCategory(t, app, "news")
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	if err := writer.WriteField("title", "Form Post"); err != nil {
+		t.Fatalf("failed to write title field: %v", err)
+	}
+	if err := writer.WriteField("content", "Form body"); err != nil {
+		t.Fatalf("failed to write content field: %v", err)
+	}
+	if err := writer.WriteField("categories[]", "general"); err != nil {
+		t.Fatalf("failed to write category field: %v", err)
+	}
+	if err := writer.WriteField("categories[]", "news"); err != nil {
+		t.Fatalf("failed to write category field: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("failed to finalize multipart body: %v", err)
+	}
+
+	req := httptest.NewRequest("POST", "/posts", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.AddCookie(&http.Cookie{Name: "session_token", Value: sessionToken})
+
+	w := httptest.NewRecorder()
+	app.Server.Router().ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for multipart post, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 // Helper functions
 
 func setupTestApp(t *testing.T) *wire.App {
@@ -162,5 +202,13 @@ func createPost(t *testing.T, app *wire.App, sessionToken, title, content string
 
 	var response map[string]interface{}
 	json.NewDecoder(w.Body).Decode(&response)
-	return response["ID"].(string)
+	postID, ok := response["id"]
+	if !ok {
+		t.Fatalf("Response does not contain 'id' field: %v", response)
+	}
+	idStr, ok := postID.(string)
+	if !ok {
+		t.Fatalf("Post ID is not a string: %v", postID)
+	}
+	return idStr
 }
