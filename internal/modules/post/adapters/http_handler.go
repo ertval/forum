@@ -9,8 +9,11 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
+
+	logger "forum/internal/platform/logger"
 
 	authAdapters "forum/internal/modules/auth/adapters"
 	authPorts "forum/internal/modules/auth/ports"
@@ -397,6 +400,17 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 
 	case strings.HasPrefix(contentType, "application/json"), strings.HasPrefix(contentType, "text/json"), contentType == "":
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			// Log decode error to terminal so human output always shows errors.
+			cfg := &logger.Config{
+				TimePrecision: logger.TimePrecisionSeconds,
+				AllowedFields: []string{"url", "error", "errors"},
+				MaxLineWidth:  120,
+			}
+			l := logger.NewWithConfig(logger.InfoLevel, os.Stderr, cfg)
+			l.Error("http.request.error",
+				logger.String("url", r.URL.RequestURI()),
+				logger.String("error", err.Error()),
+			)
 			h.writeError(w, http.StatusBadRequest, "Invalid request body")
 			return
 		}
@@ -520,19 +534,71 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse JSON request
+	// Parse request body. The edit form sends a PUT with multipart/form-data (FormData),
+	// so support multipart parsing as well as JSON bodies.
 	var req struct {
-		Title   string `json:"title"`
-		Content string `json:"content"`
+		Title      string   `json:"title"`
+		Content    string   `json:"content"`
+		Categories []string `json:"categories"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "Invalid request body")
+	contentType := r.Header.Get("Content-Type")
+	switch {
+	case strings.HasPrefix(contentType, "multipart/form-data"):
+		// Allow moderately large uploads for edit (same 20MB limit)
+		const maxUploadSize = 20 << 20
+		if err := r.ParseMultipartForm(maxUploadSize); err != nil {
+			h.writeError(w, http.StatusBadRequest, "Invalid form data")
+			return
+		}
+		req.Title = strings.TrimSpace(r.FormValue("title"))
+		req.Content = strings.TrimSpace(r.FormValue("content"))
+		// categories may be posted as categories[] or categories
+		req.Categories = r.Form["categories[]"]
+		if len(req.Categories) == 0 {
+			req.Categories = r.Form["categories"]
+		}
+		if len(req.Categories) == 0 {
+			if csv := strings.TrimSpace(r.FormValue("categories")); csv != "" {
+				req.Categories = strings.Split(csv, ",")
+				for i := range req.Categories {
+					req.Categories[i] = strings.TrimSpace(req.Categories[i])
+				}
+			}
+		}
+
+	case strings.HasPrefix(contentType, "application/json"), strings.HasPrefix(contentType, "text/json"), contentType == "":
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			h.writeError(w, http.StatusBadRequest, "Invalid request body")
+			return
+		}
+
+	default:
+		// Fallback: try reading form values for urlencoded requests
+		if err := r.ParseForm(); err == nil {
+			req.Title = strings.TrimSpace(r.FormValue("title"))
+			req.Content = strings.TrimSpace(r.FormValue("content"))
+			// categories may be posted as categories[] or categories
+			req.Categories = r.Form["categories[]"]
+			if len(req.Categories) == 0 {
+				req.Categories = r.Form["categories"]
+			}
+			if len(req.Categories) == 0 {
+				if csv := strings.TrimSpace(r.FormValue("categories")); csv != "" {
+					req.Categories = strings.Split(csv, ",")
+					for i := range req.Categories {
+						req.Categories[i] = strings.TrimSpace(req.Categories[i])
+					}
+				}
+			}
+			break
+		}
+		h.writeError(w, http.StatusUnsupportedMediaType, "Unsupported content type")
 		return
 	}
 
-	// Update post
-	if err := h.postService.UpdatePost(r.Context(), postID, req.Title, req.Content); err != nil {
+	// Update post including categories
+	if err := h.postService.UpdatePost(r.Context(), postID, req.Title, req.Content, req.Categories); err != nil {
 		switch err {
 		case postDomain.ErrEmptyTitle, postDomain.ErrEmptyContent,
 			postDomain.ErrTitleTooLong, postDomain.ErrContentTooLong:
@@ -833,10 +899,12 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]interface{}{
-		"Title":      "Edit Post",
-		"User":       currentUser,
-		"Post":       post,
-		"Categories": categories,
+		"Title":           "Edit Post",
+		"User":            currentUser,
+		"Post":            post,
+		"Categories":      categories,
+		"ShowSidebar":     true,
+		"ShowPostSidebar": true,
 	}
 
 	// Parse templates individually for this page
@@ -913,7 +981,16 @@ func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interfac
 func (h *HTTPHandler) writeError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"error": message})
+	// Also log the error to the terminal so human output always includes error messages.
+	cfg := &logger.Config{
+		TimePrecision: logger.TimePrecisionSeconds,
+		AllowedFields: []string{"error", "errors"},
+		MaxLineWidth:  200,
+	}
+	l := logger.NewWithConfig(logger.InfoLevel, os.Stderr, cfg)
+	l.Error("http.handler.error", logger.String("error", message))
+
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
 // createPostPreview creates a preview of the post content with a fixed length.

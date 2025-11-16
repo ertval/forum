@@ -11,7 +11,7 @@ import (
 type PostService interface {
 	CreatePost(ctx context.Context, userID string, title, content string, categories []string, image []byte) (*domain.Post, error)
 	GetPost(ctx context.Context, postID string) (*domain.Post, error)
-	UpdatePost(ctx context.Context, postID string, title, content string) error
+	UpdatePost(ctx context.Context, postID string, title, content string, categories []string) error
 	DeletePost(ctx context.Context, postID string) error
 	ListPosts(ctx context.Context, filter PostFilter) ([]*domain.Post, error)
 }

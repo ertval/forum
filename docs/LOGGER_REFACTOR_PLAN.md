@@ -8,6 +8,9 @@ Summary of changes made:
 - For human (terminal) output, timestamps are shortened to seconds by default.
 - The `user_agent` field is omitted by default from human output.
 - Lines are truncated to `MaxLineWidth` (default 80) with an ellipsis.
+ - The `user_agent` field is omitted by default from human output.
+ - Human output is restricted by default to essential HTTP info: `url`, `response`, `status`, `error`, `errors`.
+ - Lines are truncated to `MaxLineWidth` (default 120) with an ellipsis.
 
 Plan (steps and status):
 

@@ -225,14 +225,16 @@ func TestService_UpdatePost(t *testing.T) {
 		postID        string
 		title         string
 		content       string
+		categories    []string
 		setupMocks    func(*mockPostRepository)
 		expectedError error
 	}{
 		{
-			name:    "valid update",
-			postID:  "post-1",
-			title:   "Updated Title",
-			content: "Updated content",
+			name:       "valid update",
+			postID:     "post-1",
+			title:      "Updated Title",
+			content:    "Updated content",
+			categories: []string{"tests"},
 			setupMocks: func(mpr *mockPostRepository) {
 				mpr.getByIDFunc = func(ctx context.Context, postID string) (*domain.Post, error) {
 					return &domain.Post{
@@ -252,10 +254,11 @@ func TestService_UpdatePost(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:    "post not found",
-			postID:  "nonexistent",
-			title:   "Updated Title",
-			content: "Updated content",
+			name:       "post not found",
+			postID:     "nonexistent",
+			title:      "Updated Title",
+			content:    "Updated content",
+			categories: []string{"tests"},
 			setupMocks: func(mpr *mockPostRepository) {
 				mpr.getByIDFunc = func(ctx context.Context, postID string) (*domain.Post, error) {
 					return nil, domain.ErrPostNotFound
@@ -264,10 +267,11 @@ func TestService_UpdatePost(t *testing.T) {
 			expectedError: domain.ErrPostNotFound,
 		},
 		{
-			name:    "empty title",
-			postID:  "post-1",
-			title:   "",
-			content: "Valid content",
+			name:       "empty title",
+			postID:     "post-1",
+			title:      "",
+			content:    "Valid content",
+			categories: []string{"tests"},
 			setupMocks: func(mpr *mockPostRepository) {
 				mpr.getByIDFunc = func(ctx context.Context, postID string) (*domain.Post, error) {
 					return &domain.Post{
@@ -288,14 +292,20 @@ func TestService_UpdatePost(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockPostRepo := &mockPostRepository{}
+			mockCategoryRepo := &mockCategoryRepository{}
+
+			// Default category repo returns a category for any name unless overridden by setup
+			mockCategoryRepo.getByNameFunc = func(ctx context.Context, name string) (*domain.Category, error) {
+				return &domain.Category{ID: "cat-1", Name: name}, nil
+			}
 
 			if tt.setupMocks != nil {
 				tt.setupMocks(mockPostRepo)
 			}
 
-			service := NewService(mockPostRepo, nil)
+			service := NewService(mockPostRepo, mockCategoryRepo)
 
-			err := service.UpdatePost(ctx, tt.postID, tt.title, tt.content)
+			err := service.UpdatePost(ctx, tt.postID, tt.title, tt.content, tt.categories)
 
 			if tt.expectedError != nil {
 				if err == nil {

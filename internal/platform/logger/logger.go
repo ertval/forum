@@ -57,6 +57,9 @@ type Config struct {
 	TimePrecision TimePrecision
 	// OmitFields lists field keys to exclude from human output (e.g. "user_agent").
 	OmitFields []string
+	// AllowedFields, when non-empty, restricts human output to only these keys.
+	// If empty, all fields are considered (except those in OmitFields).
+	AllowedFields []string
 	// MaxLineWidth limits the length of a single human-readable log line.
 	// If <= 0 no truncation is applied.
 	MaxLineWidth int
@@ -77,7 +80,9 @@ func New(level Level, output io.Writer) *Logger {
 	defCfg := &Config{
 		TimePrecision: TimePrecisionSeconds,
 		OmitFields:    []string{"user_agent"},
-		MaxLineWidth:  80,
+		// default to only show essential HTTP info in human output
+		AllowedFields: []string{"url", "response", "status", "error", "errors"},
+		MaxLineWidth:  200,
 	}
 
 	return &Logger{
@@ -199,19 +204,35 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 			}
 		}
 
-		// prepare fields, respecting omit list
-		omit := map[string]struct{}{}
-		if l.config != nil {
-			for _, k := range l.config.OmitFields {
-				omit[k] = struct{}{}
+		// prepare fields: if AllowedFields is set, only include those keys.
+		allowed := map[string]struct{}{}
+		useAllowed := false
+		if l.config != nil && len(l.config.AllowedFields) > 0 {
+			for _, k := range l.config.AllowedFields {
+				allowed[k] = struct{}{}
 			}
+			useAllowed = true
 		}
 
 		out := fmt.Sprintf("[%s] %s %s", entry["level"], ts, entry["msg"])
 		if len(data) > 0 {
 			for k, v := range data {
-				if _, ok := omit[k]; ok {
-					continue
+				if useAllowed {
+					if _, ok := allowed[k]; !ok {
+						continue
+					}
+				} else if l.config != nil {
+					// if not using AllowedFields, respect OmitFields
+					skip := false
+					for _, om := range l.config.OmitFields {
+						if om == k {
+							skip = true
+							break
+						}
+					}
+					if skip {
+						continue
+					}
 				}
 				out += fmt.Sprintf(" %s=%v", k, v)
 			}

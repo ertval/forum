@@ -123,7 +123,7 @@ func (s *Service) GetPost(ctx context.Context, postID string) (*domain.Post, err
 }
 
 // UpdatePost updates a post.
-func (s *Service) UpdatePost(ctx context.Context, postID string, title, content string) error {
+func (s *Service) UpdatePost(ctx context.Context, postID string, title, content string, categories []string) error {
 	// Retrieve existing post
 	post, err := s.postRepo.GetByID(ctx, postID)
 	if err != nil {
@@ -133,11 +133,20 @@ func (s *Service) UpdatePost(ctx context.Context, postID string, title, content 
 	// Update fields
 	post.Title = title
 	post.Content = content
+	post.Categories = categories
 	post.UpdatedAt = time.Now()
 
 	// Validate updated post
 	if err := post.Validate(); err != nil {
 		return err
+	}
+
+	// Verify all categories exist
+	for _, categoryName := range categories {
+		_, err := s.categoryRepo.GetByName(ctx, categoryName)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Save to repository
