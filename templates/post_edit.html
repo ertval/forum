@@ -35,16 +35,17 @@
             <label for="categories">Categories *</label>
             <div class="category-checkboxes">
                 {{if .Categories}}
-                    {{range .Categories}}
-                    <label class="checkbox-label">
-                        <input 
-                            type="checkbox" 
-                            name="categories" 
-                            value="{{.Name}}"
-                            {{range $.Post.Categories}}{{if eq . $.Name}}checked{{end}}{{end}}>
-                        {{.Name}}
-                    </label>
-                    {{end}}
+                        {{range .Categories}}
+                        {{$cat := .}}
+                        <label class="checkbox-label">
+                            <input 
+                                type="checkbox" 
+                                name="categories" 
+                                value="{{$cat.Name}}"
+                                {{range $.Post.Categories}}{{if eq . $cat.Name}}checked{{end}}{{end}}>
+                            {{$cat.Name}}
+                        </label>
+                        {{end}}
                 {{else}}
                     <p class="form-help">No categories available</p>
                 {{end}}

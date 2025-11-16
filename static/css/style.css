@@ -1183,6 +1183,37 @@ footer p {
     border: 1px solid #e0e0e0;
 }
 
+/* Form actions layout: keep Update on left and Cancel pinned to right.
+   Buttons should be the same size while keeping their color differences. */
+.form-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.form-actions .btn {
+    /* Ensure consistent sizing for both buttons */
+    width: 160px;
+    padding: 0.6rem 1rem;
+    text-align: center;
+}
+
+.form-actions .btn-secondary {
+    /* Push cancel to the far right */
+    margin-left: auto;
+}
+
+@media (max-width: 480px) {
+    .form-actions {
+        flex-direction: column-reverse; /* Cancel appears after Update visually */
+        gap: 0.5rem;
+        align-items: stretch;
+    }
+    .form-actions .btn {
+        width: 100%;
+    }
+}
+
 /* Load More Container */
 .load-more-container {
     display: flex;
