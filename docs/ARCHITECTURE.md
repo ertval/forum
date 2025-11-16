@@ -166,7 +166,7 @@ import "forum/internal/modules/user/adapters"
 
 ## Dependency Injection
 
-All wiring happens in `cmd/forum/wire/` package, called from `main.go`:
+All wiring happens in the `cmd/forum/wire/` package, called from `main.go`:
 
 ```go
 func main() {
@@ -188,11 +188,43 @@ func main() {
 
 The wire package organizes DI into focused files:
 - `app.go` - Main orchestration and app lifecycle
-- `repos.go` - Repository initialization
+- `repositories.go` - Repository initialization
 - `services.go` - Service initialization  
 - `handlers.go` - HTTP handler initialization
 
 No magic frameworks. Everything explicit and organized.
+
+### Unified Dependency Injection Pattern (Implemented)
+
+This project now uses a unified DI pattern for all HTTP handlers. The implementation lives in `cmd/forum/wire/` and is applied across module adapters.
+
+Key points:
+- A single concrete `ServiceContainer` (defined in `cmd/forum/wire/services.go`) holds all application service implementations as private fields.
+- `ServiceContainer` exposes accessor methods for each service (for example: `Auth()`, `User()`, `Post()`, `Category()`).
+- Every HTTP handler uses the same constructor signature:
+  ```go
+  func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler
+  ```
+- Each handler declares a small local `ServiceContainer` interface that lists only the accessor methods it needs (for example:
+  ```go
+  type ServiceContainer interface {
+      Post() postPorts.PostService
+      Auth() authPorts.AuthService
+  }
+  ```
+  The concrete `wire.ServiceContainer` satisfies these local interfaces.
+- Handlers call accessor methods to obtain the service interfaces they depend on and remain decoupled from concrete implementations.
+
+Why this was added:
+- **Consistency**: all handlers use identical constructor signatures, simplifying wiring and tests.
+- **Explicit dependencies**: handlers declare precisely what they require via a minimal interface.
+- **Testability**: unit tests can provide small mocks implementing the handler-local `ServiceContainer` without constructing the full application container.
+- **Avoid circular imports**: handlers depend only on service port interfaces and the small accessor interface, not concrete implementations or the `wire` package internals.
+
+Where to look:
+- Implementation & examples: `docs/UNIFIED_DI_PATTERN.md`
+- Wire code: `cmd/forum/wire/services.go`, `cmd/forum/wire/handlers.go`
+- Handler examples: `internal/modules/*/adapters/http_handler.go` (each handler shows a local `ServiceContainer` interface)
 
 ---
 

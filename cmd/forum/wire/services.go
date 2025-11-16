@@ -21,28 +21,42 @@ import (
 	userPorts "forum/internal/modules/user/ports"
 )
 
-// Services holds all service instances.
-type Services struct {
-	Auth         authPorts.AuthService
-	User         userPorts.UserService
-	Post         postPorts.PostService
-	Category     postPorts.CategoryService
-	Comment      commentPorts.CommentService
-	Reaction     reactionPorts.ReactionService
-	Moderation   moderationPorts.ModerationService
-	Notification notificationPorts.NotificationService
+// ServiceContainer holds all application services for dependency injection.
+// This provides a unified way to pass dependencies to handlers.
+// Fields are lowercase (private) with public accessor methods for interface satisfaction.
+type ServiceContainer struct {
+	auth         authPorts.AuthService
+	user         userPorts.UserService
+	post         postPorts.PostService
+	category     postPorts.CategoryService
+	comment      commentPorts.CommentService
+	reaction     reactionPorts.ReactionService
+	moderation   moderationPorts.ModerationService
+	notification notificationPorts.NotificationService
 }
 
-// initServices creates all service instances with their dependencies.
-func initServices(repos *Repositories, sessionDuration time.Duration) *Services {
-	return &Services{
-		Auth:         authApp.NewService(repos.Session, repos.User, sessionDuration),
-		User:         userApp.NewService(repos.User),
-		Post:         postApp.NewService(repos.Post, repos.Category),
-		Category:     postApp.NewCategoryService(repos.Category),
-		Comment:      commentApp.NewService(repos.Comment),
-		Reaction:     reactionApp.NewService(repos.Reaction),
-		Moderation:   moderationApp.NewService(repos.Moderation),
-		Notification: notificationApp.NewService(repos.Notification),
+// Accessor methods for ServiceContainer to satisfy handler interfaces
+func (sc *ServiceContainer) Auth() authPorts.AuthService                   { return sc.auth }
+func (sc *ServiceContainer) User() userPorts.UserService                   { return sc.user }
+func (sc *ServiceContainer) Post() postPorts.PostService                   { return sc.post }
+func (sc *ServiceContainer) Category() postPorts.CategoryService           { return sc.category }
+func (sc *ServiceContainer) Comment() commentPorts.CommentService          { return sc.comment }
+func (sc *ServiceContainer) Reaction() reactionPorts.ReactionService       { return sc.reaction }
+func (sc *ServiceContainer) Moderation() moderationPorts.ModerationService { return sc.moderation }
+func (sc *ServiceContainer) Notification() notificationPorts.NotificationService {
+	return sc.notification
+}
+
+// initServices creates a ServiceContainer with all service instances and their dependencies.
+func initServices(repos *Repositories, sessionDuration time.Duration) *ServiceContainer {
+	return &ServiceContainer{
+		auth:         authApp.NewService(repos.Session, repos.User, sessionDuration),
+		user:         userApp.NewService(repos.User),
+		post:         postApp.NewService(repos.Post, repos.Category),
+		category:     postApp.NewCategoryService(repos.Category),
+		comment:      commentApp.NewService(repos.Comment),
+		reaction:     reactionApp.NewService(repos.Reaction),
+		moderation:   moderationApp.NewService(repos.Moderation),
+		notification: notificationApp.NewService(repos.Notification),
 	}
 }

@@ -19,10 +19,16 @@ type HTTPHandler struct {
 	templates   *template.Template
 }
 
-// NewHTTPHandler creates a new HTTP handler for authentication.
-func NewHTTPHandler(authService ports.AuthService, templates *template.Template) *HTTPHandler {
+// ServiceContainer defines the minimal interface needed by this handler.
+// This allows the handler to receive all services but only use what it needs.
+type ServiceContainer interface {
+	Auth() ports.AuthService
+}
+
+// NewHTTPHandler creates a new HTTP handler for authentication with unified dependency injection.
+func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
 	return &HTTPHandler{
-		authService: authService,
+		authService: services.Auth(),
 		templates:   templates,
 	}
 }
@@ -33,7 +39,7 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	router.HandleFunc("POST /auth/login", h.LoginAPI)
 	router.HandleFunc("POST /auth/logout", h.Logout)
 	router.HandleFunc("GET /auth/session", h.GetSession)
-	
+
 	// Frontend routes for auth pages
 	router.HandleFunc("GET /login", h.LoginPage)
 	router.HandleFunc("GET /register", h.RegisterPage)

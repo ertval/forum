@@ -5,17 +5,27 @@ package adapters
 
 import (
 	"forum/internal/modules/notification/ports"
+	"html/template"
 	"net/http"
 )
 
 // HTTPHandler handles HTTP requests for notifications.
 type HTTPHandler struct {
 	notificationService ports.NotificationService
+	templates           *template.Template
 }
 
-// NewHTTPHandler creates a new HTTP handler for notifications.
-func NewHTTPHandler(notificationService ports.NotificationService) *HTTPHandler {
-	return &HTTPHandler{notificationService: notificationService}
+// ServiceContainer defines the minimal interface needed by this handler.
+type ServiceContainer interface {
+	Notification() ports.NotificationService
+}
+
+// NewHTTPHandler creates a new HTTP handler for notifications with unified dependency injection.
+func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
+	return &HTTPHandler{
+		notificationService: services.Notification(),
+		templates:           templates,
+	}
 }
 
 // RegisterRoutes registers all notification routes.
