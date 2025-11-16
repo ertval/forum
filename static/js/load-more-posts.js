@@ -137,11 +137,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             offset += posts.length;
-            loadMoreBtn.textContent = 'Load More';
+            loadMoreBtn.textContent = 'Show More';
             loadMoreBtn.disabled = false;
         } catch (err) {
             console.error('Error loading more posts:', err);
-            loadMoreBtn.textContent = 'Load More';
+            loadMoreBtn.textContent = 'Show More';
             loadMoreBtn.disabled = false;
             alert('Failed to load more posts. Please try again.');
         }

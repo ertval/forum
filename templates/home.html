@@ -50,9 +50,9 @@
         <button id="load-more-btn"
             class="btn btn-primary"
             data-offset="{{len .Posts}}"
-            data-category=""
-            data-my-posts="false"
-            data-liked-posts="false">Show More</button>
+            data-category="{{if .SelectedCategory}}{{.SelectedCategory}}{{end}}"
+            data-my-posts="{{.MyPosts}}"
+            data-liked-posts="{{.LikedPosts}}">Show More</button>
         {{if .User}}
         <a href="/posts/new" class="btn btn-secondary">Create Post</a>
         {{end}}
