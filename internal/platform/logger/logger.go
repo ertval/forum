@@ -55,14 +55,14 @@ const (
 
 // ANSI color codes for terminal human output.
 const (
-	colorReset  = "\x1b[0m"
-	colorRed    = "\x1b[31m"
-	colorGreen  = "\x1b[32m"
-	colorYellow = "\x1b[33m"
-	colorBlue   = "\x1b[34m"
-	colorMagenta= "\x1b[35m"
-	colorCyan   = "\x1b[36m"
-	colorWhite  = "\x1b[37m"
+	colorReset   = "\x1b[0m"
+	colorRed     = "\x1b[31m"
+	colorGreen   = "\x1b[32m"
+	colorYellow  = "\x1b[33m"
+	colorBlue    = "\x1b[34m"
+	colorMagenta = "\x1b[35m"
+	colorCyan    = "\x1b[36m"
+	colorWhite   = "\x1b[37m"
 )
 
 // Config holds runtime options for human log formatting.
@@ -77,6 +77,8 @@ type Config struct {
 	// MaxLineWidth limits the length of a single human-readable log line.
 	// If <= 0 no truncation is applied.
 	MaxLineWidth int
+	// Colorize enables ANSI coloring in human output. Set to false to disable colors (e.g., when piping to files).
+	Colorize bool
 }
 
 // New creates a new logger with the specified level and output.
@@ -97,6 +99,7 @@ func New(level Level, output io.Writer) *Logger {
 		// default to only show essential HTTP info in human output
 		AllowedFields: []string{"url", "response", "status", "error", "errors"},
 		MaxLineWidth:  200,
+		Colorize:      true,
 	}
 
 	return &Logger{
@@ -185,6 +188,21 @@ func colorize(s, color string) string {
 	return color + s + colorReset
 }
 
+// applyColor applies colorization depending on the logger config.
+func (l *Logger) applyColor(s, color string) string {
+	if l.config == nil {
+		// default to color enabled for terminal output
+		if color == "" {
+			return s
+		}
+		return color + s + colorReset
+	}
+	if !l.config.Colorize || color == "" {
+		return s
+	}
+	return color + s + colorReset
+}
+
 // colorForLevel returns the ANSI color for a log level.
 func colorForLevel(l Level) string {
 	switch l {
@@ -223,7 +241,8 @@ func colorForMessage(msg string, lvl Level) string {
 	lower := strings.ToLower(msg)
 	// Important positive messages
 	if strings.Contains(lower, "started") || strings.Contains(lower, "listening") || strings.Contains(lower, "listening on") || strings.Contains(lower, "server started") {
-		return colorGreen
+		// server start / listening messages: use blue to highlight
+		return colorBlue
 	}
 	// Stopping/shutdown
 	if strings.Contains(lower, "stopped") || strings.Contains(lower, "shutdown") || strings.Contains(lower, "stopping") {
@@ -289,13 +308,13 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 
 		// colorize level label
 		levelLabel := fmt.Sprintf("[%s]", entry["level"])
-		levelColored := colorize(levelLabel, colorForLevel(level))
+		levelColored := l.applyColor(levelLabel, colorForLevel(level))
 
 		// colorize message when it's important (server start/stop, errors, etc.)
 		msgStr := fmt.Sprintf("%s", entry["msg"])
 		msgColor := colorForMessage(msgStr, level)
 		if msgColor != "" {
-			msgStr = colorize(msgStr, msgColor)
+			msgStr = l.applyColor(msgStr, msgColor)
 		}
 
 		out := fmt.Sprintf("%s %s %s", levelColored, ts, msgStr)
@@ -357,7 +376,7 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 				}
 
 				if valColor != "" {
-					out += fmt.Sprintf(" %s=%s", k, colorize(valStr, valColor))
+					out += fmt.Sprintf(" %s=%s", k, l.applyColor(valStr, valColor))
 				} else {
 					out += fmt.Sprintf(" %s=%v", k, v)
 				}

@@ -4,6 +4,7 @@ package adapters
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -56,6 +57,33 @@ func (h *HTTPHandler) Templates() *template.Template {
 	return h.templates
 }
 
+// buildCurrentUser fetches full user info and activity stats and returns
+// a map suitable for templates. It always returns a map (never nil).
+func (h *HTTPHandler) buildCurrentUser(ctx context.Context, userID int) map[string]interface{} {
+	var username, email string
+	var postCount, commentCount int
+
+	if h.userService != nil {
+		if user, err := h.userService.GetByID(ctx, userID); err == nil && user != nil {
+			username = user.Username
+			email = user.Email
+		}
+
+		if stats, err := h.userService.GetUserStats(ctx, userID); err == nil && stats != nil {
+			postCount = stats.PostCount
+			commentCount = stats.CommentCount
+		}
+	}
+
+	return map[string]interface{}{
+		"ID":           strconv.Itoa(userID),
+		"Username":     username,
+		"Email":        email,
+		"PostCount":    postCount,
+		"CommentCount": commentCount,
+	}
+}
+
 // RegisterRoutes registers all post routes.
 func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	// Public routes (no auth required)
@@ -86,28 +114,13 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	// Get session token from cookie
+	// Get session token from cookie and build full user info when available
 	cookie, err := r.Cookie("session_token")
 	var currentUser any = nil // This will hold user info if logged in
 
 	if err == nil && cookie.Value != "" {
-		// Validate the session using the auth service
-		session, err := h.authService.ValidateSession(ctx, cookie.Value)
-		if err == nil && session != nil {
-			// Get actual user details using user service
-			user, err := h.userService.GetByID(ctx, session.UserID)
-			if err == nil && user != nil {
-				currentUser = map[string]interface{}{
-					"ID":       strconv.Itoa(user.ID), // Convert to string for template comparison
-					"Username": user.Username,
-				}
-			} else {
-				// If we can't get user details, still create with minimal info
-				currentUser = map[string]interface{}{
-					"ID":       session.UserID,
-					"Username": "user" + fmt.Sprintf("%d", session.UserID),
-				}
-			}
+		if session, err := h.authService.ValidateSession(ctx, cookie.Value); err == nil && session != nil {
+			currentUser = h.buildCurrentUser(ctx, session.UserID)
 		}
 	}
 
@@ -216,29 +229,8 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 	var currentUser any = nil // This will hold user info if logged in
 
 	if err == nil && cookie.Value != "" {
-		// Validate the session using the auth service
-		session, err := h.authService.ValidateSession(ctx, cookie.Value)
-		if err == nil && session != nil {
-			// Get actual user details using user service
-			user, err := h.userService.GetByID(ctx, session.UserID)
-			if err == nil && user != nil {
-				currentUser = map[string]interface{}{
-					"ID":           strconv.Itoa(user.ID), // Convert to string for template comparison
-					"Username":     user.Username,
-					"Email":        user.Email,
-					"PostCount":    0, // TODO: Implement post count
-					"CommentCount": 0, // TODO: Implement comment count
-				}
-			} else {
-				// If we can't get user details, still create with minimal info
-				currentUser = map[string]interface{}{
-					"ID":           session.UserID,
-					"Username":     "user" + fmt.Sprintf("%d", session.UserID),
-					"Email":        "",
-					"PostCount":    0,
-					"CommentCount": 0,
-				}
-			}
+		if session, err := h.authService.ValidateSession(ctx, cookie.Value); err == nil && session != nil {
+			currentUser = h.buildCurrentUser(ctx, session.UserID)
 		}
 	}
 
@@ -822,19 +814,12 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPHandler) CreatePostPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	// Get current user
+	// Get current user (populate full profile/stats)
 	userIDStr := authAdapters.GetUserID(ctx)
 	var currentUser interface{}
 	if userIDStr != "" {
-		userID, err := strconv.Atoi(userIDStr)
-		if err == nil {
-			user, err := h.userService.GetByID(ctx, userID)
-			if err == nil && user != nil {
-				currentUser = map[string]interface{}{
-					"ID":       strconv.Itoa(user.ID), // Convert to string for template comparison
-					"Username": user.Username,
-				}
-			}
+		if userID, err := strconv.Atoi(userIDStr); err == nil {
+			currentUser = h.buildCurrentUser(ctx, userID)
 		}
 	}
 
@@ -899,17 +884,11 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get current user info
+	// Get current user info (full profile/stats)
 	userIDInt, err := strconv.Atoi(userID)
 	var currentUser interface{}
 	if err == nil {
-		user, err := h.userService.GetByID(ctx, userIDInt)
-		if err == nil && user != nil {
-			currentUser = map[string]interface{}{
-				"ID":       strconv.Itoa(user.ID), // Convert to string for template comparison
-				"Username": user.Username,
-			}
-		}
+		currentUser = h.buildCurrentUser(ctx, userIDInt)
 	}
 
 	// Fetch all categories
@@ -944,19 +923,12 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, post *postDomain.Post) {
 	ctx := r.Context()
 
-	// Get current user if logged in
+	// Get current user if logged in (full profile/stats)
 	var currentUser interface{}
 	cookie, err := r.Cookie("session_token")
 	if err == nil && cookie.Value != "" {
-		session, err := h.authService.ValidateSession(ctx, cookie.Value)
-		if err == nil && session != nil {
-			user, err := h.userService.GetByID(ctx, session.UserID)
-			if err == nil && user != nil {
-				currentUser = map[string]interface{}{
-					"ID":       strconv.Itoa(user.ID), // Convert to string for template comparison with Post.UserID
-					"Username": user.Username,
-				}
-			}
+		if session, err := h.authService.ValidateSession(ctx, cookie.Value); err == nil && session != nil {
+			currentUser = h.buildCurrentUser(ctx, session.UserID)
 		}
 	}
 
