@@ -162,14 +162,10 @@ h1, h2, h3, h4, h5, h6 {
     overflow: auto;
 }
 
-/* Ensure the user-card itself remains visible and sticks near the top.
-   This provides a predictable sticky behaviour for the user-card even
-   when the sidebar layout is rendered solely to show the user card. */
-.page-layout .sidebar .user-card {
-    position: sticky;
-    top: 92px; /* Slightly below header */
-    z-index: 5;
-}
+/* Note: the entire sidebar is sticky (see .page-layout .sidebar).
+    Avoid making individual cards sticky to prevent overlap when
+    multiple cards (filters, post-sidebars) are present. Keep cards
+    static inside the sticky sidebar so they scroll together. */
 
 /* Page layout when user sidebar is present */
 .page-layout {

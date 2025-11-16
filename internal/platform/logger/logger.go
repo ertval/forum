@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sort"
 	"sync"
 	"time"
 )
@@ -319,7 +320,14 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 
 		out := fmt.Sprintf("%s %s %s", levelColored, ts, msgStr)
 		if len(data) > 0 {
-			for k, v := range data {
+			// iterate fields in sorted order for stable output
+			keys := make([]string, 0, len(data))
+			for k := range data {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			for _, k := range keys {
+				v := data[k]
 				if useAllowed {
 					if _, ok := allowed[k]; !ok {
 						continue
@@ -373,6 +381,11 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 							valColor = colorBlue
 						}
 					}
+				}
+
+				// color error values red
+				if valColor == "" && k == "error" {
+					valColor = colorRed
 				}
 
 				if valColor != "" {
