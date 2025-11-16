@@ -10,32 +10,48 @@
 <body>
     <header>
         <nav>
-            <div class="container">
-                <h1><a href="/">Forum</a></h1>
-                <ul>
-                    <li><a href="/board">Board</a></li>
+            <div class="container header-flex">
+                <div class="nav-left">
+                    <h1><a href="/">Forum</a></h1>
+                </div>
+                <div class="nav-center">
+                    <a class="nav-link" href="/board">Board</a>
+                </div>
+                <div class="nav-right">
                     {{if .User}}
-                        <li>Welcome, {{.User.Username}}</li>
-                        <li><a href="/posts/new">Create Post</a></li>
-                        <li><a href="/logout">Logout</a></li>
+                        <span class="welcome-text">Welcome, {{.User.Username}}</span>
                     {{else}}
-                        <li><a href="/login">Login</a></li>
-                        <li><a href="/register">Register</a></li>
+                        <a class="nav-link" href="/login">Login</a>
+                        <a class="nav-link" href="/register">Register</a>
                     {{end}}
-                </ul>
+                </div>
             </div>
         </nav>
     </header>
 
     <main>
         <div class="container">
-            {{template "content" .}}
+            {{if and .User .ShowSidebar}}
+            <div class="page-layout">
+                <aside class="sidebar">
+                    {{template "user-card" .}}
+                    {{if .ShowFilter}}
+                        {{template "filter-card" .}}
+                    {{end}}
+                </aside>
+                <div class="main-content">
+                    {{template "content" .}}
+                </div>
+            </div>
+            {{else}}
+                {{template "content" .}}
+            {{end}}
         </div>
     </main>
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 Forum. All rights reserved.</p>
+            <p>&copy; 2025 Forum. Ertval Karameta && Magnus Edvall.</p>
             <p><a href="/health" class="category-tag">Health Status</a></p>
         </div>
     </footer>
@@ -49,7 +65,6 @@
 {{/* User Card Component - Shows user info for logged-in users */}}
 {{define "user-card"}}
 <div class="user-card">
-    <h2>Welcome</h2>
     <div class="user-info">
         <div class="user-avatar">
             <span class="avatar-icon">👤</span>
@@ -70,14 +85,16 @@
         </div>
     </div>
     <div class="user-actions">
-        <a href="/posts/new" class="btn btn-primary btn-small">New Post</a>
+        <a href="/posts/new" class="btn btn-primary btn-small">Create Post</a>
+        <a href="/settings" class="btn btn-primary btn-small">Settings</a>
+        <a href="/logout" class="btn btn-primary btn-small">Logout</a>
     </div>
 </div>
 {{end}}
 
 {{/* Filter Card Component - Shows post filtering options */}}
 {{define "filter-card"}}
-<div class="filters">
+        <div class="filters">
     <h2>Filter Posts</h2>
     <form method="GET" action="{{.FilterAction}}">
         <div class="filter-group">
@@ -105,7 +122,7 @@
         </div>
         {{end}}
 
-        <button type="submit">Apply Filters</button>
+        <button type="submit" class="btn btn-primary btn-small">Apply Filters</button>
     </form>
 </div>
 {{end}}

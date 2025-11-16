@@ -63,6 +63,8 @@ func HealthPage(cfg HealthPageConfig) http.HandlerFunc {
 			"Title":  "System Health",
 			"Health": results,
 			"User":   currentUser,
+			// Health page should not show the sidebar even when user is present
+			"ShowSidebar": false,
 		}
 
 		// Always parse health-specific templates to avoid conflicts with other content blocks

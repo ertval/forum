@@ -180,6 +180,8 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 		"LikedPosts":       likedPosts,
 		"User":             currentUser,
 		"FilterAction":     "/",
+		"ShowFilter":       false,
+		"ShowSidebar":      false,
 	}
 
 	// Parse templates individually for this page
@@ -221,8 +223,8 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 					"ID":           strconv.Itoa(user.ID), // Convert to string for template comparison
 					"Username":     user.Username,
 					"Email":        user.Email,
-					"PostCount":    0,    // TODO: Implement post count
-					"CommentCount": 0,    // TODO: Implement comment count
+					"PostCount":    0, // TODO: Implement post count
+					"CommentCount": 0, // TODO: Implement comment count
 				}
 			} else {
 				// If we can't get user details, still create with minimal info
@@ -306,6 +308,8 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 		"Categories":       categories,
 		"SelectedCategory": category,
 		"FilterAction":     "/board",
+		"ShowFilter":       true,
+		"ShowSidebar":      true,
 		"MyPosts":          myPosts,
 		"LikedPosts":       likedPosts,
 		"User":             currentUser,

@@ -1,13 +1,17 @@
 {{define "content"}}
 <div class="home-grid">
     <h2 class="home-title">Latest Posts</h2>
-    
+
     {{if .Posts}}
     <div class="home-posts-grid">
         {{range .Posts}}
             <article class="post-card-compact">
                 <div class="post-header-compact">
                     <h3><a href="/posts/{{.ID}}">{{.Title}}</a></h3>
+                    <div class="post-meta-compact">
+                        <span class="author-compact">by {{.AuthorUsername}}</span>
+                        <span class="date-compact">{{.CreatedAt.Format "Jan 02, 2006"}}</span>
+                    </div>
                 </div>
 
                 {{if .ImageURL}}
@@ -21,18 +25,22 @@
                 </div>
 
                 <div class="post-footer-compact">
-                    <div class="post-meta-compact">
-                        <span class="author-compact">{{.AuthorUsername}}</span>
+                    <div class="categories-compact">
+                        {{range .Categories}}
+                            <a class="category-tag-compact" href="/board?category={{urlquery .}}">{{.}}</a>
+                        {{end}}
                     </div>
+
                     <div class="post-actions-compact">
                         <span class="likes-compact">👍 {{.LikeCount}}</span>
+                        <span class="dislikes-compact">👎 {{.DislikeCount}}</span>
                         <span class="comments-compact">💬 {{.CommentCount}}</span>
                     </div>
                 </div>
             </article>
         {{end}}
     </div>
-    
+
     <div class="home-actions">
         <a href="/board" class="btn btn-primary">View All Posts</a>
         {{if .User}}

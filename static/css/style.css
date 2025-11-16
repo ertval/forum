@@ -11,6 +11,9 @@ body {
     line-height: 1.6;
     color: #5a5a5a;
     background-color: #f9f9f9; /* Light gray closer to white */
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
 .container {
@@ -28,6 +31,40 @@ header {
     position: sticky;
     top: 0;
     z-index: 100;
+}
+
+/* Header layout tweaks */
+.header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+.nav-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.nav-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex: 1 1 auto;
+}
+.nav-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+.nav-link {
+    color: #5a5a5a;
+    text-decoration: none;
+    padding: 0.35rem 0.6rem;
+    border-radius: 12px;
+}
+.welcome-text {
+    color: #5a5a5a;
+    font-weight: 600;
 }
 
 header nav .container {
@@ -92,7 +129,7 @@ header nav a:hover {
 /* Main Content */
 main {
     padding: 2rem 0;
-    min-height: calc(100vh - 200px);
+    flex: 1; /* Allow main to grow and push footer to bottom */
 }
 
 /* Typography */
@@ -116,6 +153,25 @@ h1, h2, h3, h4, h5, h6 {
     gap: 1.5rem;
 }
 
+/* Make the whole sidebar stick instead of individual cards to avoid overlap */
+.page-layout .sidebar {
+    position: sticky;
+    top: 80px; /* Header height + padding to prevent overlap */
+    align-self: start;
+    max-height: calc(100vh - 100px); /* Account for header and spacing */
+    overflow: auto;
+}
+
+/* Page layout when user sidebar is present */
+.page-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 2rem;
+}
+.main-content {
+    min-width: 0;
+}
+
 /* User Card */
 .user-card {
     background: #ffffff;
@@ -123,8 +179,6 @@ h1, h2, h3, h4, h5, h6 {
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     height: fit-content;
-    position: sticky;
-    top: 20px;
     border: 1px solid #c0d0e0;
 }
 
@@ -201,11 +255,24 @@ h1, h2, h3, h4, h5, h6 {
 
 .user-actions {
     width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    justify-content: flex-start;
 }
 
 .btn-small {
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.95rem;
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+}
+
+/* Make hover brighter (increase brightness) instead of darker */
+.btn-small:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
 }
 
 /* Home Page Grid Layout */
@@ -238,7 +305,7 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
     display: flex;
     flex-direction: column;
-    height: 280px;
+    height: 320px;
     overflow: hidden;
 }
 
@@ -250,7 +317,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .post-header-compact h3 {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
     font-size: 1rem;
     line-height: 1.3;
 }
@@ -269,9 +336,22 @@ h1, h2, h3, h4, h5, h6 {
     color: #a3d9c5;
 }
 
+.post-meta-compact {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.7rem;
+    color: #7a7a7a;
+    margin-bottom: 0.5rem;
+}
+
+.post-meta-compact .author-compact {
+    font-weight: 600;
+    color: #5a5a5a;
+}
+
 .post-image-compact {
     margin: 0.5rem 0;
-    height: 120px;
+    height: 100px;
     overflow: hidden;
     border-radius: 8px;
 }
@@ -291,43 +371,65 @@ h1, h2, h3, h4, h5, h6 {
 
 .post-content-compact p {
     color: #555;
-    font-size: 0.85rem;
-    line-height: 1.4;
+    font-size: 0.8rem;
+    line-height: 1.3;
     display: -webkit-box;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 4;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 
 .post-footer-compact {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 0.5rem;
     margin-top: auto;
     padding-top: 0.5rem;
     border-top: 1px solid #e0e0e0;
 }
 
-.post-meta-compact {
-    font-size: 0.8rem;
+.categories-compact {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-bottom: 0.25rem;
+    justify-content: center;
 }
 
-.author-compact {
-    font-weight: 600;
+.category-tag-compact {
+    background: linear-gradient(135deg, #e0f7e9 0%, #d3e0ea 100%);
+    padding: 0.2rem 0.5rem;
+    border-radius: 16px;
+    font-size: 0.7rem;
+    color: #5a5a5a;
+    font-weight: 500;
+    border: 1px solid #c0d0e0;
+    display: inline-block;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.category-tag-compact:hover {
+    background: linear-gradient(135deg, #e8f4fa 0%, #f0f8fc 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(200, 224, 240, 0.5);
     color: #5a5a5a;
 }
 
 .post-actions-compact {
     display: flex;
-    gap: 0.5rem;
+    justify-content: space-around;
+    gap: 0.25rem;
     font-size: 0.8rem;
 }
 
 .post-actions-compact span {
     color: #7a7a7a;
     background-color: #e0f7e9;
-    padding: 0.2rem 0.5rem;
+    padding: 0.15rem 0.4rem;
     border-radius: 12px;
+    flex: 1;
+    text-align: center;
 }
 
 .home-actions {
@@ -362,8 +464,6 @@ h1, h2, h3, h4, h5, h6 {
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     height: fit-content;
-    position: sticky;
-    top: 20px;
     border: 1px solid #c0d0e0; /* Pastel blue */
 }
 
@@ -412,21 +512,24 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .filters button {
+    /* Match the user card button appearance (use btn-small sizing + primary style)
+       Prefer using the same utility classes in templates (`btn btn-primary btn-small`). */
     width: 100%;
-    padding: 0.75rem;
-    background: linear-gradient(135deg, #a3d9c5 0%, #c2f2e9 100%); /* Darker to lighter pastel green with blue tint */
-    color: #5a5a5a;
-    border: none;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.95rem;
+    display: inline-block;
+    text-align: center;
     border-radius: 8px;
+    background: linear-gradient(135deg, #b5ead7 0%, #c2f2e9 100%);
+    color: #5a5a5a;
+    border: 1px solid #a3d9c5;
+    box-shadow: 0 2px 6px rgba(181, 234, 215, 0.4);
     cursor: pointer;
-    font-size: 1rem;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 6px rgba(163, 217, 197, 0.3);
+    font-weight: 600;
 }
 
 .filters button:hover {
-    background: linear-gradient(135deg, #c2f2e9 0%, #d4f5ee 100%); /* Lighter Pastel Green gradient */
+    background: linear-gradient(135deg, #a3d9c5 0%, #b0f0db 100%);
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(181, 234, 215, 0.4);
 }
@@ -600,7 +703,6 @@ footer {
     background: linear-gradient(135deg, #d3e0ea 0%, #e0f0f7 100%); /* Soft Blue gradient */
     color: #5a5a5a;
     padding: 0.5rem 0; /* Narrower padding */
-    margin-top: 3rem;
     border-top: 1px solid #c0d0e0;
 }
 
