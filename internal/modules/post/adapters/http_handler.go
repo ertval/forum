@@ -667,7 +667,7 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 
 	// Parse query parameters
 	filter := postPorts.PostFilter{
-		Limit:  10, // Load 10 posts at a time
+		Limit:  20, // Load 20 posts at a time
 		Offset: 0,
 	}
 

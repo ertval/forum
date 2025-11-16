@@ -1190,7 +1190,16 @@ footer p {
     align-items: center;
     margin-top: 1.5rem;
     padding-top: 1.5rem;
-    border-top: 1px solid #c0d0e0; /* Pastel blue */
+    /* border-top removed to avoid double divider when explicit <hr> is used */
+    border-top: none;
+}
+
+/* Divider used in templates to separate appended posts from the load button */
+.divider {
+    border: none;
+    height: 1px;
+    background-color: #e6e6e6; /* light gray line */
+    margin: 1.5rem 0;
 }
 
 /* Checkbox labels */

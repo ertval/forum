@@ -41,20 +41,21 @@
         {{end}}
     </div>
 
-    <div class="home-actions">
-        <button id="load-all-posts-btn"
-                class="btn btn-primary"
-                data-offset="{{len .Posts}}"
-                data-category=""
-                data-my-posts="false"
-                data-liked-posts="false">View All Posts</button>
+    <div id="additional-posts-container" class="home-posts-grid">
+        <!-- Additional posts will be loaded here -->
+    </div>
+
+    <hr class="divider">
+    <div class="load-more-container">
+        <button id="load-more-btn"
+            class="btn btn-primary"
+            data-offset="{{len .Posts}}"
+            data-category=""
+            data-my-posts="false"
+            data-liked-posts="false">Show More</button>
         {{if .User}}
         <a href="/posts/new" class="btn btn-secondary">Create Post</a>
         {{end}}
-    </div>
-
-    <div id="additional-posts-container" class="home-posts-grid">
-        <!-- Additional posts will be loaded here -->
     </div>
     {{else}}
     <div class="no-posts-home">
@@ -65,5 +66,5 @@
 {{end}}
 
 {{define "scripts"}}
-<script src="/static/js/load-more-posts-home.js"></script>
+<script src="/static/js/load-more-posts.js"></script>
 {{end}}
