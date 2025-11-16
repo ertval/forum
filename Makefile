@@ -12,8 +12,8 @@ GOVET=$(GOCMD) vet
 
 # Main package
 MAIN_PACKAGE=./cmd/forum
-BINARY_NAME=forum
-BINARY_UNIX=$(BINARY_NAME)_unix
+BINARY_NAME=bin/forum
+BINARY_UNIX=bin/forum_unix
 
 # Build flags
 CGO_ENABLED=1

@@ -65,20 +65,14 @@ func HealthPage(cfg HealthPageConfig) http.HandlerFunc {
 			"User":   currentUser,
 		}
 
-		// Use shared templates if available, otherwise parse on demand
+		// Always parse health-specific templates to avoid conflicts with other content blocks
 		var tmpl *template.Template
 		var err error
-		if cfg.Templates != nil {
-			tmpl = cfg.Templates
-		} else {
-			tmpl, err = template.ParseFiles("templates/base.html", "templates/health.html")
-			if err != nil {
-				http.Error(w, "Could not parse templates", http.StatusInternalServerError)
-				return
-			}
-		}
-
-		// Execute the template
+		tmpl, err = template.ParseFiles("templates/base.html", "templates/health.html")
+		if err != nil {
+			http.Error(w, "Could not parse templates", http.StatusInternalServerError)
+			return
+		} // Execute the template
 		w.Header().Set("Content-Type", "text/html")
 		err = tmpl.ExecuteTemplate(w, "base", data)
 		if err != nil {

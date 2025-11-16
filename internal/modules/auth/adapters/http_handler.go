@@ -261,18 +261,38 @@ func (h *HTTPHandler) GetSessionAPI(w http.ResponseWriter, r *http.Request) {
 
 // LoginPage renders the login page.
 func (h *HTTPHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
-	// Execute the login template directly
-	if err := h.templates.ExecuteTemplate(w, "login.html", nil); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to render login page: %v", err), http.StatusInternalServerError)
+	data := map[string]interface{}{
+		"Title": "Login",
+	}
+
+	// Parse base and login templates together for this specific page
+	tmpl, err := template.ParseFiles("templates/base.html", "templates/login.html")
+	if err != nil {
+		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+		http.Error(w, "Failed to render login page", http.StatusInternalServerError)
 		return
 	}
 }
 
 // RegisterPage renders the registration page.
 func (h *HTTPHandler) RegisterPage(w http.ResponseWriter, r *http.Request) {
-	// Execute the register template directly
-	if err := h.templates.ExecuteTemplate(w, "register.html", nil); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to render register page: %v", err), http.StatusInternalServerError)
+	data := map[string]interface{}{
+		"Title": "Register",
+	}
+
+	// Parse base and register templates together for this specific page
+	tmpl, err := template.ParseFiles("templates/base.html", "templates/register.html")
+	if err != nil {
+		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+		http.Error(w, "Failed to render register page", http.StatusInternalServerError)
 		return
 	}
 }

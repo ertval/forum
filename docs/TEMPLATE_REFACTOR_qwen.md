@@ -2,6 +2,10 @@
 
 Date: 2025-11-16
 
+## Overview
+This document outlines the plan to refactor the current template rendering pipeline to use a consistent base template pattern across all pages. Currently, some templates correctly inherit from the base template while others duplicate the full HTML structure.
+
+
 ## Findings — current template usage (concise)
 
 - Templates are stored under `templates/` and include `base.html`, `home.html`, `post_detail.html`, `post_create.html`, `post_edit.html`, `board.html`, `login.html`, `register.html`, and `health.html`.
@@ -27,12 +31,6 @@ TL;DR: Unify template parsing, naming, and layout composition by parsing templat
 3. Keep `HealthPage`'s dynamic parsing only for isolated test runs; avoid runtime parsing in production.
 
 ---
-
-If you want, I can now implement the conversion (update template files, adjust `wire` parsing code, and update handlers). Tell me to proceed and I will create the necessary patches and run tests.
-# Template Rendering Pipeline Refactoring Plan
-
-## Overview
-This document outlines the plan to refactor the current template rendering pipeline to use a consistent base template pattern across all pages. Currently, some templates correctly inherit from the base template while others duplicate the full HTML structure.
 
 ## Current State Analysis
 

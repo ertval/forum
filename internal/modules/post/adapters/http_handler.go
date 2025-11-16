@@ -181,9 +181,16 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 		"User":             currentUser,
 	}
 
+	// Parse templates individually for this page
+	tmpl, err := template.ParseFiles("templates/base.html", "templates/home.html")
+	if err != nil {
+		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		return
+	}
+
 	// Render template
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.templates.ExecuteTemplate(w, "home", data); err != nil {
+	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
 		http.Error(w, "Failed to render page", http.StatusInternalServerError)
 		return
 	}
@@ -297,8 +304,15 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Render template using the board template
+	// Parse templates individually for this page
+	tmpl, err := template.ParseFiles("templates/base.html", "templates/board.html")
+	if err != nil {
+		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.templates.ExecuteTemplate(w, "board", data); err != nil {
+	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
 		http.Error(w, "Failed to render page", http.StatusInternalServerError)
 		return
 	}
@@ -738,9 +752,16 @@ func (h *HTTPHandler) CreatePostPage(w http.ResponseWriter, r *http.Request) {
 		"Categories": categories,
 	}
 
+	// Parse templates individually for this page
+	tmpl, err := template.ParseFiles("templates/base.html", "templates/post_create.html")
+	if err != nil {
+		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		return
+	}
+
 	// Render template
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.templates.ExecuteTemplate(w, "post_create", data); err != nil {
+	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
 		http.Error(w, "Failed to render page", http.StatusInternalServerError)
 	}
 }
@@ -806,8 +827,15 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 		"Categories": categories,
 	}
 
+	// Parse templates individually for this page
+	tmpl, err := template.ParseFiles("templates/base.html", "templates/post_edit.html")
+	if err != nil {
+		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.templates.ExecuteTemplate(w, "post_edit", data); err != nil {
+	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
 		http.Error(w, "Failed to render page", http.StatusInternalServerError)
 	}
 }
@@ -842,9 +870,16 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 		"Comments": comments,
 	}
 
+	// Parse templates individually for this page
+	tmpl, err := template.ParseFiles("templates/base.html", "templates/post_detail.html")
+	if err != nil {
+		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	var buf bytes.Buffer
-	if err := h.templates.ExecuteTemplate(&buf, "post_detail", data); err != nil {
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
 		// Log the actual template error for debugging
 		fmt.Printf("Template error: %v\n", err)
 		http.Error(w, fmt.Sprintf("Failed to render page: %v", err), http.StatusInternalServerError)
