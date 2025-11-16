@@ -129,6 +129,8 @@ func (c *Checker) isRouteRegistered(ctx context.Context, method, path string) bo
 	// For parameterized routes, we'll try to make a test request
 	// to an actual instance of the route (e.g., /posts/1 for /posts/{id})
 	testPath := path
+	expectedPattern := method + " " + path
+
 	if strings.Contains(path, "{") && strings.Contains(path, "}") {
 		// Handle common parameter names in routes
 		testPath = strings.Replace(testPath, "{id}", "1", -1)
@@ -149,11 +151,9 @@ func (c *Checker) isRouteRegistered(ctx context.Context, method, path string) bo
 	// Use ServeMux.Handler() to see what pattern would be matched
 	_, pattern := c.router.Handler(req)
 
-	// Create a request to a definitely non-existent path to get the default pattern
-	testReq, _ := http.NewRequestWithContext(ctx, "GET", "/__nonexistent_route__", nil)
-	_, defaultPattern := c.router.Handler(testReq)
-
-	// If the pattern is not empty and not the same as the default, it means a route is registered
-	return pattern != "" && pattern != defaultPattern
+	// Check if the matched pattern matches our expected pattern
+	// For example, "GET /posts" should match "GET /posts" exactly
+	// or "GET /posts/{id}" for parameterized routes
+	return pattern == expectedPattern
 }
 
