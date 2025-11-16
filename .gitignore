@@ -92,6 +92,8 @@ static/uploads/
 # AI related files
 .agents/
 .github/
+.claude
+.qwen
 *.chat
 *.prompt
 *.response

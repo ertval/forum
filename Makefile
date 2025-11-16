@@ -48,10 +48,23 @@ go:
 	@echo "$(BLUE)Running with go run ($(MAIN_PACKAGE))...$(NC)"
 	CGO_ENABLED=$(CGO_ENABLED) $(GOCMD) run $(MAIN_PACKAGE)
 
-# Run tests
+# Test scripts directory
+TEST_SCRIPTS_DIR=./scripts/tests
+
+# Run full test suite (uses the centralized script)
 test:
-	@echo "$(BLUE)Running tests...$(NC)"
-	$(GOTEST) -v ./...
+	@echo "$(BLUE)Running full test suite (scripts/tests/run_all_tests.sh)...$(NC)"
+	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh
+
+# Run only API tests
+test-api:
+	@echo "$(BLUE)Running API tests (scripts/tests/test_api.sh)...$(NC)"
+	@$(TEST_SCRIPTS_DIR)/test_api.sh
+
+# Run only Page/HTML tests
+test-html:
+	@echo "$(BLUE)Running Page/HTML tests (scripts/tests/test_pages.sh)...$(NC)"
+	@$(TEST_SCRIPTS_DIR)/test_pages.sh
 
 # Run tests with coverage
 test-coverage:
@@ -165,7 +178,7 @@ check-schema:
 # Seed database
 seed:
 	@echo "$(BLUE)Seeding database...$(NC)"
-	$(GOCMD) run ./scripts/seed/seed.go
+	bash ./scripts/seed/seed.sh
 
 # Help
 help:

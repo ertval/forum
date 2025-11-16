@@ -8,7 +8,7 @@ import (
 	"forum/internal/platform/health"
 )
 
-func HealthHandler(checker *health.Checker) http.HandlerFunc {
+func HealthAPI(checker *health.Checker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Perform checks
 		results := checker.Check(r.Context())
@@ -33,16 +33,16 @@ func HealthHandler(checker *health.Checker) http.HandlerFunc {
 	}
 }
 
-// HealthUIHandlerConfig holds dependencies for the health UI handler.
-type HealthUIHandlerConfig struct {
+// HealthPageConfig holds dependencies for the health UI page handler.
+type HealthPageConfig struct {
 	Checker   *health.Checker
 	Templates *template.Template
 	AuthFunc  func(r *http.Request) (userID int, username string)
 }
 
-// HealthUIHandler renders an HTML page with the system's health status.
+// HealthPage renders an HTML page with the system's health status.
 // Now accepts shared templates and auth function to preserve session.
-func HealthUIHandler(cfg HealthUIHandlerConfig) http.HandlerFunc {
+func HealthPage(cfg HealthPageConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Perform checks
 		results := cfg.Checker.Check(r.Context())

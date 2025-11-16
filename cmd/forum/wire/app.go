@@ -122,12 +122,12 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *
 	healthChecker := health.NewChecker(db, server.Router())
 
 	// Register health check routes with proper configuration
-	server.Router().Handle("GET /health", httpserver.HealthUIHandler(httpserver.HealthUIHandlerConfig{
+	server.Router().Handle("GET /health", httpserver.HealthPage(httpserver.HealthPageConfig{
 		Checker:   healthChecker,
 		Templates: handlers.Post.Templates(), // Reuse shared templates
 		AuthFunc:  handlers.Auth.GetCurrentUser,
 	}))
-	server.Router().Handle("GET /health-api", httpserver.HealthHandler(healthChecker))
+	server.Router().Handle("GET /health-api", httpserver.HealthAPI(healthChecker))
 
 	// Serve static files (optional - skip if directory doesn't exist)
 	// This allows tests to run without static files
