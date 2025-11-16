@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -49,6 +51,18 @@ const (
 	TimePrecisionSeconds TimePrecision = iota
 	// TimePrecisionNano preserves full RFC3339Nano formatting
 	TimePrecisionNano
+)
+
+// ANSI color codes for terminal human output.
+const (
+	colorReset  = "\x1b[0m"
+	colorRed    = "\x1b[31m"
+	colorGreen  = "\x1b[32m"
+	colorYellow = "\x1b[33m"
+	colorBlue   = "\x1b[34m"
+	colorMagenta= "\x1b[35m"
+	colorCyan   = "\x1b[36m"
+	colorWhite  = "\x1b[37m"
 )
 
 // Config holds runtime options for human log formatting.
@@ -163,6 +177,65 @@ func levelToString(l Level) string {
 	}
 }
 
+// colorize wraps a string with an ANSI color code when color is non-empty.
+func colorize(s, color string) string {
+	if color == "" {
+		return s
+	}
+	return color + s + colorReset
+}
+
+// colorForLevel returns the ANSI color for a log level.
+func colorForLevel(l Level) string {
+	switch l {
+	case DebugLevel:
+		return colorMagenta
+	case InfoLevel:
+		return colorGreen
+	case WarnLevel:
+		return colorYellow
+	case ErrorLevel:
+		return colorRed
+	default:
+		return colorWhite
+	}
+}
+
+// colorForStatusCode returns a color based on HTTP status code ranges.
+func colorForStatusCode(code int) string {
+	switch {
+	case code >= 200 && code < 300:
+		return colorGreen
+	case code >= 300 && code < 400:
+		return colorCyan
+	case code >= 400 && code < 500:
+		return colorYellow
+	case code >= 500:
+		return colorRed
+	default:
+		return colorWhite
+	}
+}
+
+// colorForMessage decides whether a message should be highlighted based on
+// its content (e.g., server started/stopped) or the log level.
+func colorForMessage(msg string, lvl Level) string {
+	lower := strings.ToLower(msg)
+	// Important positive messages
+	if strings.Contains(lower, "started") || strings.Contains(lower, "listening") || strings.Contains(lower, "listening on") || strings.Contains(lower, "server started") {
+		return colorGreen
+	}
+	// Stopping/shutdown
+	if strings.Contains(lower, "stopped") || strings.Contains(lower, "shutdown") || strings.Contains(lower, "stopping") {
+		return colorRed
+	}
+	// Errors and failures
+	if lvl == ErrorLevel || strings.Contains(lower, "error") || strings.Contains(lower, "failed") {
+		return colorRed
+	}
+	return ""
+}
+
 // internal log implementation
 func (l *Logger) log(level Level, msg string, fields ...Field) {
 	if level < l.level {
@@ -195,7 +268,7 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 	defer l.mu.Unlock()
 
 	if l.human {
-		// human readable: [LEVEL] ts msg key=val ...
+		// human readable: [LEVEL] ts msg key=val ... with colors for level and status codes
 		ts := entry["ts"].(string)
 		// apply configured time precision if available
 		if l.config != nil && l.config.TimePrecision == TimePrecisionSeconds {
@@ -214,7 +287,18 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 			useAllowed = true
 		}
 
-		out := fmt.Sprintf("[%s] %s %s", entry["level"], ts, entry["msg"])
+		// colorize level label
+		levelLabel := fmt.Sprintf("[%s]", entry["level"])
+		levelColored := colorize(levelLabel, colorForLevel(level))
+
+		// colorize message when it's important (server start/stop, errors, etc.)
+		msgStr := fmt.Sprintf("%s", entry["msg"])
+		msgColor := colorForMessage(msgStr, level)
+		if msgColor != "" {
+			msgStr = colorize(msgStr, msgColor)
+		}
+
+		out := fmt.Sprintf("%s %s %s", levelColored, ts, msgStr)
 		if len(data) > 0 {
 			for k, v := range data {
 				if useAllowed {
@@ -234,7 +318,49 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 						continue
 					}
 				}
-				out += fmt.Sprintf(" %s=%v", k, v)
+
+				// prepare value string and optionally color status codes or URLs
+				valStr := fmt.Sprintf("%v", v)
+				valColor := ""
+				if k == "status" {
+					// try to detect integer status code from various types
+					switch tv := v.(type) {
+					case int:
+						valColor = colorForStatusCode(tv)
+					case int32:
+						valColor = colorForStatusCode(int(tv))
+					case int64:
+						valColor = colorForStatusCode(int(tv))
+					case float64:
+						// if it's float but integer valued, treat as status
+						ival := int(tv)
+						if float64(ival) == tv {
+							valColor = colorForStatusCode(ival)
+						}
+					case string:
+						if code, err := strconv.Atoi(tv); err == nil {
+							valColor = colorForStatusCode(code)
+						}
+					}
+				}
+
+				// color URL-like values for better visibility and clickability
+				if valColor == "" {
+					if k == "url" {
+						valColor = colorBlue
+					} else if vs, ok := v.(string); ok {
+						lower := strings.ToLower(vs)
+						if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
+							valColor = colorBlue
+						}
+					}
+				}
+
+				if valColor != "" {
+					out += fmt.Sprintf(" %s=%s", k, colorize(valStr, valColor))
+				} else {
+					out += fmt.Sprintf(" %s=%v", k, v)
+				}
 			}
 		}
 		// apply max line width truncation when requested

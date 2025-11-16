@@ -31,26 +31,37 @@
 
     <main>
         <div class="container">
-            {{if .ShowSidebar}}
-            <div class="page-layout">
-                <aside class="sidebar">
-                    {{if .User}}
-                        {{template "user-card" .}}
-                    {{end}}
-                    {{if .ShowFilter}}
-                        {{template "filter-card" .}}
-                    {{end}}
-                    {{if .ShowPostSidebar}}
-                        {{template "post-sidebar-cards" .}}
-                    {{end}}
-                </aside>
-                <div class="main-content">
-                    {{template "content" .}}
+            {{/* Determine whether we should render the sidebar layout.
+                 Show it when either the page explicitly requests a sidebar
+                 (`.ShowSidebar`) OR when a user is logged in and the page
+                 is NOT the Home or Health Status pages. This ensures the
+                 user card is visible and can be sticky on most pages. */}}
+            {{ $showUserSidebar := and .User (not (or (eq .Title "Home") (eq .Title "Health Status"))) }}
+            {{ if or .ShowSidebar $showUserSidebar }}
+                <div class="page-layout">
+                    <aside class="sidebar">
+                        {{/* Always render the user-card if a user is present and the page isn't Home/Health */}}
+                        {{ if $showUserSidebar }}
+                            {{ template "user-card" . }}
+                        {{ else if and .User .ShowSidebar }}
+                            {{ template "user-card" . }}
+                        {{ end }}
+
+                        {{/* Preserve existing sidebar parts only when `.ShowSidebar` is true */}}
+                        {{ if .ShowFilter }}
+                            {{ template "filter-card" . }}
+                        {{ end }}
+                        {{ if .ShowPostSidebar }}
+                            {{ template "post-sidebar-cards" . }}
+                        {{ end }}
+                    </aside>
+                    <div class="main-content">
+                        {{ template "content" . }}
+                    </div>
                 </div>
-            </div>
-            {{else}}
-                {{template "content" .}}
-            {{end}}
+            {{ else }}
+                {{ template "content" . }}
+            {{ end }}
         </div>
     </main>
 
