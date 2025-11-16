@@ -11,7 +11,7 @@
             {{if .Post.Categories}}
             <div class="post-categories">
                 {{range .Post.Categories}}
-                <a class="category-tag" href="board/?category={{urlquery .}}">{{.}}</a>
+                <a class="category-tag" href="/board?category={{urlquery .}}">{{.}}</a>
                 {{end}}
             </div>
             {{end}}

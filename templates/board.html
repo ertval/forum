@@ -1,6 +1,6 @@
 {{define "content"}}
 <div class="posts">
-    <h2>All Posts</h2>
+    <h2>{{if .SelectedCategory}}All {{.SelectedCategory}} Posts{{else}}All Posts{{end}}</h2>
 
     {{if .Posts}}
         {{range .Posts}}

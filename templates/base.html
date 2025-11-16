@@ -31,10 +31,12 @@
 
     <main>
         <div class="container">
-            {{if and .User .ShowSidebar}}
+            {{if .ShowSidebar}}
             <div class="page-layout">
                 <aside class="sidebar">
-                    {{template "user-card" .}}
+                    {{if .User}}
+                        {{template "user-card" .}}
+                    {{end}}
                     {{if .ShowFilter}}
                         {{template "filter-card" .}}
                     {{end}}
@@ -51,7 +53,7 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 Forum. Ertval Karameta && Magnus Edvall.</p>
+            <p>&copy; 2025 Ertval Karameta & Magnus Edvall.</p>
             <p><a href="/health" class="category-tag">Health Status</a></p>
         </div>
     </footer>
