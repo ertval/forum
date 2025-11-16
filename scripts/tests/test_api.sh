@@ -658,7 +658,7 @@ if [ -n "$POST_ID" ]; then
     RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "$BASE_URL/posts/$POST_ID" \
         -H "Content-Type: application/json" \
         -H "Cookie: session_token=$SESSION_TOKEN" \
-        -d '{"title":"Updated Title","content":"Updated content"}')
+        -d '{"title":"Updated Title","content":"Updated content","categories":["Tests"]}')
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
         print_test "26" "PASS"
@@ -667,6 +667,52 @@ if [ -n "$POST_ID" ]; then
     fi
 else
     print_test "26" "SKIP" "(no post ID)"
+fi
+
+# Test 26b: PUT /posts/:id - Update post with new categories
+echo "Test 26b: PUT /posts/:id - Update post categories"
+if [ -n "$POST_ID" ]; then
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "$BASE_URL/posts/$POST_ID" \
+        -H "Content-Type: application/json" \
+        -H "Cookie: session_token=$SESSION_TOKEN" \
+        -d '{"title":"Updated Title 2","content":"Updated content 2","categories":["Tests","General"]}')
+    HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+    if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
+        # Verify categories were updated by fetching the post
+        VERIFY_RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/posts/$POST_ID")
+        VERIFY_HTTP=$(echo "$VERIFY_RESPONSE" | tail -n1)
+        VERIFY_BODY=$(echo "$VERIFY_RESPONSE" | sed '$d')
+        if [ "$VERIFY_HTTP" = "200" ]; then
+            if echo "$VERIFY_BODY" | grep -q "General"; then
+                print_test "26b" "PASS"
+            else
+                print_test "26b" "FAIL" "Categories were not updated properly"
+            fi
+        else
+            print_test "26b" "FAIL" "Failed to verify update: $VERIFY_HTTP"
+        fi
+    else
+        print_test "26b" "FAIL" "Expected 200/204, got $HTTP_CODE"
+    fi
+else
+    print_test "26b" "SKIP" "(no post ID)"
+fi
+
+# Test 26c: PUT /posts/:id - Update post without categories (should fail)
+echo "Test 26c: PUT /posts/:id - Update without categories"
+if [ -n "$POST_ID" ]; then
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "$BASE_URL/posts/$POST_ID" \
+        -H "Content-Type: application/json" \
+        -H "Cookie: session_token=$SESSION_TOKEN" \
+        -d '{"title":"No Categories","content":"This should fail","categories":[]}')
+    HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+    if [ "$HTTP_CODE" = "400" ]; then
+        print_test "26c" "PASS"
+    else
+        print_test "26c" "FAIL" "Expected 400 for empty categories, got $HTTP_CODE"
+    fi
+else
+    print_test "26c" "SKIP" "(no post ID)"
 fi
 
 # Test 27: DELETE /posts/:id - Delete own post

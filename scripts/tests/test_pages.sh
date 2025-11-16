@@ -480,6 +480,30 @@ else
     print_test "13" "SKIP" "(no post ID or session)"
 fi
 
+# Test 13b: GET /posts/:id/edit - Verify categories section exists
+echo "Test 13b: GET /posts/:id/edit - Verify categories in edit form"
+if [ -n "$POST_ID" ] && [ -n "$SESSION_TOKEN" ]; then
+    RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/posts/$POST_ID/edit" \
+        -H "Cookie: session_token=$SESSION_TOKEN")
+    HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+    BODY=$(echo "$RESPONSE" | sed '$d')
+    if [ "$HTTP_CODE" = "200" ]; then
+        if echo "$BODY" | grep -qi "categor"; then
+            if echo "$BODY" | grep -q 'type="checkbox"' && echo "$BODY" | grep -q 'name="categories"'; then
+                print_test "13b" "PASS"
+            else
+                print_test "13b" "FAIL" "Edit form missing category checkboxes"
+            fi
+        else
+            print_test "13b" "FAIL" "Edit form missing categories section"
+        fi
+    else
+        print_test "13b" "FAIL" "Expected 200, got $HTTP_CODE"
+    fi
+else
+    print_test "13b" "SKIP" "(no post ID or session)"
+fi
+
 # Test 14: GET /posts/:id/edit - Forbidden for non-owner (403/401)
 echo "Test 14: GET /posts/:id/edit - Forbidden for non-owner"
 # Register second user

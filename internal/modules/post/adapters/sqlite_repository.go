@@ -147,13 +147,19 @@ func (r *SQLitePostRepository) GetByID(ctx context.Context, postID string) (*dom
 
 // Update updates an existing post.
 func (r *SQLitePostRepository) Update(ctx context.Context, post *domain.Post) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	query := `
 		UPDATE posts 
 		SET title = ?, content = ?, updated_at = ?
 		WHERE id = ?
 	`
 
-	result, err := r.db.ExecContext(ctx, query, post.Title, post.Content, post.UpdatedAt, post.ID)
+	result, err := tx.ExecContext(ctx, query, post.Title, post.Content, post.UpdatedAt, post.ID)
 	if err != nil {
 		return fmt.Errorf("failed to update post: %w", err)
 	}
@@ -166,7 +172,28 @@ func (r *SQLitePostRepository) Update(ctx context.Context, post *domain.Post) er
 		return domain.ErrPostNotFound
 	}
 
-	return nil
+	// Update categories: delete old associations and insert new ones
+	_, err = tx.ExecContext(ctx, "DELETE FROM post_categories WHERE post_id = ?", post.ID)
+	if err != nil {
+		return fmt.Errorf("failed to delete old post-category associations: %w", err)
+	}
+
+	// Insert new post-category associations
+	for _, categoryName := range post.Categories {
+		var categoryID string
+		err := tx.QueryRowContext(ctx, "SELECT id FROM categories WHERE LOWER(name) = LOWER(?)", categoryName).Scan(&categoryID)
+		if err != nil {
+			return fmt.Errorf("category %s not found: %w", categoryName, err)
+		}
+
+		_, err = tx.ExecContext(ctx, "INSERT INTO post_categories (post_id, category_id) VALUES (?, ?)",
+			post.ID, categoryID)
+		if err != nil {
+			return fmt.Errorf("failed to insert post-category association: %w", err)
+		}
+	}
+
+	return tx.Commit()
 }
 
 // Delete removes a post.

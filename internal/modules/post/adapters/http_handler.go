@@ -406,7 +406,7 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 				AllowedFields: []string{"url", "error", "errors"},
 				MaxLineWidth:  120,
 			}
-			l := logger.NewWithConfig(logger.InfoLevel, os.Stderr, cfg)
+			l := logger.NewWithConfig(logger.ErrorLevel, os.Stderr, cfg)
 			l.Error("http.request.error",
 				logger.String("url", r.URL.RequestURI()),
 				logger.String("error", err.Error()),
@@ -499,11 +499,6 @@ func (h *HTTPHandler) GetPostAPI(w http.ResponseWriter, r *http.Request) {
 
 // UpdatePostAPI handles post update requests.
 func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	// Get user ID from context
 	userID := authAdapters.GetUserID(r.Context())
 	if userID == "" {
@@ -512,7 +507,7 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Extract post ID from URL
-	postID := strings.TrimPrefix(r.URL.Path, "/posts/")
+	postID := r.PathValue("id")
 	if postID == "" {
 		h.writeError(w, http.StatusBadRequest, "Post ID required")
 		return
@@ -600,11 +595,13 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 	// Update post including categories
 	if err := h.postService.UpdatePost(r.Context(), postID, req.Title, req.Content, req.Categories); err != nil {
 		switch err {
-		case postDomain.ErrEmptyTitle, postDomain.ErrEmptyContent,
+		case postDomain.ErrEmptyTitle, postDomain.ErrEmptyContent, postDomain.ErrNoCategories,
 			postDomain.ErrTitleTooLong, postDomain.ErrContentTooLong:
 			h.writeError(w, http.StatusBadRequest, err.Error())
 		case postDomain.ErrPostNotFound:
 			h.writeError(w, http.StatusNotFound, "Post not found")
+		case postDomain.ErrCategoryNotFound:
+			h.writeError(w, http.StatusNotFound, err.Error())
 		default:
 			h.writeError(w, http.StatusInternalServerError, "Failed to update post")
 		}
@@ -616,11 +613,6 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 
 // DeletePostAPI handles post deletion requests.
 func (h *HTTPHandler) DeletePostAPI(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	// Get user ID from context
 	userID := authAdapters.GetUserID(r.Context())
 	if userID == "" {
@@ -984,11 +976,11 @@ func (h *HTTPHandler) writeError(w http.ResponseWriter, status int, message stri
 	// Also log the error to the terminal so human output always includes error messages.
 	cfg := &logger.Config{
 		TimePrecision: logger.TimePrecisionSeconds,
-		AllowedFields: []string{"error", "errors"},
+		AllowedFields: []string{"error", "errors", "status"},
 		MaxLineWidth:  200,
 	}
-	l := logger.NewWithConfig(logger.InfoLevel, os.Stderr, cfg)
-	l.Error("http.handler.error", logger.String("error", message))
+	l := logger.NewWithConfig(logger.ErrorLevel, os.Stderr, cfg)
+	l.Error("http.handler.error", logger.String("error", message), logger.Int("status", status))
 
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
