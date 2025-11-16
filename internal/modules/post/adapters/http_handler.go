@@ -538,6 +538,19 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	contentType := r.Header.Get("Content-Type")
+	
+	// Log incoming request for debugging
+	cfg := &logger.Config{
+		TimePrecision: logger.TimePrecisionSeconds,
+		AllowedFields: []string{"url", "method", "content_type", "post_id"},
+		MaxLineWidth:  200,
+	}
+	l := logger.NewWithConfig(logger.InfoLevel, os.Stderr, cfg)
+	l.Info("http.post.update.request", 
+		logger.String("method", r.Method),
+		logger.String("content_type", contentType),
+		logger.String("post_id", postID))
+	
 	switch {
 	case strings.HasPrefix(contentType, "multipart/form-data"):
 		// Allow moderately large uploads for edit (same 20MB limit)
@@ -592,8 +605,23 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Log parsed data for debugging
+	l.Info("http.post.update.parsed",
+		logger.String("title", req.Title),
+		logger.String("content", req.Content[:min(50, len(req.Content))]), // First 50 chars of content
+		logger.Int("category_count", len(req.Categories)))
+	
+	if len(req.Categories) > 0 {
+		l.Info("http.post.update.categories", logger.String("categories", fmt.Sprintf("%v", req.Categories)))
+	}
+
 	// Update post including categories
 	if err := h.postService.UpdatePost(r.Context(), postID, req.Title, req.Content, req.Categories); err != nil {
+		// Log the actual error before mapping to HTTP error
+		l.Error("http.post.update.service_error", 
+			logger.String("error", err.Error()),
+			logger.String("post_id", postID))
+		
 		switch err {
 		case postDomain.ErrEmptyTitle, postDomain.ErrEmptyContent, postDomain.ErrNoCategories,
 			postDomain.ErrTitleTooLong, postDomain.ErrContentTooLong:
@@ -983,6 +1011,14 @@ func (h *HTTPHandler) writeError(w http.ResponseWriter, status int, message stri
 	l.Error("http.handler.error", logger.String("error", message), logger.Int("status", status))
 
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
+}
+
+// min returns the minimum of two integers.
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // createPostPreview creates a preview of the post content with a fixed length.
