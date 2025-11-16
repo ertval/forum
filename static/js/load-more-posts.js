@@ -93,9 +93,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     <div class="post-footer">
                         <div class="categories">
-                            ${post.Categories.map(cat => `
-                                <a class="category-tag" href="/?category=${encodeURIComponent(cat)}">${cat}</a>
-                            `).join('')}
+                            ${post.Categories.map(cat => {
+                                const currentPath = window.location.pathname;
+                                const basePath = currentPath === '/board' ? '/board' : '/';
+                                return `<a class="category-tag" href="\${basePath}?category=\${encodeURIComponent(cat)}">\${cat}</a>`;
+                            }).join('')}
                         </div>
 
                         <div class="post-actions">
@@ -208,9 +210,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         <div class="post-footer">
                             <div class="categories">
-                                ${post.Categories.map(cat => `
-                                    <a class="category-tag" href="/?category=${encodeURIComponent(cat)}">${cat}</a>
-                                `).join('')}
+                                ${post.Categories.map(cat => {
+                                    const currentPath = window.location.pathname;
+                                    const basePath = currentPath === '/board' ? '/board' : '/';
+                                    return `<a class="category-tag" href="\${basePath}?category=\${encodeURIComponent(cat)}">\${cat}</a>`;
+                                }).join('')}
                             </div>
 
                             <div class="post-actions">

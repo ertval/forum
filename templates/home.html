@@ -42,10 +42,19 @@
     </div>
 
     <div class="home-actions">
-        <a href="/board" class="btn btn-primary">View All Posts</a>
+        <button id="load-all-posts-btn"
+                class="btn btn-primary"
+                data-offset="{{len .Posts}}"
+                data-category=""
+                data-my-posts="false"
+                data-liked-posts="false">View All Posts</button>
         {{if .User}}
         <a href="/posts/new" class="btn btn-secondary">Create Post</a>
         {{end}}
+    </div>
+
+    <div id="additional-posts-container" class="home-posts-grid">
+        <!-- Additional posts will be loaded here -->
     </div>
     {{else}}
     <div class="no-posts-home">
@@ -56,5 +65,5 @@
 {{end}}
 
 {{define "scripts"}}
-{{/* No scripts needed for home page */}}
+<script src="/static/js/load-more-posts-home.js"></script>
 {{end}}
