@@ -2,7 +2,7 @@
 
 A modern web forum built with Go, following Hexagonal Architecture principles. Clean, testable, idiomatic Go code organized as a Modular Monolith.
 
-**Current status**: MVP Core Features - 75% Complete. Authentication, Posts, and Categories are fully implemented with comprehensive tests. See `docs/IMPLEMENTATION_ROADMAP.md` for detailed progress and next steps.
+**Current status**: MVP Core Features - 90% Complete. Authentication, Posts, Categories, and platform infrastructure (config, database migrations, logging, HTTP server, and validator) are implemented with unit and integration tests. Remaining items: Comments and Reactions modules (mostly scaffolded), some HTTP handlers for `user` and optional modules (moderation, notification). See `docs/IMPLEMENTATION_ROADMAP.md` for detailed progress and next steps.
 
 ## Features
 
@@ -26,9 +26,9 @@ A modern web forum built with Go, following Hexagonal Architecture principles. C
   - Public viewing (all users can view posts)
   - Post ownership (only owner can edit/delete)
   - Filter posts by category
-  - Image upload support (planned - JPEG, PNG, GIF, max 20MB)
+  - Image upload support (implemented as upload handling + validation; storage and CDN integration remain optional - JPEG, PNG, GIF, max 20MB)
 
-### Core Features (Planned)
+### Core Features (Planned / Near Complete)
 
 - **Comments**
   - Comment on posts
@@ -86,7 +86,7 @@ This project follows **Hexagonal Architecture** (Ports and Adapters) organized a
 
 ### Module Structure
 
-Every module follows this exact 4-directory layout:
+Every module follows this exact 4-directory layout (enforced across implemented modules):
 
 ```
 module/
@@ -233,9 +233,9 @@ forum/
 
 4. **Run the application**
 
-   ```bash
-   go run cmd/forum/main.go
-   ```
+  ```bash
+  go run cmd/forum/main.go
+  ```
 
 5. **Access the forum**
    - HTTP: http://localhost:8080
@@ -330,26 +330,26 @@ GITHUB_CLIENT_SECRET=your-github-client-secret
 
 - Categories are managed internally and associated with posts
 - Available categories are retrieved via post listing
-- Future: Dedicated category management endpoints
+- Dedicated category management endpoints exist in the codebase but are minimal; further administrative APIs can be added if needed
 
-### Comments (Planned)
+### Comments (Planned / Scaffolded)
 
-- `POST /posts/:id/comments` - Add comment
+- `POST /posts/:id/comments` - Add comment (adapter & repository scaffolding exists)
 - `GET /posts/:id/comments` - List comments
 - `PUT /comments/:id` - Update comment
 - `DELETE /comments/:id` - Delete comment
 
-### Reactions (Planned)
+### Reactions (Planned / Scaffolded)
 
-- `POST /reactions` - Add/toggle reaction
+- `POST /reactions` - Add/toggle reaction (data model and migrations present)
 - `DELETE /reactions/:id` - Remove reaction
 - `GET /posts/:id/reactions` - Get reaction counts
 - `GET /comments/:id/reactions` - Get reaction counts
 
-### Users (Planned)
+### Users (Planned / Partially Implemented)
 
 - `GET /users/:id` - Get user profile
-- `PUT /users/:id` - Update profile
+- `PUT /users/:id` - Update profile (handlers not fully implemented)
 - `GET /users/:id/posts` - User's posts
 - `GET /users/:id/activity` - User's activity
 

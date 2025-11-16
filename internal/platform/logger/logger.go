@@ -196,3 +196,8 @@ func Error(err error) Field {
 func Any(key string, value any) Field {
 	return Field{Key: key, Value: value}
 }
+
+// Duration creates a duration field (in milliseconds).
+func Duration(key string, value time.Duration) Field {
+	return Field{Key: key, Value: value.Milliseconds()}
+}

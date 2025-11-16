@@ -57,7 +57,7 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 	repos := initRepositories(db.DB())
 
 	// 3. Initialize Services (Application Layer)
-	services := initServices(repos, cfg.Session.Duration)
+	services := initServices(repos, cfg.Session.Duration, lgr)
 
 	// 4. Initialize HTTP Handlers (Input Adapters)
 	handlers := initHandlers(services)
@@ -100,9 +100,9 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *
 	// Create server with config as single source of truth
 	server := httpserver.New(cfg)
 
-	// Register global middleware
-	server.RegisterMiddleware(httpserver.Recovery())
-	server.RegisterMiddleware(httpserver.Logger())
+	// Register global middleware in correct order: recovery -> logger -> others
+	server.RegisterMiddleware(httpserver.Recovery(lgr))
+	server.RegisterMiddleware(httpserver.Logger(lgr))
 	server.RegisterMiddleware(httpserver.CORS([]string{"*"}))
 	server.RegisterMiddleware(httpserver.RateLimit(
 		cfg.Security.RateLimitRequests,

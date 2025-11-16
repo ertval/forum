@@ -51,19 +51,24 @@ go:
 # Test scripts directory
 TEST_SCRIPTS_DIR=./scripts/tests
 
-# Run full test suite (uses the centralized script)
+# Run all standard Go tests in the repository
 test:
-	@echo "$(BLUE)Running full test suite (scripts/tests/run_all_tests.sh)...$(NC)"
+	@echo "$(BLUE)Running all standard Go tests...$(NC)"
+	$(GOTEST) ./...
+
+# Run all test scripts
+test-script:
+	@echo "$(BLUE)Running all test scripts (scripts/tests/run_all_tests.sh)...$(NC)"
 	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh
 
-# Run only API tests
-test-api:
-	@echo "$(BLUE)Running API tests (scripts/tests/test_api.sh)...$(NC)"
+# Run API test script
+test-script-api:
+	@echo "$(BLUE)Running API test script (scripts/tests/test_api.sh)...$(NC)"
 	@$(TEST_SCRIPTS_DIR)/test_api.sh
 
-# Run only Page/HTML tests
-test-html:
-	@echo "$(BLUE)Running Page/HTML tests (scripts/tests/test_pages.sh)...$(NC)"
+# Run HTML test script
+test-script-html:
+	@echo "$(BLUE)Running HTML test script (scripts/tests/test_pages.sh)...$(NC)"
 	@$(TEST_SCRIPTS_DIR)/test_pages.sh
 
 # Run tests with coverage
@@ -187,8 +192,11 @@ help:
 	@echo "  $(GREEN)build$(NC)           - Build the binary"
 	@echo "  $(GREEN)run$(NC)             - Build and run the application"
 	@echo "  $(GREEN)run-go$(NC)          - Run the application with 'go run' (no build)"
-	@echo "  $(GREEN)test$(NC)            - Run tests"
-	@echo "  $(GREEN)test-coverage$(NC)   - Run tests with coverage report"
+	@echo "  $(GREEN)test$(NC)            - Run All standard Go tests in the repository"
+	@echo "  $(GREEN)test-script$(NC)     - Run All test scripts"
+	@echo "  $(GREEN)test-script-api$(NC) - Run API test script"
+	@echo "  $(GREEN)test-script-html$(NC) - Run HTML test script"
+	@echo "  $(GREEN)test-coverage$(NC)   - Run All tests with coverage report"
 	@echo "  $(GREEN)clean$(NC)           - Clean build artifacts"
 	@echo "  $(GREEN)fmt$(NC)             - Format code"
 	@echo "  $(GREEN)vet$(NC)             - Vet code"

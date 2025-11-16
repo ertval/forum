@@ -19,6 +19,8 @@ import (
 	postPorts "forum/internal/modules/post/ports"
 	reactionPorts "forum/internal/modules/reaction/ports"
 	userPorts "forum/internal/modules/user/ports"
+
+	"forum/internal/platform/logger"
 )
 
 // ServiceContainer holds all application services for dependency injection.
@@ -33,6 +35,7 @@ type ServiceContainer struct {
 	reaction     reactionPorts.ReactionService
 	moderation   moderationPorts.ModerationService
 	notification notificationPorts.NotificationService
+	logger       *logger.Logger
 }
 
 // Accessor methods for ServiceContainer to satisfy handler interfaces
@@ -46,9 +49,10 @@ func (sc *ServiceContainer) Moderation() moderationPorts.ModerationService { ret
 func (sc *ServiceContainer) Notification() notificationPorts.NotificationService {
 	return sc.notification
 }
+func (sc *ServiceContainer) Logger() *logger.Logger { return sc.logger }
 
 // initServices creates a ServiceContainer with all service instances and their dependencies.
-func initServices(repos *Repositories, sessionDuration time.Duration) *ServiceContainer {
+func initServices(repos *Repositories, sessionDuration time.Duration, lgr *logger.Logger) *ServiceContainer {
 	return &ServiceContainer{
 		auth:         authApp.NewService(repos.Session, repos.User, sessionDuration),
 		user:         userApp.NewService(repos.User),
@@ -58,5 +62,6 @@ func initServices(repos *Repositories, sessionDuration time.Duration) *ServiceCo
 		reaction:     reactionApp.NewService(repos.Reaction),
 		moderation:   moderationApp.NewService(repos.Moderation),
 		notification: notificationApp.NewService(repos.Notification),
+		logger:       lgr,
 	}
 }

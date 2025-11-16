@@ -2,12 +2,40 @@
 package httpserver
 
 import (
+	"fmt"
 	"net/http"
+	"runtime/debug"
+	"time"
+
+	"forum/internal/platform/logger"
 )
 
 // Middleware is a function that wraps an http.Handler.
 // It can modify the request/response or perform actions before/after the handler.
 type Middleware func(http.Handler) http.Handler
+
+// responseWriter wraps http.ResponseWriter to capture status code and bytes written.
+type responseWriter struct {
+	http.ResponseWriter
+	status int
+	size   int
+}
+
+// WriteHeader captures the status code and delegates to the underlying writer.
+func (rw *responseWriter) WriteHeader(status int) {
+	rw.status = status
+	rw.ResponseWriter.WriteHeader(status)
+}
+
+// Write captures the number of bytes written and delegates to the underlying writer.
+func (rw *responseWriter) Write(b []byte) (int, error) {
+	if rw.status == 0 {
+		rw.status = http.StatusOK
+	}
+	n, err := rw.ResponseWriter.Write(b)
+	rw.size += n
+	return n, err
+}
 
 // Chain creates a middleware chain from multiple middleware functions.
 // Middleware is executed in the order provided.
@@ -21,26 +49,60 @@ func Chain(middlewares ...Middleware) Middleware {
 }
 
 // Recovery middleware recovers from panics and returns a 500 error.
-// TODO: Implement panic recovery.
-func Recovery() Middleware {
+func Recovery(lgr *logger.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Implementation placeholder
-			// Recover from panic and log error
+			defer func() {
+				if err := recover(); err != nil {
+					// Convert error to string for logging
+					var errMsg string
+					switch e := err.(type) {
+					case error:
+						errMsg = e.Error()
+					case string:
+						errMsg = e
+					default:
+						errMsg = fmt.Sprintf("%v", e)
+					}
+
+					lgr.Error("panic.recovered",
+						logger.String("path", r.URL.Path),
+						logger.String("method", r.Method),
+						logger.String("remote", r.RemoteAddr),
+						logger.String("error", errMsg),
+						logger.String("stack", string(debug.Stack())),
+					)
+					http.Error(w, "internal server error", http.StatusInternalServerError)
+				}
+			}()
 			next.ServeHTTP(w, r)
 		})
 	}
 }
 
 // Logger middleware logs HTTP requests and responses.
-// TODO: Implement request/response logging.
-func Logger() Middleware {
+func Logger(lgr *logger.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Implementation placeholder
-			// Log request details
-			next.ServeHTTP(w, r)
-			// Log response details
+			start := time.Now()
+			rw := &responseWriter{ResponseWriter: w}
+
+			next.ServeHTTP(rw, r)
+
+			if rw.status == 0 {
+				rw.status = http.StatusOK
+			}
+
+			lgr.Info("http.request",
+				logger.String("method", r.Method),
+				logger.String("path", r.URL.Path),
+				logger.String("query", r.URL.RawQuery),
+				logger.Int("status", rw.status),
+				logger.Int("size", rw.size),
+				logger.Duration("duration_ms", time.Since(start)),
+				logger.String("remote", r.RemoteAddr),
+				logger.String("user_agent", r.UserAgent()),
+			)
 		})
 	}
 }
