@@ -57,6 +57,7 @@ func (h *HTTPHandler) Templates() *template.Template {
 func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	// Public routes (no auth required)
 	router.HandleFunc("GET /", h.HomePage)
+	router.HandleFunc("GET /board", h.BoardPage)
 	router.HandleFunc("GET /posts", h.ListPostsAPI)
 	router.HandleFunc("GET /posts/{id}", h.GetPostAPI)
 	router.HandleFunc("GET /api/posts/load-more", h.LoadMorePostsAPI)
@@ -183,6 +184,121 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 	// Render template
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := h.templates.ExecuteTemplate(w, "home", data); err != nil {
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		return
+	}
+}
+
+// BoardPage handles the board page rendering with post list (identical to homepage).
+func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/board" {
+		http.NotFound(w, r)
+		return
+	}
+
+	ctx := r.Context()
+
+	// Get session token from cookie
+	cookie, err := r.Cookie("session_token")
+	var currentUser any = nil // This will hold user info if logged in
+
+	if err == nil && cookie.Value != "" {
+		// Validate the session using the auth service
+		session, err := h.authService.ValidateSession(ctx, cookie.Value)
+		if err == nil && session != nil {
+			// Get actual user details using user service
+			user, err := h.userService.GetByID(ctx, session.UserID)
+			if err == nil && user != nil {
+				currentUser = map[string]interface{}{
+					"ID":       strconv.Itoa(user.ID), // Convert to string for template comparison
+					"Username": user.Username,
+				}
+			} else {
+				// If we can't get user details, still create with minimal info
+				currentUser = map[string]interface{}{
+					"ID":       session.UserID,
+					"Username": "user" + fmt.Sprintf("%d", session.UserID),
+				}
+			}
+		}
+	}
+
+	// Parse filter parameters
+	category := r.URL.Query().Get("category")
+	myPosts := r.URL.Query().Get("my_posts") == "true"
+	likedPosts := r.URL.Query().Get("liked_posts") == "true"
+
+	// Build filter
+	filter := postPorts.PostFilter{
+		Limit: 10, // Default limit - show only 10 posts on board page by default
+	}
+
+	if category != "" {
+		filter.Categories = []string{category}
+	}
+
+	if myPosts && currentUser != nil {
+		// filter.UserID = currentUser.ID
+	}
+
+	if likedPosts && currentUser != nil {
+		// filter.LikedByUserID = currentUser.ID
+	}
+
+	// Fetch posts
+	posts, err := h.postService.ListPosts(ctx, filter)
+	if err != nil {
+		http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+		return
+	}
+
+	// Create preview content for posts on board page
+	previewPosts := make([]map[string]interface{}, len(posts))
+	for i, post := range posts {
+		previewPost := make(map[string]interface{})
+
+		// Copy all fields from the original post
+		previewPost["ID"] = post.ID
+		previewPost["UserID"] = post.UserID
+		previewPost["AuthorUsername"] = post.AuthorUsername
+		previewPost["Author"] = post.Author
+		previewPost["Title"] = post.Title
+		previewPost["Content"] = createPostPreview(post.Content) // Use preview instead of full content
+		previewPost["ImageURL"] = post.ImageURL
+		previewPost["Categories"] = post.Categories
+		previewPost["LikeCount"] = post.LikeCount
+		previewPost["DislikeCount"] = post.DislikeCount
+		previewPost["CommentCount"] = post.CommentCount
+		previewPost["CreatedAt"] = post.CreatedAt
+		previewPost["UpdatedAt"] = post.UpdatedAt
+
+		previewPosts[i] = previewPost
+	}
+
+	// Fetch all categories for filter dropdown
+	var categories []*postDomain.Category
+	if h.categoryService != nil {
+		categories, err = h.categoryService.List(ctx)
+		if err != nil {
+			// Log error but continue - categories are not critical
+			categories = []*postDomain.Category{}
+		}
+	}
+
+	// Prepare template data for board page
+	data := map[string]interface{}{
+		"Title":            "Board",
+		"Posts":            previewPosts,
+		"Categories":       categories,
+		"SelectedCategory": category,
+		"MyPosts":          myPosts,
+		"LikedPosts":       likedPosts,
+		"User":             currentUser,
+	}
+
+	// Render template using the board template
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.templates.ExecuteTemplate(w, "board", data); err != nil {
 		http.Error(w, "Failed to render page", http.StatusInternalServerError)
 		return
 	}

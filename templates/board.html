@@ -1,38 +1,8 @@
-{{define "home"}}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.Title}} - Forum</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-</head>
-<body>
-    <header>
-        <nav>
-            <div class="container">
-                <h1><a href="/">Forum</a></h1>
-                <ul>
-                    <li><a href="/board">Board</a></li>
-                    {{if .User}}
-                        <li>Welcome, {{.User.Username}}</li>
-                        <li><a href="/posts/new">Create Post</a></li>
-                        <li><a href="/logout">Logout</a></li>
-                    {{else}}
-                        <li><a href="/login">Login</a></li>
-                        <li><a href="/register">Register</a></li>
-                    {{end}}
-                </ul>
-            </div>
-        </nav>
-    </header>
-
-    <main>
-        <div class="container">
+{{define "board"}}
 <div class="home">
     <div class="filters">
         <h2>Filter Posts</h2>
-        <form method="GET" action="/">
+        <form method="GET" action="/board">
             <div class="filter-group">
                 <label for="category">Category:</label>
                 <select name="category" id="category">
@@ -42,7 +12,7 @@
                     {{end}}
                 </select>
             </div>
-            
+
             {{if .User}}
             <div class="filter-group">
                 <label>
@@ -57,14 +27,14 @@
                 </label>
             </div>
             {{end}}
-            
+
             <button type="submit">Apply Filters</button>
         </form>
     </div>
 
     <div class="posts">
         <h2>Posts</h2>
-        
+
         {{if .Posts}}
             {{range .Posts}}
             <article class="post-card">
@@ -75,21 +45,21 @@
                         <span class="date" style="margin-left: auto;">{{.CreatedAt.Format "Jan 02, 2006"}}</span>
                     </div>
                 </div>
-                
+
                 {{if .ImageURL}}
                 <div class="post-image">
                     <img src="{{.ImageURL}}" alt="{{.Title}}">
                 </div>
                 {{end}}
-                
+
                 <div class="post-content">
                     <p>{{.Content}}</p>
                 </div>
-                
+
                 <div class="post-footer">
                     <div class="categories">
                         {{range .Categories}}
-                            <a class="category-tag" href="/?category={{urlquery .}}">{{.}}</a>
+                            <a class="category-tag" href="/board?category={{urlquery .}}">{{.}}</a>
                         {{end}}
                     </div>
 
@@ -124,18 +94,6 @@
         {{end}}
     </div>
 </div>
-        </div>
-    </main>
-
-    <footer>
-        <div class="container">
-            <p>&copy; 2025 Forum. All rights reserved.</p>
-            <p><a href="/health" class="category-tag">Health Status</a></p>
-        </div>
-    </footer>
-
-    <script src="/static/js/load-more-posts.js"></script>
-    <script src="/static/js/app.js"></script>
-</body>
-</html>
+<script src="/static/js/load-more-posts.js"></script>
+<script src="/static/js/app.js"></script>
 {{end}}
