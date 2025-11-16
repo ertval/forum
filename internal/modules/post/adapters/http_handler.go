@@ -115,7 +115,7 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 
 	// Build filter
 	filter := postPorts.PostFilter{
-		Limit: 10, // Default limit - show only 10 posts on homepage by default
+		Limit: 12, // Default limit - show only 12 posts on homepage (4x3 grid)
 	}
 
 	if category != "" {
@@ -179,6 +179,7 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 		"MyPosts":          myPosts,
 		"LikedPosts":       likedPosts,
 		"User":             currentUser,
+		"FilterAction":     "/",
 	}
 
 	// Parse templates individually for this page
@@ -217,14 +218,20 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 			user, err := h.userService.GetByID(ctx, session.UserID)
 			if err == nil && user != nil {
 				currentUser = map[string]interface{}{
-					"ID":       strconv.Itoa(user.ID), // Convert to string for template comparison
-					"Username": user.Username,
+					"ID":           strconv.Itoa(user.ID), // Convert to string for template comparison
+					"Username":     user.Username,
+					"Email":        user.Email,
+					"PostCount":    0,    // TODO: Implement post count
+					"CommentCount": 0,    // TODO: Implement comment count
 				}
 			} else {
 				// If we can't get user details, still create with minimal info
 				currentUser = map[string]interface{}{
-					"ID":       session.UserID,
-					"Username": "user" + fmt.Sprintf("%d", session.UserID),
+					"ID":           session.UserID,
+					"Username":     "user" + fmt.Sprintf("%d", session.UserID),
+					"Email":        "",
+					"PostCount":    0,
+					"CommentCount": 0,
 				}
 			}
 		}
@@ -298,6 +305,7 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 		"Posts":            previewPosts,
 		"Categories":       categories,
 		"SelectedCategory": category,
+		"FilterAction":     "/board",
 		"MyPosts":          myPosts,
 		"LikedPosts":       likedPosts,
 		"User":             currentUser,

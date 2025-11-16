@@ -1,39 +1,15 @@
 {{define "content"}}
 <div class="home">
-    <div class="filters">
-        <h2>Filter Posts</h2>
-        <form method="GET" action="/board">
-            <div class="filter-group">
-                <label for="category">Category:</label>
-                <select name="category" id="category">
-                    <option value="">All Categories</option>
-                    {{range .Categories}}
-                        <option value="{{.Name}}" {{if eq $.SelectedCategory .Name}}selected{{end}}>{{.Name}}</option>
-                    {{end}}
-                </select>
-            </div>
-
-            {{if .User}}
-            <div class="filter-group">
-                <label>
-                    <input type="checkbox" name="my_posts" value="true" {{if .MyPosts}}checked{{end}}>
-                    My Posts
-                </label>
-            </div>
-            <div class="filter-group">
-                <label>
-                    <input type="checkbox" name="liked_posts" value="true" {{if .LikedPosts}}checked{{end}}>
-                    Posts I Liked
-                </label>
-            </div>
-            {{end}}
-
-            <button type="submit">Apply Filters</button>
-        </form>
-    </div>
+    <aside class="sidebar">
+        {{if .User}}
+        {{template "user-card" .}}
+        {{end}}
+        
+        {{template "filter-card" .}}
+    </aside>
 
     <div class="posts">
-        <h2>Posts</h2>
+        <h2>All Posts</h2>
 
         {{if .Posts}}
             {{range .Posts}}
@@ -42,7 +18,7 @@
                     <h3><a href="/posts/{{.ID}}">{{.Title}}</a></h3>
                     <div class="post-meta">
                         <span class="author">by {{.AuthorUsername}}</span>
-                        <span class="date" style="margin-left: auto;">{{.CreatedAt.Format "Jan 02, 2006"}}</span>
+                        <span class="date">{{.CreatedAt.Format "Jan 02, 2006"}}</span>
                     </div>
                 </div>
 
@@ -75,7 +51,6 @@
             <p class="no-posts">No posts found. {{if .User}}<a href="/posts/new">Create the first post!</a>{{else}}<a href="/register">Register</a> to create posts.{{end}}</p>
         {{end}}
 
-        <!-- Load More and Load All Buttons -->
         {{if .Posts}}
             <div class="load-more-container">
                 <button id="load-more-btn"
