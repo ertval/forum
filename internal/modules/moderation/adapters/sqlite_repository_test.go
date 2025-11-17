@@ -100,7 +100,7 @@ func TestSQLiteReportRepository_Get(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	result, err := repo.Get(ctx, report.ID)
+	result, err := repo.GetByID(ctx, report.ID)
 	// Since the implementation is a placeholder (returns nil, nil), we expect this to be nil
 	if err != nil {
 		// This is expected for placeholder implementation

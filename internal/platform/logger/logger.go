@@ -389,9 +389,9 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 				}
 
 				if valColor != "" {
-					out += fmt.Sprintf(" %s=%s", k, l.applyColor(valStr, valColor))
+					out += fmt.Sprintf(" %s:%s", k, l.applyColor(valStr, valColor))
 				} else {
-					out += fmt.Sprintf(" %s=%v", k, v)
+					out += fmt.Sprintf(" %s:%v", k, v)
 				}
 			}
 		}

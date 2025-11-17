@@ -10,7 +10,7 @@ import (
 func TestUserServiceInterface(t *testing.T) {
 	// This test ensures that the UserService interface is properly defined
 	// and that we can create a variable of the interface type
-	
+
 	var userService UserService
 	if userService != nil {
 		t.Error("UserService interface should be usable as a nil variable")
@@ -109,7 +109,7 @@ func (m *mockUserRepository) ExistsByUsername(ctx context.Context, username stri
 func TestUserServiceInterfaceMethods(t *testing.T) {
 	// Create context for testing
 	ctx := context.Background()
-	
+
 	// Test that we can call interface methods on a variable of the interface type
 	service := &mockUserService{}
 
@@ -119,41 +119,41 @@ func TestUserServiceInterfaceMethods(t *testing.T) {
 		// Expected to be not implemented in mock
 	}
 
-	_, err := service.GetByUsername(ctx, "username")
+	_, err = service.GetByUsername(ctx, "username")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
 
-	_, err := service.GetByEmail(ctx, "email")
+	_, err = service.GetByEmail(ctx, "email")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
 
-	_, err := service.GetProfile(ctx, 1)
+	_, err = service.GetProfile(ctx, 1)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	err = service.UpdateRole(ctx, 1, domain.RoleUser)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	err = service.DeactivateUser(ctx, 1)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	err = service.ActivateUser(ctx, 1)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	_, err = service.ListUsers(ctx, 0, 10)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	_, err = service.GetUserStats(ctx, 1)
 	if err != nil {
 		// Expected to be not implemented in mock
@@ -163,76 +163,76 @@ func TestUserServiceInterfaceMethods(t *testing.T) {
 func TestUserRepositoryInterfaceMethods(t *testing.T) {
 	// Create context for testing
 	ctx := context.Background()
-	
+
 	// Create mock repository
 	repo := &mockUserRepository{}
-	
+
 	// Test that we can call interface methods on a variable of the interface type
 	var user *domain.User
 	var users []*domain.User
 	var err error
 	var exists bool
-	
+
 	// Test Create method
 	err = repo.Create(ctx, user)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	// Test Get method
 	user, err = repo.Get(ctx, 1)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	// Test GetByEmail method
 	user, err = repo.GetByEmail(ctx, "email")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	// Test GetByUsername method
 	user, err = repo.GetByUsername(ctx, "username")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	// Test Update method
 	err = repo.Update(ctx, user)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	// Test Delete method
 	err = repo.Delete(ctx, 1)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	// Test UpdatePassword method
 	err = repo.UpdatePassword(ctx, 1, "new_hash")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	// Test List method
 	users, err = repo.List(ctx, 0, 10)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	// Test ExistsByEmail method
 	exists, err = repo.ExistsByEmail(ctx, "email")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	// Test ExistsByUsername method
 	exists, err = repo.ExistsByUsername(ctx, "username")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
-	_ = users // Use the variable to avoid unused variable warning
+
+	_ = users  // Use the variable to avoid unused variable warning
 	_ = exists // Use the variable to avoid unused variable warning
 }

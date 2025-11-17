@@ -114,7 +114,7 @@ func TestSQLiteUserRepository_Get(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	result, err := repo.Get(ctx, user.ID)
+	result, err := repo.GetByID(ctx, user.ID)
 	if err != nil {
 		t.Errorf("Get returned error: %v", err)
 	}

@@ -123,40 +123,8 @@ func (m *MockUserRepository) GetByUsername(ctx context.Context, username string)
 	return nil, errors.New("user not found")
 }
 
-func (m *MockUserRepository) GetByEmail(ctx context.Context, email string) (*userDomain.User, error) {
-	if m.users == nil {
-		return nil, errors.New("user not found")
-	}
-	for _, user := range m.users {
-		if user.Email == email {
-			return user, nil
-		}
-	}
-	return nil, errors.New("user not found")
-}
-
-func (m *MockUserRepository) Update(ctx context.Context, user *userDomain.User) error {
-	return nil
-}
-
-func (m *MockUserRepository) Delete(ctx context.Context, id int) error {
-	return nil
-}
-
-func (m *MockUserRepository) UpdatePassword(ctx context.Context, userID int, newPasswordHash string) error {
-	return nil
-}
-
 func (m *MockUserRepository) List(ctx context.Context, offset, limit int) ([]*userDomain.User, error) {
 	return nil, nil
-}
-
-func (m *MockUserRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
-	return false, nil
-}
-
-func (m *MockUserRepository) ExistsByUsername(ctx context.Context, username string) (bool, error) {
-	return false, nil
 }
 
 // MockSessionRepository implements auth ports SessionRepository for testing
@@ -239,12 +207,12 @@ func TestService_Register(t *testing.T) {
 	service := NewService(mockSessionRepo, mockUserRepo, 24*time.Hour)
 
 	tests := []struct {
-		name           string
-		email          string
-		username       string
-		password       string
-		expectedError  error
-		setup          func()
+		name          string
+		email         string
+		username      string
+		password      string
+		expectedError error
+		setup         func()
 	}{
 		{
 			name:          "successful registration",

@@ -87,6 +87,53 @@ func (h *HTTPHandler) buildCurrentUser(ctx context.Context, userID int) map[stri
 	}
 }
 
+// buildPageTitle creates a dynamic page title based on active filters.
+func (h *HTTPHandler) buildPageTitle(filterParams postPorts.FilterParams) string {
+	// Build title parts: [My] [Category] Posts [TimePeriod]
+	var parts []string
+
+	// Add "My" if showing user's own posts or liked posts
+	if filterParams.MyPosts || filterParams.UserID != "" {
+		parts = append(parts, "My")
+	} else if filterParams.LikedPosts {
+		parts = append(parts, "My Liked")
+	}
+
+	// Add category if selected
+	if filterParams.Category != "" {
+		parts = append(parts, filterParams.Category)
+	}
+
+	// Always include "Posts"
+	parts = append(parts, "Posts")
+
+	// Add time period if selected (and not "all")
+	switch filterParams.DateFilter {
+	case "today":
+		parts = append(parts, "Today")
+	case "week":
+		parts = append(parts, "This Week")
+	case "month":
+		parts = append(parts, "This Month")
+	}
+
+	// Default title if no filters
+	if len(parts) == 1 && parts[0] == "Posts" {
+		return "All Posts"
+	}
+
+	// Join parts with spaces
+	title := ""
+	for i, part := range parts {
+		if i > 0 {
+			title += " "
+		}
+		title += part
+	}
+
+	return title
+}
+
 // RegisterRoutes registers all post routes.
 func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	// Public routes (no auth required)
@@ -304,9 +351,13 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Build dynamic page title based on active filters
+	pageTitle := h.buildPageTitle(filterParams)
+
 	// Prepare template data for board page
 	data := map[string]interface{}{
 		"Title":            "Board",
+		"PageTitle":        pageTitle,
 		"Posts":            previewPosts,
 		"Categories":       categories,
 		"SelectedCategory": filterParams.Category,

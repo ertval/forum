@@ -60,14 +60,12 @@ func HealthPage(cfg HealthPageConfig) http.HandlerFunc {
 
 		// Prepare data for the template
 		data := map[string]interface{}{
-			"Title":  "System Health",
+			"Title":  "Health Status",
 			"Health": results,
 			"User":   currentUser,
 			// Health page should not show the sidebar even when user is present
 			"ShowSidebar": false,
-		}
-
-		// Always parse health-specific templates to avoid conflicts with other content blocks
+		} // Always parse health-specific templates to avoid conflicts with other content blocks
 		var tmpl *template.Template
 		var err error
 		tmpl, err = template.ParseFiles("templates/base.html", "templates/health.html")

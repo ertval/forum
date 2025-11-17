@@ -176,7 +176,7 @@ func TestService_GetByID(t *testing.T) {
 		Email:        "test@example.com",
 		Username:     "testuser",
 		PasswordHash: "hashed_password",
-		Role:         RoleUser,
+		Role:         domain.RoleUser,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 		IsActive:     true,
@@ -221,7 +221,7 @@ func TestService_GetByUsername(t *testing.T) {
 		Email:        "test@example.com",
 		Username:     "testuser",
 		PasswordHash: "hashed_password",
-		Role:         RoleUser,
+		Role:         domain.RoleUser,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 		IsActive:     true,
@@ -266,7 +266,7 @@ func TestService_GetByEmail(t *testing.T) {
 		Email:        "test@example.com",
 		Username:     "testuser",
 		PasswordHash: "hashed_password",
-		Role:         RoleUser,
+		Role:         domain.RoleUser,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 		IsActive:     true,
@@ -307,9 +307,9 @@ func TestService_ListUsers(t *testing.T) {
 	// Add test users to the mock
 	now := time.Now()
 	users := []*domain.User{
-		{ID: 1, Email: "user1@example.com", Username: "user1", PasswordHash: "hash1", Role: RoleUser, CreatedAt: now, UpdatedAt: now, IsActive: true},
-		{ID: 2, Email: "user2@example.com", Username: "user2", PasswordHash: "hash2", Role: RoleUser, CreatedAt: now, UpdatedAt: now, IsActive: true},
-		{ID: 3, Email: "user3@example.com", Username: "user3", PasswordHash: "hash3", Role: RoleAdmin, CreatedAt: now, UpdatedAt: now, IsActive: true},
+		{ID: 1, Email: "user1@example.com", Username: "user1", PasswordHash: "hash1", Role: domain.RoleUser, CreatedAt: now, UpdatedAt: now, IsActive: true},
+		{ID: 2, Email: "user2@example.com", Username: "user2", PasswordHash: "hash2", Role: domain.RoleUser, CreatedAt: now, UpdatedAt: now, IsActive: true},
+		{ID: 3, Email: "user3@example.com", Username: "user3", PasswordHash: "hash3", Role: domain.RoleAdmin, CreatedAt: now, UpdatedAt: now, IsActive: true},
 	}
 	mockRepo.users = map[int]*domain.User{}
 	for _, user := range users {
