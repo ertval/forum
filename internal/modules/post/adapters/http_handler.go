@@ -63,13 +63,14 @@ func (h *HTTPHandler) Templates() *template.Template {
 // buildCurrentUser fetches full user info and activity stats and returns
 // a map suitable for templates. It always returns a map (never nil).
 func (h *HTTPHandler) buildCurrentUser(ctx context.Context, userID int) map[string]interface{} {
-	var username, email string
+	var username, email, publicID string
 	var postCount, commentCount int
 
 	if h.userService != nil {
 		if user, err := h.userService.GetByID(ctx, userID); err == nil && user != nil {
 			username = user.Username
 			email = user.Email
+			publicID = user.PublicID
 		}
 
 		if stats, err := h.userService.GetUserStats(ctx, userID); err == nil && stats != nil {
@@ -79,7 +80,7 @@ func (h *HTTPHandler) buildCurrentUser(ctx context.Context, userID int) map[stri
 	}
 
 	return map[string]interface{}{
-		"ID":           strconv.Itoa(userID),
+		"ID":           publicID,
 		"Username":     username,
 		"Email":        email,
 		"PostCount":    postCount,
@@ -211,8 +212,10 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 		previewPost := make(map[string]interface{})
 
 		// Copy all fields from the original post
-		previewPost["ID"] = post.ID
-		previewPost["UserID"] = post.UserID
+		previewPost["ID"] = post.PublicID
+		previewPost["PublicID"] = post.PublicID
+		previewPost["UserID"] = post.UserPublicID
+		previewPost["UserPublicID"] = post.UserPublicID
 		previewPost["AuthorUsername"] = post.AuthorUsername
 		previewPost["Author"] = post.Author
 		previewPost["Title"] = post.Title
@@ -325,8 +328,10 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 		previewPost := make(map[string]interface{})
 
 		// Copy all fields from the original post
-		previewPost["ID"] = post.ID
-		previewPost["UserID"] = post.UserID
+		previewPost["ID"] = post.PublicID
+		previewPost["PublicID"] = post.PublicID
+		previewPost["UserID"] = post.UserPublicID
+		previewPost["UserPublicID"] = post.UserPublicID
 		previewPost["AuthorUsername"] = post.AuthorUsername
 		previewPost["Author"] = post.Author
 		previewPost["Title"] = post.Title
@@ -877,8 +882,10 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 		previewPost := make(map[string]interface{})
 
 		// Copy all fields from the original post
-		previewPost["ID"] = post.ID
-		previewPost["UserID"] = post.UserID
+		previewPost["ID"] = post.PublicID
+		previewPost["PublicID"] = post.PublicID
+		previewPost["UserID"] = post.UserPublicID
+		previewPost["UserPublicID"] = post.UserPublicID
 		previewPost["AuthorUsername"] = post.AuthorUsername
 		previewPost["Author"] = post.Author
 		previewPost["Title"] = post.Title

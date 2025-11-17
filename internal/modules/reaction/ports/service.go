@@ -11,14 +11,15 @@ import (
 type ReactionService interface {
 	// React adds or updates a user's reaction to a target.
 	// If the user already has a different reaction, it's replaced (toggle behavior).
-	React(ctx context.Context, userID, targetID int, targetType string, reactionType domain.ReactionType) error
+	// targetPublicID: public UUID of the target (post/comment), userID: internal user ID from session
+	React(ctx context.Context, userID int, targetPublicID string, targetType string, reactionType domain.ReactionType) error
 
 	// RemoveReaction removes a user's reaction from a target.
-	RemoveReaction(ctx context.Context, userID, targetID int, targetType string) error
+	RemoveReaction(ctx context.Context, userID int, targetPublicID string, targetType string) error
 
 	// GetReactions retrieves all reactions for a target.
-	GetReactions(ctx context.Context, targetID int, targetType string) ([]*domain.Reaction, error)
+	GetReactions(ctx context.Context, targetPublicID string, targetType string) ([]*domain.Reaction, error)
 
 	// CountReactions returns the count of likes and dislikes for a target.
-	CountReactions(ctx context.Context, targetID int, targetType string) (likes, dislikes int, err error)
+	CountReactions(ctx context.Context, targetPublicID string, targetType string) (likes, dislikes int, err error)
 }

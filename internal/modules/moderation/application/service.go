@@ -20,19 +20,20 @@ func NewService(reportRepo ports.ReportRepository) *Service {
 
 // CreateReport creates a new moderation report.
 // TODO: Implement report creation with validation.
-func (s *Service) CreateReport(ctx context.Context, reporterID, targetID int, targetType, reason string) error {
+func (s *Service) CreateReport(ctx context.Context, reporterID int, targetPublicID string, targetType, reason string) error {
 	// Implementation placeholder
 	// 1. Validate target type and reason
-	// 2. Create report entity with "pending" status
-	// 3. Save to repository
+	// 2. Resolve targetPublicID to internal target ID
+	// 3. Create report entity with "pending" status
+	// 4. Save to repository (repo generates PublicID)
 	return nil
 }
 
 // ReviewReport marks a report as reviewed with a decision.
 // TODO: Implement report review logic.
-func (s *Service) ReviewReport(ctx context.Context, reportID int, decision string) error {
+func (s *Service) ReviewReport(ctx context.Context, reportPublicID string, decision string) error {
 	// Implementation placeholder
-	// 1. Retrieve report
+	// 1. Retrieve report by public ID
 	// 2. Validate decision (resolved/dismissed)
 	// 3. Update report status
 	// 4. Save to repository

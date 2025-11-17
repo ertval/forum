@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"errors"
 	"forum/internal/modules/user/domain"
 	"forum/internal/modules/user/ports"
 	"testing"
@@ -14,6 +13,7 @@ type MockUserRepository struct {
 	users              map[int]*domain.User
 	createFn           func(ctx context.Context, user *domain.User) error
 	getByIDFn          func(ctx context.Context, id int) (*domain.User, error)
+	getByPublicIDFn    func(ctx context.Context, publicID string) (*domain.User, error)
 	getByEmailFn       func(ctx context.Context, email string) (*domain.User, error)
 	getByUsernameFn    func(ctx context.Context, username string) (*domain.User, error)
 	updateFn           func(ctx context.Context, user *domain.User) error
@@ -36,13 +36,26 @@ func (m *MockUserRepository) Create(ctx context.Context, user *domain.User) erro
 	return nil
 }
 
-func (m *MockUserRepository) Get(ctx context.Context, id int) (*domain.User, error) {
+func (m *MockUserRepository) GetByID(ctx context.Context, id int) (*domain.User, error) {
 	if m.getByIDFn != nil {
 		return m.getByIDFn(ctx, id)
 	}
 
 	if user, exists := m.users[id]; exists {
 		return user, nil
+	}
+	return nil, nil
+}
+
+func (m *MockUserRepository) GetByPublicID(ctx context.Context, publicID string) (*domain.User, error) {
+	if m.getByPublicIDFn != nil {
+		return m.getByPublicIDFn(ctx, publicID)
+	}
+
+	for _, user := range m.users {
+		if user.PublicID == publicID {
+			return user, nil
+		}
 	}
 	return nil, nil
 }
@@ -153,19 +166,6 @@ func (m *MockUserRepository) Count(ctx context.Context) (int, error) {
 	return len(m.users), nil
 }
 
-func (m *MockUserRepository) GetByID(ctx context.Context, id int) (*domain.User, error) {
-	if m.users == nil {
-		return nil, errors.New("user not found")
-	}
-	for _, user := range m.users {
-		if user.ID == id {
-			return user, nil
-		}
-	}
-	return nil, errors.New("user not found")
-}
-
-// GetUserStats retrieves statistics about a user's activity.
 func (m *MockUserRepository) GetUserStats(ctx context.Context, userID int) (*ports.UserStats, error) {
 	return &ports.UserStats{
 		PostCount:    0,

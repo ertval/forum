@@ -9,8 +9,11 @@ import (
 
 // UserService defines the user management use cases.
 type UserService interface {
-	// GetByID retrieves a user by their ID.
+	// GetByID retrieves a user by their internal ID (for internal use only).
 	GetByID(ctx context.Context, userID int) (*domain.User, error)
+
+	// GetByPublicID retrieves a user by their public UUID (for external API access).
+	GetByPublicID(ctx context.Context, publicID string) (*domain.User, error)
 	
 	// GetByUsername retrieves a user by their username.
 	GetByUsername(ctx context.Context, username string) (*domain.User, error)

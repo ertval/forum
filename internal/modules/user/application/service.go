@@ -19,10 +19,15 @@ func NewService(userRepo ports.UserRepository) *Service {
 	}
 }
 
-// GetByID retrieves a user by their ID.
+// GetByID retrieves a user by their internal ID (for internal use only).
 // TODO: Implement user retrieval.
 func (s *Service) GetByID(ctx context.Context, userID int) (*domain.User, error) {
 	return s.userRepo.GetByID(ctx, userID)
+}
+
+// GetByPublicID retrieves a user by their public UUID (for external API access).
+func (s *Service) GetByPublicID(ctx context.Context, publicID string) (*domain.User, error) {
+	return s.userRepo.GetByPublicID(ctx, publicID)
 }
 
 // GetByUsername retrieves a user by their username.

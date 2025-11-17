@@ -40,7 +40,8 @@ func TestAuthIntegration(t *testing.T) {
 	// This replicates what the migrations do
 	_, err = db.Exec(`
 		CREATE TABLE users (
-			id INTEGER PRIMARY KEY,
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			public_id TEXT UNIQUE NOT NULL,
 			email TEXT UNIQUE NOT NULL,
 			username TEXT UNIQUE NOT NULL,
 			password_hash TEXT NOT NULL,
@@ -52,7 +53,8 @@ func TestAuthIntegration(t *testing.T) {
 			is_active INTEGER NOT NULL DEFAULT 1
 		);
 		CREATE TABLE sessions (
-			id TEXT PRIMARY KEY,
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			public_id TEXT UNIQUE NOT NULL,
 			user_id INTEGER NOT NULL,
 			token TEXT UNIQUE NOT NULL,
 			expires_at DATETIME NOT NULL,

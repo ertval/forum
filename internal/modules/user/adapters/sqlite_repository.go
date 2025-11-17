@@ -94,6 +94,40 @@ func (r *SQLiteUserRepository) GetByID(ctx context.Context, userID int) (*domain
 	return &user, nil
 }
 
+// GetByPublicID retrieves a user by their public UUID.
+func (r *SQLiteUserRepository) GetByPublicID(ctx context.Context, publicID string) (*domain.User, error) {
+	query := `SELECT id, public_id, email, username, password_hash, role, created_at, updated_at, is_active
+              FROM users WHERE public_id = ?`
+
+	row := r.db.QueryRowContext(ctx, query, publicID)
+
+	var user domain.User
+	var isActive int // SQLite stores booleans as integers (0 or 1)
+
+	err := row.Scan(
+		&user.ID,
+		&user.PublicID,
+		&user.Email,
+		&user.Username,
+		&user.PasswordHash,
+		&user.Role,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+		&isActive,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, sql.ErrNoRows
+		}
+		return nil, err
+	}
+
+	user.IsActive = isActive == 1
+
+	return &user, nil
+}
+
 // GetByEmail retrieves a user by their email address.
 func (r *SQLiteUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	query := `SELECT id, public_id, email, username, password_hash, role, created_at, updated_at, is_active
@@ -205,9 +239,17 @@ func (r *SQLiteUserRepository) Delete(ctx context.Context, userID int) error {
 // List returns a paginated list of users.
 func (r *SQLiteUserRepository) List(ctx context.Context, offset, limit int) ([]*domain.User, error) {
 	query := `SELECT id, public_id, email, username, password_hash, role, created_at, updated_at, is_active
-              FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?`
-
-	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+              FROM users ORDER BY created_at DESC`
+	
+	// Add pagination if limit is specified
+	var rows *sql.Rows
+	var err error
+	if limit > 0 {
+		query += ` LIMIT ? OFFSET ?`
+		rows, err = r.db.QueryContext(ctx, query, limit, offset)
+	} else {
+		rows, err = r.db.QueryContext(ctx, query)
+	}
 	if err != nil {
 		return nil, err
 	}

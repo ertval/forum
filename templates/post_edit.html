@@ -2,7 +2,7 @@
 <div class="post-edit">
     <h1>Edit Post</h1>
 
-    <form id="post-edit-form" enctype="multipart/form-data" data-post-id="{{.Post.ID}}">
+    <form id="post-edit-form" enctype="multipart/form-data" data-post-id="{{.Post.PublicID}}">
         <div class="form-group">
             <label for="title">Title *</label>
             <input 
@@ -33,7 +33,7 @@
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Update Post</button>
-            <a href="/posts/{{.Post.ID}}" class="btn btn-secondary">Cancel</a>
+            <a href="/posts/{{.Post.PublicID}}" class="btn btn-secondary">Cancel</a>
         </div>
 
         <div id="form-errors" class="form-errors"></div>

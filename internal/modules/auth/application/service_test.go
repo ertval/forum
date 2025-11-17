@@ -148,6 +148,19 @@ func (m *MockUserRepository) GetUserStats(ctx context.Context, userID int) (*use
 	}, nil
 }
 
+// GetByPublicID retrieves a user by their public UUID.
+func (m *MockUserRepository) GetByPublicID(ctx context.Context, publicID string) (*userDomain.User, error) {
+	if m.users == nil {
+		return nil, errors.New("user not found")
+	}
+	for _, user := range m.users {
+		if user.PublicID == publicID {
+			return user, nil
+		}
+	}
+	return nil, errors.New("user not found")
+}
+
 // MockSessionRepository implements auth ports SessionRepository for testing
 type MockSessionRepository struct {
 	sessions        map[string]*domain.Session

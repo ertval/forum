@@ -19,14 +19,15 @@ func TestSQLiteUserRepository_Create(t *testing.T) {
 
 	// Create the users table
 	_, err = db.Exec(`CREATE TABLE users (
-		id INTEGER PRIMARY KEY,
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT UNIQUE NOT NULL,
 		email TEXT UNIQUE,
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active BOOLEAN
+		is_active INTEGER
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -35,7 +36,6 @@ func TestSQLiteUserRepository_Create(t *testing.T) {
 	repo := NewSQLiteUserRepository(db)
 
 	user := &domain.User{
-		ID:           1,
 		Email:        "test@example.com",
 		Username:     "testuser",
 		PasswordHash: "hashed_password",
@@ -51,7 +51,15 @@ func TestSQLiteUserRepository_Create(t *testing.T) {
 		t.Errorf("Create returned error: %v", err)
 	}
 
-	// Verify the user was created
+	// Verify the user was created and has generated IDs
+	if user.ID == 0 {
+		t.Error("Expected ID to be set after creation")
+	}
+	if user.PublicID == "" {
+		t.Error("Expected PublicID to be generated")
+	}
+
+	// Verify the user was created in database
 	var id int
 	err = db.QueryRow("SELECT id FROM users WHERE email = ?", user.Email).Scan(&id)
 	if err != nil {
@@ -71,14 +79,15 @@ func TestSQLiteUserRepository_Get(t *testing.T) {
 
 	// Create the users table
 	_, err = db.Exec(`CREATE TABLE users (
-		id INTEGER PRIMARY KEY,
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT UNIQUE NOT NULL,
 		email TEXT UNIQUE,
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active BOOLEAN
+		is_active INTEGER
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -86,10 +95,9 @@ func TestSQLiteUserRepository_Get(t *testing.T) {
 
 	repo := NewSQLiteUserRepository(db)
 
-	// Insert a user directly for testing
+	// Create a user using the repository (which generates public_id)
 	now := time.Now()
 	user := &domain.User{
-		ID:           1,
 		Email:        "test@example.com",
 		Username:     "testuser",
 		PasswordHash: "hashed_password",
@@ -99,21 +107,13 @@ func TestSQLiteUserRepository_Get(t *testing.T) {
 		IsActive:     true,
 	}
 
-	_, err = db.Exec("INSERT INTO users (id, email, username, password_hash, role, created_at, updated_at, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		user.ID,
-		user.Email,
-		user.Username,
-		user.PasswordHash,
-		user.Role,
-		user.CreatedAt,
-		user.UpdatedAt,
-		user.IsActive,
-	)
+	ctx := context.Background()
+	err = repo.Create(ctx, user)
 	if err != nil {
-		t.Fatalf("Failed to insert test user: %v", err)
+		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	ctx := context.Background()
+	// Test GetByID
 	result, err := repo.GetByID(ctx, user.ID)
 	if err != nil {
 		t.Errorf("Get returned error: %v", err)
@@ -149,14 +149,15 @@ func TestSQLiteUserRepository_GetByEmail(t *testing.T) {
 
 	// Create the users table
 	_, err = db.Exec(`CREATE TABLE users (
-		id INTEGER PRIMARY KEY,
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT UNIQUE NOT NULL,
 		email TEXT UNIQUE,
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active BOOLEAN
+		is_active INTEGER
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -164,10 +165,9 @@ func TestSQLiteUserRepository_GetByEmail(t *testing.T) {
 
 	repo := NewSQLiteUserRepository(db)
 
-	// Insert a user directly for testing
+	// Create a user using the repository (which generates public_id)
 	now := time.Now()
 	user := &domain.User{
-		ID:           1,
 		Email:        "test@example.com",
 		Username:     "testuser",
 		PasswordHash: "hashed_password",
@@ -177,21 +177,13 @@ func TestSQLiteUserRepository_GetByEmail(t *testing.T) {
 		IsActive:     true,
 	}
 
-	_, err = db.Exec("INSERT INTO users (id, email, username, password_hash, role, created_at, updated_at, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		user.ID,
-		user.Email,
-		user.Username,
-		user.PasswordHash,
-		user.Role,
-		user.CreatedAt,
-		user.UpdatedAt,
-		user.IsActive,
-	)
+	ctx := context.Background()
+	err = repo.Create(ctx, user)
 	if err != nil {
-		t.Fatalf("Failed to insert test user: %v", err)
+		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	ctx := context.Background()
+	ctx = context.Background()
 	result, err := repo.GetByEmail(ctx, user.Email)
 	if err != nil {
 		t.Errorf("GetByEmail returned error: %v", err)
@@ -218,14 +210,15 @@ func TestSQLiteUserRepository_GetByUsername(t *testing.T) {
 
 	// Create the users table
 	_, err = db.Exec(`CREATE TABLE users (
-		id INTEGER PRIMARY KEY,
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT UNIQUE NOT NULL,
 		email TEXT UNIQUE,
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active BOOLEAN
+		is_active INTEGER
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -233,10 +226,9 @@ func TestSQLiteUserRepository_GetByUsername(t *testing.T) {
 
 	repo := NewSQLiteUserRepository(db)
 
-	// Insert a user directly for testing
+	// Create a user using the repository (which generates public_id)
 	now := time.Now()
 	user := &domain.User{
-		ID:           1,
 		Email:        "test@example.com",
 		Username:     "testuser",
 		PasswordHash: "hashed_password",
@@ -246,21 +238,12 @@ func TestSQLiteUserRepository_GetByUsername(t *testing.T) {
 		IsActive:     true,
 	}
 
-	_, err = db.Exec("INSERT INTO users (id, email, username, password_hash, role, created_at, updated_at, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		user.ID,
-		user.Email,
-		user.Username,
-		user.PasswordHash,
-		user.Role,
-		user.CreatedAt,
-		user.UpdatedAt,
-		user.IsActive,
-	)
+	ctx := context.Background()
+	err = repo.Create(ctx, user)
 	if err != nil {
-		t.Fatalf("Failed to insert test user: %v", err)
+		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	ctx := context.Background()
 	result, err := repo.GetByUsername(ctx, user.Username)
 	if err != nil {
 		t.Errorf("GetByUsername returned error: %v", err)
@@ -287,14 +270,15 @@ func TestSQLiteUserRepository_Update(t *testing.T) {
 
 	// Create the users table
 	_, err = db.Exec(`CREATE TABLE users (
-		id INTEGER PRIMARY KEY,
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT UNIQUE NOT NULL,
 		email TEXT UNIQUE,
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active BOOLEAN
+		is_active INTEGER
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -302,10 +286,9 @@ func TestSQLiteUserRepository_Update(t *testing.T) {
 
 	repo := NewSQLiteUserRepository(db)
 
-	// Insert a user directly for testing
+	// Create a user using the repository (which generates public_id)
 	now := time.Now()
 	user := &domain.User{
-		ID:           1,
 		Email:        "test@example.com",
 		Username:     "testuser",
 		PasswordHash: "hashed_password",
@@ -315,23 +298,15 @@ func TestSQLiteUserRepository_Update(t *testing.T) {
 		IsActive:     true,
 	}
 
-	_, err = db.Exec("INSERT INTO users (id, email, username, password_hash, role, created_at, updated_at, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		user.ID,
-		user.Email,
-		user.Username,
-		user.PasswordHash,
-		user.Role,
-		user.CreatedAt,
-		user.UpdatedAt,
-		user.IsActive,
-	)
+	ctx := context.Background()
+	err = repo.Create(ctx, user)
 	if err != nil {
-		t.Fatalf("Failed to insert test user: %v", err)
+		t.Fatalf("Failed to create test user: %v", err)
 	}
 
 	// Prepare updated user
 	updatedUser := &domain.User{
-		ID:           1,
+		ID:           user.ID,
 		Email:        "updated@example.com", // Changed email
 		Username:     "updateduser",         // Changed username
 		PasswordHash: "new_hash",            // Changed password hash
@@ -341,7 +316,6 @@ func TestSQLiteUserRepository_Update(t *testing.T) {
 		IsActive:     false,                 // Changed active status
 	}
 
-	ctx := context.Background()
 	err = repo.Update(ctx, updatedUser)
 	if err != nil {
 		t.Errorf("Update returned error: %v", err)
@@ -375,14 +349,15 @@ func TestSQLiteUserRepository_Delete(t *testing.T) {
 
 	// Create the users table
 	_, err = db.Exec(`CREATE TABLE users (
-		id INTEGER PRIMARY KEY,
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT UNIQUE NOT NULL,
 		email TEXT UNIQUE,
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active BOOLEAN
+		is_active INTEGER
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -390,10 +365,9 @@ func TestSQLiteUserRepository_Delete(t *testing.T) {
 
 	repo := NewSQLiteUserRepository(db)
 
-	// Insert a user directly for testing
+	// Create a user using the repository (which generates public_id)
 	now := time.Now()
 	user := &domain.User{
-		ID:           1,
 		Email:        "test@example.com",
 		Username:     "testuser",
 		PasswordHash: "hashed_password",
@@ -403,21 +377,12 @@ func TestSQLiteUserRepository_Delete(t *testing.T) {
 		IsActive:     true,
 	}
 
-	_, err = db.Exec("INSERT INTO users (id, email, username, password_hash, role, created_at, updated_at, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		user.ID,
-		user.Email,
-		user.Username,
-		user.PasswordHash,
-		user.Role,
-		user.CreatedAt,
-		user.UpdatedAt,
-		user.IsActive,
-	)
+	ctx := context.Background()
+	err = repo.Create(ctx, user)
 	if err != nil {
-		t.Fatalf("Failed to insert test user: %v", err)
+		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	ctx := context.Background()
 	err = repo.Delete(ctx, user.ID)
 	if err != nil {
 		t.Errorf("Delete returned error: %v", err)
@@ -443,14 +408,15 @@ func TestSQLiteUserRepository_List(t *testing.T) {
 
 	// Create the users table
 	_, err = db.Exec(`CREATE TABLE users (
-		id INTEGER PRIMARY KEY,
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT UNIQUE NOT NULL,
 		email TEXT UNIQUE,
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active BOOLEAN
+		is_active INTEGER
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -458,31 +424,22 @@ func TestSQLiteUserRepository_List(t *testing.T) {
 
 	repo := NewSQLiteUserRepository(db)
 
-	// Insert test users directly for testing
+	// Create test users using the repository (which generates public_id)
 	now := time.Now()
 	users := []*domain.User{
-		{ID: 1, Email: "user1@example.com", Username: "user1", PasswordHash: "hash1", Role: domain.RoleUser, CreatedAt: now, UpdatedAt: now, IsActive: true},
-		{ID: 2, Email: "user2@example.com", Username: "user2", PasswordHash: "hash2", Role: domain.RoleUser, CreatedAt: now, UpdatedAt: now, IsActive: true},
-		{ID: 3, Email: "user3@example.com", Username: "user3", PasswordHash: "hash3", Role: domain.RoleAdmin, CreatedAt: now, UpdatedAt: now, IsActive: true},
-	}
-
-	for _, user := range users {
-		_, err = db.Exec("INSERT INTO users (id, email, username, password_hash, role, created_at, updated_at, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-			user.ID,
-			user.Email,
-			user.Username,
-			user.PasswordHash,
-			user.Role,
-			user.CreatedAt,
-			user.UpdatedAt,
-			user.IsActive,
-		)
-		if err != nil {
-			t.Fatalf("Failed to insert test user: %v", err)
-		}
+		{Email: "user1@example.com", Username: "user1", PasswordHash: "hash1", Role: domain.RoleUser, CreatedAt: now, UpdatedAt: now, IsActive: true},
+		{Email: "user2@example.com", Username: "user2", PasswordHash: "hash2", Role: domain.RoleUser, CreatedAt: now, UpdatedAt: now, IsActive: true},
+		{Email: "user3@example.com", Username: "user3", PasswordHash: "hash3", Role: domain.RoleAdmin, CreatedAt: now, UpdatedAt: now, IsActive: true},
 	}
 
 	ctx := context.Background()
+	for _, user := range users {
+		err = repo.Create(ctx, user)
+		if err != nil {
+			t.Fatalf("Failed to create test user: %v", err)
+		}
+	}
+
 	result, err := repo.List(ctx, 0, 0) // Get all users
 	if err != nil {
 		t.Errorf("List returned error: %v", err)
@@ -515,14 +472,15 @@ func TestSQLiteUserRepository_ExistsByEmail(t *testing.T) {
 
 	// Create the users table
 	_, err = db.Exec(`CREATE TABLE users (
-		id INTEGER PRIMARY KEY,
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT UNIQUE NOT NULL,
 		email TEXT UNIQUE,
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active BOOLEAN
+		is_active INTEGER
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -530,10 +488,9 @@ func TestSQLiteUserRepository_ExistsByEmail(t *testing.T) {
 
 	repo := NewSQLiteUserRepository(db)
 
-	// Insert a user directly for testing
+	// Create a user using the repository (which generates public_id)
 	now := time.Now()
 	user := &domain.User{
-		ID:           1,
 		Email:        "test@example.com",
 		Username:     "testuser",
 		PasswordHash: "hashed_password",
@@ -543,21 +500,11 @@ func TestSQLiteUserRepository_ExistsByEmail(t *testing.T) {
 		IsActive:     true,
 	}
 
-	_, err = db.Exec("INSERT INTO users (id, email, username, password_hash, role, created_at, updated_at, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		user.ID,
-		user.Email,
-		user.Username,
-		user.PasswordHash,
-		user.Role,
-		user.CreatedAt,
-		user.UpdatedAt,
-		user.IsActive,
-	)
-	if err != nil {
-		t.Fatalf("Failed to insert test user: %v", err)
-	}
-
 	ctx := context.Background()
+	err = repo.Create(ctx, user)
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
 	
 	// Check for existing email
 	exists, err := repo.ExistsByEmail(ctx, user.Email)
@@ -587,14 +534,15 @@ func TestSQLiteUserRepository_ExistsByUsername(t *testing.T) {
 
 	// Create the users table
 	_, err = db.Exec(`CREATE TABLE users (
-		id INTEGER PRIMARY KEY,
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT UNIQUE NOT NULL,
 		email TEXT UNIQUE,
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active BOOLEAN
+		is_active INTEGER
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -602,10 +550,9 @@ func TestSQLiteUserRepository_ExistsByUsername(t *testing.T) {
 
 	repo := NewSQLiteUserRepository(db)
 
-	// Insert a user directly for testing
+	// Create a user using the repository (which generates public_id)
 	now := time.Now()
 	user := &domain.User{
-		ID:           1,
 		Email:        "test@example.com",
 		Username:     "testuser",
 		PasswordHash: "hashed_password",
@@ -615,21 +562,11 @@ func TestSQLiteUserRepository_ExistsByUsername(t *testing.T) {
 		IsActive:     true,
 	}
 
-	_, err = db.Exec("INSERT INTO users (id, email, username, password_hash, role, created_at, updated_at, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		user.ID,
-		user.Email,
-		user.Username,
-		user.PasswordHash,
-		user.Role,
-		user.CreatedAt,
-		user.UpdatedAt,
-		user.IsActive,
-	)
-	if err != nil {
-		t.Fatalf("Failed to insert test user: %v", err)
-	}
-
 	ctx := context.Background()
+	err = repo.Create(ctx, user)
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
 	
 	// Check for existing username
 	exists, err := repo.ExistsByUsername(ctx, user.Username)

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	authDomain "forum/internal/modules/auth/domain"
@@ -131,8 +130,14 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	// Return success response with all required fields
-	userIDStr := strconv.Itoa(userID)
+	// Fetch user to get PublicID
+	user, err := h.userService.GetByID(r.Context(), userID)
+	if err != nil {
+		h.writeError(w, http.StatusInternalServerError, "Failed to retrieve user information")
+		return
+	}
+
+	// Return success response with public UUID
 	resp := struct {
 		ID       string `json:"id"`
 		UserID   string `json:"user_id"`
@@ -140,8 +145,8 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 		Username string `json:"username"`
 		Token    string `json:"token"`
 	}{
-		ID:       userIDStr,
-		UserID:   userIDStr,
+		ID:       user.PublicID,
+		UserID:   user.PublicID,
 		Email:    req.Email,
 		Username: req.Username,
 		Token:    session.Token,
@@ -180,15 +185,26 @@ func (h *HTTPHandler) LoginAPI(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	// Return success response
+	// Fetch user to get PublicID
+	user, err := h.userService.GetByID(r.Context(), session.UserID)
+	if err != nil {
+		h.writeError(w, http.StatusInternalServerError, "Failed to retrieve user information")
+		return
+	}
+
+	// Return success response with public UUID
 	resp := struct {
-		UserID int    `json:"user_id"`
-		Email  string `json:"email"`
-		Token  string `json:"token"`
+		ID       string `json:"id"`
+		UserID   string `json:"user_id"`
+		Email    string `json:"email"`
+		Username string `json:"username"`
+		Token    string `json:"token"`
 	}{
-		UserID: session.UserID,
-		Email:  req.Email,
-		Token:  session.Token,
+		ID:       user.PublicID,
+		UserID:   user.PublicID,
+		Email:    user.Email,
+		Username: user.Username,
+		Token:    session.Token,
 	}
 
 	h.writeJSON(w, http.StatusOK, resp)
@@ -245,13 +261,20 @@ func (h *HTTPHandler) GetSessionAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return session info
+	// Fetch user to get PublicID
+	user, err := h.userService.GetByID(r.Context(), session.UserID)
+	if err != nil {
+		h.writeError(w, http.StatusInternalServerError, "Failed to retrieve user information")
+		return
+	}
+
+	// Return session info with public UUID
 	resp := struct {
-		UserID    int       `json:"user_id"`
+		UserID    string    `json:"user_id"`
 		Token     string    `json:"token"`
 		ExpiresAt time.Time `json:"expires_at"`
 	}{
-		UserID:    session.UserID,
+		UserID:    user.PublicID,
 		Token:     session.Token,
 		ExpiresAt: session.ExpiresAt,
 	}
