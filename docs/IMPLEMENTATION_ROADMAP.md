@@ -4,17 +4,16 @@ Fast path to functional forum MVP following core requirements, then complete rem
 
 ## Current Status
 
-**Project Phase**: MVP Core Features (75% Complete)
+**Project Phase**: Active development — core features implemented; additional modules scaffolded.
 - ✅ Project structure created
-- ✅ Module scaffolding complete
-- ✅ Database migrations defined
-- ✅ Platform layer fully implemented (config, database, logger, httpserver, errors, validator)
-- ✅ Authentication module fully implemented (registration, login, sessions, validation)
-- ✅ User module domain and repository implemented
-- ✅ Post module fully implemented (CRUD operations with validation)
-- ✅ Category module fully implemented (CRUD operations)
-- ✅ Authentication middleware (RequireAuth, OptionalAuth)
-- ⚠️ Comment, Reaction, and optional modules (Moderation, Notification) are placeholders with TODO comments
+- ✅ Module scaffolding present for all planned modules
+- ✅ Database migrations defined and applied automatically via wiring
+- ✅ Platform core present (`internal/platform` with `config`, `database`, `logger`, `httpserver`, `errors`, `validator`)
+- ✅ `auth` module implemented (registration, login, sessions, validation). Auth integration tests pass.
+- ✅ `post` and `category` implementations present and exercised by integration tests (create/read, form/multipart flows pass).
+- ⚠️ `user` module: domain and repository present; several application service functions and HTTP handlers remain TODO.
+- ⚠️ `comment`, `reaction`, `moderation`, `notification` modules: scaffolding (domain, ports, application, adapters) exists but many `application` methods contain `// TODO:` placeholders and need implementation.
+- 🧪 Tests: Integration tests under `tests/integration` pass; unit tests under `tests/unit` mostly pass but a set of template baseline tests currently fail (template content expectations such as footer text and some navigation elements).
 
 ---
 

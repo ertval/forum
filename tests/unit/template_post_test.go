@@ -127,6 +127,9 @@ func TestHomeTemplateWithBase(t *testing.T) {
 		"SelectedCategory": "",
 		"MyPosts":          false,
 		"LikedPosts":       false,
+		"ShowFilter":       true,
+		"ShowSidebar":      true,
+		"FilterAction":     "/board",
 	}
 
 	var buf bytes.Buffer
@@ -157,6 +160,9 @@ func TestBoardTemplateWithBase(t *testing.T) {
 		"SelectedCategory": "",
 		"MyPosts":          false,
 		"LikedPosts":       false,
+		"ShowFilter":       true,
+		"ShowSidebar":      true,
+		"FilterAction":     "/board",
 	}
 
 	var buf bytes.Buffer

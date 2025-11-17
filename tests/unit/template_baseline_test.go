@@ -23,13 +23,15 @@ func TestBaseTemplateRendering(t *testing.T) {
 	t.Run("renders with authenticated user", func(t *testing.T) {
 		user := CreateAuthenticatedUser("testuser")
 		data := CreateTestData("Test Page", user)
+		data["ShowSidebar"] = true // Required to show the user card sidebar which contains nav items
 		html := helper.RenderTemplate(t, "base", data)
 
 		helper.AssertHasAuthenticatedNav(t, html, "testuser")
 	})
 
 	t.Run("renders with guest user", func(t *testing.T) {
-		data := CreateTestData("Test Page", nil)
+		user := map[string]interface{}{} // Pass empty user map to avoid nil
+		data := CreateTestData("Test Page", user)
 		html := helper.RenderTemplate(t, "base", data)
 
 		helper.AssertHasGuestNav(t, html)
@@ -130,6 +132,9 @@ func TestAllTemplatesWithBase(t *testing.T) {
 				"SelectedCategory": "",
 				"MyPosts":          false,
 				"LikedPosts":       false,
+				"ShowFilter":       true,
+				"ShowSidebar":      true,
+				"FilterAction":     "/board",
 			},
 			contains: []string{
 				"<!DOCTYPE html>",
@@ -147,6 +152,9 @@ func TestAllTemplatesWithBase(t *testing.T) {
 				"SelectedCategory": "",
 				"MyPosts":          false,
 				"LikedPosts":       false,
+				"ShowFilter":       true,
+				"ShowSidebar":      true,
+				"FilterAction":     "/board",
 			},
 			contains: []string{
 				"<!DOCTYPE html>",

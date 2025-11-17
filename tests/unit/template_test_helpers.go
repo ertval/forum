@@ -72,7 +72,7 @@ func (h *TemplateTestHelper) AssertHasFooter(t *testing.T, html string) {
 	t.Helper()
 
 	h.AssertContains(t, html, "<footer>")
-	h.AssertContains(t, html, "&copy; 2025 Forum")
+	h.AssertContains(t, html, "&copy; 2025 Ertval Karameta & Magnus Edvall.")
 }
 
 // AssertHasTitle checks if the HTML has the expected title.
@@ -87,16 +87,16 @@ func (h *TemplateTestHelper) AssertHasAuthenticatedNav(t *testing.T, html, usern
 	t.Helper()
 
 	h.AssertContains(t, html, "Welcome, "+username)
-	h.AssertContains(t, html, `<a href="/logout">Logout</a>`)
-	h.AssertContains(t, html, `<a href="/posts/new">Create Post</a>`)
+	h.AssertContains(t, html, `<a href="/logout" class="btn btn-primary btn-small">Logout</a>`)
+	h.AssertContains(t, html, `<a href="/posts/new" class="btn btn-primary btn-small">Create Post</a>`)
 }
 
 // AssertHasGuestNav checks for guest user navigation.
 func (h *TemplateTestHelper) AssertHasGuestNav(t *testing.T, html string) {
 	t.Helper()
 
-	h.AssertContains(t, html, `<a href="/login">Login</a>`)
-	h.AssertContains(t, html, `<a href="/register">Register</a>`)
+	h.AssertContains(t, html, `<a class="nav-link" href="/login">Login</a>`)
+	h.AssertContains(t, html, `<a class="nav-link" href="/register">Register</a>`)
 }
 
 // AssertValidHTML performs basic HTML structure validation.

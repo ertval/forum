@@ -730,7 +730,7 @@ fi
 
 # Test 30: Category filter works on home page
 echo "Test 30: Category filter functionality"
-RESPONSE=$(curl -s "$BASE_URL/?category=Tests")
+RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/?category=Tests")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "200" ]; then
     print_test "30" "PASS"

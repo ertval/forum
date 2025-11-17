@@ -601,7 +601,7 @@ fi
 # Test 22: GET /posts/:id - Valid post
 echo "Test 22: GET /posts/:id - Valid post"
 if [ -n "$POST_ID" ]; then
-    RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/posts/$POST_ID")
+    RESPONSE=$(curl -s -H "Accept: application/json" -w "\n%{http_code}" "$BASE_URL/posts/$POST_ID")
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     BODY=$(echo "$RESPONSE" | sed '$d')
     if [ "$HTTP_CODE" = "200" ]; then
@@ -619,7 +619,7 @@ fi
 
 # Test 23: GET /posts/:id - Non-existent post (404)
 echo "Test 23: GET /posts/:id - Non-existent post"
-RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/posts/nonexistent-id-12345")
+RESPONSE=$(curl -s -H "Accept: application/json" -w "\n%{http_code}" "$BASE_URL/posts/nonexistent-id-12345")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "404" ]; then
     print_test "23" "PASS"
@@ -629,7 +629,7 @@ fi
 
 # Test 24: GET /posts - List all posts
 echo "Test 24: GET /posts - List all posts"
-RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/posts")
+RESPONSE=$(curl -s -H "Accept: application/json" -w "\n%{http_code}" "$BASE_URL/posts")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
 if [ "$HTTP_CODE" = "200" ]; then

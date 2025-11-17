@@ -29,6 +29,27 @@ type PostFilter struct {
 	UserID        string
 	Categories    []string
 	LikedByUserID string
+	DateFilter    string // "today", "week", "month", "all" (default)
 	Offset        int
 	Limit         int
+}
+
+// FilterService defines post filtering use cases.
+type FilterService interface {
+	// BuildFilter creates a PostFilter from query parameters and context
+	BuildFilter(ctx context.Context, params FilterParams) PostFilter
+	// ApplyDateFilter applies date constraints to a filter
+	ApplyDateFilter(filter *PostFilter, dateFilter string)
+}
+
+// FilterParams represents query parameters for filtering.
+type FilterParams struct {
+	Category      string
+	UserID        string
+	MyPosts       bool
+	LikedPosts    bool
+	DateFilter    string
+	Limit         int
+	Offset        int
+	CurrentUserID string
 }

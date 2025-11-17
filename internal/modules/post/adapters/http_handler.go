@@ -139,11 +139,19 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if myPosts && currentUser != nil {
-		// filter.UserID = currentUser.ID
+		if userMap, ok := currentUser.(map[string]interface{}); ok {
+			if userID, ok := userMap["ID"].(string); ok {
+				filter.UserID = userID
+			}
+		}
 	}
 
 	if likedPosts && currentUser != nil {
-		// filter.LikedByUserID = currentUser.ID
+		if userMap, ok := currentUser.(map[string]interface{}); ok {
+			if userID, ok := userMap["ID"].(string); ok {
+				filter.LikedByUserID = userID
+			}
+		}
 	}
 
 	// Fetch posts
@@ -236,6 +244,7 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 
 	// Parse filter parameters
 	category := r.URL.Query().Get("category")
+	userFilter := r.URL.Query().Get("user")
 	myPosts := r.URL.Query().Get("my_posts") == "true"
 	likedPosts := r.URL.Query().Get("liked_posts") == "true"
 
@@ -248,12 +257,26 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 		filter.Categories = []string{category}
 	}
 
+	// Filter by specific user ID (from URL parameter)
+	if userFilter != "" {
+		filter.UserID = userFilter
+	}
+
+	// Filter by current user's posts
 	if myPosts && currentUser != nil {
-		// filter.UserID = currentUser.ID
+		if userMap, ok := currentUser.(map[string]interface{}); ok {
+			if userID, ok := userMap["ID"].(string); ok {
+				filter.UserID = userID
+			}
+		}
 	}
 
 	if likedPosts && currentUser != nil {
-		// filter.LikedByUserID = currentUser.ID
+		if userMap, ok := currentUser.(map[string]interface{}); ok {
+			if userID, ok := userMap["ID"].(string); ok {
+				filter.LikedByUserID = userID
+			}
+		}
 	}
 
 	// Fetch posts
@@ -733,7 +756,11 @@ func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.writeJSON(w, http.StatusOK, posts)
+	// Return posts wrapped in an object for consistent API response
+	response := map[string]interface{}{
+		"posts": posts,
+	}
+	h.writeJSON(w, http.StatusOK, response)
 }
 
 // LoadMorePostsAPI handles loading additional posts for the homepage.

@@ -4,7 +4,7 @@
 
 A modular monolith web forum built with Go, following **Hexagonal Architecture** (Ports and Adapters). Clean boundaries, testable components, idiomatic Go.
 
-**Current status**: MVP Core Features - 75% Complete. The project has fully implemented authentication, post management, and category management with comprehensive unit and integration tests. Comments, reactions, and optional features (moderation, notifications) are next. See `docs/IMPLEMENTATION_ROADMAP.md` for detailed progress and priorities.
+**Current status**: Active development — core features implemented; additional modules scaffolded. The repository contains a complete `auth` module (registration, login, sessions) and a mature `post`/`category` implementation with unit and integration tests (see `tests/unit` and `tests/integration`). Several optional modules (`comment`, `reaction`, `moderation`, `notification`, and parts of `user`) are scaffolded and include domain/ports/application/adapters directories, but many contain `// TODO:` markers in `application` packages indicating remaining business logic to implement. See `docs/IMPLEMENTATION_ROADMAP.md` for priorities and remaining work.
 
 **Migrations**: The project includes SQL migrations in the `migrations/` directory. Migrations run automatically on startup via `database.Migrator` in `cmd/forum/wire/app.go`. Migration files use `-- +migrate Up`/`-- +migrate Down` markers for forward/backward migrations.
 
