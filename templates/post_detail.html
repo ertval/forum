@@ -38,7 +38,7 @@
             </div>
 
             {{if .User}}
-                {{if eq .User.ID .Post.UserPublicID}}
+                {{if eq .User.PublicID .Post.UserPublicID}}
                 <div class="post-owner-actions">
                     <a href="/posts/{{.Post.PublicID}}/edit" class="btn btn-secondary">Edit</a>
                     <button class="btn btn-danger btn-delete-post" data-post-id="{{.Post.PublicID}}">Delete</button>
@@ -84,7 +84,7 @@
                             👎 ({{.Dislikes}})
                         </button>
                         {{if $.User}}
-                            {{if eq $.User.ID .AuthorPublicID}}
+                            {{if eq $.User.PublicID .AuthorPublicID}}
                             <button class="btn-delete-comment" data-comment-id="{{.PublicID}}">Delete</button>
                             {{end}}
                         {{end}}

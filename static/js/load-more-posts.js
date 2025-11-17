@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const formattedDate = postDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
             el.innerHTML = `
                 <div class="post-header-compact">
-                    <h3><a href="/posts/${post.ID}">${post.Title}</a></h3>
+                    <h3><a href="/posts/${post.id}">${post.Title}</a></h3>
                     <div class="post-meta-compact">
                         <span class="author-compact">by ${post.AuthorUsername}</span>
                         <span class="date-compact">${formattedDate}</span>
@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const formattedDate = postDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
             el.innerHTML = `
                 <div class="post-header">
-                    <h3><a href="/posts/${post.ID}">${post.Title}</a></h3>
+                    <h3><a href="/posts/${post.id}">${post.Title}</a></h3>
                     <div class="post-meta">
                         <span class="author">by ${post.AuthorUsername}</span>
                         <span class="date">${formattedDate}</span>

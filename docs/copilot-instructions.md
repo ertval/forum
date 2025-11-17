@@ -4,9 +4,66 @@
 
 **Architecture**: Modular Monolith with Hexagonal Architecture (Ports & Adapters)  
 **Language**: Go 1.24+ with minimal dependencies (SQLite driver, bcrypt, UUID only)  
-**Status**: 75% Complete - Auth, Posts, Categories fully implemented with tests  
+**Status**: 85% Complete - Auth, Posts, Categories fully implemented with tests, ID security hardened  
 **Entry Point**: `cmd/forum/main.go` → `cmd/forum/wire/` for all DI wiring  
-**Critical Files**: `docs/ARCHITECTURE.md`, `docs/IMPLEMENTATION_ROADMAP.md`, `docs/UNIFIED_DI_PATTERN.md`
+**Critical Files**: `docs/ARCHITECTURE.md`, `docs/IMPLEMENTATION_ROADMAP.md`, `docs/UNIFIED_DI_PATTERN.md`, `docs/ID_SECURITY_AUDIT.md`
+
+---
+
+## 🔒 CRITICAL: ID Security Rules (MUST FOLLOW)
+
+**Schema Pattern**: Internal INT IDs + Public UUID IDs
+
+### The Golden Rules
+
+1. **NEVER expose internal INT IDs** in:
+   - URLs (`?user=123` ❌)
+   - Templates (`.User.ID` if ID is INT ❌)
+   - JavaScript (`userId: 123` ❌)
+   - API responses (`"user_id": 123` ❌)
+
+2. **ALWAYS use UUIDs** for:
+   - URL parameters (`?user=550e8400-e29b-41d4-a716-446655440001` ✅)
+   - Template fields (`.User.PublicID` ✅)
+   - API JSON (`"id": "uuid"` ✅)
+
+3. **Middleware stores UUID**, never INT:
+   ```go
+   // ✅ CORRECT
+   user, err := userService.GetByID(ctx, session.UserID)
+   ctx := context.WithValue(ctx, UserIDKey, user.PublicID)  // UUID string
+   
+   // ❌ WRONG
+   ctx := context.WithValue(ctx, UserIDKey, fmt.Sprintf("%d", session.UserID))  // INT string
+   ```
+
+4. **Handlers convert UUID → INT** for service calls:
+   ```go
+   // ✅ CORRECT
+   userPublicID := authAdapters.GetUserID(r.Context())  // Gets UUID
+   userID, err := h.getInternalUserID(ctx, userPublicID)  // Converts to INT
+   service.CreatePost(ctx, userID, ...)  // Uses INT internally
+   ```
+
+5. **Templates use `.PublicID`**, not `.ID`:
+   ```gohtml
+   <!-- ✅ CORRECT -->
+   <a href="/board?user={{.User.PublicID}}">My Posts</a>
+   {{if eq .User.PublicID .Post.UserPublicID}}
+   
+   <!-- ❌ WRONG -->
+   <a href="/board?user={{.User.ID}}">My Posts</a>
+   ```
+
+6. **JSON uses lowercase `"id"`** for PublicID:
+   ```json
+   {
+     "id": "uuid",        // PublicID (✅)
+     "user_id": "uuid"    // UserPublicID (✅)
+   }
+   ```
+
+**See**: `docs/ID_SECURITY_AUDIT.md`, `docs/ID_SECURITY_FIXES_SUMMARY.md`
 
 ---
 
@@ -434,3 +491,44 @@ forum/
     ├── IMPLEMENTATION_ROADMAP.md  # Progress tracking
     └── requirements/              # Specs (DO NOT modify)
 ```
+
+---
+
+## 🔒 ID Security Patterns (CRITICAL)
+
+### Problem: Internal INT ID Exposure
+
+**Never expose internal sequential IDs** - attackers can enumerate users, posts, etc.
+
+### Solution: INT (internal) + UUID (public) Pattern
+
+**Database**: Uses INT primary keys for performance  
+**Public APIs**: Uses UUID strings for security
+
+### Implementation Rules
+
+✅ **Middleware** stores UUID in context (never INT):
+```go
+user, err := userService.GetByID(ctx, session.UserID)
+ctx := context.WithValue(ctx, UserIDKey, user.PublicID)  // UUID string
+```
+
+✅ **Handlers** convert UUID → INT for services:
+```go
+userPublicID := authAdapters.GetUserID(r.Context())  // UUID from context
+userID, err := h.getInternalUserID(r.Context(), userPublicID)  // Convert to INT
+service.CreatePost(ctx, userID, ...)  // Use INT internally
+```
+
+✅ **Templates** use `.PublicID` explicitly:
+```gohtml
+<a href="/board?user={{.User.PublicID}}">My Posts</a>
+{{if eq .User.PublicID .Post.UserPublicID}}
+```
+
+✅ **JavaScript** uses lowercase `post.id` (matches JSON):
+```javascript
+<a href="/posts/${post.id}">${post.Title}</a>
+```
+
+**See**: `docs/ID_SECURITY_AUDIT.md`, `docs/ID_SECURITY_FIXES_SUMMARY.md`

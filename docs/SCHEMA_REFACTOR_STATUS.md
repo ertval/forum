@@ -109,30 +109,31 @@ Updated service interfaces and implementations:
 
 ## ⚠️ TODO - High Priority
 
-### 1. HTTP Handlers (0%)
-**All handlers need updates** - currently have compilation errors:
+### 1. HTTP Handlers (100% COMPLETE ✅)
+**All handlers have been fixed** - security vulnerabilities resolved:
 
-**Issue:** Handlers use `session.UserID` (now int) but need to handle conversion for service calls.
+**Fixed Issues**:
+- ✅ Middleware now stores PublicID (UUID) in context, not INT ID
+- ✅ Handlers convert UUID from context to INT for service calls via `getInternalUserID()`
+- ✅ Templates now use `.User.PublicID` for URLs and ownership checks
+- ✅ JavaScript uses lowercase `post.id` (matches JSON "id" field)
 
-**Files to update:**
-- `internal/modules/post/adapters/http_handler.go`
-  - `CreatePostAPI` - userID is now int, fix comparison `post.UserID != userID`
-  - `UpdatePostPage` - fix user ID comparison
-  - `DeletePostAPI` - fix user ID comparison
-  - Fix all places where userID string is compared with post.UserID int
+**Files updated**:
+- `internal/modules/auth/adapters/middleware.go` - RequireAuth/OptionalAuth now store UUID
+- `internal/modules/post/adapters/http_handler.go` - Added `getInternalUserID()` helper, updated all handlers
+- `templates/base.html` - Changed `.User.ID` to `.User.PublicID`
+- `templates/post_detail.html` - Changed ownership checks to use `.User.PublicID`
+- `static/js/load-more-posts.js` - Changed `post.ID` to `post.id` (lowercase)
 
-**Pattern needed:**
+**Pattern implemented**:
 ```go
-// Session provides internal int UserID
-userID := session.UserID // int
+// Middleware stores UUID in context
+ctx := context.WithValue(r.Context(), UserIDKey, user.PublicID)
 
-// Call service with int
-post, err := h.postService.CreatePost(r.Context(), userID, req.Title, req.Content, req.Categories, imageData)
-
-// Check ownership
-if post.UserID != userID { // both are int now
-    // unauthorized
-}
+// Handler converts UUID to INT for service calls
+userPublicID := authAdapters.GetUserID(r.Context())  // Gets UUID string
+userID, err := h.getInternalUserID(ctx, userPublicID)  // Converts to INT
+post, err := h.postService.CreatePost(ctx, userID, ...)  // Uses INT internally
 ```
 
 ### 2. Unit Tests (0%)
@@ -276,26 +277,21 @@ func (r *SQLiteUserRepository) GetUserStats(ctx context.Context, userID int) (*p
 
 ## ⏭️ Next Steps (Priority Order)
 
-1. Fix HTTP handlers (post create/update/delete handlers)
-2. Fix auth/post service tests  
-3. Fix repository tests
-4. Delete old database, run server to create new schema
-5. Run seed script
-6. Fix remaining compilation errors
-7. Run test suite
-8. Manual testing
-9. Fix user stats counters if still broken
-10. Update any remaining TODO comments in code
-
-## 💡 Tips for Fixing Tests
-
-- Search for `: "` in test files to find string literals that should be ints
-- Look for `ID:` field assignments in struct literals
-- Check for string ID comparisons that should be int
-- Update mock repository methods to return both ID and PublicID
-- GetByID now takes string (public_id), not int
+1. ✅ Fix HTTP handlers (post create/update/delete handlers) - **COMPLETE**
+2. ✅ Fix templates to use PublicID - **COMPLETE**
+3. ✅ Fix JavaScript to use lowercase id field - **COMPLETE**
+4. ✅ Add ID security tests - **COMPLETE**
+5. Fix auth/post service tests  
+6. Fix repository tests
+7. Delete old database, run server to create new schema
+8. Run seed script
+9. Fix remaining compilation errors
+10. Run test suite
+11. Manual testing
+12. Fix user stats counters if still broken
+13. Update any remaining TODO comments in code
 
 ---
 
-**Status**: 75% Complete - Schema & repositories done, handlers & tests need fixing
-**Last Updated**: 2025-01-17
+**Status**: 85% Complete - Schema, repositories, handlers, templates, and middleware fixed. Tests need updating.
+**Last Updated**: 2025-01-17 (ID Security fixes applied)

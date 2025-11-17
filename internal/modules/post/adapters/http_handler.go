@@ -80,12 +80,30 @@ func (h *HTTPHandler) buildCurrentUser(ctx context.Context, userID int) map[stri
 	}
 
 	return map[string]interface{}{
-		"ID":           publicID,
+		"PublicID":     publicID,  // Use explicit PublicID field for templates
 		"Username":     username,
 		"Email":        email,
 		"PostCount":    postCount,
 		"CommentCount": commentCount,
 	}
+}
+
+// getInternalUserID converts a PublicID (UUID) from context to internal INT ID.
+// This is used by handlers to convert the UUID stored in context by middleware
+// to the internal INT ID needed for service layer calls.
+// SECURITY: Ensures public UUID is never exposed, only used for lookups.
+func (h *HTTPHandler) getInternalUserID(ctx context.Context, userPublicID string) (int, error) {
+	if userPublicID == "" {
+		return 0, fmt.Errorf("user ID required")
+	}
+
+	// Fetch user by PublicID to get internal INT ID
+	user, err := h.userService.GetByPublicID(ctx, userPublicID)
+	if err != nil {
+		return 0, fmt.Errorf("user not found")
+	}
+
+	return user.ID, nil
 }
 
 // buildPageTitle creates a dynamic page title based on active filters.
@@ -146,7 +164,7 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 
 	// Protected routes (require authentication)
 	// Wrap handlers with RequireAuth middleware
-	authMiddleware := authAdapters.RequireAuth(h.authService)
+	authMiddleware := authAdapters.RequireAuth(h.authService, h.userService)
 	router.Handle("GET /posts/new", authMiddleware(http.HandlerFunc(h.CreatePostPage)))
 	router.Handle("GET /posts/{id}/edit", authMiddleware(http.HandlerFunc(h.EditPostPage)))
 	router.Handle("POST /posts", authMiddleware(http.HandlerFunc(h.CreatePostAPI)))
@@ -399,17 +417,17 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get user ID from context (set by RequireAuth middleware)
-	userIDStr := authAdapters.GetUserID(r.Context())
-	if userIDStr == "" {
+	// Get user PUBLIC ID (UUID) from context (set by RequireAuth middleware)
+	userPublicID := authAdapters.GetUserID(r.Context())
+	if userPublicID == "" {
 		h.writeError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
-	// Convert userID to int
-	userID, err := strconv.Atoi(userIDStr)
+	// Convert PUBLIC ID (UUID) to internal INT ID for service layer
+	userID, err := h.getInternalUserID(r.Context(), userPublicID)
 	if err != nil {
-		h.writeError(w, http.StatusInternalServerError, "Invalid user ID")
+		h.writeError(w, http.StatusUnauthorized, "Invalid user")
 		return
 	}
 
@@ -565,17 +583,17 @@ func (h *HTTPHandler) GetPostAPI(w http.ResponseWriter, r *http.Request) {
 
 // UpdatePostAPI handles post update requests.
 func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context
-	userIDStr := authAdapters.GetUserID(r.Context())
-	if userIDStr == "" {
+	// Get user PUBLIC ID (UUID) from context
+	userPublicID := authAdapters.GetUserID(r.Context())
+	if userPublicID == "" {
 		h.writeError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
-	// Convert userID to int
-	userID, err := strconv.Atoi(userIDStr)
+	// Convert PUBLIC ID (UUID) to internal INT ID for service layer
+	userID, err := h.getInternalUserID(r.Context(), userPublicID)
 	if err != nil {
-		h.writeError(w, http.StatusInternalServerError, "Invalid user ID")
+		h.writeError(w, http.StatusUnauthorized, "Invalid user")
 		return
 	}
 
@@ -714,17 +732,17 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 
 // DeletePostAPI handles post deletion requests.
 func (h *HTTPHandler) DeletePostAPI(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context
-	userIDStr := authAdapters.GetUserID(r.Context())
-	if userIDStr == "" {
+	// Get user PUBLIC ID (UUID) from context
+	userPublicID := authAdapters.GetUserID(r.Context())
+	if userPublicID == "" {
 		h.writeError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
-	// Convert userID to int
-	userID, err := strconv.Atoi(userIDStr)
+	// Convert PUBLIC ID (UUID) to internal INT ID for service layer
+	userID, err := h.getInternalUserID(r.Context(), userPublicID)
 	if err != nil {
-		h.writeError(w, http.StatusInternalServerError, "Invalid user ID")
+		h.writeError(w, http.StatusUnauthorized, "Invalid user")
 		return
 	}
 
@@ -788,17 +806,17 @@ func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 
 	// User's own posts filter (requires auth)
 	if r.URL.Query().Get("my_posts") == "true" {
-		userID := authAdapters.GetUserID(r.Context())
-		if userID != "" {
-			filter.UserID = userID
+		userPublicID := authAdapters.GetUserID(r.Context())
+		if userPublicID != "" {
+			filter.UserID = userPublicID  // Use PublicID (UUID) for filtering
 		}
 	}
 
 	// Liked posts filter (requires auth)
 	if r.URL.Query().Get("liked_posts") == "true" {
-		userID := authAdapters.GetUserID(r.Context())
-		if userID != "" {
-			filter.LikedByUserID = userID
+		userPublicID := authAdapters.GetUserID(r.Context())
+		if userPublicID != "" {
+			filter.LikedByUserID = userPublicID  // Use PublicID (UUID) for filtering
 		}
 	}
 
@@ -848,17 +866,17 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 
 	// User's own posts filter (requires auth)
 	if r.URL.Query().Get("my_posts") == "true" {
-		userID := authAdapters.GetUserID(r.Context())
-		if userID != "" {
-			filter.UserID = userID
+		userPublicID := authAdapters.GetUserID(r.Context())
+		if userPublicID != "" {
+			filter.UserID = userPublicID  // Use PublicID (UUID) for filtering
 		}
 	}
 
 	// Liked posts filter (requires auth)
 	if r.URL.Query().Get("liked_posts") == "true" {
-		userID := authAdapters.GetUserID(r.Context())
-		if userID != "" {
-			filter.LikedByUserID = userID
+		userPublicID := authAdapters.GetUserID(r.Context())
+		if userPublicID != "" {
+			filter.LikedByUserID = userPublicID  // Use PublicID (UUID) for filtering
 		}
 	}
 

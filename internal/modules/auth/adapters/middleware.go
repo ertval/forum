@@ -3,9 +3,10 @@ package adapters
 
 import (
 	"context"
-	"fmt"
-	"forum/internal/modules/auth/ports"
 	"net/http"
+
+	authPorts "forum/internal/modules/auth/ports"
+	userPorts "forum/internal/modules/user/ports"
 )
 
 // contextKey is a custom type for context keys to avoid collisions.
@@ -19,9 +20,10 @@ const (
 )
 
 // RequireAuth is middleware that requires authentication.
-// It validates the session token and adds user information to the context.
+// It validates the session token and adds user PUBLIC ID (UUID) to the context.
 // If authentication fails, it returns 401 Unauthorized.
-func RequireAuth(authService ports.AuthService) func(http.Handler) http.Handler {
+// SECURITY: Stores PublicID (UUID) in context, never internal INT ID.
+func RequireAuth(authService authPorts.AuthService, userService userPorts.UserService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Get session token from cookie
@@ -38,8 +40,15 @@ func RequireAuth(authService ports.AuthService) func(http.Handler) http.Handler 
 				return
 			}
 
-			// Add user ID to context (convert int to string)
-			ctx := context.WithValue(r.Context(), UserIDKey, fmt.Sprintf("%d", session.UserID))
+			// SECURITY: Fetch user to get PublicID (UUID), never expose internal INT ID
+			user, err := userService.GetByID(r.Context(), session.UserID)
+			if err != nil {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			// Add user PUBLIC ID (UUID) to context
+			ctx := context.WithValue(r.Context(), UserIDKey, user.PublicID)
 
 			// Call next handler with updated context
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -48,9 +57,10 @@ func RequireAuth(authService ports.AuthService) func(http.Handler) http.Handler 
 }
 
 // OptionalAuth is middleware that optionally validates authentication.
-// It validates the session token if present and adds user information to the context.
+// It validates the session token if present and adds user PUBLIC ID (UUID) to the context.
 // If authentication fails or is not present, it continues without error.
-func OptionalAuth(authService ports.AuthService) func(http.Handler) http.Handler {
+// SECURITY: Stores PublicID (UUID) in context, never internal INT ID.
+func OptionalAuth(authService authPorts.AuthService, userService userPorts.UserService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Try to get session token from cookie
@@ -69,8 +79,16 @@ func OptionalAuth(authService ports.AuthService) func(http.Handler) http.Handler
 				return
 			}
 
-			// Add user ID to context
-			ctx := context.WithValue(r.Context(), UserIDKey, fmt.Sprintf("%d", session.UserID))
+			// SECURITY: Fetch user to get PublicID (UUID), never expose internal INT ID
+			user, err := userService.GetByID(r.Context(), session.UserID)
+			if err != nil {
+				// User not found, continue as guest
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Add user PUBLIC ID (UUID) to context
+			ctx := context.WithValue(r.Context(), UserIDKey, user.PublicID)
 
 			// Call next handler with updated context
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -78,8 +96,9 @@ func OptionalAuth(authService ports.AuthService) func(http.Handler) http.Handler
 	}
 }
 
-// GetUserID extracts user ID from request context.
+// GetUserID extracts user PUBLIC ID (UUID) from request context.
 // Returns empty string if not authenticated.
+// SECURITY: Returns UUID string, never internal INT ID.
 func GetUserID(ctx context.Context) string {
 	userID, ok := ctx.Value(UserIDKey).(string)
 	if !ok {
