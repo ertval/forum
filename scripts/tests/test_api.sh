@@ -715,6 +715,50 @@ else
     print_test "26c" "SKIP" "(no post ID)"
 fi
 
+# Test 26d: GET /posts/:id/edit - Access edit page for own post (200)
+echo "Test 26d: GET /posts/:id/edit - Access edit page for own post"
+if [ -n "$POST_ID" ]; then
+    RESPONSE=$(curl -s -w "\n%{http_code}" -H "Cookie: session_token=$SESSION_TOKEN" "$BASE_URL/posts/$POST_ID/edit")
+    HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+    BODY=$(echo "$RESPONSE" | sed '$d')
+    if [ "$HTTP_CODE" = "200" ]; then
+        # Verify it's the edit page
+        if echo "$BODY" | grep -q "Edit Post" && echo "$BODY" | grep -q "Update Post"; then
+            print_test "26d" "PASS"
+        else
+            print_test "26d" "FAIL" "Response doesn't contain edit page elements"
+        fi
+    else
+        print_test "26d" "FAIL" "Expected 200, got $HTTP_CODE"
+    fi
+else
+    print_test "26d" "SKIP" "(no post ID)"
+fi
+
+# Test 26e: GET /posts/:id/edit - Access edit page without authentication (401/403)
+echo "Test 26e: GET /posts/:id/edit - Access edit page without auth"
+if [ -n "$POST_ID" ]; then
+    RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/posts/$POST_ID/edit")
+    HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+    if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ] || [ "$HTTP_CODE" = "302" ]; then
+        print_test "26e" "PASS"
+    else
+        print_test "26e" "FAIL" "Expected 401/403/302, got $HTTP_CODE"
+    fi
+else
+    print_test "26e" "SKIP" "(no post ID)"
+fi
+
+# Test 26f: GET /posts/:id/edit - Access edit page for non-existent post (404)
+echo "Test 26f: GET /posts/:id/edit - Non-existent post"
+RESPONSE=$(curl -s -w "\n%{http_code}" -H "Cookie: session_token=$SESSION_TOKEN" "$BASE_URL/posts/nonexistent-uuid-12345/edit")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+if [ "$HTTP_CODE" = "404" ]; then
+    print_test "26f" "PASS"
+else
+    print_test "26f" "FAIL" "Expected 404, got $HTTP_CODE"
+fi
+
 # Test 27: DELETE /posts/:id - Delete own post
 echo "Test 27: DELETE /posts/:id - Delete own post"
 # First create a post to delete
@@ -973,6 +1017,20 @@ if [ -n "$POST_ID" ] && [ -n "$SESSION_TOKEN2" ]; then
     fi
 else
     print_test "41" "SKIP" "(missing post or session)"
+fi
+
+# Test 41b: Try to access edit page for another user's post (403)
+echo "Test 41b: Try to access edit page for another user's post"
+if [ -n "$POST_ID" ] && [ -n "$SESSION_TOKEN2" ]; then
+    RESPONSE=$(curl -s -w "\n%{http_code}" -H "Cookie: session_token=$SESSION_TOKEN2" "$BASE_URL/posts/$POST_ID/edit")
+    HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+    if [ "$HTTP_CODE" = "403" ] || [ "$HTTP_CODE" = "401" ]; then
+        print_test "41b" "PASS"
+    else
+        print_test "41b" "FAIL" "Expected 403/401, got $HTTP_CODE (SECURITY ISSUE!)"
+    fi
+else
+    print_test "41b" "SKIP" "(missing post or session)"
 fi
 
 # Test 42: Verify first user's post unchanged

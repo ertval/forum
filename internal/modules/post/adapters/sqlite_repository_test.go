@@ -210,7 +210,7 @@ func TestSQLitePostRepository_Update(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to insert test category: %v", err)
 	}
-	catID2, _ := result.LastInsertId()
+	_ = result.LastInsertId() // catID2
 
 	repo := NewSQLitePostRepository(db)
 
@@ -357,7 +357,7 @@ func TestSQLitePostRepository_List(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to insert test category: %v", err)
 	}
-	catID2, _ := result.LastInsertId()
+	_ = result.LastInsertId() // catID2
 
 	repo := NewSQLitePostRepository(db)
 

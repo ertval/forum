@@ -5,14 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
-	"time"
-
-	"forum/cmd/forum/wire"
-	"forum/internal/platform/config"
-	"forum/internal/platform/logger"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -126,7 +120,7 @@ func TestTemplateIDExposure(t *testing.T) {
 		t.Fatalf("Failed to decode API response: %v", err)
 	}
 
-	apiPostID, exists := apiPost["id"]
+	_, exists := apiPost["id"]
 	if !exists {
 		t.Fatal("API response does not contain 'id' field")
 	}

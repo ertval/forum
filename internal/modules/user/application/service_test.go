@@ -406,12 +406,21 @@ func TestService_GetUserStats(t *testing.T) {
 	mockRepo := &MockUserRepository{}
 	service := NewService(mockRepo)
 
-	// Test the current implementation (returns nil, nil since it's a placeholder)
+	// Test the current implementation
 	stats, err := service.GetUserStats(ctx, 1)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
+	if stats == nil {
+		t.Error("Expected stats to be returned, got nil")
+	}
+	// Verify stats structure (with mock repo, should return zero counts)
 	if stats != nil {
-		t.Error("Expected nil stats (placeholder implementation), got non-nil stats")
+		if stats.PostCount != 0 {
+			t.Errorf("Expected PostCount 0, got %d", stats.PostCount)
+		}
+		if stats.CommentCount != 0 {
+			t.Errorf("Expected CommentCount 0, got %d", stats.CommentCount)
+		}
 	}
 }

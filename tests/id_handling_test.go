@@ -14,9 +14,9 @@ import (
 func TestDomainIDHandling(t *testing.T) {
 	t.Run("Auth Session ID Pattern", func(t *testing.T) {
 		session := &authDomain.Session{
-			ID:       1,           // Internal int ID
-			PublicID: "test-uuid", // Public UUID
-			UserID:   100,         // Internal int ID for foreign key
+			ID:       1,                                      // Internal int ID
+			PublicID: "550e8400-e29b-41d4-a716-446655440000", // Public UUID
+			UserID:   100,                                    // Internal int ID for foreign key
 		}
 
 		// Check that internal ID is an integer
@@ -43,8 +43,8 @@ func TestDomainIDHandling(t *testing.T) {
 
 	t.Run("User Entity ID Pattern", func(t *testing.T) {
 		user := &userDomain.User{
-			ID:       1,           // Internal int ID
-			PublicID: "test-uuid", // Public UUID
+			ID:       1,                                      // Internal int ID
+			PublicID: "550e8400-e29b-41d4-a716-446655440001", // Public UUID
 			Email:    "test@example.com",
 		}
 
@@ -72,10 +72,10 @@ func TestDomainIDHandling(t *testing.T) {
 
 	t.Run("Post Entity ID Pattern", func(t *testing.T) {
 		post := &postDomain.Post{
-			ID:           1,           // Internal int ID
-			PublicID:     "test-uuid", // Public UUID
-			UserID:       100,         // Internal int ID for foreign key
-			UserPublicID: "user-uuid", // User's public ID
+			ID:           1,                                      // Internal int ID
+			PublicID:     "550e8400-e29b-41d4-a716-446655440002", // Public UUID
+			UserID:       100,                                    // Internal int ID for foreign key
+			UserPublicID: "550e8400-e29b-41d4-a716-446655440001", // User's public UUID
 			Title:        "Test Post",
 			Content:      "Test content",
 		}

@@ -24,7 +24,7 @@ func (m *MockCommentRepository) ListByPostPublicID(ctx context.Context, postPubl
 
 	var result []*domain.Comment
 	for _, comment := range m.comments {
-		if comment.PostPublicID == postPublicID {
+		if comment.PublicPostID == postPublicID {
 			result = append(result, comment)
 		}
 	}
@@ -87,27 +87,29 @@ func TestService_GetComment(t *testing.T) {
 	// Add a test comment to the mock
 	testTime := time.Now()
 	testComment := &domain.Comment{
-		ID:        1,
-		PostID:    10,
-		UserID:    5,
-		Content:   "Test comment",
-		CreatedAt: testTime,
-		UpdatedAt: testTime,
+		ID:           1,
+		PublicID:     "comment-uuid-1",
+		PostID:       10,
+		PublicPostID: "post-uuid-10",
+		UserID:       5,
+		Content:      "Test comment",
+		CreatedAt:    testTime,
+		UpdatedAt:    testTime,
 	}
-	mockRepo.comments = map[int]*domain.Comment{
-		1: testComment,
+	mockRepo.comments = map[string]*domain.Comment{
+		"comment-uuid-1": testComment,
 	}
 
 	t.Run("successful get comment", func(t *testing.T) {
-		comment, err := service.GetComment(ctx, 1)
+		comment, err := service.GetComment(ctx, "comment-uuid-1")
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
 		}
 		if comment == nil {
 			t.Fatal("Expected comment, got nil")
 		}
-		if comment.ID != 1 {
-			t.Errorf("Expected comment ID 1, got %d", comment.ID)
+		if comment.PublicID != "comment-uuid-1" {
+			t.Errorf("Expected comment PublicID comment-uuid-1, got %s", comment.PublicID)
 		}
 		if comment.Content != "Test comment" {
 			t.Errorf("Expected content 'Test comment', got '%s'", comment.Content)
@@ -115,7 +117,7 @@ func TestService_GetComment(t *testing.T) {
 	})
 
 	t.Run("comment not found", func(t *testing.T) {
-		_, err := service.GetComment(ctx, 999)
+		_, err := service.GetComment(ctx, "comment-uuid-999")
 		if err == nil {
 			t.Error("Expected error for non-existent comment, got nil")
 		}
@@ -130,24 +132,26 @@ func TestService_DeleteComment(t *testing.T) {
 	// Add a test comment to the mock
 	testTime := time.Now()
 	testComment := &domain.Comment{
-		ID:        1,
-		PostID:    10,
-		UserID:    5,
-		Content:   "Test comment",
-		CreatedAt: testTime,
-		UpdatedAt: testTime,
+		ID:           1,
+		PublicID:     "comment-uuid-1",
+		PostID:       10,
+		PublicPostID: "post-uuid-10",
+		UserID:       5,
+		Content:      "Test comment",
+		CreatedAt:    testTime,
+		UpdatedAt:    testTime,
 	}
-	mockRepo.comments = map[int]*domain.Comment{
-		1: testComment,
+	mockRepo.comments = map[string]*domain.Comment{
+		"comment-uuid-1": testComment,
 	}
 
-	err := service.DeleteComment(ctx, 1)
+	err := service.DeleteComment(ctx, "comment-uuid-1")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
 
 	// Verify the comment was removed by trying to get it again
-	_, err = service.GetComment(ctx, 1)
+	_, err = service.GetComment(ctx, "comment-uuid-1")
 	if err == nil {
 		t.Error("Expected error after deletion, got nil")
 	}
@@ -161,17 +165,17 @@ func TestService_ListCommentsByPost(t *testing.T) {
 	// Add test comments to the mock
 	testTime := time.Now()
 	comments := []*domain.Comment{
-		{ID: 1, PostID: 10, UserID: 5, Content: "First comment", CreatedAt: testTime, UpdatedAt: testTime},
-		{ID: 2, PostID: 10, UserID: 6, Content: "Second comment", CreatedAt: testTime, UpdatedAt: testTime},
-		{ID: 3, PostID: 11, UserID: 5, Content: "Third comment", CreatedAt: testTime, UpdatedAt: testTime}, // Different post
+		{ID: 1, PublicID: "comment-uuid-1", PostID: 10, PublicPostID: "post-uuid-10", UserID: 5, Content: "First comment", CreatedAt: testTime, UpdatedAt: testTime},
+		{ID: 2, PublicID: "comment-uuid-2", PostID: 10, PublicPostID: "post-uuid-10", UserID: 6, Content: "Second comment", CreatedAt: testTime, UpdatedAt: testTime},
+		{ID: 3, PublicID: "comment-uuid-3", PostID: 11, PublicPostID: "post-uuid-11", UserID: 5, Content: "Third comment", CreatedAt: testTime, UpdatedAt: testTime}, // Different post
 	}
-	mockRepo.comments = map[int]*domain.Comment{}
+	mockRepo.comments = map[string]*domain.Comment{}
 	for _, comment := range comments {
-		mockRepo.comments[comment.ID] = comment
+		mockRepo.comments[comment.PublicID] = comment
 	}
 
 	t.Run("list comments for post", func(t *testing.T) {
-		result, err := service.ListCommentsByPost(ctx, 10)
+		result, err := service.ListCommentsByPost(ctx, "post-uuid-10")
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
 		}
@@ -181,14 +185,14 @@ func TestService_ListCommentsByPost(t *testing.T) {
 
 		// Verify all returned comments belong to the correct post
 		for _, comment := range result {
-			if comment.PostID != 10 {
-				t.Errorf("Expected PostID 10, got %d", comment.PostID)
+			if comment.PublicPostID != "post-uuid-10" {
+				t.Errorf("Expected PublicPostID post-uuid-10, got %s", comment.PublicPostID)
 			}
 		}
 	})
 
 	t.Run("list comments for post with no comments", func(t *testing.T) {
-		result, err := service.ListCommentsByPost(ctx, 999)
+		result, err := service.ListCommentsByPost(ctx, "post-uuid-999")
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
 		}
@@ -204,7 +208,7 @@ func TestService_CreateComment(t *testing.T) {
 	service := NewService(mockRepo)
 
 	// Test the current implementation (returns nil, nil since it's a placeholder)
-	comment, err := service.CreateComment(ctx, 10, 5, "Test content")
+	comment, err := service.CreateComment(ctx, "post-uuid-10", 5, "Test content")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -219,7 +223,7 @@ func TestService_UpdateComment(t *testing.T) {
 	service := NewService(mockRepo)
 
 	// Test the current implementation (returns nil since it's a placeholder)
-	err := service.UpdateComment(ctx, 1, "Updated content")
+	err := service.UpdateComment(ctx, "comment-uuid-1", "Updated content")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}

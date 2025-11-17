@@ -967,17 +967,17 @@ func (h *HTTPHandler) CreatePostPage(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	// Get user ID
-	userIDStr := authAdapters.GetUserID(ctx)
-	if userIDStr == "" {
+	// Get user PUBLIC ID (UUID) from context (set by RequireAuth middleware)
+	userPublicID := authAdapters.GetUserID(ctx)
+	if userPublicID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	// Convert userID to int
-	userID, err := strconv.Atoi(userIDStr)
+	// Convert PUBLIC ID (UUID) to internal INT ID for service layer
+	userID, err := h.getInternalUserID(ctx, userPublicID)
 	if err != nil {
-		http.Error(w, "Invalid user ID", http.StatusInternalServerError)
+		http.Error(w, "Invalid user", http.StatusInternalServerError)
 		return
 	}
 

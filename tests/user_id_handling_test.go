@@ -49,7 +49,7 @@ func TestSQLiteUserRepositoryIDHandling(t *testing.T) {
 		role TEXT,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active BOOLEAN
+		is_active INTEGER DEFAULT 1
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -130,7 +130,7 @@ func TestUserRepositoryQueryMethods(t *testing.T) {
 		role TEXT,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active BOOLEAN
+		is_active INTEGER DEFAULT 1
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -214,7 +214,7 @@ func TestUserRepositoryInterfaceConsistency(t *testing.T) {
 		role TEXT,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active BOOLEAN
+		is_active INTEGER DEFAULT 1
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -302,7 +302,7 @@ func TestHTTPResponseIDExposure(t *testing.T) {
 		role TEXT,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active BOOLEAN
+		is_active INTEGER DEFAULT 1
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)

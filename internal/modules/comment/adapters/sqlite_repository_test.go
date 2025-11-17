@@ -105,7 +105,7 @@ func TestSQLiteCommentRepository_GetByID(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	result, err := repo.GetByID(ctx, comment.ID)
+	result, err := repo.GetByPublicID(ctx, "comment-public-id-1")
 	// Since the implementation is a placeholder (returns nil, nil), we expect this to be nil
 	if err != nil {
 		// This is expected for placeholder implementation
@@ -160,7 +160,7 @@ func TestSQLiteCommentRepository_ListByPostID(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	result, err := repo.ListByPostID(ctx, 10)
+	result, err := repo.ListByPostPublicID(ctx, "post-public-id-10")
 	// Since the implementation is a placeholder (returns nil, nil), we expect this to be nil
 	if err != nil {
 		// This is expected for placeholder implementation
@@ -279,7 +279,7 @@ func TestSQLiteCommentRepository_Delete(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	err = repo.Delete(ctx, comment.ID)
+	err = repo.DeleteByPublicID(ctx, "comment-public-id-1")
 	// Since the implementation is a placeholder, we expect this to return nil
 	if err != nil {
 		// This is expected for placeholder implementation
