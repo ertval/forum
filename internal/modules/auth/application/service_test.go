@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"forum/internal/modules/auth/domain"
 	userDomain "forum/internal/modules/user/domain"
 	userPorts "forum/internal/modules/user/ports"
@@ -20,6 +21,7 @@ type MockUserRepository struct {
 	usernameExists  map[string]bool
 	createError     error
 	getByEmailError error
+	nextID          int // Track next ID for Create
 }
 
 func (m *MockUserRepository) Create(ctx context.Context, user *userDomain.User) error {
@@ -28,6 +30,14 @@ func (m *MockUserRepository) Create(ctx context.Context, user *userDomain.User) 
 	}
 	if m.users == nil {
 		m.users = make(map[string]*userDomain.User)
+		m.nextID = 1
+	}
+	// Simulate database auto-increment
+	m.nextID++
+	user.ID = m.nextID
+	// Generate a public ID if not set
+	if user.PublicID == "" {
+		user.PublicID = fmt.Sprintf("user-public-id-%d", user.ID)
 	}
 	m.users[user.Email] = user
 	return nil
