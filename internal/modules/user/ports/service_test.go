@@ -112,24 +112,24 @@ func TestUserServiceInterfaceMethods(t *testing.T) {
 	
 	// Test that we can call interface methods on a variable of the interface type
 	service := &mockUserService{}
-	
+
 	// Test each method signature
-	_, _, err := service.GetByID(ctx, 1)
+	_, err := service.GetByID(ctx, 1)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
-	_, _, err = service.GetByUsername(ctx, "username")
+
+	_, err := service.GetByUsername(ctx, "username")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
-	_, _, err = service.GetByEmail(ctx, "email")
+
+	_, err := service.GetByEmail(ctx, "email")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
-	_, _, err = service.GetProfile(ctx, 1)
+
+	_, err := service.GetProfile(ctx, 1)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}

@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"forum/internal/modules/moderation/domain"
-	"forum/internal/modules/moderation/ports"
 	"testing"
 	"time"
 )
@@ -55,11 +54,11 @@ func (m *MockReportRepository) Update(ctx context.Context, report *domain.Report
 	return nil
 }
 
-func (m *MockReportRepository) Get(ctx context.Context, reportID int) (*domain.Report, error) {
+func (m *MockReportRepository) GetByID(ctx context.Context, reportID int) (*domain.Report, error) {
 	if m.getFn != nil {
 		return m.getFn(ctx, reportID)
 	}
-	
+
 	if report, exists := m.reports[reportID]; exists {
 		return report, nil
 	}

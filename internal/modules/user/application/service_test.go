@@ -2,8 +2,8 @@ package application
 
 import (
 	"context"
+	"errors"
 	"forum/internal/modules/user/domain"
-	"forum/internal/modules/user/ports"
 	"testing"
 	"time"
 )
@@ -139,13 +139,29 @@ func (m *MockUserRepository) ExistsByUsername(ctx context.Context, username stri
 	if m.existsByUsernameFn != nil {
 		return m.existsByUsernameFn(ctx, username)
 	}
-	
+
 	for _, user := range m.users {
 		if user.Username == username {
 			return true, nil
 		}
 	}
 	return false, nil
+}
+
+func (m *MockUserRepository) Count(ctx context.Context) (int, error) {
+	return len(m.users), nil
+}
+
+func (m *MockUserRepository) GetByID(ctx context.Context, id int) (*domain.User, error) {
+	if m.users == nil {
+		return nil, errors.New("user not found")
+	}
+	for _, user := range m.users {
+		if user.ID == id {
+			return user, nil
+		}
+	}
+	return nil, errors.New("user not found")
 }
 
 func TestService_GetByID(t *testing.T) {

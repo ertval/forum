@@ -78,7 +78,7 @@ func TestCommentServiceInterfaceMethods(t *testing.T) {
 	service := &mockCommentService{}
 	
 	// Test each method signature
-	_, _, err := service.CreateComment(ctx, 1, 1, "test content")
+	_, err := service.CreateComment(ctx, 1, 1, "test content")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}

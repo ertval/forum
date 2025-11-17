@@ -28,7 +28,7 @@ func TestPostRepositoryInterface(t *testing.T) {
 // Mock implementations for interface compatibility testing
 type mockPostService struct{}
 
-func (m *mockPostService) CreatePost(ctx context.Context, userID int, title, content string, categories []string, image []byte) (*domain.Post, error) {
+func (m *mockPostService) CreatePost(ctx context.Context, userID string, title, content string, categories []string, image []byte) (*domain.Post, error) {
 	return nil, nil
 }
 
@@ -36,15 +36,15 @@ func (m *mockPostService) GetPost(ctx context.Context, id string) (*domain.Post,
 	return nil, nil
 }
 
-func (m *mockPostService) UpdatePost(ctx context.Context, id string, userID int, title, content string, categories []string, image []byte) error {
+func (m *mockPostService) UpdatePost(ctx context.Context, id string, title, content string, categories []string) error {
 	return nil
 }
 
-func (m *mockPostService) DeletePost(ctx context.Context, id string, userID int) error {
+func (m *mockPostService) DeletePost(ctx context.Context, id string) error {
 	return nil
 }
 
-func (m *mockPostService) ListPosts(ctx context.Context, filters PostFilters) ([]*domain.Post, error) {
+func (m *mockPostService) ListPosts(ctx context.Context, filter PostFilter) ([]*domain.Post, error) {
 	return nil, nil
 }
 
@@ -70,7 +70,7 @@ func (m *mockPostRepository) Delete(ctx context.Context, id string, userID int) 
 	return nil
 }
 
-func (m *mockPostRepository) List(ctx context.Context, filters PostFilters) ([]*domain.Post, error) {
+func (m *mockPostRepository) List(ctx context.Context, filter PostFilter) ([]*domain.Post, error) {
 	return nil, nil
 }
 
@@ -86,7 +86,7 @@ func TestPostServiceInterfaceMethods(t *testing.T) {
 	service := &mockPostService{}
 	
 	// Test each method signature
-	_, _, err := service.CreatePost(ctx, 1, "title", "content", nil, nil)
+	_, err := service.CreatePost(ctx, "1", "title", "content", nil, nil)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
@@ -96,17 +96,17 @@ func TestPostServiceInterfaceMethods(t *testing.T) {
 		// Expected to be not implemented in mock
 	}
 	
-	err = service.UpdatePost(ctx, "id", 1, "title", "content", nil, nil)
+	err = service.UpdatePost(ctx, "id", "title", "content", nil)
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	err = service.DeletePost(ctx, "id")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
 	
-	err = service.DeletePost(ctx, "id", 1)
-	if err != nil {
-		// Expected to be not implemented in mock
-	}
-	
-	_, err = service.ListPosts(ctx, PostFilters{})
+	_, err = service.ListPosts(ctx, PostFilter{})
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
@@ -154,7 +154,7 @@ func TestPostRepositoryInterfaceMethods(t *testing.T) {
 	}
 	
 	// Test List method
-	posts, err = repo.List(ctx, PostFilters{})
+	posts, err = repo.List(ctx, PostFilter{})
 	if err != nil {
 		// Expected to be not implemented in mock
 	}

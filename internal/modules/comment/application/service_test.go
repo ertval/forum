@@ -2,9 +2,7 @@ package application
 
 import (
 	"context"
-	"errors"
 	"forum/internal/modules/comment/domain"
-	"forum/internal/modules/comment/ports"
 	"testing"
 	"time"
 )

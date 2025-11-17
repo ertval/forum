@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"forum/internal/modules/notification/domain"
-	"forum/internal/modules/notification/ports"
 	"testing"
 	"time"
 )

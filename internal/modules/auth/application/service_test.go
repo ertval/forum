@@ -5,7 +5,6 @@ import (
 	"errors"
 	"forum/internal/modules/auth/domain"
 	userDomain "forum/internal/modules/user/domain"
-	"forum/internal/modules/user/ports"
 	"testing"
 	"time"
 
@@ -93,6 +92,71 @@ func (m *MockUserRepository) Delete(ctx context.Context, id int) error {
 func (m *MockUserRepository) UpdatePassword(ctx context.Context, userID int, newPasswordHash string) error {
 	// Not implemented for this test
 	return nil
+}
+
+func (m *MockUserRepository) Count(ctx context.Context) (int, error) {
+	// Not implemented for this test
+	return len(m.users), nil
+}
+
+func (m *MockUserRepository) GetByID(ctx context.Context, id int) (*userDomain.User, error) {
+	if m.users == nil {
+		return nil, errors.New("user not found")
+	}
+	for _, user := range m.users {
+		if user.ID == id {
+			return user, nil
+		}
+	}
+	return nil, errors.New("user not found")
+}
+
+func (m *MockUserRepository) GetByUsername(ctx context.Context, username string) (*userDomain.User, error) {
+	if m.users == nil {
+		return nil, errors.New("user not found")
+	}
+	for _, user := range m.users {
+		if user.Username == username {
+			return user, nil
+		}
+	}
+	return nil, errors.New("user not found")
+}
+
+func (m *MockUserRepository) GetByEmail(ctx context.Context, email string) (*userDomain.User, error) {
+	if m.users == nil {
+		return nil, errors.New("user not found")
+	}
+	for _, user := range m.users {
+		if user.Email == email {
+			return user, nil
+		}
+	}
+	return nil, errors.New("user not found")
+}
+
+func (m *MockUserRepository) Update(ctx context.Context, user *userDomain.User) error {
+	return nil
+}
+
+func (m *MockUserRepository) Delete(ctx context.Context, id int) error {
+	return nil
+}
+
+func (m *MockUserRepository) UpdatePassword(ctx context.Context, userID int, newPasswordHash string) error {
+	return nil
+}
+
+func (m *MockUserRepository) List(ctx context.Context, offset, limit int) ([]*userDomain.User, error) {
+	return nil, nil
+}
+
+func (m *MockUserRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	return false, nil
+}
+
+func (m *MockUserRepository) ExistsByUsername(ctx context.Context, username string) (bool, error) {
+	return false, nil
 }
 
 // MockSessionRepository implements auth ports SessionRepository for testing

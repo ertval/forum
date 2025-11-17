@@ -2,8 +2,8 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"forum/internal/modules/reaction/domain"
-	"forum/internal/modules/reaction/ports"
 	"testing"
 	"time"
 )
@@ -59,7 +59,16 @@ func (m *MockReactionRepository) Delete(ctx context.Context, userID, targetID in
 }
 
 func buildKey(userID, targetID int, targetType string) string {
-	return string(rune(userID)) + ":" + string(rune(targetID)) + ":" + targetType
+	return fmt.Sprintf("%d:%d:%s", userID, targetID, targetType)
+}
+
+func (m *MockReactionRepository) GetByUserAndTarget(ctx context.Context, userID, targetID int, targetType string) (*domain.Reaction, error) {
+	// For testing purposes, just return a dummy reaction
+	return nil, nil
+}
+
+func (m *MockReactionRepository) Create(ctx context.Context, reaction *domain.Reaction) error {
+	return nil
 }
 
 func TestService_React(t *testing.T) {

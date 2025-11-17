@@ -4,6 +4,7 @@ import (
 	"context"
 	"forum/internal/modules/auth/domain"
 	"testing"
+	"time"
 )
 
 // Mock implementations for testing
@@ -118,44 +119,40 @@ func TestAuthServiceInterface(t *testing.T) {
 }
 
 func TestAuthServiceInterfaceMethods(t *testing.T) {
-	// Create mock repositories
-	sessionRepo := &MockSessionRepository{}
-	userRepo := &MockUserRepository{}
-	
 	// Create context for testing
 	ctx := context.Background()
-	
+
 	// Test that we can call interface methods on a variable of the interface type
 	// We'll use a concrete implementation (from the application package) to verify interface compatibility
 	// This is a compile-time check to ensure the interface is properly defined
 	service := &mockAuthService{}
-	
+
 	// Test each method signature
 	_, _, err := service.Register(ctx, "email", "username", "password")
 	if err != nil {
 		// Expected to be not implemented
 	}
-	
+
 	_, err = service.Login(ctx, "email", "password")
 	if err != nil {
 		// Expected to be not implemented
 	}
-	
+
 	err = service.Logout(ctx, "token")
 	if err != nil {
 		// Expected to be not implemented
 	}
-	
+
 	_, err = service.ValidateSession(ctx, "token")
 	if err != nil {
 		// Expected to be not implemented
 	}
-	
+
 	_, err = service.RefreshSession(ctx, "token")
 	if err != nil {
 		// Expected to be not implemented
 	}
-	
+
 	_, err = service.GetSession(ctx, "token")
 	if err != nil {
 		// Expected to be not implemented

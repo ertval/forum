@@ -106,7 +106,8 @@
     </div>
     <div class="user-actions">
         <a href="/posts/new" class="btn btn-primary btn-small">Create Post</a>
-        <a href="/board?user={{.User.ID}}" class="btn btn-primary btn-small">My Posts</a>
+        <a href="/board?user={{.User.ID}}{{if .SelectedCategory}}&category={{urlquery .SelectedCategory}}{{end}}{{if .DateFilter}}&date_filter={{.DateFilter}}{{end}}" class="btn btn-primary btn-small">My Posts</a>
+        <a href="/board?liked_posts=true{{if .SelectedCategory}}&category={{urlquery .SelectedCategory}}{{end}}{{if .DateFilter}}&date_filter={{.DateFilter}}{{end}}" class="btn btn-primary btn-small">My Likes</a>
         <a href="#" class="btn btn-primary btn-small" onclick="alert('Coming soon!'); return false;">My Comments</a>
         <a href="/settings" class="btn btn-primary btn-small">Settings</a>
         <a href="/logout" class="btn btn-primary btn-small">Logout</a>
@@ -139,14 +140,7 @@
             </select>
         </div>
 
-        {{if .User}}
-        <div class="filter-group">
-            <label class="checkbox-label">
-                <input type="checkbox" name="liked_posts" value="true" {{if .LikedPosts}}checked{{end}}>
-                Posts I Liked
-            </label>
-        </div>
-        {{end}}
+        <!-- 'Posts I Liked' filter removed: use 'My Likes' button in user card instead -->
 
         <button type="submit" class="btn btn-primary btn-small">Apply Filters</button>
     </form>
