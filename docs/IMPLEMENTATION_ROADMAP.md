@@ -11,7 +11,8 @@ Fast path to functional forum MVP following core requirements, then complete rem
 - ✅ Platform core present (`internal/platform` with `config`, `database`, `logger`, `httpserver`, `errors`, `validator`)
 - ✅ `auth` module implemented (registration, login, sessions, validation). Auth integration tests pass.
 - ✅ `post` and `category` implementations present and exercised by integration tests (create/read, form/multipart flows pass).
-- ⚠️ `user` module: domain and repository present; several application service functions and HTTP handlers remain TODO.
+- ✅ `user` module: domain, repository, and GetUserStats implemented. User stats now display correctly in UI.
+- ✅ Filter combinations (My Posts + Category/Date filters) work correctly and preserve state.
 - ⚠️ `comment`, `reaction`, `moderation`, `notification` modules: scaffolding (domain, ports, application, adapters) exists but many `application` methods contain `// TODO:` placeholders and need implementation.
 - 🧪 Tests: Integration tests under `tests/integration` pass; unit tests under `tests/unit` mostly pass but a set of template baseline tests currently fail (template content expectations such as footer text and some navigation elements).
 
@@ -103,6 +104,9 @@ Focus: Implement essential features from requirements.md to get a working forum 
 **User Module (Basic):**
 - [x] User domain entity (id, email, username, password_hash, role, created_at)
 - [x] Basic user repository implementation (needed by auth)
+- [x] GetUserStats repository method (counts posts, comments, likes, dislikes)
+- [x] GetUserStats application service (retrieves user activity statistics)
+- [x] User stats display in templates (PostCount, CommentCount in user card)
 
 **Files**: `internal/modules/auth/`, `internal/modules/user/domain/`, `internal/modules/user/adapters/sqlite_repository.go`
 
@@ -150,6 +154,8 @@ Focus: Implement essential features from requirements.md to get a working forum 
 - [x] Implement ListPosts use case (with filtering by category, user)
 - [x] Implement UpdatePost use case (only owner can edit, validates input)
 - [x] Implement DeletePost use case (only owner can delete)
+- [x] Implement FilterService for building complex filters (My Posts + Category + Date)
+- [x] Filter state preservation in templates (hidden form inputs)
 - [x] Unit tests with mock repositories (service_test.go)
 
 **Post Module - HTTP Handlers:**
@@ -167,11 +173,14 @@ Focus: Implement essential features from requirements.md to get a working forum 
 - [x] TestEmptyPostValidation - verify empty posts are rejected
 
 **Frontend (Basic Templates):**
-- [ ] templates/base.html - base layout with navigation
-- [ ] templates/home.html - post list view
-- [ ] templates/post_create.html - create post form
-- [ ] templates/post_view.html - single post view
-- [ ] Basic CSS styling (static/css/style.css)
+- [x] templates/base.html - base layout with navigation, user card, filter cards
+- [x] templates/home.html - post list view
+- [x] templates/board.html - board page with filtering
+- [x] templates/post_create.html - create post form
+- [x] templates/post_detail.html - single post view
+- [x] Filter combination support (My Posts + Category + Date filters)
+- [x] Filter state preservation in user action buttons
+- [x] Basic CSS styling (static/css/style.css)
 
 **Files**: `internal/modules/post/`, `templates/`, `static/css/`
 

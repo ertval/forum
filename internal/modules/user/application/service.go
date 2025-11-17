@@ -72,8 +72,6 @@ func (s *Service) ListUsers(ctx context.Context, offset, limit int) ([]*domain.U
 }
 
 // GetUserStats retrieves statistics about a user's activity.
-// TODO: Implement user statistics aggregation.
 func (s *Service) GetUserStats(ctx context.Context, userID int) (*ports.UserStats, error) {
-	// Implementation placeholder
-	return nil, nil
+	return s.userRepo.GetUserStats(ctx, userID)
 }

@@ -247,6 +247,7 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 		"DateFilter":       filterParams.DateFilter,
 		"MyPosts":          filterParams.MyPosts,
 		"LikedPosts":       filterParams.LikedPosts,
+		"UserFilter":       filterParams.UserID,
 		"User":             currentUser,
 		"FilterAction":     "/",
 		"ShowFilter":       false,
@@ -367,6 +368,7 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 		"ShowSidebar":      true,
 		"MyPosts":          filterParams.MyPosts,
 		"LikedPosts":       filterParams.LikedPosts,
+		"UserFilter":       filterParams.UserID,
 		"User":             currentUser,
 	}
 

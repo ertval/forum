@@ -4,22 +4,23 @@ import (
 	"context"
 	"errors"
 	"forum/internal/modules/user/domain"
+	"forum/internal/modules/user/ports"
 	"testing"
 	"time"
 )
 
 // MockUserRepository implements UserRepository for testing
 type MockUserRepository struct {
-	users       map[int]*domain.User
-	createFn    func(ctx context.Context, user *domain.User) error
-	getByIDFn   func(ctx context.Context, id int) (*domain.User, error)
-	getByEmailFn func(ctx context.Context, email string) (*domain.User, error)
-	getByUsernameFn func(ctx context.Context, username string) (*domain.User, error)
-	updateFn    func(ctx context.Context, user *domain.User) error
-	deleteFn    func(ctx context.Context, id int) error
-	updatePasswordFn func(ctx context.Context, userID int, newPasswordHash string) error
-	listFn      func(ctx context.Context, offset, limit int) ([]*domain.User, error)
-	existsByEmailFn func(ctx context.Context, email string) (bool, error)
+	users              map[int]*domain.User
+	createFn           func(ctx context.Context, user *domain.User) error
+	getByIDFn          func(ctx context.Context, id int) (*domain.User, error)
+	getByEmailFn       func(ctx context.Context, email string) (*domain.User, error)
+	getByUsernameFn    func(ctx context.Context, username string) (*domain.User, error)
+	updateFn           func(ctx context.Context, user *domain.User) error
+	deleteFn           func(ctx context.Context, id int) error
+	updatePasswordFn   func(ctx context.Context, userID int, newPasswordHash string) error
+	listFn             func(ctx context.Context, offset, limit int) ([]*domain.User, error)
+	existsByEmailFn    func(ctx context.Context, email string) (bool, error)
 	existsByUsernameFn func(ctx context.Context, username string) (bool, error)
 }
 
@@ -27,7 +28,7 @@ func (m *MockUserRepository) Create(ctx context.Context, user *domain.User) erro
 	if m.createFn != nil {
 		return m.createFn(ctx, user)
 	}
-	
+
 	if m.users == nil {
 		m.users = make(map[int]*domain.User)
 	}
@@ -39,7 +40,7 @@ func (m *MockUserRepository) Get(ctx context.Context, id int) (*domain.User, err
 	if m.getByIDFn != nil {
 		return m.getByIDFn(ctx, id)
 	}
-	
+
 	if user, exists := m.users[id]; exists {
 		return user, nil
 	}
@@ -50,7 +51,7 @@ func (m *MockUserRepository) GetByEmail(ctx context.Context, email string) (*dom
 	if m.getByEmailFn != nil {
 		return m.getByEmailFn(ctx, email)
 	}
-	
+
 	for _, user := range m.users {
 		if user.Email == email {
 			return user, nil
@@ -63,7 +64,7 @@ func (m *MockUserRepository) GetByUsername(ctx context.Context, username string)
 	if m.getByUsernameFn != nil {
 		return m.getByUsernameFn(ctx, username)
 	}
-	
+
 	for _, user := range m.users {
 		if user.Username == username {
 			return user, nil
@@ -76,7 +77,7 @@ func (m *MockUserRepository) Update(ctx context.Context, user *domain.User) erro
 	if m.updateFn != nil {
 		return m.updateFn(ctx, user)
 	}
-	
+
 	if m.users == nil {
 		m.users = make(map[int]*domain.User)
 	}
@@ -88,7 +89,7 @@ func (m *MockUserRepository) Delete(ctx context.Context, id int) error {
 	if m.deleteFn != nil {
 		return m.deleteFn(ctx, id)
 	}
-	
+
 	delete(m.users, id)
 	return nil
 }
@@ -97,7 +98,7 @@ func (m *MockUserRepository) UpdatePassword(ctx context.Context, userID int, new
 	if m.updatePasswordFn != nil {
 		return m.updatePasswordFn(ctx, userID, newPasswordHash)
 	}
-	
+
 	if m.users != nil {
 		if user, exists := m.users[userID]; exists {
 			user.PasswordHash = newPasswordHash
@@ -110,7 +111,7 @@ func (m *MockUserRepository) List(ctx context.Context, offset, limit int) ([]*do
 	if m.listFn != nil {
 		return m.listFn(ctx, offset, limit)
 	}
-	
+
 	var users []*domain.User
 	count := 0
 	for _, user := range m.users {
@@ -126,7 +127,7 @@ func (m *MockUserRepository) ExistsByEmail(ctx context.Context, email string) (b
 	if m.existsByEmailFn != nil {
 		return m.existsByEmailFn(ctx, email)
 	}
-	
+
 	for _, user := range m.users {
 		if user.Email == email {
 			return true, nil
@@ -162,6 +163,16 @@ func (m *MockUserRepository) GetByID(ctx context.Context, id int) (*domain.User,
 		}
 	}
 	return nil, errors.New("user not found")
+}
+
+// GetUserStats retrieves statistics about a user's activity.
+func (m *MockUserRepository) GetUserStats(ctx context.Context, userID int) (*ports.UserStats, error) {
+	return &ports.UserStats{
+		PostCount:    0,
+		CommentCount: 0,
+		LikeCount:    0,
+		DislikeCount: 0,
+	}, nil
 }
 
 func TestService_GetByID(t *testing.T) {

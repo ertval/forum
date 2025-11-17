@@ -38,4 +38,7 @@ type UserRepository interface {
 
 	// ExistsByUsername checks if a user with the given username exists.
 	ExistsByUsername(ctx context.Context, username string) (bool, error)
+
+	// GetUserStats retrieves statistics about a user's activity.
+	GetUserStats(ctx context.Context, userID int) (*UserStats, error)
 }

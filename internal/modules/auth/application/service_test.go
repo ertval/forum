@@ -5,6 +5,7 @@ import (
 	"errors"
 	"forum/internal/modules/auth/domain"
 	userDomain "forum/internal/modules/user/domain"
+	userPorts "forum/internal/modules/user/ports"
 	"testing"
 	"time"
 
@@ -125,6 +126,16 @@ func (m *MockUserRepository) GetByUsername(ctx context.Context, username string)
 
 func (m *MockUserRepository) List(ctx context.Context, offset, limit int) ([]*userDomain.User, error) {
 	return nil, nil
+}
+
+// GetUserStats retrieves statistics about a user's activity.
+func (m *MockUserRepository) GetUserStats(ctx context.Context, userID int) (*userPorts.UserStats, error) {
+	return &userPorts.UserStats{
+		PostCount:    0,
+		CommentCount: 0,
+		LikeCount:    0,
+		DislikeCount: 0,
+	}, nil
 }
 
 // MockSessionRepository implements auth ports SessionRepository for testing

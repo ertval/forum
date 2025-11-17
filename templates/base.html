@@ -120,6 +120,17 @@
         <div class="filters">
     <h2>Filter Posts</h2>
     <form method="GET" action="{{.FilterAction}}">
+        {{/* Preserve active filter state with hidden inputs */}}
+        {{if .UserFilter}}
+            <input type="hidden" name="user" value="{{.UserFilter}}">
+        {{end}}
+        {{if .MyPosts}}
+            <input type="hidden" name="my_posts" value="true">
+        {{end}}
+        {{if .LikedPosts}}
+            <input type="hidden" name="liked_posts" value="true">
+        {{end}}
+        
         <div class="filter-group">
             <label for="category">Category:</label>
             <select name="category" id="category">
