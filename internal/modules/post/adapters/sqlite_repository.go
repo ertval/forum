@@ -277,6 +277,18 @@ func (r *SQLitePostRepository) List(ctx context.Context, filter ports.PostFilter
 		args = append(args, filter.LikedByUserID)
 	}
 
+	// Filter by date
+	if filter.DateFilter != "" && filter.DateFilter != "all" {
+		switch filter.DateFilter {
+		case "today":
+			conditions = append(conditions, "DATE(p.created_at) = DATE('now')")
+		case "week":
+			conditions = append(conditions, "p.created_at >= DATE('now', '-7 days')")
+		case "month":
+			conditions = append(conditions, "p.created_at >= DATE('now', '-30 days')")
+		}
+	}
+
 	// Add WHERE conditions
 	if len(conditions) > 0 {
 		query += " WHERE " + conditions[0]

@@ -87,6 +87,7 @@ module/
 │
 ├── application/     # Orchestration layer
 │   └── service.go   # Implements ports/service.go
+│   └── filter_service.go # Specialized filtering logic (post module)
 │                    # Uses ports/repository.go
 │
 └── adapters/        # Technical implementations (flat, no subdirs)
@@ -114,7 +115,11 @@ This makes navigation and understanding instant.
 ### Core Modules (Required)
 1. **auth** - Registration, login, sessions
 2. **user** - User profiles, roles
-3. **post** - Create/read/update/delete posts, categories
+3. **post** - Create/read/update/delete posts, categories, filtering
+   - **FilterService**: Dedicated application service for post filtering logic
+   - Supports filtering by category, user, liked posts, and date range
+   - Date filters: Today, This Week, This Month, All Time
+   - Uses `FilterParams` for query parameter parsing and `PostFilter` for repository queries
 4. **comment** - Comments on posts
 5. **reaction** - Like/dislike posts and comments
 

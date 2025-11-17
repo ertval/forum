@@ -31,6 +31,7 @@ type ServiceContainer struct {
 	user         userPorts.UserService
 	post         postPorts.PostService
 	category     postPorts.CategoryService
+	filter       postPorts.FilterService
 	comment      commentPorts.CommentService
 	reaction     reactionPorts.ReactionService
 	moderation   moderationPorts.ModerationService
@@ -43,6 +44,7 @@ func (sc *ServiceContainer) Auth() authPorts.AuthService                   { ret
 func (sc *ServiceContainer) User() userPorts.UserService                   { return sc.user }
 func (sc *ServiceContainer) Post() postPorts.PostService                   { return sc.post }
 func (sc *ServiceContainer) Category() postPorts.CategoryService           { return sc.category }
+func (sc *ServiceContainer) Filter() postPorts.FilterService               { return sc.filter }
 func (sc *ServiceContainer) Comment() commentPorts.CommentService          { return sc.comment }
 func (sc *ServiceContainer) Reaction() reactionPorts.ReactionService       { return sc.reaction }
 func (sc *ServiceContainer) Moderation() moderationPorts.ModerationService { return sc.moderation }
@@ -58,6 +60,7 @@ func initServices(repos *Repositories, sessionDuration time.Duration, lgr *logge
 		user:         userApp.NewService(repos.User),
 		post:         postApp.NewService(repos.Post, repos.Category),
 		category:     postApp.NewCategoryService(repos.Category),
+		filter:       postApp.NewFilterService(),
 		comment:      commentApp.NewService(repos.Comment),
 		reaction:     reactionApp.NewService(repos.Reaction),
 		moderation:   moderationApp.NewService(repos.Moderation),

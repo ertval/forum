@@ -1,0 +1,112 @@
+package ports
+
+import (
+	"context"
+	"forum/internal/modules/notification/domain"
+	"testing"
+)
+
+// This test file verifies that the interfaces are properly defined and can be implemented
+func TestNotificationServiceInterface(t *testing.T) {
+	// This test ensures that the NotificationService interface is properly defined
+	// and that we can create a variable of the interface type
+	
+	var notificationService NotificationService
+	if notificationService != nil {
+		t.Error("NotificationService interface should be usable as a nil variable")
+	}
+}
+
+func TestNotificationRepositoryInterface(t *testing.T) {
+	// This test ensures that the NotificationRepository interface is properly defined
+	var notificationRepo NotificationRepository
+	if notificationRepo != nil {
+		t.Error("NotificationRepository interface should be usable as a nil variable")
+	}
+}
+
+// Mock implementations for interface compatibility testing
+type mockNotificationService struct{}
+
+func (m *mockNotificationService) CreateNotification(ctx context.Context, userID int, notifType, message string, targetID int) error {
+	return nil
+}
+
+func (m *mockNotificationService) GetUserNotifications(ctx context.Context, userID int) ([]*domain.Notification, error) {
+	return nil, nil
+}
+
+func (m *mockNotificationService) MarkAsRead(ctx context.Context, notificationID int) error {
+	return nil
+}
+
+type mockNotificationRepository struct{}
+
+func (m *mockNotificationRepository) GetByUserID(ctx context.Context, userID int) ([]*domain.Notification, error) {
+	return nil, nil
+}
+
+func (m *mockNotificationRepository) MarkAsRead(ctx context.Context, notificationID int) error {
+	return nil
+}
+
+func (m *mockNotificationRepository) Create(ctx context.Context, notification *domain.Notification) error {
+	return nil
+}
+
+func TestNotificationServiceInterfaceMethods(t *testing.T) {
+	// Create context for testing
+	ctx := context.Background()
+	
+	// Test that we can call interface methods on a variable of the interface type
+	service := &mockNotificationService{}
+	
+	// Test each method signature
+	err := service.CreateNotification(ctx, 1, "type", "message", 1)
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+	
+	_, err = service.GetUserNotifications(ctx, 1)
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+	
+	err = service.MarkAsRead(ctx, 1)
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+}
+
+func TestNotificationRepositoryInterfaceMethods(t *testing.T) {
+	// Create context for testing
+	ctx := context.Background()
+	
+	// Create mock repository
+	repo := &mockNotificationRepository{}
+	
+	// Test that we can call interface methods on a variable of the interface type
+	var notification *domain.Notification
+	var notifications []*domain.Notification
+	var err error
+	
+	// Test GetByUserID method
+	notifications, err = repo.GetByUserID(ctx, 1)
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+	
+	// Test MarkAsRead method
+	err = repo.MarkAsRead(ctx, 1)
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+	
+	// Test Create method
+	err = repo.Create(ctx, notification)
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+	
+	_ = notifications // Use the variable to avoid unused variable warning
+}

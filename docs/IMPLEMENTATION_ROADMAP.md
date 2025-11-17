@@ -340,33 +340,41 @@ Add remaining features from requirements.md to meet all mandatory requirements.
 
 ---
 
-### Phase 8: Filtering (REQUIREMENT: Filter)
+### Phase 8: Filtering (REQUIREMENT: Filter) ✅ COMPLETE
 
-**Goal**: Filter posts by categories, created posts, liked posts
+**Goal**: Filter posts by categories, created posts, liked posts, and date range
 
 **Post Module - Repository:**
-- [ ] Add filter methods to post repository
-  - [ ] FilterByCategory(categoryID, limit, offset)
-  - [ ] FilterByUser(userID, limit, offset) - user's created posts
-  - [ ] FilterByLiked(userID, limit, offset) - user's liked posts (use reaction repo)
+- [x] Add filter methods to post repository
+  - [x] FilterByCategory(categoryID, limit, offset)
+  - [x] FilterByUser(userID, limit, offset) - user's created posts
+  - [x] FilterByLiked(userID, limit, offset) - user's liked posts (use reaction repo)
+  - [x] FilterByDate(dateFilter) - filter by today, week, month, or all time
 
 **Post Module - Application Service:**
-- [ ] Implement FilterPosts use case with filter options
+- [x] Implement FilterService with BuildFilter and ApplyDateFilter use cases
+- [x] FilterParams struct for query parameters
+- [x] Unit tests for FilterService
 
 **Post Module - HTTP Handlers:**
-- [ ] GET /posts?category={id} - filter by category (public)
-- [ ] GET /posts?created_by=me - filter user's posts (requires auth)
-- [ ] GET /posts?liked_by=me - filter user's liked posts (requires auth)
+- [x] GET /posts?category={name} - filter by category (public)
+- [x] GET /board?user={id} - filter by user's posts (public)
+- [x] GET /board?liked_posts=true - filter user's liked posts (requires auth)
+- [x] GET /board?date_filter={today|week|month|all} - filter by date range
 
 **Frontend:**
-- [ ] Add filter UI to home page
-- [ ] Add navigation for filter options
+- [x] Add filter UI to board page with category dropdown
+- [x] Add date filter dropdown (Today, This Week, This Month, All Time)
+- [x] Remove "My Posts" checkbox from filters
+- [x] Add "My Posts" button to user card sidebar
+- [x] Add "My Comments" placeholder button to user card sidebar
+- [x] Update create post template to match edit page sidebar layout
 
-**Files**: `internal/modules/post/adapters/sqlite_repository.go`, `internal/modules/post/adapters/http_handler.go`
+**Files**: `internal/modules/post/adapters/sqlite_repository.go`, `internal/modules/post/adapters/http_handler.go`, `internal/modules/post/application/filter_service.go`, `templates/base.html`, `templates/post_create.html`
 
-**Deliverable**: Users can filter posts by category, created posts, liked posts.
+**Deliverable**: Users can filter posts by category, created posts, liked posts, and date range through dedicated filter service.
 
-**Time**: 1-2 days
+**Time**: ✅ Completed
 
 ---
 
@@ -716,7 +724,7 @@ Implement optional features after core requirements are complete.
 | Phase 5: Categories & Association | ⏳ Scaffolding | 5% |
 | Phase 6: Comments | ⏳ Scaffolding | 5% |
 | Phase 7: Reactions | ⏳ Scaffolding | 5% |
-| Phase 8: Filtering | ❌ Not Started | 0% |
+| Phase 8: Filtering | ✅ Complete | 100% |
 | Phase 9: Docker Requirement | ⏳ Partial | 30% |
 | Phase 10: Testing & Error Handling | ⏳ Scaffolding | 5% |
 | **PART 3: BONUS FEATURES** |

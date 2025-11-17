@@ -28,6 +28,7 @@ import (
 type HTTPHandler struct {
 	postService     postPorts.PostService
 	categoryService postPorts.CategoryService
+	filterService   postPorts.FilterService
 	authService     authPorts.AuthService
 	userService     userPorts.UserService
 	templates       *template.Template
@@ -37,6 +38,7 @@ type HTTPHandler struct {
 type ServiceContainer interface {
 	Post() postPorts.PostService
 	Category() postPorts.CategoryService
+	Filter() postPorts.FilterService
 	Auth() authPorts.AuthService
 	User() userPorts.UserService
 }
@@ -46,6 +48,7 @@ func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HT
 	return &HTTPHandler{
 		postService:     services.Post(),
 		categoryService: services.Category(),
+		filterService:   services.Filter(),
 		authService:     services.Auth(),
 		userService:     services.User(),
 		templates:       templates,
@@ -125,34 +128,28 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse filter parameters
-	category := r.URL.Query().Get("category")
-	myPosts := r.URL.Query().Get("my_posts") == "true"
-	likedPosts := r.URL.Query().Get("liked_posts") == "true"
-
-	// Build filter
-	filter := postPorts.PostFilter{
-		Limit: 12, // Default limit - show only 12 posts on homepage (4x3 grid)
-	}
-
-	if category != "" {
-		filter.Categories = []string{category}
-	}
-
-	if myPosts && currentUser != nil {
+	var currentUserID string
+	if currentUser != nil {
 		if userMap, ok := currentUser.(map[string]interface{}); ok {
-			if userID, ok := userMap["ID"].(string); ok {
-				filter.UserID = userID
+			if uid, ok := userMap["ID"].(string); ok {
+				currentUserID = uid
 			}
 		}
 	}
 
-	if likedPosts && currentUser != nil {
-		if userMap, ok := currentUser.(map[string]interface{}); ok {
-			if userID, ok := userMap["ID"].(string); ok {
-				filter.LikedByUserID = userID
-			}
-		}
+	// Build filter using FilterService
+	filterParams := postPorts.FilterParams{
+		Category:      r.URL.Query().Get("category"),
+		UserID:        r.URL.Query().Get("user"),
+		MyPosts:       r.URL.Query().Get("my_posts") == "true",
+		LikedPosts:    r.URL.Query().Get("liked_posts") == "true",
+		DateFilter:    r.URL.Query().Get("date_filter"),
+		Limit:         12,
+		Offset:        0,
+		CurrentUserID: currentUserID,
 	}
+
+	filter := h.filterService.BuildFilter(ctx, filterParams)
 
 	// Fetch posts
 	posts, err := h.postService.ListPosts(ctx, filter)
@@ -199,9 +196,10 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 		"Title":            "Home",
 		"Posts":            previewPosts,
 		"Categories":       categories,
-		"SelectedCategory": category,
-		"MyPosts":          myPosts,
-		"LikedPosts":       likedPosts,
+		"SelectedCategory": filterParams.Category,
+		"DateFilter":       filterParams.DateFilter,
+		"MyPosts":          filterParams.MyPosts,
+		"LikedPosts":       filterParams.LikedPosts,
 		"User":             currentUser,
 		"FilterAction":     "/",
 		"ShowFilter":       false,
@@ -243,41 +241,28 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse filter parameters
-	category := r.URL.Query().Get("category")
-	userFilter := r.URL.Query().Get("user")
-	myPosts := r.URL.Query().Get("my_posts") == "true"
-	likedPosts := r.URL.Query().Get("liked_posts") == "true"
-
-	// Build filter
-	filter := postPorts.PostFilter{
-		Limit: 10, // Default limit - show only 10 posts on board page by default
-	}
-
-	if category != "" {
-		filter.Categories = []string{category}
-	}
-
-	// Filter by specific user ID (from URL parameter)
-	if userFilter != "" {
-		filter.UserID = userFilter
-	}
-
-	// Filter by current user's posts
-	if myPosts && currentUser != nil {
+	var currentUserID string
+	if currentUser != nil {
 		if userMap, ok := currentUser.(map[string]interface{}); ok {
-			if userID, ok := userMap["ID"].(string); ok {
-				filter.UserID = userID
+			if uid, ok := userMap["ID"].(string); ok {
+				currentUserID = uid
 			}
 		}
 	}
 
-	if likedPosts && currentUser != nil {
-		if userMap, ok := currentUser.(map[string]interface{}); ok {
-			if userID, ok := userMap["ID"].(string); ok {
-				filter.LikedByUserID = userID
-			}
-		}
+	// Build filter using FilterService
+	filterParams := postPorts.FilterParams{
+		Category:      r.URL.Query().Get("category"),
+		UserID:        r.URL.Query().Get("user"),
+		MyPosts:       r.URL.Query().Get("my_posts") == "true",
+		LikedPosts:    r.URL.Query().Get("liked_posts") == "true",
+		DateFilter:    r.URL.Query().Get("date_filter"),
+		Limit:         10,
+		Offset:        0,
+		CurrentUserID: currentUserID,
 	}
+
+	filter := h.filterService.BuildFilter(ctx, filterParams)
 
 	// Fetch posts
 	posts, err := h.postService.ListPosts(ctx, filter)
@@ -324,12 +309,13 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 		"Title":            "Board",
 		"Posts":            previewPosts,
 		"Categories":       categories,
-		"SelectedCategory": category,
+		"SelectedCategory": filterParams.Category,
+		"DateFilter":       filterParams.DateFilter,
 		"FilterAction":     "/board",
 		"ShowFilter":       true,
 		"ShowSidebar":      true,
-		"MyPosts":          myPosts,
-		"LikedPosts":       likedPosts,
+		"MyPosts":          filterParams.MyPosts,
+		"LikedPosts":       filterParams.LikedPosts,
 		"User":             currentUser,
 	}
 
@@ -857,9 +843,11 @@ func (h *HTTPHandler) CreatePostPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]interface{}{
-		"Title":      "Create Post",
-		"User":       currentUser,
-		"Categories": categories,
+		"Title":           "Create Post",
+		"User":            currentUser,
+		"Categories":      categories,
+		"ShowSidebar":     true,
+		"ShowPostSidebar": true,
 	}
 
 	// Parse templates individually for this page

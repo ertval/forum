@@ -25,7 +25,9 @@ A modern web forum built with Go, following Hexagonal Architecture principles. C
   - Category management (create, list, retrieve)
   - Public viewing (all users can view posts)
   - Post ownership (only owner can edit/delete)
-  - Filter posts by category
+  - Filter posts by category, user, liked posts, and date range
+  - Date filtering (Today, This Week, This Month, All Time)
+  - Dedicated FilterService in application layer for centralized filtering logic
   - Image upload support (implemented as upload handling + validation; storage and CDN integration remain optional - JPEG, PNG, GIF, max 20MB)
 
 ### Core Features (Planned / Near Complete)
