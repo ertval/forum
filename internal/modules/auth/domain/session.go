@@ -9,14 +9,14 @@ import (
 // Session represents an authenticated user session.
 // Sessions are created when a user logs in and expire after a certain duration.
 type Session struct {
-	ID        int       // Internal unique identifier (INT PRIMARY KEY)
-	PublicID  string    // Public UUID identifier (exposed in API)
-	UserID    int       // ID of the authenticated user (internal INT)
-	Token     string    // Session token stored in cookie
-	ExpiresAt time.Time // Session expiration time
-	CreatedAt time.Time // Session creation time
-	IPAddress string    // IP address of the client
-	UserAgent string    // User agent string of the client
+	ID        int       `json:"-"`          // Internal unique identifier (INT PRIMARY KEY)
+	PublicID  string    `json:"id"`         // Public UUID identifier (exposed in API)
+	UserID    int       `json:"-"`          // ID of the authenticated user (internal INT)
+	Token     string    `json:"token"`      // Session token stored in cookie
+	ExpiresAt time.Time `json:"expires_at"` // Session expiration time
+	CreatedAt time.Time `json:"created_at"` // Session creation time
+	IPAddress string    `json:"-"`          // IP address of the client (internal only)
+	UserAgent string    `json:"-"`          // User agent string of the client (internal only)
 }
 
 // IsExpired checks if the session has expired.

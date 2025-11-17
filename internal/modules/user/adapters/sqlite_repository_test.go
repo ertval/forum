@@ -313,7 +313,7 @@ func TestSQLiteUserRepository_Update(t *testing.T) {
 		Role:         domain.RoleAdmin,      // Changed role
 		CreatedAt:    now,
 		UpdatedAt:    now.Add(1 * time.Hour), // Changed updated time
-		IsActive:     false,                 // Changed active status
+		IsActive:     false,                  // Changed active status
 	}
 
 	err = repo.Update(ctx, updatedUser)
@@ -505,7 +505,7 @@ func TestSQLiteUserRepository_ExistsByEmail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
-	
+
 	// Check for existing email
 	exists, err := repo.ExistsByEmail(ctx, user.Email)
 	if err != nil {
@@ -514,7 +514,7 @@ func TestSQLiteUserRepository_ExistsByEmail(t *testing.T) {
 	if !exists {
 		t.Error("Expected email to exist")
 	}
-	
+
 	// Check for non-existing email
 	exists, err = repo.ExistsByEmail(ctx, "nonexistent@example.com")
 	if err != nil {
@@ -567,7 +567,7 @@ func TestSQLiteUserRepository_ExistsByUsername(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
-	
+
 	// Check for existing username
 	exists, err := repo.ExistsByUsername(ctx, user.Username)
 	if err != nil {
@@ -576,7 +576,7 @@ func TestSQLiteUserRepository_ExistsByUsername(t *testing.T) {
 	if !exists {
 		t.Error("Expected username to exist")
 	}
-	
+
 	// Check for non-existing username
 	exists, err = repo.ExistsByUsername(ctx, "nonexistent")
 	if err != nil {

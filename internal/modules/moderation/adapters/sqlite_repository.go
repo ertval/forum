@@ -21,20 +21,21 @@ func NewSQLiteReportRepository(db *sql.DB) ports.ReportRepository {
 }
 
 // Create stores a new report in the database.
-// TODO: Implement report creation.
+// TODO: Implement report creation with UUID generation.
 func (r *SQLiteReportRepository) Create(ctx context.Context, report *domain.Report) error {
 	// Implementation placeholder
-	// INSERT INTO reports (reporter_id, target_id, target_type, reason, status, created_at)
-	// VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+	// 1. Generate UUID for PublicID
+	// 2. INSERT INTO reports (public_id, reporter_id, target_id, target_type, reason, status, created_at)
+	//    VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 	return nil
 }
 
-// GetByID retrieves a report by ID.
-// TODO: Implement report retrieval by ID.
-func (r *SQLiteReportRepository) GetByID(ctx context.Context, reportID int) (*domain.Report, error) {
+// GetByPublicID retrieves a report by its public UUID.
+// TODO: Implement report retrieval by public UUID.
+func (r *SQLiteReportRepository) GetByPublicID(ctx context.Context, reportPublicID string) (*domain.Report, error) {
 	// Implementation placeholder
-	// SELECT id, reporter_id, target_id, target_type, reason, status, created_at
-	// FROM reports WHERE id = ?
+	// SELECT id, public_id, reporter_id, target_id, target_type, reason, status, created_at
+	// FROM reports WHERE public_id = ?
 	return nil, nil
 }
 
@@ -42,7 +43,7 @@ func (r *SQLiteReportRepository) GetByID(ctx context.Context, reportID int) (*do
 // TODO: Implement report listing with optional status filter.
 func (r *SQLiteReportRepository) List(ctx context.Context, status string) ([]*domain.Report, error) {
 	// Implementation placeholder
-	// SELECT id, reporter_id, target_id, target_type, reason, status, created_at
+	// SELECT id, public_id, reporter_id, target_id, target_type, reason, status, created_at
 	// FROM reports WHERE status = ? OR ? = '' ORDER BY created_at DESC
 	return nil, nil
 }

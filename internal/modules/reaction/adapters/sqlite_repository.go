@@ -20,45 +20,47 @@ func NewSQLiteReactionRepository(db *sql.DB) ports.ReactionRepository {
 }
 
 // Create stores a new reaction in the database.
-// TODO: Implement reaction creation.
+// TODO: Implement reaction creation with UUID generation.
 func (r *SQLiteReactionRepository) Create(ctx context.Context, reaction *domain.Reaction) error {
 	// Implementation placeholder
-	// INSERT INTO reactions (user_id, target_id, target_type, type, created_at)
-	// VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+	// 1. Generate UUID for PublicID
+	// 2. INSERT INTO reactions (public_id, user_id, target_id, target_type, type, created_at)
+	//    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 	return nil
 }
 
-// Delete removes a user's reaction from a target.
-// TODO: Implement reaction deletion.
-func (r *SQLiteReactionRepository) Delete(ctx context.Context, userID, targetID int, targetType string) error {
+// DeleteByTargetPublicID removes a user's reaction from a target by target's public UUID.
+// TODO: Implement reaction deletion by target public UUID.
+func (r *SQLiteReactionRepository) DeleteByTargetPublicID(ctx context.Context, userID int, targetPublicID string, targetType string) error {
 	// Implementation placeholder
-	// DELETE FROM reactions WHERE user_id = ? AND target_id = ? AND target_type = ?
+	// For posts: DELETE FROM reactions WHERE user_id = ? AND target_id = (SELECT id FROM posts WHERE public_id = ?) AND target_type = ?
+	// For comments: DELETE FROM reactions WHERE user_id = ? AND target_id = (SELECT id FROM comments WHERE public_id = ?) AND target_type = ?
 	return nil
 }
 
-// GetByTarget retrieves all reactions for a specific target.
-// TODO: Implement retrieving reactions by target.
-func (r *SQLiteReactionRepository) GetByTarget(ctx context.Context, targetID int, targetType string) ([]*domain.Reaction, error) {
+// GetByTargetPublicID retrieves all reactions for a specific target by its public UUID.
+// TODO: Implement retrieving reactions by target public UUID.
+func (r *SQLiteReactionRepository) GetByTargetPublicID(ctx context.Context, targetPublicID string, targetType string) ([]*domain.Reaction, error) {
 	// Implementation placeholder
-	// SELECT id, user_id, target_id, target_type, type, created_at
-	// FROM reactions WHERE target_id = ? AND target_type = ?
+	// For posts: SELECT id, public_id, user_id, target_id, target_type, type, created_at
+	//            FROM reactions WHERE target_id = (SELECT id FROM posts WHERE public_id = ?) AND target_type = ?
+	// For comments: Similar join with comments table
 	return nil, nil
 }
 
-// GetByUserAndTarget retrieves a user's reaction for a specific target.
-// TODO: Implement retrieving user's reaction for a target.
-func (r *SQLiteReactionRepository) GetByUserAndTarget(ctx context.Context, userID, targetID int, targetType string) (*domain.Reaction, error) {
+// GetByUserAndTargetPublicID retrieves a user's reaction for a specific target by target's public UUID.
+// TODO: Implement retrieving user's reaction for a target by target public UUID.
+func (r *SQLiteReactionRepository) GetByUserAndTargetPublicID(ctx context.Context, userID int, targetPublicID string, targetType string) (*domain.Reaction, error) {
 	// Implementation placeholder
-	// SELECT id, user_id, target_id, target_type, type, created_at
-	// FROM reactions WHERE user_id = ? AND target_id = ? AND target_type = ?
+	// Similar to GetByTargetPublicID but also filter by user_id
 	return nil, nil
 }
 
-// Count returns the number of reactions of a specific type for a target.
-// TODO: Implement reaction counting.
-func (r *SQLiteReactionRepository) Count(ctx context.Context, targetID int, targetType string, reactionType domain.ReactionType) (int, error) {
+// CountByTargetPublicID returns the number of reactions of a specific type for a target by its public UUID.
+// TODO: Implement reaction counting by target public UUID.
+func (r *SQLiteReactionRepository) CountByTargetPublicID(ctx context.Context, targetPublicID string, targetType string, reactionType domain.ReactionType) (int, error) {
 	// Implementation placeholder
 	// SELECT COUNT(*) FROM reactions
-	// WHERE target_id = ? AND target_type = ? AND type = ?
+	// WHERE target_id = (SELECT id FROM posts/comments WHERE public_id = ?) AND target_type = ? AND type = ?
 	return 0, nil
 }

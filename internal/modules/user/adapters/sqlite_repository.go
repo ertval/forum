@@ -240,7 +240,7 @@ func (r *SQLiteUserRepository) Delete(ctx context.Context, userID int) error {
 func (r *SQLiteUserRepository) List(ctx context.Context, offset, limit int) ([]*domain.User, error) {
 	query := `SELECT id, public_id, email, username, password_hash, role, created_at, updated_at, is_active
               FROM users ORDER BY created_at DESC`
-	
+
 	// Add pagination if limit is specified
 	var rows *sql.Rows
 	var err error

@@ -16,13 +16,13 @@ const (
 
 // Reaction represents a user's reaction to a post or comment.
 type Reaction struct {
-	ID         int          `json:"-"`                     // Internal unique identifier (INT PRIMARY KEY)
-	PublicID   string       `json:"id"`                    // Public UUID identifier (exposed in API)
-	UserID     int          `json:"-"`                     // Internal ID of the user who reacted
-	TargetID   int          `json:"-"`                     // Internal ID of the target (post or comment)
-	TargetType string       `json:"target_type"`           // Type of target: "post" or "comment"
-	Type       ReactionType `json:"type"`                  // Type of reaction: like or dislike
-	CreatedAt  time.Time    `json:"created_at"`            // Reaction creation timestamp
+	ID         int          `json:"-"`           // Internal unique identifier (INT PRIMARY KEY)
+	PublicID   string       `json:"id"`          // Public UUID identifier (exposed in API)
+	UserID     int          `json:"-"`           // Internal ID of the user who reacted
+	TargetID   int          `json:"-"`           // Internal ID of the target (post or comment)
+	TargetType string       `json:"target_type"` // Type of target: "post" or "comment"
+	Type       ReactionType `json:"type"`        // Type of reaction: like or dislike
+	CreatedAt  time.Time    `json:"created_at"`  // Reaction creation timestamp
 	// For API responses - public UUIDs of related entities
 	PublicUserID   string `json:"user_id,omitempty"`   // Public UUID of the user
 	PublicTargetID string `json:"target_id,omitempty"` // Public UUID of target

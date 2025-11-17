@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
+	authAdapters "forum/internal/modules/auth/adapters"
 	"forum/internal/modules/auth/application"
 	authDomain "forum/internal/modules/auth/domain"
-	authAdapters "forum/internal/modules/auth/adapters"
 	userAdapters "forum/internal/modules/user/adapters"
 	"forum/internal/platform/config"
+
 	_ "github.com/mattn/go-sqlite3" // Import SQLite driver
 )
 

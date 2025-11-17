@@ -7,7 +7,7 @@
         {{range .Posts}}
             <article class="post-card-compact">
                 <div class="post-header-compact">
-                    <h3><a href="/posts/{{.ID}}">{{.Title}}</a></h3>
+                    <h3><a href="/posts/{{.PublicID}}">{{.Title}}</a></h3>
                     <div class="post-meta-compact">
                         <span class="author-compact">by {{.AuthorUsername}}</span>
                         <span class="date-compact">{{.CreatedAt.Format "Jan 02, 2006"}}</span>

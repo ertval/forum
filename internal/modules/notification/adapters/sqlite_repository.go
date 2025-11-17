@@ -21,11 +21,12 @@ func NewSQLiteNotificationRepository(db *sql.DB) ports.NotificationRepository {
 }
 
 // Create stores a new notification in the database.
-// TODO: Implement notification creation.
+// TODO: Implement notification creation with UUID generation.
 func (r *SQLiteNotificationRepository) Create(ctx context.Context, notification *domain.Notification) error {
 	// Implementation placeholder
-	// INSERT INTO notifications (user_id, type, message, target_id, is_read, created_at)
-	// VALUES (?, ?, ?, ?, false, CURRENT_TIMESTAMP)
+	// 1. Generate UUID for PublicID
+	// 2. INSERT INTO notifications (public_id, user_id, type, message, target_id, is_read, created_at)
+	//    VALUES (?, ?, ?, ?, ?, false, CURRENT_TIMESTAMP)
 	return nil
 }
 
@@ -33,15 +34,15 @@ func (r *SQLiteNotificationRepository) Create(ctx context.Context, notification 
 // TODO: Implement notification retrieval by user ID.
 func (r *SQLiteNotificationRepository) GetByUserID(ctx context.Context, userID int) ([]*domain.Notification, error) {
 	// Implementation placeholder
-	// SELECT id, user_id, type, message, target_id, is_read, created_at
+	// SELECT id, public_id, user_id, type, message, target_id, is_read, created_at
 	// FROM notifications WHERE user_id = ? ORDER BY created_at DESC
 	return nil, nil
 }
 
-// MarkAsRead marks a notification as read.
-// TODO: Implement marking notification as read.
-func (r *SQLiteNotificationRepository) MarkAsRead(ctx context.Context, notificationID int) error {
+// MarkAsReadByPublicID marks a notification as read by its public UUID.
+// TODO: Implement marking notification as read by public UUID.
+func (r *SQLiteNotificationRepository) MarkAsReadByPublicID(ctx context.Context, notificationPublicID string) error {
 	// Implementation placeholder
-	// UPDATE notifications SET is_read = true WHERE id = ?
+	// UPDATE notifications SET is_read = true WHERE public_id = ?
 	return nil
 }

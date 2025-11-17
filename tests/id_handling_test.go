@@ -2,9 +2,9 @@ package tests
 
 import (
 	"fmt"
-	"forum/internal/modules/auth/domain"
-	"forum/internal/modules/post/domain"
-	"forum/internal/modules/user/domain"
+	authDomain "forum/internal/modules/auth/domain"
+	postDomain "forum/internal/modules/post/domain"
+	userDomain "forum/internal/modules/user/domain"
 	"regexp"
 	"strings"
 	"testing"
@@ -13,7 +13,7 @@ import (
 // TestDomainIDHandling verifies that domain entities properly implement the UUID/public ID pattern
 func TestDomainIDHandling(t *testing.T) {
 	t.Run("Auth Session ID Pattern", func(t *testing.T) {
-		session := &domain.Session{
+		session := &authDomain.Session{
 			ID:       1,           // Internal int ID
 			PublicID: "test-uuid", // Public UUID
 			UserID:   100,         // Internal int ID for foreign key
@@ -42,7 +42,7 @@ func TestDomainIDHandling(t *testing.T) {
 	})
 
 	t.Run("User Entity ID Pattern", func(t *testing.T) {
-		user := &domain.User{
+		user := &userDomain.User{
 			ID:       1,           // Internal int ID
 			PublicID: "test-uuid", // Public UUID
 			Email:    "test@example.com",
@@ -71,7 +71,7 @@ func TestDomainIDHandling(t *testing.T) {
 	})
 
 	t.Run("Post Entity ID Pattern", func(t *testing.T) {
-		post := &domain.Post{
+		post := &postDomain.Post{
 			ID:           1,           // Internal int ID
 			PublicID:     "test-uuid", // Public UUID
 			UserID:       100,         // Internal int ID for foreign key
@@ -113,7 +113,7 @@ func TestAPIResponseIDPattern(t *testing.T) {
 	// Test scenarios where internal IDs should not be exposed in API responses
 	t.Run("Post API Response Structure", func(t *testing.T) {
 		// Simulating a post that would be returned by the API
-		post := &domain.Post{
+		post := &postDomain.Post{
 			ID:       1,                                      // Internal ID (should not appear in JSON response)
 			PublicID: "750e8400-1234-5678-9012-123456789012", // Public ID (should appear in JSON response)
 			UserID:   100,                                    // Internal user ID (should not appear in JSON response)
