@@ -4,10 +4,11 @@
 
 -- +migrate Up
 CREATE TABLE IF NOT EXISTS reports (
-    id TEXT PRIMARY KEY,
-    reporter_id TEXT NOT NULL,
-    moderator_id TEXT,
-    target_id TEXT NOT NULL,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    public_id TEXT UNIQUE NOT NULL,
+    reporter_id INTEGER NOT NULL,
+    moderator_id INTEGER,
+    target_id INTEGER NOT NULL,
     target_type TEXT NOT NULL,
     reason TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
@@ -18,6 +19,7 @@ CREATE TABLE IF NOT EXISTS reports (
     FOREIGN KEY (moderator_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
+CREATE INDEX idx_reports_public_id ON reports(public_id);
 CREATE INDEX idx_reports_status ON reports(status);
 CREATE INDEX idx_reports_target ON reports(target_id, target_type);
 CREATE INDEX idx_reports_moderator ON reports(moderator_id);
@@ -26,4 +28,5 @@ CREATE INDEX idx_reports_moderator ON reports(moderator_id);
 DROP INDEX IF EXISTS idx_reports_moderator;
 DROP INDEX IF EXISTS idx_reports_target;
 DROP INDEX IF EXISTS idx_reports_status;
+DROP INDEX IF EXISTS idx_reports_public_id;
 DROP TABLE IF EXISTS reports;

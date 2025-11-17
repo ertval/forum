@@ -9,8 +9,9 @@ import (
 // Session represents an authenticated user session.
 // Sessions are created when a user logs in and expire after a certain duration.
 type Session struct {
-	ID        string    // Unique session identifier (UUID)
-	UserID    int       // ID of the authenticated user
+	ID        int       // Internal unique identifier (INT PRIMARY KEY)
+	PublicID  string    // Public UUID identifier (exposed in API)
+	UserID    int       // ID of the authenticated user (internal INT)
 	Token     string    // Session token stored in cookie
 	ExpiresAt time.Time // Session expiration time
 	CreatedAt time.Time // Session creation time
@@ -25,7 +26,7 @@ func (s *Session) IsExpired() bool {
 
 // IsValid checks if the session is valid (not expired and has required fields).
 func (s *Session) IsValid() bool {
-	return s.ID != "" && s.UserID > 0 && !s.IsExpired()
+	return s.ID > 0 && s.UserID > 0 && !s.IsExpired()
 }
 
 // Credentials represents user credentials for authentication.

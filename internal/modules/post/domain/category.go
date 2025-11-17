@@ -5,7 +5,8 @@ import "time"
 
 // Category represents a post category.
 type Category struct {
-	ID          string    `json:"id"`                    // Unique category identifier (UUID)
+	ID          int       `json:"-"`                     // Internal unique identifier (INT PRIMARY KEY)
+	PublicID    string    `json:"id"`                    // Public UUID identifier (exposed in API)
 	Name        string    `json:"name"`                  // Category name (unique, used for filtering)
 	Description string    `json:"description,omitempty"` // Category description
 	CreatedAt   time.Time `json:"created_at"`            // Category creation timestamp

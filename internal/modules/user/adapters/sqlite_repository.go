@@ -7,6 +7,8 @@ import (
 	"database/sql"
 	"forum/internal/modules/user/domain"
 	"forum/internal/modules/user/ports"
+
+	"github.com/gofrs/uuid/v5"
 )
 
 // SQLiteUserRepository implements the UserRepository interface using SQLite.
@@ -23,10 +25,18 @@ func NewSQLiteUserRepository(db *sql.DB) ports.UserRepository {
 
 // Create stores a new user in the database.
 func (r *SQLiteUserRepository) Create(ctx context.Context, user *domain.User) error {
-	query := `INSERT INTO users (email, username, password_hash, role, created_at, updated_at, is_active)
-              VALUES (?, ?, ?, ?, ?, ?, ?)`
+	// Generate public UUID
+	publicID, err := uuid.NewV4()
+	if err != nil {
+		return err
+	}
+	user.PublicID = publicID.String()
+
+	query := `INSERT INTO users (public_id, email, username, password_hash, role, created_at, updated_at, is_active)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 
 	result, err := r.db.ExecContext(ctx, query,
+		user.PublicID,
 		user.Email,
 		user.Username,
 		user.PasswordHash,
@@ -52,7 +62,7 @@ func (r *SQLiteUserRepository) Create(ctx context.Context, user *domain.User) er
 
 // GetByID retrieves a user by their ID.
 func (r *SQLiteUserRepository) GetByID(ctx context.Context, userID int) (*domain.User, error) {
-	query := `SELECT id, email, username, password_hash, role, created_at, updated_at, is_active
+	query := `SELECT id, public_id, email, username, password_hash, role, created_at, updated_at, is_active
               FROM users WHERE id = ?`
 
 	row := r.db.QueryRowContext(ctx, query, userID)
@@ -62,6 +72,7 @@ func (r *SQLiteUserRepository) GetByID(ctx context.Context, userID int) (*domain
 
 	err := row.Scan(
 		&user.ID,
+		&user.PublicID,
 		&user.Email,
 		&user.Username,
 		&user.PasswordHash,
@@ -85,7 +96,7 @@ func (r *SQLiteUserRepository) GetByID(ctx context.Context, userID int) (*domain
 
 // GetByEmail retrieves a user by their email address.
 func (r *SQLiteUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
-	query := `SELECT id, email, username, password_hash, role, created_at, updated_at, is_active
+	query := `SELECT id, public_id, email, username, password_hash, role, created_at, updated_at, is_active
               FROM users WHERE email = ?`
 
 	row := r.db.QueryRowContext(ctx, query, email)
@@ -95,6 +106,7 @@ func (r *SQLiteUserRepository) GetByEmail(ctx context.Context, email string) (*d
 
 	err := row.Scan(
 		&user.ID,
+		&user.PublicID,
 		&user.Email,
 		&user.Username,
 		&user.PasswordHash,
@@ -118,7 +130,7 @@ func (r *SQLiteUserRepository) GetByEmail(ctx context.Context, email string) (*d
 
 // GetByUsername retrieves a user by their username.
 func (r *SQLiteUserRepository) GetByUsername(ctx context.Context, username string) (*domain.User, error) {
-	query := `SELECT id, email, username, password_hash, role, created_at, updated_at, is_active
+	query := `SELECT id, public_id, email, username, password_hash, role, created_at, updated_at, is_active
               FROM users WHERE username = ?`
 
 	row := r.db.QueryRowContext(ctx, query, username)
@@ -128,6 +140,7 @@ func (r *SQLiteUserRepository) GetByUsername(ctx context.Context, username strin
 
 	err := row.Scan(
 		&user.ID,
+		&user.PublicID,
 		&user.Email,
 		&user.Username,
 		&user.PasswordHash,
@@ -191,7 +204,7 @@ func (r *SQLiteUserRepository) Delete(ctx context.Context, userID int) error {
 
 // List returns a paginated list of users.
 func (r *SQLiteUserRepository) List(ctx context.Context, offset, limit int) ([]*domain.User, error) {
-	query := `SELECT id, email, username, password_hash, role, created_at, updated_at, is_active
+	query := `SELECT id, public_id, email, username, password_hash, role, created_at, updated_at, is_active
               FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?`
 
 	rows, err := r.db.QueryContext(ctx, query, limit, offset)
@@ -207,6 +220,7 @@ func (r *SQLiteUserRepository) List(ctx context.Context, offset, limit int) ([]*
 
 		err := rows.Scan(
 			&user.ID,
+			&user.PublicID,
 			&user.Email,
 			&user.Username,
 			&user.PasswordHash,

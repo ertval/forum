@@ -8,7 +8,8 @@ import (
 
 // User represents a forum user.
 type User struct {
-	ID           int       // Unique user identifier
+	ID           int       // Internal unique identifier (INT PRIMARY KEY)
+	PublicID     string    // Public UUID identifier (exposed in API)
 	Email        string    // User's email address (unique)
 	Username     string    // User's display name (unique)
 	PasswordHash string    // Hashed password

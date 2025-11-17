@@ -53,7 +53,7 @@ func TestSession_IsValid(t *testing.T) {
 		{
 			name: "valid session",
 			session: &Session{
-				ID:        "valid-id",
+				ID:        1,
 				UserID:    1,
 				ExpiresAt: time.Now().Add(1 * time.Hour),
 			},
@@ -62,7 +62,7 @@ func TestSession_IsValid(t *testing.T) {
 		{
 			name: "missing ID",
 			session: &Session{
-				ID:        "",
+				ID:        0,
 				UserID:    1,
 				ExpiresAt: time.Now().Add(1 * time.Hour),
 			},
@@ -71,7 +71,7 @@ func TestSession_IsValid(t *testing.T) {
 		{
 			name: "invalid UserID",
 			session: &Session{
-				ID:        "valid-id",
+				ID:        1,
 				UserID:    0,
 				ExpiresAt: time.Now().Add(1 * time.Hour),
 			},
@@ -80,7 +80,7 @@ func TestSession_IsValid(t *testing.T) {
 		{
 			name: "expired session",
 			session: &Session{
-				ID:        "valid-id",
+				ID:        1,
 				UserID:    1,
 				ExpiresAt: time.Now().Add(-1 * time.Hour), // Expired
 			},

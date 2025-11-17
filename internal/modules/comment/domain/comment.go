@@ -5,9 +5,10 @@ import "time"
 
 // Comment represents a forum comment on a post.
 type Comment struct {
-	ID        int       // Unique comment identifier
-	PostID    int       // ID of the post this comment belongs to
-	UserID    int       // ID of the user who created the comment
+	ID        int       // Internal unique identifier (INT PRIMARY KEY)
+	PublicID  string    // Public UUID identifier (exposed in API)
+	PostID    int       // Internal ID of the post this comment belongs to
+	UserID    int       // Internal ID of the user who created the comment
 	Content   string    // Comment text content
 	CreatedAt time.Time // Comment creation timestamp
 	UpdatedAt time.Time // Last update timestamp

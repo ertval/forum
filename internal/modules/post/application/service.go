@@ -45,7 +45,6 @@ func NewCategoryService(categoryRepo ports.CategoryRepository) ports.CategorySer
 // Create creates a new category.
 func (s *CategoryService) Create(ctx context.Context, name, description string) (*domain.Category, error) {
 	category := &domain.Category{
-		ID:          generateID(),
 		Name:        name,
 		Description: description,
 	}
@@ -55,6 +54,7 @@ func (s *CategoryService) Create(ctx context.Context, name, description string) 
 		return nil, err
 	}
 
+	// Repository will generate both internal ID and public_id
 	if err := s.categoryRepo.Create(ctx, category); err != nil {
 		return nil, err
 	}
@@ -78,10 +78,9 @@ func (s *CategoryService) Delete(ctx context.Context, categoryID string) error {
 }
 
 // CreatePost creates a new post.
-func (s *Service) CreatePost(ctx context.Context, userID string, title, content string, categories []string, image []byte) (*domain.Post, error) {
-	// Create post entity
+func (s *Service) CreatePost(ctx context.Context, userID int, title, content string, categories []string, image []byte) (*domain.Post, error) {
+	// Create post entity - repository will generate both internal ID and public_id
 	post := &domain.Post{
-		ID:         generateID(),
 		UserID:     userID,
 		Title:      title,
 		Content:    content,

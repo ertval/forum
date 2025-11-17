@@ -5,8 +5,10 @@ import "time"
 
 // Post represents a forum post.
 type Post struct {
-	ID             string    `json:"id"`                        // Unique post identifier (UUID)
-	UserID         string    `json:"user_id"`                   // ID of the user who created the post (UUID)
+	ID             int       `json:"-"`                         // Internal unique identifier (INT PRIMARY KEY)
+	PublicID       string    `json:"id"`                        // Public UUID identifier (exposed in API)
+	UserID         int       `json:"-"`                         // Internal ID of the user who created the post
+	UserPublicID   string    `json:"user_id,omitempty"`         // Public UUID of the user (for API)
 	AuthorUsername string    `json:"author_username,omitempty"` // Username of the post author (for display)
 	Author         string    `json:"author,omitempty"`          // Alias for AuthorUsername (for compatibility)
 	Title          string    `json:"title"`                     // Post title

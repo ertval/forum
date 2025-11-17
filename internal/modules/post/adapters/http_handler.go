@@ -395,9 +395,16 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get user ID from context (set by RequireAuth middleware)
-	userID := authAdapters.GetUserID(r.Context())
-	if userID == "" {
+	userIDStr := authAdapters.GetUserID(r.Context())
+	if userIDStr == "" {
 		h.writeError(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	// Convert userID to int
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		h.writeError(w, http.StatusInternalServerError, "Invalid user ID")
 		return
 	}
 
@@ -554,9 +561,16 @@ func (h *HTTPHandler) GetPostAPI(w http.ResponseWriter, r *http.Request) {
 // UpdatePostAPI handles post update requests.
 func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
-	userID := authAdapters.GetUserID(r.Context())
-	if userID == "" {
+	userIDStr := authAdapters.GetUserID(r.Context())
+	if userIDStr == "" {
 		h.writeError(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	// Convert userID to int
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		h.writeError(w, http.StatusInternalServerError, "Invalid user ID")
 		return
 	}
 
@@ -696,9 +710,16 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 // DeletePostAPI handles post deletion requests.
 func (h *HTTPHandler) DeletePostAPI(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
-	userID := authAdapters.GetUserID(r.Context())
-	if userID == "" {
+	userIDStr := authAdapters.GetUserID(r.Context())
+	if userIDStr == "" {
 		h.writeError(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	// Convert userID to int
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		h.writeError(w, http.StatusInternalServerError, "Invalid user ID")
 		return
 	}
 
@@ -922,9 +943,16 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user ID
-	userID := authAdapters.GetUserID(ctx)
-	if userID == "" {
+	userIDStr := authAdapters.GetUserID(ctx)
+	if userIDStr == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Convert userID to int
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusInternalServerError)
 		return
 	}
 
@@ -953,11 +981,7 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get current user info (full profile/stats)
-	userIDInt, err := strconv.Atoi(userID)
-	var currentUser interface{}
-	if err == nil {
-		currentUser = h.buildCurrentUser(ctx, userIDInt)
-	}
+	currentUser := h.buildCurrentUser(ctx, userID)
 
 	// Fetch all categories
 	categories, err := h.categoryService.List(ctx)

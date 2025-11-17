@@ -422,7 +422,7 @@ func TestService_Logout(t *testing.T) {
 
 	// Create a session for testing
 	testSession := &domain.Session{
-		ID:     "test-session-id",
+		ID:     1,
 		Token:  "test-session-token",
 		UserID: 1,
 	}
@@ -450,7 +450,7 @@ func TestService_ValidateSession(t *testing.T) {
 
 	// Create a valid session
 	validSession := &domain.Session{
-		ID:        "valid-session-id",
+		ID:        1,
 		Token:     "valid-session-token",
 		UserID:    1,
 		ExpiresAt: time.Now().Add(1 * time.Hour), // Not expired
@@ -470,7 +470,7 @@ func TestService_ValidateSession(t *testing.T) {
 
 	// Create an expired session
 	expiredSession := &domain.Session{
-		ID:        "expired-session-id",
+		ID:        2,
 		Token:     "expired-session-token",
 		UserID:    1,
 		ExpiresAt: time.Now().Add(-1 * time.Hour), // Expired
@@ -501,7 +501,7 @@ func TestService_RefreshSession(t *testing.T) {
 	// Create a valid session
 	originalTime := time.Now().Add(1 * time.Hour)
 	testSession := &domain.Session{
-		ID:        "refresh-test-id",
+		ID:        1,
 		Token:     "refresh-session-token",
 		UserID:    1,
 		ExpiresAt: originalTime,
@@ -524,7 +524,7 @@ func TestService_RefreshSession(t *testing.T) {
 
 	// Test refreshing an expired session
 	expiredSession := &domain.Session{
-		ID:        "expired-refresh-id",
+		ID:        2,
 		Token:     "expired-refresh-token",
 		UserID:    1,
 		ExpiresAt: time.Now().Add(-1 * time.Hour), // Expired

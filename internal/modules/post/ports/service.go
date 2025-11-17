@@ -9,7 +9,7 @@ import (
 
 // PostService defines post management use cases.
 type PostService interface {
-	CreatePost(ctx context.Context, userID string, title, content string, categories []string, image []byte) (*domain.Post, error)
+	CreatePost(ctx context.Context, userID int, title, content string, categories []string, image []byte) (*domain.Post, error)
 	GetPost(ctx context.Context, postID string) (*domain.Post, error)
 	UpdatePost(ctx context.Context, postID string, title, content string, categories []string) error
 	DeletePost(ctx context.Context, postID string) error

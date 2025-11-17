@@ -16,9 +16,10 @@ const (
 
 // Reaction represents a user's reaction to a post or comment.
 type Reaction struct {
-	ID         int          // Unique reaction identifier
-	UserID     int          // ID of the user who reacted
-	TargetID   int          // ID of the target (post or comment)
+	ID         int          // Internal unique identifier (INT PRIMARY KEY)
+	PublicID   string       // Public UUID identifier (exposed in API)
+	UserID     int          // Internal ID of the user who reacted
+	TargetID   int          // Internal ID of the target (post or comment)
 	TargetType string       // Type of target: "post" or "comment"
 	Type       ReactionType // Type of reaction: like or dislike
 	CreatedAt  time.Time    // Reaction creation timestamp
