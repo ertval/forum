@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -21,7 +19,7 @@ import (
 // TestUserDomainIDStructure verifies that User domain struct has both internal and public IDs
 func TestUserDomainIDStructure(t *testing.T) {
 	user := &domain.User{
-		ID:       1,         // Internal INT ID
+		ID:       1,           // Internal INT ID
 		PublicID: "test-uuid", // Public UUID
 	}
 
@@ -335,7 +333,7 @@ func TestHTTPResponseIDExposure(t *testing.T) {
 	// This would be handled by struct tags like:
 	// ID int `json:"-"` (internal, not in JSON)
 	// PublicID string `json:"id"` (exposed as "id" in JSON)
-	
+
 	// Verify user structure has proper tags
 	if user.ID != 0 && user.PublicID != "" {
 		// Serialize to JSON to see if internal ID is exposed
@@ -343,7 +341,7 @@ func TestHTTPResponseIDExposure(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to marshal user to JSON: %v", err)
 		}
-		
+
 		jsonStr := string(jsonData)
 		// Since User struct doesn't have JSON tags in domain, this will include both ID and PublicID
 		// This is expected at the domain level but should be handled at the HTTP response level
