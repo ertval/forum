@@ -15,8 +15,9 @@ func TestPost_Validate(t *testing.T) {
 		{
 			name: "valid post",
 			post: Post{
-				ID:         "post-1",
-				UserID:     "user-1",
+				ID:         1,
+				PublicID:   "post-1-uuid",
+				UserID:     1,
 				Title:      "Valid Title",
 				Content:    "Valid content for the post",
 				Categories: []string{"tests"},
@@ -27,7 +28,7 @@ func TestPost_Validate(t *testing.T) {
 		{
 			name: "empty title",
 			post: Post{
-				UserID:     "user-1",
+				UserID:     1,
 				Title:      "",
 				Content:    "Valid content",
 				Categories: []string{"tests"},
@@ -37,7 +38,7 @@ func TestPost_Validate(t *testing.T) {
 		{
 			name: "title too long",
 			post: Post{
-				UserID:     "user-1",
+				UserID:     1,
 				Title:      strings.Repeat("a", 301),
 				Content:    "Valid content",
 				Categories: []string{"tests"},
@@ -47,7 +48,7 @@ func TestPost_Validate(t *testing.T) {
 		{
 			name: "empty content",
 			post: Post{
-				UserID:     "user-1",
+				UserID:     1,
 				Title:      "Valid Title",
 				Content:    "",
 				Categories: []string{"tests"},
@@ -57,7 +58,7 @@ func TestPost_Validate(t *testing.T) {
 		{
 			name: "content too long",
 			post: Post{
-				UserID:     "user-1",
+				UserID:     1,
 				Title:      "Valid Title",
 				Content:    strings.Repeat("a", 50001),
 				Categories: []string{"tests"},
@@ -67,7 +68,7 @@ func TestPost_Validate(t *testing.T) {
 		{
 			name: "no categories",
 			post: Post{
-				UserID:     "user-1",
+				UserID:     1,
 				Title:      "Valid Title",
 				Content:    "Valid content",
 				Categories: []string{},
@@ -77,7 +78,7 @@ func TestPost_Validate(t *testing.T) {
 		{
 			name: "nil categories",
 			post: Post{
-				UserID:     "user-1",
+				UserID:     1,
 				Title:      "Valid Title",
 				Content:    "Valid content",
 				Categories: nil,

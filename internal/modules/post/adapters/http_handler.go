@@ -80,7 +80,7 @@ func (h *HTTPHandler) buildCurrentUser(ctx context.Context, userID int) map[stri
 	}
 
 	return map[string]interface{}{
-		"PublicID":     publicID,  // Use explicit PublicID field for templates
+		"PublicID":     publicID, // Use explicit PublicID field for templates
 		"Username":     username,
 		"Email":        email,
 		"PostCount":    postCount,
@@ -808,7 +808,7 @@ func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("my_posts") == "true" {
 		userPublicID := authAdapters.GetUserID(r.Context())
 		if userPublicID != "" {
-			filter.UserID = userPublicID  // Use PublicID (UUID) for filtering
+			filter.UserID = userPublicID // Use PublicID (UUID) for filtering
 		}
 	}
 
@@ -816,7 +816,7 @@ func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("liked_posts") == "true" {
 		userPublicID := authAdapters.GetUserID(r.Context())
 		if userPublicID != "" {
-			filter.LikedByUserID = userPublicID  // Use PublicID (UUID) for filtering
+			filter.LikedByUserID = userPublicID // Use PublicID (UUID) for filtering
 		}
 	}
 
@@ -868,7 +868,7 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("my_posts") == "true" {
 		userPublicID := authAdapters.GetUserID(r.Context())
 		if userPublicID != "" {
-			filter.UserID = userPublicID  // Use PublicID (UUID) for filtering
+			filter.UserID = userPublicID // Use PublicID (UUID) for filtering
 		}
 	}
 
@@ -876,7 +876,7 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("liked_posts") == "true" {
 		userPublicID := authAdapters.GetUserID(r.Context())
 		if userPublicID != "" {
-			filter.LikedByUserID = userPublicID  // Use PublicID (UUID) for filtering
+			filter.LikedByUserID = userPublicID // Use PublicID (UUID) for filtering
 		}
 	}
 

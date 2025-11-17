@@ -9,34 +9,34 @@ import (
 
 // MockCommentRepository implements CommentRepository for testing
 type MockCommentRepository struct {
-	comments       map[int]*domain.Comment
-	listByPostIDFn func(ctx context.Context, postID int) ([]*domain.Comment, error)
-	getByIDFn      func(ctx context.Context, commentID int) (*domain.Comment, error)
-	createFn       func(ctx context.Context, comment *domain.Comment) error
-	updateFn       func(ctx context.Context, comment *domain.Comment) error
-	deleteFn       func(ctx context.Context, commentID int) error
+	comments             map[string]*domain.Comment
+	listByPostPublicIDFn func(ctx context.Context, postPublicID string) ([]*domain.Comment, error)
+	getByPublicIDFn      func(ctx context.Context, commentPublicID string) (*domain.Comment, error)
+	createFn             func(ctx context.Context, comment *domain.Comment) error
+	updateFn             func(ctx context.Context, comment *domain.Comment) error
+	deleteByPublicIDFn   func(ctx context.Context, commentPublicID string) error
 }
 
-func (m *MockCommentRepository) ListByPostID(ctx context.Context, postID int) ([]*domain.Comment, error) {
-	if m.listByPostIDFn != nil {
-		return m.listByPostIDFn(ctx, postID)
+func (m *MockCommentRepository) ListByPostPublicID(ctx context.Context, postPublicID string) ([]*domain.Comment, error) {
+	if m.listByPostPublicIDFn != nil {
+		return m.listByPostPublicIDFn(ctx, postPublicID)
 	}
 
 	var result []*domain.Comment
 	for _, comment := range m.comments {
-		if comment.PostID == postID {
+		if comment.PostPublicID == postPublicID {
 			result = append(result, comment)
 		}
 	}
 	return result, nil
 }
 
-func (m *MockCommentRepository) GetByID(ctx context.Context, commentID int) (*domain.Comment, error) {
-	if m.getByIDFn != nil {
-		return m.getByIDFn(ctx, commentID)
+func (m *MockCommentRepository) GetByPublicID(ctx context.Context, commentPublicID string) (*domain.Comment, error) {
+	if m.getByPublicIDFn != nil {
+		return m.getByPublicIDFn(ctx, commentPublicID)
 	}
 
-	if comment, exists := m.comments[commentID]; exists {
+	if comment, exists := m.comments[commentPublicID]; exists {
 		return comment, nil
 	}
 	return nil, domain.ErrCommentNotFound
@@ -48,9 +48,13 @@ func (m *MockCommentRepository) Create(ctx context.Context, comment *domain.Comm
 	}
 
 	if m.comments == nil {
-		m.comments = make(map[int]*domain.Comment)
+		m.comments = make(map[string]*domain.Comment)
 	}
-	m.comments[comment.ID] = comment
+	// Simulate generating a PublicID
+	if comment.PublicID == "" {
+		comment.PublicID = "comment-uuid-" + string(rune(len(m.comments)+1))
+	}
+	m.comments[comment.PublicID] = comment
 	return nil
 }
 
@@ -60,18 +64,18 @@ func (m *MockCommentRepository) Update(ctx context.Context, comment *domain.Comm
 	}
 
 	if m.comments == nil {
-		m.comments = make(map[int]*domain.Comment)
+		m.comments = make(map[string]*domain.Comment)
 	}
-	m.comments[comment.ID] = comment
+	m.comments[comment.PublicID] = comment
 	return nil
 }
 
-func (m *MockCommentRepository) Delete(ctx context.Context, commentID int) error {
-	if m.deleteFn != nil {
-		return m.deleteFn(ctx, commentID)
+func (m *MockCommentRepository) DeleteByPublicID(ctx context.Context, commentPublicID string) error {
+	if m.deleteByPublicIDFn != nil {
+		return m.deleteByPublicIDFn(ctx, commentPublicID)
 	}
 
-	delete(m.comments, commentID)
+	delete(m.comments, commentPublicID)
 	return nil
 }
 

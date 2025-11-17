@@ -15,7 +15,7 @@ import (
 func TestNoIntegerIDsInURLs(t *testing.T) {
 	// UUID regex pattern: 8-4-4-4-12 hexadecimal characters
 	uuidPattern := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
-	
+
 	// Test URLs that should contain UUIDs
 	testURLs := []struct {
 		path        string
@@ -200,21 +200,21 @@ func TestGetUserIDReturnsUUID(t *testing.T) {
 
 	// Create a context with a user ID
 	ctx := context.Background()
-	
+
 	testCases := []struct {
-		name        string
+		name         string
 		contextValue string
-		shouldPass  bool
+		shouldPass   bool
 	}{
 		{
-			name:        "Valid UUID in context",
+			name:         "Valid UUID in context",
 			contextValue: "550e8400-e29b-41d4-a716-446655440001",
-			shouldPass:  true,
+			shouldPass:   true,
 		},
 		{
-			name:        "Integer string in context (VULNERABILITY)",
+			name:         "Integer string in context (VULNERABILITY)",
 			contextValue: "123",
-			shouldPass:  false,
+			shouldPass:   false,
 		},
 	}
 
@@ -222,10 +222,10 @@ func TestGetUserIDReturnsUUID(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Simulate storing value in context
 			ctx := context.WithValue(ctx, adapters.UserIDKey, tc.contextValue)
-			
+
 			// Extract using GetUserID
 			userID := adapters.GetUserID(ctx)
-			
+
 			if userID == "" {
 				t.Error("GetUserID returned empty string")
 				return
@@ -254,11 +254,11 @@ func TestGetUserIDReturnsUUID(t *testing.T) {
 func TestOwnershipCheckUsesSameIDType(t *testing.T) {
 	// Simulate template data passed to ownership check
 	testCases := []struct {
-		name           string
-		userID         interface{} // What .User.ID contains
-		resourceOwner  string      // What .Post.UserPublicID or .Comment.AuthorPublicID contains
-		shouldMatch    bool
-		description    string
+		name          string
+		userID        interface{} // What .User.ID contains
+		resourceOwner string      // What .Post.UserPublicID or .Comment.AuthorPublicID contains
+		shouldMatch   bool
+		description   string
 	}{
 		{
 			name:          "UUID matches UUID (CORRECT)",
@@ -306,7 +306,7 @@ func TestOwnershipCheckUsesSameIDType(t *testing.T) {
 				if !tc.shouldMatch && matches {
 					t.Errorf("UNEXPECTED: IDs matched when they shouldn't: %v == %s", tc.userID, tc.resourceOwner)
 				} else if tc.shouldMatch && !matches {
-					t.Errorf("SECURITY VULNERABILITY: Ownership check failed due to type mismatch: %v (%T) != %s", 
+					t.Errorf("SECURITY VULNERABILITY: Ownership check failed due to type mismatch: %v (%T) != %s",
 						tc.userID, tc.userID, tc.resourceOwner)
 				}
 			} else {
@@ -322,10 +322,10 @@ func TestMiddlewareDoesNotLeakInternalIDs(t *testing.T) {
 	t.Run("RequireAuth middleware", func(t *testing.T) {
 		// Simulate session with internal INT ID
 		session := &authDomain.Session{
-			ID:        1,  // Internal INT ID
-			PublicID:  "850e8400-e29b-41d4-a716-446655440001",
-			Token:     "test-token",
-			UserID:    123, // Internal INT user ID
+			ID:       1, // Internal INT ID
+			PublicID: "850e8400-e29b-41d4-a716-446655440001",
+			Token:    "test-token",
+			UserID:   123, // Internal INT user ID
 		}
 
 		// What middleware SHOULD do:
@@ -338,8 +338,8 @@ func TestMiddlewareDoesNotLeakInternalIDs(t *testing.T) {
 
 		// Simulate current (vulnerable) behavior using session data
 		vulnerableContextValue := "123" // This would be fmt.Sprintf("%d", session.UserID)
-		_ = session // Mark as used
-		
+		_ = session                     // Mark as used
+
 		// Check if it's an integer string
 		intPattern := regexp.MustCompile(`^\d+$`)
 		if intPattern.MatchString(vulnerableContextValue) {
@@ -349,7 +349,7 @@ func TestMiddlewareDoesNotLeakInternalIDs(t *testing.T) {
 		// Simulate correct behavior
 		correctContextValue := "550e8400-e29b-41d4-a716-446655440001" // user.PublicID
 		uuidPattern := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
-		
+
 		if !uuidPattern.MatchString(correctContextValue) {
 			t.Errorf("Correct value is not a UUID: %s", correctContextValue)
 		} else {
@@ -362,28 +362,28 @@ func TestMiddlewareDoesNotLeakInternalIDs(t *testing.T) {
 func TestHTMLResponsesDoNotContainIntIDs(t *testing.T) {
 	// Simulate HTML response from a handler
 	htmlResponses := []struct {
-		name     string
-		html     string
+		name       string
+		html       string
 		shouldPass bool
 	}{
 		{
-			name: "Correct: UUID in URL parameter",
-			html: `<a href="/board?user=550e8400-e29b-41d4-a716-446655440001">My Posts</a>`,
+			name:       "Correct: UUID in URL parameter",
+			html:       `<a href="/board?user=550e8400-e29b-41d4-a716-446655440001">My Posts</a>`,
 			shouldPass: true,
 		},
 		{
-			name: "VULNERABLE: Integer in URL parameter",
-			html: `<a href="/board?user=123">My Posts</a>`,
+			name:       "VULNERABLE: Integer in URL parameter",
+			html:       `<a href="/board?user=123">My Posts</a>`,
 			shouldPass: false,
 		},
 		{
-			name: "Correct: UUID in data attribute",
-			html: `<button data-post-id="750e8400-e29b-41d4-a716-446655440001">Delete</button>`,
+			name:       "Correct: UUID in data attribute",
+			html:       `<button data-post-id="750e8400-e29b-41d4-a716-446655440001">Delete</button>`,
 			shouldPass: true,
 		},
 		{
-			name: "VULNERABLE: Integer in data attribute",
-			html: `<button data-post-id="42">Delete</button>`,
+			name:       "VULNERABLE: Integer in data attribute",
+			html:       `<button data-post-id="42">Delete</button>`,
 			shouldPass: false,
 		},
 	}

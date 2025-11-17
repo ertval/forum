@@ -14,7 +14,8 @@ func TestCategory_Validate(t *testing.T) {
 		{
 			name: "valid category",
 			category: Category{
-				ID:          "cat-1",
+				ID:          1,
+				PublicID:    "cat-1-uuid",
 				Name:        "General",
 				Description: "General discussions",
 			},
@@ -23,7 +24,7 @@ func TestCategory_Validate(t *testing.T) {
 		{
 			name: "empty name",
 			category: Category{
-				ID:          "cat-1",
+				ID:          1,
 				Name:        "",
 				Description: "Some description",
 			},
@@ -32,7 +33,7 @@ func TestCategory_Validate(t *testing.T) {
 		{
 			name: "name too long",
 			category: Category{
-				ID:          "cat-1",
+				ID:          1,
 				Name:        strings.Repeat("a", 51),
 				Description: "Some description",
 			},
@@ -41,7 +42,7 @@ func TestCategory_Validate(t *testing.T) {
 		{
 			name: "description too long",
 			category: Category{
-				ID:          "cat-1",
+				ID:          1,
 				Name:        "Valid Name",
 				Description: strings.Repeat("a", 501),
 			},
@@ -50,7 +51,7 @@ func TestCategory_Validate(t *testing.T) {
 		{
 			name: "valid with empty description",
 			category: Category{
-				ID:          "cat-1",
+				ID:          1,
 				Name:        "Valid Name",
 				Description: "",
 			},

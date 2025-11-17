@@ -101,7 +101,7 @@ func TestService_CreatePost(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		userID        string
+		userID        int
 		title         string
 		content       string
 		categories    []string
@@ -111,14 +111,14 @@ func TestService_CreatePost(t *testing.T) {
 	}{
 		{
 			name:       "valid post without image",
-			userID:     "user-1",
+			userID:     1,
 			title:      "Test Post",
 			content:    "This is a test post content",
 			categories: []string{"tests"},
 			image:      nil,
 			setupMocks: func(mpr *mockPostRepository, mcr *mockCategoryRepository) {
 				mcr.getByNameFunc = func(ctx context.Context, name string) (*domain.Category, error) {
-					return &domain.Category{ID: "cat-1", Name: name}, nil
+					return &domain.Category{ID: 1, PublicID: "cat-1-uuid", Name: name}, nil
 				}
 				mpr.createFunc = func(ctx context.Context, post *domain.Post) error {
 					return nil
@@ -128,7 +128,7 @@ func TestService_CreatePost(t *testing.T) {
 		},
 		{
 			name:       "empty title",
-			userID:     "user-1",
+			userID:     1,
 			title:      "",
 			content:    "Valid content",
 			categories: []string{"tests"},
@@ -139,7 +139,7 @@ func TestService_CreatePost(t *testing.T) {
 		},
 		{
 			name:       "empty content",
-			userID:     "user-1",
+			userID:     1,
 			title:      "Valid Title",
 			content:    "",
 			categories: []string{"tests"},
@@ -150,7 +150,7 @@ func TestService_CreatePost(t *testing.T) {
 		},
 		{
 			name:       "no categories",
-			userID:     "user-1",
+			userID:     1,
 			title:      "Valid Title",
 			content:    "Valid content",
 			categories: []string{},
@@ -161,7 +161,7 @@ func TestService_CreatePost(t *testing.T) {
 		},
 		{
 			name:       "category not found",
-			userID:     "user-1",
+			userID:     1,
 			title:      "Valid Title",
 			content:    "Valid content",
 			categories: []string{"nonexistent"},
@@ -209,7 +209,7 @@ func TestService_CreatePost(t *testing.T) {
 						t.Errorf("expected content %s, got %s", tt.content, post.Content)
 					}
 					if post.UserID != tt.userID {
-						t.Errorf("expected userID %s, got %s", tt.userID, post.UserID)
+						t.Errorf("expected userID %d, got %d", tt.userID, post.UserID)
 					}
 				}
 			}
@@ -238,8 +238,9 @@ func TestService_UpdatePost(t *testing.T) {
 			setupMocks: func(mpr *mockPostRepository) {
 				mpr.getByIDFunc = func(ctx context.Context, postID string) (*domain.Post, error) {
 					return &domain.Post{
-						ID:         postID,
-						UserID:     "user-1",
+						PublicID:   postID,
+						ID:         1,
+						UserID:     1,
 						Title:      "Old Title",
 						Content:    "Old content",
 						Categories: []string{"tests"},
@@ -275,8 +276,9 @@ func TestService_UpdatePost(t *testing.T) {
 			setupMocks: func(mpr *mockPostRepository) {
 				mpr.getByIDFunc = func(ctx context.Context, postID string) (*domain.Post, error) {
 					return &domain.Post{
-						ID:         postID,
-						UserID:     "user-1",
+						PublicID:   postID,
+						ID:         1,
+						UserID:     1,
 						Title:      "Old Title",
 						Content:    "Old content",
 						Categories: []string{"tests"},
@@ -296,7 +298,7 @@ func TestService_UpdatePost(t *testing.T) {
 
 			// Default category repo returns a category for any name unless overridden by setup
 			mockCategoryRepo.getByNameFunc = func(ctx context.Context, name string) (*domain.Category, error) {
-				return &domain.Category{ID: "cat-1", Name: name}, nil
+				return &domain.Category{ID: 1, PublicID: "cat-1-uuid", Name: name}, nil
 			}
 
 			if tt.setupMocks != nil {
@@ -337,10 +339,11 @@ func TestService_GetPost(t *testing.T) {
 			setupMocks: func(mpr *mockPostRepository) {
 				mpr.getByIDFunc = func(ctx context.Context, postID string) (*domain.Post, error) {
 					return &domain.Post{
-						ID:      postID,
-						UserID:  "user-1",
-						Title:   "Test Post",
-						Content: "Test content",
+						PublicID: postID,
+						ID:       1,
+						UserID:   1,
+						Title:    "Test Post",
+						Content:  "Test content",
 					}, nil
 				}
 			},
@@ -461,8 +464,8 @@ func TestService_ListPosts(t *testing.T) {
 			setupMocks: func(mpr *mockPostRepository) {
 				mpr.listFunc = func(ctx context.Context, filter ports.PostFilter) ([]*domain.Post, error) {
 					return []*domain.Post{
-						{ID: "post-1", Title: "Post 1"},
-						{ID: "post-2", Title: "Post 2"},
+						{ID: 1, PublicID: "post-1-uuid", Title: "Post 1"},
+						{ID: 2, PublicID: "post-2-uuid", Title: "Post 2"},
 					}, nil
 				}
 			},
@@ -474,7 +477,7 @@ func TestService_ListPosts(t *testing.T) {
 			setupMocks: func(mpr *mockPostRepository) {
 				mpr.listFunc = func(ctx context.Context, filter ports.PostFilter) ([]*domain.Post, error) {
 					return []*domain.Post{
-						{ID: "post-1", UserID: "user-1", Title: "Post 1"},
+						{ID: 1, PublicID: "post-1-uuid", UserID: 1, UserPublicID: "user-1-uuid", Title: "Post 1"},
 					}, nil
 				}
 			},
