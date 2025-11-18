@@ -3,6 +3,7 @@ package adapters
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"forum/internal/modules/moderation/domain"
 	"testing"
 	"time"
@@ -17,9 +18,10 @@ func TestSQLiteReportRepository_Create(t *testing.T) {
 	}
 	defer db.Close()
 
-	// Create the reports table
+	// Create the reports table (include public_id column)
 	_, err = db.Exec(`CREATE TABLE reports (
 		id INTEGER PRIMARY KEY,
+		public_id TEXT UNIQUE,
 		reporter_id INTEGER,
 		target_id INTEGER,
 		target_type TEXT,
@@ -58,9 +60,10 @@ func TestSQLiteReportRepository_Get(t *testing.T) {
 	}
 	defer db.Close()
 
-	// Create the reports table
+	// Create the reports table (include public_id column)
 	_, err = db.Exec(`CREATE TABLE reports (
 		id INTEGER PRIMARY KEY,
+		public_id TEXT UNIQUE,
 		reporter_id INTEGER,
 		target_id INTEGER,
 		target_type TEXT,
@@ -86,8 +89,10 @@ func TestSQLiteReportRepository_Get(t *testing.T) {
 		CreatedAt:  now,
 	}
 
-	_, err = db.Exec("INSERT INTO reports (id, reporter_id, target_id, target_type, reason, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+	reportPublicID := fmt.Sprintf("pub-%d", report.ID)
+	_, err = db.Exec("INSERT INTO reports (id, public_id, reporter_id, target_id, target_type, reason, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
 		report.ID,
+		reportPublicID,
 		report.ReporterID,
 		report.TargetID,
 		report.TargetType,
@@ -100,7 +105,8 @@ func TestSQLiteReportRepository_Get(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	result, err := repo.GetByID(ctx, report.ID)
+	// Query by public ID
+	result, err := repo.GetByPublicID(ctx, reportPublicID)
 	// Since the implementation is a placeholder (returns nil, nil), we expect this to be nil
 	if err != nil {
 		// This is expected for placeholder implementation
@@ -117,9 +123,10 @@ func TestSQLiteReportRepository_List(t *testing.T) {
 	}
 	defer db.Close()
 
-	// Create the reports table
+	// Create the reports table (include public_id column)
 	_, err = db.Exec(`CREATE TABLE reports (
 		id INTEGER PRIMARY KEY,
+		public_id TEXT UNIQUE,
 		reporter_id INTEGER,
 		target_id INTEGER,
 		target_type TEXT,
@@ -142,8 +149,10 @@ func TestSQLiteReportRepository_List(t *testing.T) {
 	}
 
 	for _, report := range reports {
-		_, err = db.Exec("INSERT INTO reports (id, reporter_id, target_id, target_type, reason, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		pid := fmt.Sprintf("pub-%d", report.ID)
+		_, err = db.Exec("INSERT INTO reports (id, public_id, reporter_id, target_id, target_type, reason, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
 			report.ID,
+			pid,
 			report.ReporterID,
 			report.TargetID,
 			report.TargetType,
@@ -174,9 +183,10 @@ func TestSQLiteReportRepository_Update(t *testing.T) {
 	}
 	defer db.Close()
 
-	// Create the reports table
+	// Create the reports table (include public_id column)
 	_, err = db.Exec(`CREATE TABLE reports (
 		id INTEGER PRIMARY KEY,
+		public_id TEXT UNIQUE,
 		reporter_id INTEGER,
 		target_id INTEGER,
 		target_type TEXT,
@@ -202,8 +212,10 @@ func TestSQLiteReportRepository_Update(t *testing.T) {
 		CreatedAt:  now,
 	}
 
-	_, err = db.Exec("INSERT INTO reports (id, reporter_id, target_id, target_type, reason, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+	reportPublicID := fmt.Sprintf("pub-%d", report.ID)
+	_, err = db.Exec("INSERT INTO reports (id, public_id, reporter_id, target_id, target_type, reason, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
 		report.ID,
+		reportPublicID,
 		report.ReporterID,
 		report.TargetID,
 		report.TargetType,

@@ -13,7 +13,8 @@ import (
 
 // setupTestDB creates an in-memory SQLite database with the correct schema
 func setupTestDB(t *testing.T) *sql.DB {
-	db, err := sql.Open("sqlite3", ":memory:")
+	// Use shared in-memory SQLite so multiple connections see same schema.
+	db, err := sql.Open("sqlite3", "file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("Failed to open database: %v", err)
 	}
@@ -53,6 +54,31 @@ func setupTestDB(t *testing.T) *sql.DB {
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create post_categories table: %v", err)
+	}
+
+	// Create reactions table (repository queries may reference it)
+	_, err = db.Exec(`CREATE TABLE reactions (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTEGER,
+		target_type TEXT,
+		target_id INTEGER,
+		type TEXT
+	)`)
+	if err != nil {
+		t.Fatalf("Failed to create reactions table: %v", err)
+	}
+
+	// Create comments table (repository queries may reference it)
+	_, err = db.Exec(`CREATE TABLE comments (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT UNIQUE NOT NULL,
+		post_id INTEGER NOT NULL,
+		user_id INTEGER NOT NULL,
+		content TEXT NOT NULL,
+		created_at DATETIME NOT NULL
+	)`)
+	if err != nil {
+		t.Fatalf("Failed to create comments table: %v", err)
 	}
 
 	// Create users table (needed for author_id foreign key)
@@ -210,7 +236,7 @@ func TestSQLitePostRepository_Update(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to insert test category: %v", err)
 	}
-	_ = result.LastInsertId() // catID2
+	_, _ = result.LastInsertId()
 
 	repo := NewSQLitePostRepository(db)
 
@@ -357,7 +383,7 @@ func TestSQLitePostRepository_List(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to insert test category: %v", err)
 	}
-	_ = result.LastInsertId() // catID2
+	catID2, _ := result.LastInsertId()
 
 	repo := NewSQLitePostRepository(db)
 

@@ -9,17 +9,17 @@ import (
 
 // MockNotificationRepository implements NotificationRepository for testing
 type MockNotificationRepository struct {
-	notifications     map[int]*domain.Notification
-	getByUserFn       func(ctx context.Context, userID int) ([]*domain.Notification, error)
-	markAsReadFn      func(ctx context.Context, notificationID int) error
-	createFn          func(ctx context.Context, notification *domain.Notification) error
+	notifications map[string]*domain.Notification
+	getByUserFn   func(ctx context.Context, userID int) ([]*domain.Notification, error)
+	markAsReadFn  func(ctx context.Context, notificationPublicID string) error
+	createFn      func(ctx context.Context, notification *domain.Notification) error
 }
 
 func (m *MockNotificationRepository) GetByUserID(ctx context.Context, userID int) ([]*domain.Notification, error) {
 	if m.getByUserFn != nil {
 		return m.getByUserFn(ctx, userID)
 	}
-	
+
 	var result []*domain.Notification
 	for _, notification := range m.notifications {
 		if notification.UserID == userID {
@@ -29,13 +29,13 @@ func (m *MockNotificationRepository) GetByUserID(ctx context.Context, userID int
 	return result, nil
 }
 
-func (m *MockNotificationRepository) MarkAsRead(ctx context.Context, notificationID int) error {
+func (m *MockNotificationRepository) MarkAsReadByPublicID(ctx context.Context, notificationPublicID string) error {
 	if m.markAsReadFn != nil {
-		return m.markAsReadFn(ctx, notificationID)
+		return m.markAsReadFn(ctx, notificationPublicID)
 	}
-	
+
 	if m.notifications != nil {
-		if notification, exists := m.notifications[notificationID]; exists {
+		if notification, exists := m.notifications[notificationPublicID]; exists {
 			notification.MarkAsRead()
 		}
 	}
@@ -46,11 +46,12 @@ func (m *MockNotificationRepository) Create(ctx context.Context, notification *d
 	if m.createFn != nil {
 		return m.createFn(ctx, notification)
 	}
-	
+
+	// Store by PublicID to match repository contract
 	if m.notifications == nil {
-		m.notifications = make(map[int]*domain.Notification)
+		m.notifications = make(map[string]*domain.Notification)
 	}
-	m.notifications[notification.ID] = notification
+	m.notifications[notification.PublicID] = notification
 	return nil
 }
 
@@ -60,7 +61,8 @@ func TestService_CreateNotification(t *testing.T) {
 	service := NewService(mockRepo)
 
 	// Test the current implementation (returns nil since it's a placeholder)
-	err := service.CreateNotification(ctx, 1, domain.TypeLike, "Someone liked your post", 10)
+	// Use a public target ID string as the service expects a public target identifier
+	err := service.CreateNotification(ctx, 1, domain.TypeLike, "Someone liked your post", "target-10")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -74,13 +76,13 @@ func TestService_GetUserNotifications(t *testing.T) {
 	// Add test notifications to the mock
 	now := time.Now()
 	notifications := []*domain.Notification{
-		{ID: 1, UserID: 5, Type: domain.TypeLike, Message: "Someone liked your post", TargetID: 10, IsRead: false, CreatedAt: now},
-		{ID: 2, UserID: 5, Type: domain.TypeComment, Message: "Someone commented on your post", TargetID: 10, IsRead: true, CreatedAt: now},
-		{ID: 3, UserID: 6, Type: domain.TypeReply, Message: "Someone replied to your comment", TargetID: 15, IsRead: false, CreatedAt: now}, // Different user
+		{ID: 1, PublicID: "pub-1", UserID: 5, Type: domain.TypeLike, Message: "Someone liked your post", TargetID: 10, PublicTargetID: "target-10", IsRead: false, CreatedAt: now},
+		{ID: 2, PublicID: "pub-2", UserID: 5, Type: domain.TypeComment, Message: "Someone commented on your post", TargetID: 10, PublicTargetID: "target-10", IsRead: true, CreatedAt: now},
+		{ID: 3, PublicID: "pub-3", UserID: 6, Type: domain.TypeReply, Message: "Someone replied to your comment", TargetID: 15, PublicTargetID: "target-15", IsRead: false, CreatedAt: now}, // Different user
 	}
-	mockRepo.notifications = map[int]*domain.Notification{}
+	mockRepo.notifications = map[string]*domain.Notification{}
 	for _, notification := range notifications {
-		mockRepo.notifications[notification.ID] = notification
+		mockRepo.notifications[notification.PublicID] = notification
 	}
 
 	t.Run("get notifications for user", func(t *testing.T) {
@@ -91,7 +93,7 @@ func TestService_GetUserNotifications(t *testing.T) {
 		if len(result) != 2 {
 			t.Errorf("Expected 2 notifications for user 5, got %d", len(result))
 		}
-		
+
 		// Verify all returned notifications belong to the correct user
 		for _, notification := range result {
 			if notification.UserID != 5 {
@@ -119,16 +121,18 @@ func TestService_MarkAsRead(t *testing.T) {
 	// Add a test notification to the mock
 	now := time.Now()
 	notification := &domain.Notification{
-		ID:        1,
-		UserID:    5,
-		Type:      domain.TypeLike,
-		Message:   "Someone liked your post",
-		TargetID:  10,
-		IsRead:    false,
-		CreatedAt: now,
+		ID:             1,
+		PublicID:       "pub-1",
+		UserID:         5,
+		Type:           domain.TypeLike,
+		Message:        "Someone liked your post",
+		TargetID:       10,
+		PublicTargetID: "target-10",
+		IsRead:         false,
+		CreatedAt:      now,
 	}
-	mockRepo.notifications = map[int]*domain.Notification{
-		1: notification,
+	mockRepo.notifications = map[string]*domain.Notification{
+		"pub-1": notification,
 	}
 
 	// Verify it starts as unread
@@ -136,7 +140,7 @@ func TestService_MarkAsRead(t *testing.T) {
 		t.Error("Expected notification to be unread initially")
 	}
 
-	err := service.MarkAsRead(ctx, 1)
+	err := service.MarkAsRead(ctx, "pub-1")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
