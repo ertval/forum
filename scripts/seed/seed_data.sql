@@ -136,9 +136,9 @@ INSERT OR IGNORE INTO post_categories (post_id, category_id) VALUES
 ((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440015'), (SELECT id FROM categories WHERE name = 'Photography')),
 ((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440016'), (SELECT id FROM categories WHERE name = 'Books')),
 ((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440017'), (SELECT id FROM categories WHERE name = 'Finance')),
-((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440018'), (SELECT id FROM categories WHERE name = 'Career')),
+((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440018'), (SELECT id FROM categories WHERE name = 'Careers')),
 ((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440019'), (SELECT id FROM categories WHERE name = 'Music')),
-((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440020'), (SELECT id FROM categories WHERE name = 'Art'));
+((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440020'), (SELECT id FROM categories WHERE name = 'Arts'));
 
 
 -- Insert test reactions (use lookups for user/post IDs)
