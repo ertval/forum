@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"forum/internal/modules/comment/domain"
+	userDomain "forum/internal/modules/user/domain"
 	"testing"
 	"time"
 )
@@ -79,10 +80,62 @@ func (m *MockCommentRepository) DeleteByPublicID(ctx context.Context, commentPub
 	return nil
 }
 
+// MockUserService implements a minimal UserService for testing
+type MockUserService struct{}
+
+func (m *MockUserService) GetByID(ctx context.Context, userID int) (*userDomain.User, error) {
+	return nil, nil
+}
+
+func (m *MockUserService) GetByPublicID(ctx context.Context, publicID string) (*userDomain.User, error) {
+	return nil, nil
+}
+
+func (m *MockUserService) GetByUsername(ctx context.Context, username string) (*userDomain.User, error) {
+	return nil, nil
+}
+
+func (m *MockUserService) GetByEmail(ctx context.Context, email string) (*userDomain.User, error) {
+	return nil, nil
+}
+
+func (m *MockUserService) UpdateRole(ctx context.Context, userID int, newRole userDomain.Role) error {
+	return nil
+}
+
+func (m *MockUserService) DeactivateUser(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *MockUserService) ActivateUser(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *MockUserService) ListUsers(ctx context.Context, offset, limit int) ([]*userDomain.User, error) {
+	return nil, nil
+}
+
+func (m *MockUserService) IncrementPostCount(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *MockUserService) DecrementPostCount(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *MockUserService) IncrementCommentCount(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *MockUserService) DecrementCommentCount(ctx context.Context, userID int) error {
+	return nil
+}
+
 func TestService_GetComment(t *testing.T) {
 	ctx := context.Background()
 	mockRepo := &MockCommentRepository{}
-	service := NewService(mockRepo)
+	mockUserService := &MockUserService{}
+	service := NewService(mockRepo, mockUserService)
 
 	// Add a test comment to the mock
 	testTime := time.Now()
@@ -127,7 +180,8 @@ func TestService_GetComment(t *testing.T) {
 func TestService_DeleteComment(t *testing.T) {
 	ctx := context.Background()
 	mockRepo := &MockCommentRepository{}
-	service := NewService(mockRepo)
+	mockUserService := &MockUserService{}
+	service := NewService(mockRepo, mockUserService)
 
 	// Add a test comment to the mock
 	testTime := time.Now()
@@ -160,7 +214,8 @@ func TestService_DeleteComment(t *testing.T) {
 func TestService_ListCommentsByPost(t *testing.T) {
 	ctx := context.Background()
 	mockRepo := &MockCommentRepository{}
-	service := NewService(mockRepo)
+	mockUserService := &MockUserService{}
+	service := NewService(mockRepo, mockUserService)
 
 	// Add test comments to the mock
 	testTime := time.Now()
@@ -205,7 +260,8 @@ func TestService_ListCommentsByPost(t *testing.T) {
 func TestService_CreateComment(t *testing.T) {
 	ctx := context.Background()
 	mockRepo := &MockCommentRepository{}
-	service := NewService(mockRepo)
+	mockUserService := &MockUserService{}
+	service := NewService(mockRepo, mockUserService)
 
 	// Test the current implementation (returns nil, nil since it's a placeholder)
 	comment, err := service.CreateComment(ctx, "post-uuid-10", 5, "Test content")
@@ -220,7 +276,8 @@ func TestService_CreateComment(t *testing.T) {
 func TestService_UpdateComment(t *testing.T) {
 	ctx := context.Background()
 	mockRepo := &MockCommentRepository{}
-	service := NewService(mockRepo)
+	mockUserService := &MockUserService{}
+	service := NewService(mockRepo, mockUserService)
 
 	// Test the current implementation (returns nil since it's a placeholder)
 	err := service.UpdateComment(ctx, "comment-uuid-1", "Updated content")

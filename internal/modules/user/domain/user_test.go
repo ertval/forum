@@ -156,33 +156,26 @@ func TestRoleConstants(t *testing.T) {
 	}
 }
 
-func TestUserProfile(t *testing.T) {
+func TestUser_PostAndCommentCounts(t *testing.T) {
 	now := time.Now()
-	profile := &UserProfile{
-		UserID:       1,
+	user := &User{
+		ID:           1,
+		PublicID:     "user-uuid-1",
+		Email:        "test@example.com",
 		Username:     "testuser",
+		PasswordHash: "hashed_password",
 		Role:         RoleUser,
 		PostCount:    5,
 		CommentCount: 10,
 		CreatedAt:    now,
+		UpdatedAt:    now,
+		IsActive:     true,
 	}
 
-	if profile.UserID != 1 {
-		t.Errorf("Expected UserID 1, got %d", profile.UserID)
+	if user.PostCount != 5 {
+		t.Errorf("Expected PostCount 5, got %d", user.PostCount)
 	}
-	if profile.Username != "testuser" {
-		t.Errorf("Expected Username 'testuser', got '%s'", profile.Username)
-	}
-	if profile.Role != RoleUser {
-		t.Errorf("Expected Role '%s', got '%s'", RoleUser, profile.Role)
-	}
-	if profile.PostCount != 5 {
-		t.Errorf("Expected PostCount 5, got %d", profile.PostCount)
-	}
-	if profile.CommentCount != 10 {
-		t.Errorf("Expected CommentCount 10, got %d", profile.CommentCount)
-	}
-	if !profile.CreatedAt.Equal(now) {
-		t.Errorf("Expected CreatedAt %v, got %v", now, profile.CreatedAt)
+	if user.CommentCount != 10 {
+		t.Errorf("Expected CommentCount 10, got %d", user.CommentCount)
 	}
 }

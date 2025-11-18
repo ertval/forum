@@ -5,6 +5,7 @@ import (
 	"context"
 	"forum/internal/modules/post/domain"
 	"forum/internal/modules/post/ports"
+	userPorts "forum/internal/modules/user/ports"
 	"time"
 
 	"github.com/gofrs/uuid/v5"
@@ -14,13 +15,15 @@ import (
 type Service struct {
 	postRepo     ports.PostRepository
 	categoryRepo ports.CategoryRepository
+	userService  userPorts.UserService
 }
 
 // NewService creates a new post service.
-func NewService(postRepo ports.PostRepository, categoryRepo ports.CategoryRepository) *Service {
+func NewService(postRepo ports.PostRepository, categoryRepo ports.CategoryRepository, userService userPorts.UserService) *Service {
 	return &Service{
 		postRepo:     postRepo,
 		categoryRepo: categoryRepo,
+		userService:  userService,
 	}
 }
 
@@ -113,6 +116,11 @@ func (s *Service) CreatePost(ctx context.Context, userID int, title, content str
 		return nil, err
 	}
 
+	// Increment user's post count asynchronously (non-blocking)
+	go func() {
+		_ = s.userService.IncrementPostCount(context.Background(), userID)
+	}()
+
 	return post, nil
 }
 
@@ -153,9 +161,24 @@ func (s *Service) UpdatePost(ctx context.Context, postID string, title, content 
 }
 
 // DeletePost deletes a post.
-// TODO: Implement post deletion.
 func (s *Service) DeletePost(ctx context.Context, postID string) error {
-	return s.postRepo.Delete(ctx, postID)
+	// Get the post first to retrieve the user ID
+	post, err := s.postRepo.GetByID(ctx, postID)
+	if err != nil {
+		return err
+	}
+
+	// Delete the post
+	if err := s.postRepo.Delete(ctx, postID); err != nil {
+		return err
+	}
+
+	// Decrement user's post count asynchronously (non-blocking)
+	go func() {
+		_ = s.userService.DecrementPostCount(context.Background(), post.UserID)
+	}()
+
+	return nil
 }
 
 // ListPosts lists posts with optional filters.

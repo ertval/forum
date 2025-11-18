@@ -55,13 +55,16 @@ func (sc *ServiceContainer) Logger() *logger.Logger { return sc.logger }
 
 // initServices creates a ServiceContainer with all service instances and their dependencies.
 func initServices(repos *Repositories, sessionDuration time.Duration, lgr *logger.Logger) *ServiceContainer {
+	// Initialize user service first (no dependencies)
+	userService := userApp.NewService(repos.User)
+
 	return &ServiceContainer{
 		auth:         authApp.NewService(repos.Session, repos.User, sessionDuration),
-		user:         userApp.NewService(repos.User),
-		post:         postApp.NewService(repos.Post, repos.Category),
+		user:         userService,
+		post:         postApp.NewService(repos.Post, repos.Category, userService),
 		category:     postApp.NewCategoryService(repos.Category),
 		filter:       postApp.NewFilterService(),
-		comment:      commentApp.NewService(repos.Comment),
+		comment:      commentApp.NewService(repos.Comment, userService),
 		reaction:     reactionApp.NewService(repos.Reaction),
 		moderation:   moderationApp.NewService(repos.Moderation),
 		notification: notificationApp.NewService(repos.Notification),

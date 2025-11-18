@@ -5,16 +5,21 @@ import (
 	"context"
 	"forum/internal/modules/comment/domain"
 	"forum/internal/modules/comment/ports"
+	userPorts "forum/internal/modules/user/ports"
 )
 
 // Service implements the CommentService interface.
 type Service struct {
 	commentRepo ports.CommentRepository
+	userService userPorts.UserService
 }
 
 // NewService creates a new comment service.
-func NewService(commentRepo ports.CommentRepository) *Service {
-	return &Service{commentRepo: commentRepo}
+func NewService(commentRepo ports.CommentRepository, userService userPorts.UserService) *Service {
+	return &Service{
+		commentRepo: commentRepo,
+		userService: userService,
+	}
 }
 
 // CreateComment creates a new comment.
@@ -47,7 +52,23 @@ func (s *Service) UpdateComment(ctx context.Context, commentPublicID string, con
 
 // DeleteComment deletes a comment.
 func (s *Service) DeleteComment(ctx context.Context, commentPublicID string) error {
-	return s.commentRepo.DeleteByPublicID(ctx, commentPublicID)
+	// Get the comment first to retrieve the user ID
+	comment, err := s.commentRepo.GetByPublicID(ctx, commentPublicID)
+	if err != nil {
+		return err
+	}
+
+	// Delete the comment
+	if err := s.commentRepo.DeleteByPublicID(ctx, commentPublicID); err != nil {
+		return err
+	}
+
+	// Decrement user's comment count asynchronously (non-blocking)
+	go func() {
+		_ = s.userService.DecrementCommentCount(context.Background(), comment.UserID)
+	}()
+
+	return nil
 }
 
 // ListCommentsByPost retrieves all comments for a post.

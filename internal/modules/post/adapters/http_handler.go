@@ -60,31 +60,28 @@ func (h *HTTPHandler) Templates() *template.Template {
 	return h.templates
 }
 
-// buildCurrentUser fetches full user info and activity stats and returns
+// buildCurrentUser fetches full user info (including cached stats) and returns
 // a map suitable for templates. It always returns a map (never nil).
 func (h *HTTPHandler) buildCurrentUser(ctx context.Context, userID int) map[string]interface{} {
-	var username, email, publicID string
-	var postCount, commentCount int
-
-	if h.userService != nil {
-		if user, err := h.userService.GetByID(ctx, userID); err == nil && user != nil {
-			username = user.Username
-			email = user.Email
-			publicID = user.PublicID
-		}
-
-		if stats, err := h.userService.GetUserStats(ctx, userID); err == nil && stats != nil {
-			postCount = stats.PostCount
-			commentCount = stats.CommentCount
+	// Fetch user with all fields including cached stats
+	user, err := h.userService.GetByID(ctx, userID)
+	if err != nil || user == nil {
+		// Return empty map if user not found
+		return map[string]interface{}{
+			"PublicID":     "",
+			"Username":     "",
+			"Email":        "",
+			"PostCount":    0,
+			"CommentCount": 0,
 		}
 	}
 
 	return map[string]interface{}{
-		"PublicID":     publicID, // Use explicit PublicID field for templates
-		"Username":     username,
-		"Email":        email,
-		"PostCount":    postCount,
-		"CommentCount": commentCount,
+		"PublicID":     user.PublicID,
+		"Username":     user.Username,
+		"Email":        user.Email,
+		"PostCount":    user.PostCount,
+		"CommentCount": user.CommentCount,
 	}
 }
 

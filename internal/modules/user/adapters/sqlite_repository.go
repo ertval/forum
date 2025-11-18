@@ -32,8 +32,8 @@ func (r *SQLiteUserRepository) Create(ctx context.Context, user *domain.User) er
 	}
 	user.PublicID = publicID.String()
 
-	query := `INSERT INTO users (public_id, email, username, password_hash, role, created_at, updated_at, is_active)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+	query := `INSERT INTO users (public_id, email, username, password_hash, role, post_count, comment_count, created_at, updated_at, is_active)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	result, err := r.db.ExecContext(ctx, query,
 		user.PublicID,
@@ -41,6 +41,8 @@ func (r *SQLiteUserRepository) Create(ctx context.Context, user *domain.User) er
 		user.Username,
 		user.PasswordHash,
 		user.Role,
+		user.PostCount,
+		user.CommentCount,
 		user.CreatedAt,
 		user.UpdatedAt,
 		user.IsActive,
@@ -62,7 +64,7 @@ func (r *SQLiteUserRepository) Create(ctx context.Context, user *domain.User) er
 
 // GetByID retrieves a user by their ID.
 func (r *SQLiteUserRepository) GetByID(ctx context.Context, userID int) (*domain.User, error) {
-	query := `SELECT id, public_id, email, username, password_hash, role, created_at, updated_at, is_active
+	query := `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, created_at, updated_at, is_active
               FROM users WHERE id = ?`
 
 	row := r.db.QueryRowContext(ctx, query, userID)
@@ -77,6 +79,8 @@ func (r *SQLiteUserRepository) GetByID(ctx context.Context, userID int) (*domain
 		&user.Username,
 		&user.PasswordHash,
 		&user.Role,
+		&user.PostCount,
+		&user.CommentCount,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 		&isActive,
@@ -96,7 +100,7 @@ func (r *SQLiteUserRepository) GetByID(ctx context.Context, userID int) (*domain
 
 // GetByPublicID retrieves a user by their public UUID.
 func (r *SQLiteUserRepository) GetByPublicID(ctx context.Context, publicID string) (*domain.User, error) {
-	query := `SELECT id, public_id, email, username, password_hash, role, created_at, updated_at, is_active
+	query := `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, created_at, updated_at, is_active
               FROM users WHERE public_id = ?`
 
 	row := r.db.QueryRowContext(ctx, query, publicID)
@@ -111,6 +115,8 @@ func (r *SQLiteUserRepository) GetByPublicID(ctx context.Context, publicID strin
 		&user.Username,
 		&user.PasswordHash,
 		&user.Role,
+		&user.PostCount,
+		&user.CommentCount,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 		&isActive,
@@ -130,7 +136,7 @@ func (r *SQLiteUserRepository) GetByPublicID(ctx context.Context, publicID strin
 
 // GetByEmail retrieves a user by their email address.
 func (r *SQLiteUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
-	query := `SELECT id, public_id, email, username, password_hash, role, created_at, updated_at, is_active
+	query := `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, created_at, updated_at, is_active
               FROM users WHERE email = ?`
 
 	row := r.db.QueryRowContext(ctx, query, email)
@@ -145,6 +151,8 @@ func (r *SQLiteUserRepository) GetByEmail(ctx context.Context, email string) (*d
 		&user.Username,
 		&user.PasswordHash,
 		&user.Role,
+		&user.PostCount,
+		&user.CommentCount,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 		&isActive,
@@ -164,7 +172,7 @@ func (r *SQLiteUserRepository) GetByEmail(ctx context.Context, email string) (*d
 
 // GetByUsername retrieves a user by their username.
 func (r *SQLiteUserRepository) GetByUsername(ctx context.Context, username string) (*domain.User, error) {
-	query := `SELECT id, public_id, email, username, password_hash, role, created_at, updated_at, is_active
+	query := `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, created_at, updated_at, is_active
               FROM users WHERE username = ?`
 
 	row := r.db.QueryRowContext(ctx, query, username)
@@ -179,6 +187,8 @@ func (r *SQLiteUserRepository) GetByUsername(ctx context.Context, username strin
 		&user.Username,
 		&user.PasswordHash,
 		&user.Role,
+		&user.PostCount,
+		&user.CommentCount,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 		&isActive,
@@ -199,7 +209,7 @@ func (r *SQLiteUserRepository) GetByUsername(ctx context.Context, username strin
 // Update updates an existing user in the database.
 func (r *SQLiteUserRepository) Update(ctx context.Context, user *domain.User) error {
 	query := `UPDATE users 
-              SET email=?, username=?, password_hash=?, role=?, is_active=?, updated_at=?
+              SET email=?, username=?, password_hash=?, role=?, post_count=?, comment_count=?, is_active=?, updated_at=?
               WHERE id=?`
 
 	_, err := r.db.ExecContext(ctx, query,
@@ -207,6 +217,8 @@ func (r *SQLiteUserRepository) Update(ctx context.Context, user *domain.User) er
 		user.Username,
 		user.PasswordHash,
 		user.Role,
+		user.PostCount,
+		user.CommentCount,
 		user.IsActive,
 		user.UpdatedAt,
 		user.ID,
@@ -238,7 +250,7 @@ func (r *SQLiteUserRepository) Delete(ctx context.Context, userID int) error {
 
 // List returns a paginated list of users.
 func (r *SQLiteUserRepository) List(ctx context.Context, offset, limit int) ([]*domain.User, error) {
-	query := `SELECT id, public_id, email, username, password_hash, role, created_at, updated_at, is_active
+	query := `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, created_at, updated_at, is_active
               FROM users ORDER BY created_at DESC`
 
 	// Add pagination if limit is specified
@@ -267,6 +279,8 @@ func (r *SQLiteUserRepository) List(ctx context.Context, offset, limit int) ([]*
 			&user.Username,
 			&user.PasswordHash,
 			&user.Role,
+			&user.PostCount,
+			&user.CommentCount,
 			&user.CreatedAt,
 			&user.UpdatedAt,
 			&isActive,
@@ -321,44 +335,30 @@ func (r *SQLiteUserRepository) ExistsByUsername(ctx context.Context, username st
 	return count > 0, nil
 }
 
-// GetUserStats retrieves statistics about a user's activity.
-func (r *SQLiteUserRepository) GetUserStats(ctx context.Context, userID int) (*ports.UserStats, error) {
-	// Count posts by this user
-	var postCount int
-	postQuery := `SELECT COUNT(*) FROM posts WHERE author_id = ?`
-	err := r.db.QueryRowContext(ctx, postQuery, userID).Scan(&postCount)
-	if err != nil {
-		return nil, err
-	}
+// IncrementPostCount atomically increments the user's post count.
+func (r *SQLiteUserRepository) IncrementPostCount(ctx context.Context, userID int) error {
+	query := `UPDATE users SET post_count = post_count + 1 WHERE id = ?`
+	_, err := r.db.ExecContext(ctx, query, userID)
+	return err
+}
 
-	// Count comments by this user
-	var commentCount int
-	commentQuery := `SELECT COUNT(*) FROM comments WHERE author_id = ?`
-	err = r.db.QueryRowContext(ctx, commentQuery, userID).Scan(&commentCount)
-	if err != nil {
-		return nil, err
-	}
+// DecrementPostCount atomically decrements the user's post count.
+func (r *SQLiteUserRepository) DecrementPostCount(ctx context.Context, userID int) error {
+	query := `UPDATE users SET post_count = MAX(0, post_count - 1) WHERE id = ?`
+	_, err := r.db.ExecContext(ctx, query, userID)
+	return err
+}
 
-	// Count likes given by this user
-	var likeCount int
-	likeQuery := `SELECT COUNT(*) FROM reactions WHERE user_id = ? AND reaction_type = 'like'`
-	err = r.db.QueryRowContext(ctx, likeQuery, userID).Scan(&likeCount)
-	if err != nil {
-		return nil, err
-	}
+// IncrementCommentCount atomically increments the user's comment count.
+func (r *SQLiteUserRepository) IncrementCommentCount(ctx context.Context, userID int) error {
+	query := `UPDATE users SET comment_count = comment_count + 1 WHERE id = ?`
+	_, err := r.db.ExecContext(ctx, query, userID)
+	return err
+}
 
-	// Count dislikes given by this user
-	var dislikeCount int
-	dislikeQuery := `SELECT COUNT(*) FROM reactions WHERE user_id = ? AND reaction_type = 'dislike'`
-	err = r.db.QueryRowContext(ctx, dislikeQuery, userID).Scan(&dislikeCount)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ports.UserStats{
-		PostCount:    postCount,
-		CommentCount: commentCount,
-		LikeCount:    likeCount,
-		DislikeCount: dislikeCount,
-	}, nil
+// DecrementCommentCount atomically decrements the user's comment count.
+func (r *SQLiteUserRepository) DecrementCommentCount(ctx context.Context, userID int) error {
+	query := `UPDATE users SET comment_count = MAX(0, comment_count - 1) WHERE id = ?`
+	_, err := r.db.ExecContext(ctx, query, userID)
+	return err
 }

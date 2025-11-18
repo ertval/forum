@@ -5,6 +5,7 @@ import (
 	"errors"
 	"forum/internal/modules/post/domain"
 	"forum/internal/modules/post/ports"
+	userDomain "forum/internal/modules/user/domain"
 	"testing"
 	"time"
 )
@@ -96,6 +97,57 @@ func (m *mockCategoryRepository) Delete(ctx context.Context, categoryID string) 
 	return nil
 }
 
+// MockUserService implements a minimal UserService for testing
+type mockUserService struct{}
+
+func (m *mockUserService) GetByID(ctx context.Context, userID int) (*userDomain.User, error) {
+	return nil, nil
+}
+
+func (m *mockUserService) GetByPublicID(ctx context.Context, publicID string) (*userDomain.User, error) {
+	return nil, nil
+}
+
+func (m *mockUserService) GetByUsername(ctx context.Context, username string) (*userDomain.User, error) {
+	return nil, nil
+}
+
+func (m *mockUserService) GetByEmail(ctx context.Context, email string) (*userDomain.User, error) {
+	return nil, nil
+}
+
+func (m *mockUserService) UpdateRole(ctx context.Context, userID int, newRole userDomain.Role) error {
+	return nil
+}
+
+func (m *mockUserService) DeactivateUser(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *mockUserService) ActivateUser(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *mockUserService) ListUsers(ctx context.Context, offset, limit int) ([]*userDomain.User, error) {
+	return nil, nil
+}
+
+func (m *mockUserService) IncrementPostCount(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *mockUserService) DecrementPostCount(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *mockUserService) IncrementCommentCount(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *mockUserService) DecrementCommentCount(ctx context.Context, userID int) error {
+	return nil
+}
+
 func TestService_CreatePost(t *testing.T) {
 	ctx := context.Background()
 
@@ -179,12 +231,13 @@ func TestService_CreatePost(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockPostRepo := &mockPostRepository{}
 			mockCategoryRepo := &mockCategoryRepository{}
+			mockUserSvc := &mockUserService{}
 
 			if tt.setupMocks != nil {
 				tt.setupMocks(mockPostRepo, mockCategoryRepo)
 			}
 
-			service := NewService(mockPostRepo, mockCategoryRepo)
+			service := NewService(mockPostRepo, mockCategoryRepo, mockUserSvc)
 
 			post, err := service.CreatePost(ctx, tt.userID, tt.title, tt.content, tt.categories, tt.image)
 
@@ -295,6 +348,7 @@ func TestService_UpdatePost(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockPostRepo := &mockPostRepository{}
 			mockCategoryRepo := &mockCategoryRepository{}
+			mockUserSvc := &mockUserService{}
 
 			// Default category repo returns a category for any name unless overridden by setup
 			mockCategoryRepo.getByNameFunc = func(ctx context.Context, name string) (*domain.Category, error) {
@@ -305,7 +359,7 @@ func TestService_UpdatePost(t *testing.T) {
 				tt.setupMocks(mockPostRepo)
 			}
 
-			service := NewService(mockPostRepo, mockCategoryRepo)
+			service := NewService(mockPostRepo, mockCategoryRepo, mockUserSvc)
 
 			err := service.UpdatePost(ctx, tt.postID, tt.title, tt.content, tt.categories)
 
@@ -364,12 +418,13 @@ func TestService_GetPost(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockPostRepo := &mockPostRepository{}
+			mockUserSvc := &mockUserService{}
 
 			if tt.setupMocks != nil {
 				tt.setupMocks(mockPostRepo)
 			}
 
-			service := NewService(mockPostRepo, nil)
+			service := NewService(mockPostRepo, nil, mockUserSvc)
 
 			post, err := service.GetPost(ctx, tt.postID)
 
@@ -425,12 +480,13 @@ func TestService_DeletePost(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockPostRepo := &mockPostRepository{}
+			mockUserSvc := &mockUserService{}
 
 			if tt.setupMocks != nil {
 				tt.setupMocks(mockPostRepo)
 			}
 
-			service := NewService(mockPostRepo, nil)
+			service := NewService(mockPostRepo, nil, mockUserSvc)
 
 			err := service.DeletePost(ctx, tt.postID)
 
@@ -488,12 +544,13 @@ func TestService_ListPosts(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockPostRepo := &mockPostRepository{}
+			mockUserSvc := &mockUserService{}
 
 			if tt.setupMocks != nil {
 				tt.setupMocks(mockPostRepo)
 			}
 
-			service := NewService(mockPostRepo, nil)
+			service := NewService(mockPostRepo, nil, mockUserSvc)
 
 			posts, err := service.ListPosts(ctx, tt.filter)
 

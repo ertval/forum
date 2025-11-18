@@ -104,9 +104,12 @@ Focus: Implement essential features from requirements.md to get a working forum 
 **User Module (Basic):**
 - [x] User domain entity (id, email, username, password_hash, role, created_at)
 - [x] Basic user repository implementation (needed by auth)
-- [x] GetUserStats repository method (counts posts, comments, likes, dislikes)
-- [x] GetUserStats application service (retrieves user activity statistics)
+- [x] User stats cached in users table (post_count, comment_count columns)
+- [x] IncrementPostCount/DecrementPostCount repository methods
+- [x] IncrementCommentCount/DecrementCommentCount repository methods
+- [x] User stats updated automatically via async goroutines in post/comment services
 - [x] User stats display in templates (PostCount, CommentCount in user card)
+- [x] UserProfile struct removed - User struct now contains all data
 
 **Files**: `internal/modules/auth/`, `internal/modules/user/domain/`, `internal/modules/user/adapters/sqlite_repository.go`
 

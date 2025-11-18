@@ -25,6 +25,8 @@ func TestSQLiteUserRepository_Create(t *testing.T) {
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -85,6 +87,8 @@ func TestSQLiteUserRepository_Get(t *testing.T) {
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -155,6 +159,8 @@ func TestSQLiteUserRepository_GetByEmail(t *testing.T) {
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -216,6 +222,8 @@ func TestSQLiteUserRepository_GetByUsername(t *testing.T) {
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -276,6 +284,8 @@ func TestSQLiteUserRepository_Update(t *testing.T) {
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -355,6 +365,8 @@ func TestSQLiteUserRepository_Delete(t *testing.T) {
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -414,6 +426,8 @@ func TestSQLiteUserRepository_List(t *testing.T) {
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -478,6 +492,8 @@ func TestSQLiteUserRepository_ExistsByEmail(t *testing.T) {
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -540,6 +556,8 @@ func TestSQLiteUserRepository_ExistsByUsername(t *testing.T) {
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER

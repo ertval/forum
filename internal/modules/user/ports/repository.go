@@ -42,6 +42,15 @@ type UserRepository interface {
 	// ExistsByUsername checks if a user with the given username exists.
 	ExistsByUsername(ctx context.Context, username string) (bool, error)
 
-	// GetUserStats retrieves statistics about a user's activity.
-	GetUserStats(ctx context.Context, userID int) (*UserStats, error)
+	// IncrementPostCount atomically increments the user's post count.
+	IncrementPostCount(ctx context.Context, userID int) error
+
+	// DecrementPostCount atomically decrements the user's post count.
+	DecrementPostCount(ctx context.Context, userID int) error
+
+	// IncrementCommentCount atomically increments the user's comment count.
+	IncrementCommentCount(ctx context.Context, userID int) error
+
+	// DecrementCommentCount atomically decrements the user's comment count.
+	DecrementCommentCount(ctx context.Context, userID int) error
 }

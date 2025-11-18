@@ -47,6 +47,8 @@ func TestSQLiteUserRepositoryIDHandling(t *testing.T) {
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER DEFAULT 1
@@ -128,6 +130,8 @@ func TestUserRepositoryQueryMethods(t *testing.T) {
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER DEFAULT 1
@@ -212,6 +216,8 @@ func TestUserRepositoryInterfaceConsistency(t *testing.T) {
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER DEFAULT 1
@@ -300,6 +306,8 @@ func TestHTTPResponseIDExposure(t *testing.T) {
 		username TEXT UNIQUE,
 		password_hash TEXT,
 		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER DEFAULT 1

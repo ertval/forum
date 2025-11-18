@@ -12,17 +12,13 @@ func TestUserServiceInterface(t *testing.T) {
 	// and that we can create a variable of the interface type
 
 	var userService UserService
-	if userService != nil {
-		t.Error("UserService interface should be usable as a nil variable")
-	}
+	_ = userService // Verify variable can be declared
 }
 
 func TestUserRepositoryInterface(t *testing.T) {
 	// This test ensures that the UserRepository interface is properly defined
 	var userRepo UserRepository
-	if userRepo != nil {
-		t.Error("UserRepository interface should be usable as a nil variable")
-	}
+	_ = userRepo // Verify variable can be declared
 }
 
 // Mock implementations for interface compatibility testing
@@ -37,10 +33,6 @@ func (m *mockUserService) GetByUsername(ctx context.Context, username string) (*
 }
 
 func (m *mockUserService) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
-	return nil, nil
-}
-
-func (m *mockUserService) GetProfile(ctx context.Context, userID int) (*domain.UserProfile, error) {
 	return nil, nil
 }
 
@@ -60,7 +52,23 @@ func (m *mockUserService) ListUsers(ctx context.Context, offset, limit int) ([]*
 	return nil, nil
 }
 
-func (m *mockUserService) GetUserStats(ctx context.Context, userID int) (*UserStats, error) {
+func (m *mockUserService) IncrementPostCount(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *mockUserService) DecrementPostCount(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *mockUserService) IncrementCommentCount(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *mockUserService) DecrementCommentCount(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *mockUserService) GetByPublicID(ctx context.Context, publicID string) (*domain.User, error) {
 	return nil, nil
 }
 
@@ -129,11 +137,6 @@ func TestUserServiceInterfaceMethods(t *testing.T) {
 		// Expected to be not implemented in mock
 	}
 
-	_, err = service.GetProfile(ctx, 1)
-	if err != nil {
-		// Expected to be not implemented in mock
-	}
-
 	err = service.UpdateRole(ctx, 1, domain.RoleUser)
 	if err != nil {
 		// Expected to be not implemented in mock
@@ -154,7 +157,27 @@ func TestUserServiceInterfaceMethods(t *testing.T) {
 		// Expected to be not implemented in mock
 	}
 
-	_, err = service.GetUserStats(ctx, 1)
+	err = service.IncrementPostCount(ctx, 1)
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	err = service.DecrementPostCount(ctx, 1)
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	err = service.IncrementCommentCount(ctx, 1)
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	err = service.DecrementCommentCount(ctx, 1)
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	_, err = service.GetByPublicID(ctx, "test-uuid")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}

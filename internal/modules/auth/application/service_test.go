@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"forum/internal/modules/auth/domain"
 	userDomain "forum/internal/modules/user/domain"
-	userPorts "forum/internal/modules/user/ports"
 	"testing"
 	"time"
 
@@ -138,16 +137,6 @@ func (m *MockUserRepository) List(ctx context.Context, offset, limit int) ([]*us
 	return nil, nil
 }
 
-// GetUserStats retrieves statistics about a user's activity.
-func (m *MockUserRepository) GetUserStats(ctx context.Context, userID int) (*userPorts.UserStats, error) {
-	return &userPorts.UserStats{
-		PostCount:    0,
-		CommentCount: 0,
-		LikeCount:    0,
-		DislikeCount: 0,
-	}, nil
-}
-
 // GetByPublicID retrieves a user by their public UUID.
 func (m *MockUserRepository) GetByPublicID(ctx context.Context, publicID string) (*userDomain.User, error) {
 	if m.users == nil {
@@ -159,6 +148,38 @@ func (m *MockUserRepository) GetByPublicID(ctx context.Context, publicID string)
 		}
 	}
 	return nil, errors.New("user not found")
+}
+
+// IncrementPostCount increments the user's post count.
+func (m *MockUserRepository) IncrementPostCount(ctx context.Context, userID int) error {
+	if user, err := m.GetByID(ctx, userID); err == nil && user != nil {
+		user.PostCount++
+	}
+	return nil
+}
+
+// DecrementPostCount decrements the user's post count.
+func (m *MockUserRepository) DecrementPostCount(ctx context.Context, userID int) error {
+	if user, err := m.GetByID(ctx, userID); err == nil && user != nil && user.PostCount > 0 {
+		user.PostCount--
+	}
+	return nil
+}
+
+// IncrementCommentCount increments the user's comment count.
+func (m *MockUserRepository) IncrementCommentCount(ctx context.Context, userID int) error {
+	if user, err := m.GetByID(ctx, userID); err == nil && user != nil {
+		user.CommentCount++
+	}
+	return nil
+}
+
+// DecrementCommentCount decrements the user's comment count.
+func (m *MockUserRepository) DecrementCommentCount(ctx context.Context, userID int) error {
+	if user, err := m.GetByID(ctx, userID); err == nil && user != nil && user.CommentCount > 0 {
+		user.CommentCount--
+	}
+	return nil
 }
 
 // MockSessionRepository implements auth ports SessionRepository for testing

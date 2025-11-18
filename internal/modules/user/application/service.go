@@ -42,13 +42,6 @@ func (s *Service) GetByEmail(ctx context.Context, email string) (*domain.User, e
 	return s.userRepo.GetByEmail(ctx, email)
 }
 
-// GetProfile retrieves a user's public profile.
-// TODO: Implement profile retrieval.
-func (s *Service) GetProfile(ctx context.Context, userID int) (*domain.UserProfile, error) {
-	// Implementation placeholder
-	return nil, nil
-}
-
 // UpdateRole updates a user's role.
 // TODO: Implement role update with permission checks.
 func (s *Service) UpdateRole(ctx context.Context, userID int, newRole domain.Role) error {
@@ -76,7 +69,22 @@ func (s *Service) ListUsers(ctx context.Context, offset, limit int) ([]*domain.U
 	return s.userRepo.List(ctx, offset, limit)
 }
 
-// GetUserStats retrieves statistics about a user's activity.
-func (s *Service) GetUserStats(ctx context.Context, userID int) (*ports.UserStats, error) {
-	return s.userRepo.GetUserStats(ctx, userID)
+// IncrementPostCount atomically increments the user's post count.
+func (s *Service) IncrementPostCount(ctx context.Context, userID int) error {
+	return s.userRepo.IncrementPostCount(ctx, userID)
+}
+
+// DecrementPostCount atomically decrements the user's post count.
+func (s *Service) DecrementPostCount(ctx context.Context, userID int) error {
+	return s.userRepo.DecrementPostCount(ctx, userID)
+}
+
+// IncrementCommentCount atomically increments the user's comment count.
+func (s *Service) IncrementCommentCount(ctx context.Context, userID int) error {
+	return s.userRepo.IncrementCommentCount(ctx, userID)
+}
+
+// DecrementCommentCount atomically decrements the user's comment count.
+func (s *Service) DecrementCommentCount(ctx context.Context, userID int) error {
+	return s.userRepo.DecrementCommentCount(ctx, userID)
 }

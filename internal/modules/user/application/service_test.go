@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"forum/internal/modules/user/domain"
-	"forum/internal/modules/user/ports"
 	"testing"
 	"time"
 )
@@ -166,13 +165,36 @@ func (m *MockUserRepository) Count(ctx context.Context) (int, error) {
 	return len(m.users), nil
 }
 
-func (m *MockUserRepository) GetUserStats(ctx context.Context, userID int) (*ports.UserStats, error) {
-	return &ports.UserStats{
-		PostCount:    0,
-		CommentCount: 0,
-		LikeCount:    0,
-		DislikeCount: 0,
-	}, nil
+// IncrementPostCount increments the user's post count.
+func (m *MockUserRepository) IncrementPostCount(ctx context.Context, userID int) error {
+	if user, exists := m.users[userID]; exists {
+		user.PostCount++
+	}
+	return nil
+}
+
+// DecrementPostCount decrements the user's post count.
+func (m *MockUserRepository) DecrementPostCount(ctx context.Context, userID int) error {
+	if user, exists := m.users[userID]; exists && user.PostCount > 0 {
+		user.PostCount--
+	}
+	return nil
+}
+
+// IncrementCommentCount increments the user's comment count.
+func (m *MockUserRepository) IncrementCommentCount(ctx context.Context, userID int) error {
+	if user, exists := m.users[userID]; exists {
+		user.CommentCount++
+	}
+	return nil
+}
+
+// DecrementCommentCount decrements the user's comment count.
+func (m *MockUserRepository) DecrementCommentCount(ctx context.Context, userID int) error {
+	if user, exists := m.users[userID]; exists && user.CommentCount > 0 {
+		user.CommentCount--
+	}
+	return nil
 }
 
 func TestService_GetByID(t *testing.T) {
@@ -386,41 +408,60 @@ func TestService_ActivateUser(t *testing.T) {
 	}
 }
 
-func TestService_GetProfile(t *testing.T) {
+func TestService_IncrementPostCount(t *testing.T) {
 	ctx := context.Background()
 	mockRepo := &MockUserRepository{}
 	service := NewService(mockRepo)
 
-	// Test the current implementation (returns nil, nil since it's a placeholder)
-	profile, err := service.GetProfile(ctx, 1)
+	// Add a test user
+	now := time.Now()
+	user := &domain.User{
+		ID:        1,
+		Email:     "test@example.com",
+		Username:  "testuser",
+		PostCount: 5,
+		CreatedAt: now,
+		UpdatedAt: now,
+		IsActive:  true,
+	}
+	mockRepo.users = map[int]*domain.User{1: user}
+
+	err := service.IncrementPostCount(ctx, 1)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	if profile != nil {
-		t.Error("Expected nil profile (placeholder implementation), got non-nil profile")
+
+	// Verify count was incremented
+	if user.PostCount != 6 {
+		t.Errorf("Expected PostCount 6, got %d", user.PostCount)
 	}
 }
 
-func TestService_GetUserStats(t *testing.T) {
+func TestService_DecrementCommentCount(t *testing.T) {
 	ctx := context.Background()
 	mockRepo := &MockUserRepository{}
 	service := NewService(mockRepo)
 
-	// Test the current implementation
-	stats, err := service.GetUserStats(ctx, 1)
+	// Add a test user
+	now := time.Now()
+	user := &domain.User{
+		ID:           1,
+		Email:        "test@example.com",
+		Username:     "testuser",
+		CommentCount: 3,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+		IsActive:     true,
+	}
+	mockRepo.users = map[int]*domain.User{1: user}
+
+	err := service.DecrementCommentCount(ctx, 1)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	if stats == nil {
-		t.Error("Expected stats to be returned, got nil")
-	}
-	// Verify stats structure (with mock repo, should return zero counts)
-	if stats != nil {
-		if stats.PostCount != 0 {
-			t.Errorf("Expected PostCount 0, got %d", stats.PostCount)
-		}
-		if stats.CommentCount != 0 {
-			t.Errorf("Expected CommentCount 0, got %d", stats.CommentCount)
-		}
+
+	// Verify count was decremented
+	if user.CommentCount != 2 {
+		t.Errorf("Expected CommentCount 2, got %d", user.CommentCount)
 	}
 }
