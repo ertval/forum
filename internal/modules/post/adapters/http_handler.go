@@ -194,11 +194,11 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse filter parameters
-	var currentUserID string
+	var currentUserPublicID string
 	if currentUser != nil {
 		if userMap, ok := currentUser.(map[string]interface{}); ok {
-			if uid, ok := userMap["ID"].(string); ok {
-				currentUserID = uid
+			if uid, ok := userMap["PublicID"].(string); ok {
+				currentUserPublicID = uid
 			}
 		}
 	}
@@ -212,7 +212,7 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 		DateFilter:    r.URL.Query().Get("date_filter"),
 		Limit:         12,
 		Offset:        0,
-		CurrentUserID: currentUserID,
+		CurrentUserID: currentUserPublicID,
 	}
 
 	filter := h.filterService.BuildFilter(ctx, filterParams)
@@ -310,11 +310,11 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse filter parameters
-	var currentUserID string
+	var currentUserPublicID string
 	if currentUser != nil {
 		if userMap, ok := currentUser.(map[string]interface{}); ok {
-			if uid, ok := userMap["ID"].(string); ok {
-				currentUserID = uid
+			if uid, ok := userMap["PublicID"].(string); ok {
+				currentUserPublicID = uid
 			}
 		}
 	}
@@ -328,7 +328,7 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 		DateFilter:    r.URL.Query().Get("date_filter"),
 		Limit:         10,
 		Offset:        0,
-		CurrentUserID: currentUserID,
+		CurrentUserID: currentUserPublicID,
 	}
 
 	filter := h.filterService.BuildFilter(ctx, filterParams)

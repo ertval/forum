@@ -1,4 +1,4 @@
-package tests
+package id_audit
 
 import (
 	"fmt"
