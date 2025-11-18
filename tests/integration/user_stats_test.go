@@ -365,7 +365,7 @@ func TestBuildCurrentUser_IntegrationWithStats(t *testing.T) {
 
 	// Insert 5 posts
 	for i := 1; i <= 5; i++ {
-		_, err = db.Exec(`INSERT INTO posts (public_id, title, content, author_id, created_at, updated_at) VALUES (?, 'Post', 'Content', ?, ?, ?)`, 
+		_, err = db.Exec(`INSERT INTO posts (public_id, title, content, author_id, created_at, updated_at) VALUES (?, 'Post', 'Content', ?, ?, ?)`,
 			"post-uuid-"+string(rune('0'+i)), user.ID, now, now)
 		if err != nil {
 			t.Fatalf("Failed to insert post %d: %v", i, err)
@@ -374,7 +374,7 @@ func TestBuildCurrentUser_IntegrationWithStats(t *testing.T) {
 
 	// Insert 3 comments
 	for i := 1; i <= 3; i++ {
-		_, err = db.Exec(`INSERT INTO comments (public_id, post_id, author_id, content, created_at, updated_at) VALUES (?, ?, ?, 'Comment', ?, ?)`, 
+		_, err = db.Exec(`INSERT INTO comments (public_id, post_id, author_id, content, created_at, updated_at) VALUES (?, ?, ?, 'Comment', ?, ?)`,
 			"comment-uuid-"+string(rune('0'+i)), 1, user.ID, now, now)
 		if err != nil {
 			t.Fatalf("Failed to insert comment %d: %v", i, err)
