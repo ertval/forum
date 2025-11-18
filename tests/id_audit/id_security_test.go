@@ -451,31 +451,67 @@ func TestHandlerBuildCurrentUserReturnsUUID(t *testing.T) {
 
 	for _, tc := range userMaps {
 		t.Run(tc.name, func(t *testing.T) {
-			idValue, exists := tc.userMap["ID"]
-			if !exists {
-				t.Error("ID field missing from user map")
-				return
-			}
-
+			// Prefer explicit PublicID if present (handlers may return either).
+			// Accept either a `PublicID` string UUID or an `ID` string UUID. If
+			// `PublicID` exists and is valid UUID, treat as valid.
 			var isValid bool
-			switch v := idValue.(type) {
-			case string:
-				isValid = uuidPattern.MatchString(v) && !intPattern.MatchString(v)
-				if !isValid && intPattern.MatchString(v) {
-					t.Errorf("SECURITY VIOLATION: ID field is integer string: %s", v)
+
+			if v, ok := tc.userMap["PublicID"]; ok {
+				if s, ok := v.(string); ok {
+					isValid = uuidPattern.MatchString(s) && !intPattern.MatchString(s)
+					if !isValid && intPattern.MatchString(s) {
+						if tc.shouldPass {
+							t.Errorf("SECURITY VIOLATION: PublicID field is integer string: %s", s)
+						} else {
+							t.Logf("DETECTED VULNERABILITY: PublicID field is integer string: %s", s)
+						}
+					}
+				} else {
+					if tc.shouldPass {
+						t.Errorf("PublicID field has unexpected type: %T", v)
+					} else {
+						t.Logf("DETECTED VULNERABILITY: PublicID field has unexpected type: %T", v)
+					}
 				}
-			case int:
-				isValid = false
-				t.Errorf("SECURITY VIOLATION: ID field is integer: %d", v)
-			default:
-				isValid = false
-				t.Errorf("ID field has unexpected type: %T", v)
+			} else {
+				// Fallback to checking `ID` field if PublicID not present
+				idValue, exists := tc.userMap["ID"]
+				if !exists {
+					t.Error("ID/PublicID field missing from user map")
+					return
+				}
+
+				switch v := idValue.(type) {
+				case string:
+					isValid = uuidPattern.MatchString(v) && !intPattern.MatchString(v)
+					if !isValid && intPattern.MatchString(v) {
+						if tc.shouldPass {
+							t.Errorf("SECURITY VIOLATION: ID field is integer string: %s", v)
+						} else {
+							t.Logf("DETECTED VULNERABILITY: ID field is integer string: %s", v)
+						}
+					}
+				case int:
+					isValid = false
+					if tc.shouldPass {
+						t.Errorf("SECURITY VIOLATION: ID field is integer: %d", v)
+					} else {
+						t.Logf("DETECTED VULNERABILITY: ID field is integer: %d", v)
+					}
+				default:
+					isValid = false
+					if tc.shouldPass {
+						t.Errorf("ID field has unexpected type: %T", v)
+					} else {
+						t.Logf("DETECTED VULNERABILITY: ID field has unexpected type: %T", v)
+					}
+				}
 			}
 
 			if tc.shouldPass && !isValid {
-				t.Error("Expected valid UUID in ID field")
+				t.Error("Expected valid UUID in ID/PublicID field")
 			} else if !tc.shouldPass && isValid {
-				t.Error("Test expected to fail but ID is valid UUID")
+				t.Error("Test expected to fail but ID/PublicID is valid UUID")
 			}
 		})
 	}

@@ -18,12 +18,20 @@ SERVER_PID=""
 SERVER_LOG="/tmp/forum_pages_server_${TIMESTAMP}.log"
 VERBOSE=0
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Check if colors are supported
+if [ -t 1 ] && [ -n "$TERM" ] && [ "$TERM" != "dumb" ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    NC='\033[0m' # No Color
+else
+    RED=''
+    GREEN=''
+    YELLOW=''
+    BLUE=''
+    NC=''
+fi
 
 PASSED=0
 FAILED=0
@@ -748,12 +756,12 @@ echo -e "${YELLOW}Page Test Summary${NC}"
 echo -e "${YELLOW}========================================${NC}"
 echo ""
 echo -e "${BLUE}Test Coverage:${NC}"
-echo "  • Home Page: Tests 1-3 ${YELLOW}($FAILED_HOME Failed)${NC}"
-echo "  • Auth Pages: Tests 4-8 ${YELLOW}($FAILED_AUTH_PAGES Failed)${NC}"
-echo "  • Post Pages: Tests 9-14 ${YELLOW}($FAILED_POST_PAGES Failed)${NC}"
-echo "  • Navigation: Tests 15-18 ${YELLOW}($FAILED_NAVIGATION Failed)${NC}"
-echo "  • HTML Rendering: Tests 19-25 ${YELLOW}($FAILED_RENDERING Failed)${NC}"
-echo "  • Form Functionality: Tests 26-30 ${YELLOW}($FAILED_FORMS Failed)${NC}"
+echo -e "  • Home Page: Tests 1-3 $([ $FAILED_HOME -gt 0 ] && echo "$RED" || echo "$GREEN")($FAILED_HOME Failed)${NC}"
+echo -e "  • Auth Pages: Tests 4-8 $([ $FAILED_AUTH_PAGES -gt 0 ] && echo "$RED" || echo "$GREEN")($FAILED_AUTH_PAGES Failed)${NC}"
+echo -e "  • Post Pages: Tests 9-14 $([ $FAILED_POST_PAGES -gt 0 ] && echo "$RED" || echo "$GREEN")($FAILED_POST_PAGES Failed)${NC}"
+echo -e "  • Navigation: Tests 15-18 $([ $FAILED_NAVIGATION -gt 0 ] && echo "$RED" || echo "$GREEN")($FAILED_NAVIGATION Failed)${NC}"
+echo -e "  • HTML Rendering: Tests 19-25 $([ $FAILED_RENDERING -gt 0 ] && echo "$RED" || echo "$GREEN")($FAILED_RENDERING Failed)${NC}"
+echo -e "  • Form Functionality: Tests 26-30 $([ $FAILED_FORMS -gt 0 ] && echo "$RED" || echo "$GREEN")($FAILED_FORMS Failed)${NC}"
 echo ""
 echo -e "${GREEN}Passed:${NC} $PASSED"
 echo -e "${RED}Failed:${NC} $FAILED"

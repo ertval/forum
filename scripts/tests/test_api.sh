@@ -20,12 +20,20 @@ SERVER_PID=""
 SERVER_LOG="/tmp/forum_api_server_${TIMESTAMP}.log"
 VERBOSE=0
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Check if colors are supported
+if [ -t 1 ] && [ -n "$TERM" ] && [ "$TERM" != "dumb" ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    NC='\033[0m' # No Color
+else
+    RED=''
+    GREEN=''
+    YELLOW=''
+    BLUE=''
+    NC=''
+fi
 
 PASSED=0
 FAILED=0
@@ -1280,14 +1288,14 @@ echo -e "${YELLOW}API Test Summary${NC}"
 echo -e "${YELLOW}========================================${NC}"
 echo ""
 echo -e "${BLUE}Test Coverage:${NC}"
-echo "  • Authentication API: Tests 1-16 ${YELLOW}($FAILED_AUTH Failed)${NC}"
-echo "  • Posts API: Tests 17-28 ${YELLOW}($FAILED_POSTS Failed)${NC}"
-echo "  • Comments API: Tests 29-32 ${YELLOW}($FAILED_COMMENTS Failed)${NC}"
-echo "  • Reactions API: Tests 33-36 ${YELLOW}($FAILED_REACTIONS Failed)${NC}"
-echo "  • Session Management: Tests 37-44 ${YELLOW}($FAILED_SESSION Failed)${NC}"
-echo "  • Security: Tests 45-48 ${YELLOW}($FAILED_SECURITY Failed)${NC}"
-echo "  • Performance: Tests 49-51 ${YELLOW}($FAILED_PERFORMANCE Failed)${NC}"
-echo "  • Data Integrity: Tests 52-54 ${YELLOW}($FAILED_DATA Failed)${NC}"
+echo -e "  • Authentication API: Tests 1-16 $([ $FAILED_AUTH -gt 0 ] && echo "$RED" || echo "$GREEN")($FAILED_AUTH Failed)${NC}"
+echo -e "  • Posts API: Tests 17-28 $([ $FAILED_POSTS -gt 0 ] && echo "$RED" || echo "$GREEN")($FAILED_POSTS Failed)${NC}"
+echo -e "  • Comments API: Tests 29-32 $([ $FAILED_COMMENTS -gt 0 ] && echo "$RED" || echo "$GREEN")($FAILED_COMMENTS Failed)${NC}"
+echo -e "  • Reactions API: Tests 33-36 $([ $FAILED_REACTIONS -gt 0 ] && echo "$RED" || echo "$GREEN")($FAILED_REACTIONS Failed)${NC}"
+echo -e "  • Session Management: Tests 37-44 $([ $FAILED_SESSION -gt 0 ] && echo "$RED" || echo "$GREEN")($FAILED_SESSION Failed)${NC}"
+echo -e "  • Security: Tests 45-48 $([ $FAILED_SECURITY -gt 0 ] && echo "$RED" || echo "$GREEN")($FAILED_SECURITY Failed)${NC}"
+echo -e "  • Performance: Tests 49-51 $([ $FAILED_PERFORMANCE -gt 0 ] && echo "$RED" || echo "$GREEN")($FAILED_PERFORMANCE Failed)${NC}"
+echo -e "  • Data Integrity: Tests 52-54 $([ $FAILED_DATA -gt 0 ] && echo "$RED" || echo "$GREEN")($FAILED_DATA Failed)${NC}"
 echo ""
 echo -e "${GREEN}Passed:${NC} $PASSED"
 echo -e "${RED}Failed:${NC} $FAILED"

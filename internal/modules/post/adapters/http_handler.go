@@ -926,14 +926,22 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPHandler) CreatePostPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	// Get current user (populate full profile/stats)
-	userIDStr := authAdapters.GetUserID(ctx)
-	var currentUser interface{}
-	if userIDStr != "" {
-		if userID, err := strconv.Atoi(userIDStr); err == nil {
-			currentUser = h.buildCurrentUser(ctx, userID)
-		}
+	// Get user PUBLIC ID (UUID) from context (set by RequireAuth middleware)
+	userPublicID := authAdapters.GetUserID(ctx)
+	if userPublicID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
 	}
+
+	// Convert PUBLIC ID (UUID) to internal INT ID for service layer
+	userID, err := h.getInternalUserID(ctx, userPublicID)
+	if err != nil {
+		http.Error(w, "Invalid user", http.StatusInternalServerError)
+		return
+	}
+
+	// Get current user (populate full profile/stats)
+	currentUser := h.buildCurrentUser(ctx, userID)
 
 	// Fetch all categories
 	categories, err := h.categoryService.List(ctx)

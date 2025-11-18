@@ -179,8 +179,10 @@ func registerAndLogin(t *testing.T, app *wire.App, email, username, password str
 }
 
 func createCategory(t *testing.T, app *wire.App, name string) {
-	query := `INSERT OR IGNORE INTO categories (id, name, description, created_at) VALUES (?, ?, ?, ?)`
-	_, err := app.Database.DB().Exec(query, name+"-id", name, "", time.Now())
+	// categories.id is an INTEGER autoincrement in migrations; insert into
+	// `public_id` instead to avoid datatype mismatches during tests.
+	query := `INSERT OR IGNORE INTO categories (public_id, name, description, created_at) VALUES (?, ?, ?, ?)`
+	_, err := app.Database.DB().Exec(query, name+"-public", name, "", time.Now())
 	if err != nil {
 		t.Logf("Category error: %v", err)
 	}
