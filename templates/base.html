@@ -36,7 +36,7 @@
                  (`.ShowSidebar`) OR when a user is logged in and the page
                  is NOT the Home or Health Status pages. This ensures the
                  user card is visible and can be sticky on most pages. */}}
-            {{ $showUserSidebar := and .User (not (or (eq .Title "Home") (eq .Title "Health Status"))) }}
+            {{ $showUserSidebar := and .User (not (or (eq .Title "Home") (eq .Title "Health Status") (eq .Title "Create Post") (eq .Title "Edit Post"))) }}
             {{ if or .ShowSidebar $showUserSidebar }}
                 <div class="page-layout">
                     <aside class="sidebar">

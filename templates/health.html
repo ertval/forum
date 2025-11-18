@@ -144,6 +144,15 @@
     .health-status th {
         background-color: #f7f7f7;
     }
+    /* Ensure consistent column widths across both tables */
+    .health-status table th:first-child,
+    .health-status table td:first-child {
+        width: 70%; /* Wider column for service/module names */
+    }
+    .health-status table th:last-child,
+    .health-status table td:last-child {
+        width: 30%; /* Narrower column for status */
+    }
     .status-badge {
         padding: 5px 10px;
         border-radius: 15px;
