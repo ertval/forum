@@ -12,6 +12,7 @@ import (
 	authDomain "forum/internal/modules/auth/domain"
 	"forum/internal/modules/auth/ports"
 	userPorts "forum/internal/modules/user/ports"
+	platformErrors "forum/internal/platform/errors"
 	"html/template"
 	"net/http"
 	"time"
@@ -86,7 +87,7 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.parseJSON(r, &req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "Invalid request body")
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -98,20 +99,21 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, authDomain.ErrInvalidEmail),
 			errors.Is(err, authDomain.ErrWeakPassword),
 			errors.Is(err, authDomain.ErrInvalidUsername):
-			h.writeError(w, http.StatusBadRequest, err.Error())
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 		case errors.Is(err, authDomain.ErrUserAlreadyExists):
-			h.writeError(w, http.StatusConflict, err.Error())
+			platformErrors.WriteErrorJSON(w, http.StatusConflict, err.Error())
 		default:
 			// Check if error message contains validation keywords
 			errMsg := err.Error()
 			if strings.Contains(errMsg, "empty") || strings.Contains(errMsg, "invalid") ||
 				strings.Contains(errMsg, "required") || strings.Contains(errMsg, "format") ||
 				strings.Contains(errMsg, "too long") || strings.Contains(errMsg, "too short") {
-				h.writeError(w, http.StatusBadRequest, errMsg)
+				platformErrors.WriteErrorJSON(w, http.StatusBadRequest, errMsg)
 			} else if strings.Contains(errMsg, "already exists") || strings.Contains(errMsg, "duplicate") || strings.Contains(errMsg, "taken") {
-				h.writeError(w, http.StatusConflict, errMsg)
+				platformErrors.WriteErrorJSON(w, http.StatusConflict, errMsg)
 			} else {
-				h.writeError(w, http.StatusConflict, errMsg)
+				platformErrors.WriteErrorJSON(w, http.StatusConflict, errMsg)
+
 			}
 		}
 		return
@@ -131,7 +133,7 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 	// Fetch user to get PublicID
 	user, err := h.userService.GetByID(r.Context(), userID)
 	if err != nil {
-		h.writeError(w, http.StatusInternalServerError, "Failed to retrieve user information")
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve user information")
 		return
 	}
 
@@ -161,14 +163,14 @@ func (h *HTTPHandler) LoginAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.parseJSON(r, &req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "Invalid request body")
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
 	// Call the service to login the user
 	session, err := h.authService.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
-		h.writeError(w, http.StatusUnauthorized, "Invalid email or password")
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid email or password")
 		return
 	}
 
@@ -186,7 +188,7 @@ func (h *HTTPHandler) LoginAPI(w http.ResponseWriter, r *http.Request) {
 	// Fetch user to get PublicID
 	user, err := h.userService.GetByID(r.Context(), session.UserID)
 	if err != nil {
-		h.writeError(w, http.StatusInternalServerError, "Failed to retrieve user information")
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve user information")
 		return
 	}
 
@@ -213,14 +215,14 @@ func (h *HTTPHandler) LogoutAPI(w http.ResponseWriter, r *http.Request) {
 	// Get session token from cookie
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
-		h.writeError(w, http.StatusBadRequest, "No session token found")
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "No session token found")
 		return
 	}
 
 	// Call the service to logout the user
 	err = h.authService.Logout(r.Context(), cookie.Value)
 	if err != nil {
-		h.writeError(w, http.StatusInternalServerError, "Failed to logout")
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to logout")
 		return
 	}
 
@@ -248,21 +250,21 @@ func (h *HTTPHandler) GetSessionAPI(w http.ResponseWriter, r *http.Request) {
 	// Get session token from cookie
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
-		h.writeError(w, http.StatusUnauthorized, "No session token found")
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "No session token found")
 		return
 	}
 
 	// Call the service to validate the session
 	session, err := h.authService.ValidateSession(r.Context(), cookie.Value)
 	if err != nil {
-		h.writeError(w, http.StatusUnauthorized, "Invalid or expired session")
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid or expired session")
 		return
 	}
 
 	// Fetch user to get PublicID
 	user, err := h.userService.GetByID(r.Context(), session.UserID)
 	if err != nil {
-		h.writeError(w, http.StatusInternalServerError, "Failed to retrieve user information")
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve user information")
 		return
 	}
 
@@ -350,23 +352,6 @@ func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interfac
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		// Log the error, but don't send it to the client
 		fmt.Printf("Error encoding JSON response: %v\n", err)
-	}
-}
-
-// writeError writes an error response.
-func (h *HTTPHandler) writeError(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
-	errResp := struct {
-		Error string `json:"error"`
-	}{
-		Error: message,
-	}
-
-	if err := json.NewEncoder(w).Encode(errResp); err != nil {
-		// Log the error, but don't send it to the client
-		fmt.Printf("Error encoding error response: %v\n", err)
 	}
 }
 
