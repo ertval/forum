@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	platformErrors "forum/internal/platform/errors"
 	logger "forum/internal/platform/logger"
 
 	authAdapters "forum/internal/modules/auth/adapters"
@@ -417,14 +418,14 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 	// Get user PUBLIC ID (UUID) from context (set by RequireAuth middleware)
 	userPublicID := authAdapters.GetUserID(r.Context())
 	if userPublicID == "" {
-		h.writeError(w, http.StatusUnauthorized, "Authentication required")
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
 	// Convert PUBLIC ID (UUID) to internal INT ID for service layer
 	userID, err := h.getInternalUserID(r.Context(), userPublicID)
 	if err != nil {
-		h.writeError(w, http.StatusUnauthorized, "Invalid user")
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
 		return
 	}
 
@@ -443,7 +444,7 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case strings.HasPrefix(contentType, "multipart/form-data"):
 		if err := r.ParseMultipartForm(maxUploadSize); err != nil {
-			h.writeError(w, http.StatusBadRequest, "Invalid form data")
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid form data")
 			return
 		}
 
@@ -466,16 +467,16 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			defer file.Close()
 			if header.Size > maxUploadSize {
-				h.writeError(w, http.StatusRequestEntityTooLarge, "Image exceeds 20MB limit")
+				platformErrors.WriteErrorJSON(w, http.StatusRequestEntityTooLarge, "Image exceeds 20MB limit")
 				return
 			}
 			imageData, err = io.ReadAll(io.LimitReader(file, maxUploadSize))
 			if err != nil {
-				h.writeError(w, http.StatusBadRequest, "Failed to read image upload")
+				platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Failed to read image upload")
 				return
 			}
 		} else if err != http.ErrMissingFile {
-			h.writeError(w, http.StatusBadRequest, "Invalid image upload")
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid image upload")
 			return
 		}
 
@@ -492,11 +493,11 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 				logger.String("url", r.URL.RequestURI()),
 				logger.String("error", err.Error()),
 			)
-			h.writeError(w, http.StatusBadRequest, "Invalid request body")
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 			return
 		}
 	default:
-		h.writeError(w, http.StatusUnsupportedMediaType, "Unsupported content type")
+		platformErrors.WriteErrorJSON(w, http.StatusUnsupportedMediaType, "Unsupported content type")
 		return
 	}
 
@@ -518,11 +519,11 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 		switch err {
 		case postDomain.ErrEmptyTitle, postDomain.ErrEmptyContent, postDomain.ErrNoCategories,
 			postDomain.ErrTitleTooLong, postDomain.ErrContentTooLong:
-			h.writeError(w, http.StatusBadRequest, err.Error())
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 		case postDomain.ErrCategoryNotFound:
-			h.writeError(w, http.StatusNotFound, err.Error())
+			platformErrors.WriteErrorJSON(w, http.StatusNotFound, err.Error())
 		default:
-			h.writeError(w, http.StatusInternalServerError, "Failed to create post")
+			platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to create post")
 		}
 		return
 	}
@@ -583,21 +584,21 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 	// Get user PUBLIC ID (UUID) from context
 	userPublicID := authAdapters.GetUserID(r.Context())
 	if userPublicID == "" {
-		h.writeError(w, http.StatusUnauthorized, "Authentication required")
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
 	// Convert PUBLIC ID (UUID) to internal INT ID for service layer
 	userID, err := h.getInternalUserID(r.Context(), userPublicID)
 	if err != nil {
-		h.writeError(w, http.StatusUnauthorized, "Invalid user")
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
 		return
 	}
 
 	// Extract post ID from URL
 	postID := r.PathValue("id")
 	if postID == "" {
-		h.writeError(w, http.StatusBadRequest, "Post ID required")
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Post ID required")
 		return
 	}
 
@@ -605,15 +606,15 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 	post, err := h.postService.GetPost(r.Context(), postID)
 	if err != nil {
 		if err == postDomain.ErrPostNotFound {
-			h.writeError(w, http.StatusNotFound, "Post not found")
+			platformErrors.WriteErrorJSON(w, http.StatusNotFound, "Post not found")
 		} else {
-			h.writeError(w, http.StatusInternalServerError, "Failed to retrieve post")
+			platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve post")
 		}
 		return
 	}
 
 	if post.UserID != userID {
-		h.writeError(w, http.StatusForbidden, "You can only edit your own posts")
+		platformErrors.WriteErrorJSON(w, http.StatusForbidden, "You can only edit your own posts")
 		return
 	}
 
@@ -644,7 +645,7 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 		// Allow moderately large uploads for edit (same 20MB limit)
 		const maxUploadSize = 20 << 20
 		if err := r.ParseMultipartForm(maxUploadSize); err != nil {
-			h.writeError(w, http.StatusBadRequest, "Invalid form data")
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid form data")
 			return
 		}
 		req.Title = strings.TrimSpace(r.FormValue("title"))
@@ -665,7 +666,7 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 
 	case strings.HasPrefix(contentType, "application/json"), strings.HasPrefix(contentType, "text/json"), contentType == "":
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			h.writeError(w, http.StatusBadRequest, "Invalid request body")
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 			return
 		}
 
@@ -689,7 +690,7 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 			}
 			break
 		}
-		h.writeError(w, http.StatusUnsupportedMediaType, "Unsupported content type")
+		platformErrors.WriteErrorJSON(w, http.StatusUnsupportedMediaType, "Unsupported content type")
 		return
 	}
 
@@ -713,13 +714,13 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 		switch err {
 		case postDomain.ErrEmptyTitle, postDomain.ErrEmptyContent, postDomain.ErrNoCategories,
 			postDomain.ErrTitleTooLong, postDomain.ErrContentTooLong:
-			h.writeError(w, http.StatusBadRequest, err.Error())
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 		case postDomain.ErrPostNotFound:
-			h.writeError(w, http.StatusNotFound, "Post not found")
+			platformErrors.WriteErrorJSON(w, http.StatusNotFound, "Post not found")
 		case postDomain.ErrCategoryNotFound:
-			h.writeError(w, http.StatusNotFound, err.Error())
+			platformErrors.WriteErrorJSON(w, http.StatusNotFound, err.Error())
 		default:
-			h.writeError(w, http.StatusInternalServerError, "Failed to update post")
+			platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to update post")
 		}
 		return
 	}
@@ -732,14 +733,14 @@ func (h *HTTPHandler) DeletePostAPI(w http.ResponseWriter, r *http.Request) {
 	// Get user PUBLIC ID (UUID) from context
 	userPublicID := authAdapters.GetUserID(r.Context())
 	if userPublicID == "" {
-		h.writeError(w, http.StatusUnauthorized, "Authentication required")
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
 	// Convert PUBLIC ID (UUID) to internal INT ID for service layer
 	userID, err := h.getInternalUserID(r.Context(), userPublicID)
 	if err != nil {
-		h.writeError(w, http.StatusUnauthorized, "Invalid user")
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
 		return
 	}
 
@@ -750,7 +751,7 @@ func (h *HTTPHandler) DeletePostAPI(w http.ResponseWriter, r *http.Request) {
 		postID = strings.TrimPrefix(r.URL.Path, "/posts/")
 	}
 	if postID == "" {
-		h.writeError(w, http.StatusBadRequest, "Post ID required")
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Post ID required")
 		return
 	}
 
@@ -758,24 +759,24 @@ func (h *HTTPHandler) DeletePostAPI(w http.ResponseWriter, r *http.Request) {
 	post, err := h.postService.GetPost(r.Context(), postID)
 	if err != nil {
 		if err == postDomain.ErrPostNotFound {
-			h.writeError(w, http.StatusNotFound, "Post not found")
+			platformErrors.WriteErrorJSON(w, http.StatusNotFound, "Post not found")
 		} else {
-			h.writeError(w, http.StatusInternalServerError, "Failed to retrieve post")
+			platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve post")
 		}
 		return
 	}
 
 	if post.UserID != userID {
-		h.writeError(w, http.StatusForbidden, "You can only delete your own posts")
+		platformErrors.WriteErrorJSON(w, http.StatusForbidden, "You can only delete your own posts")
 		return
 	}
 
 	// Delete post
 	if err := h.postService.DeletePost(r.Context(), postID); err != nil {
 		if err == postDomain.ErrPostNotFound {
-			h.writeError(w, http.StatusNotFound, "Post not found")
+			platformErrors.WriteErrorJSON(w, http.StatusNotFound, "Post not found")
 		} else {
-			h.writeError(w, http.StatusInternalServerError, "Failed to delete post")
+			platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to delete post")
 		}
 		return
 	}
@@ -832,7 +833,7 @@ func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 	// Get posts
 	posts, err := h.postService.ListPosts(r.Context(), filter)
 	if err != nil {
-		h.writeError(w, http.StatusInternalServerError, "Failed to retrieve posts")
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve posts")
 		return
 	}
 
@@ -887,7 +888,7 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 	// Get posts
 	posts, err := h.postService.ListPosts(r.Context(), filter)
 	if err != nil {
-		h.writeError(w, http.StatusInternalServerError, "Failed to retrieve posts")
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve posts")
 		return
 	}
 
@@ -1089,22 +1090,6 @@ func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interfac
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(data)
-}
-
-// writeError writes a JSON error response.
-func (h *HTTPHandler) writeError(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	// Also log the error to the terminal so human output always includes error messages.
-	cfg := &logger.Config{
-		TimePrecision: logger.TimePrecisionSeconds,
-		AllowedFields: []string{"error", "errors", "status"},
-		MaxLineWidth:  200,
-	}
-	l := logger.NewWithConfig(logger.ErrorLevel, os.Stderr, cfg)
-	l.Error("http.handler.error", logger.String("error", message), logger.Int("status", status))
-
-	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
 // min returns the minimum of two integers.

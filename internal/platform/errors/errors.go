@@ -3,8 +3,12 @@
 package errors
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+
+	"forum/internal/platform/logger"
 )
 
 // Error represents a domain error with additional context.
@@ -111,5 +115,40 @@ func ToHTTPResponse(err error) ErrorResponse {
 	return ErrorResponse{
 		Code:    ErrCodeInternal,
 		Message: "An internal error occurred",
+	}
+}
+
+// WriteErrorJSON writes a JSON error response with appropriate status code and logging.
+// This is the standard way to return errors from HTTP handlers.
+// It automatically logs errors to stderr for debugging and monitoring.
+func WriteErrorJSON(w http.ResponseWriter, status int, message string) {
+	// Set JSON content type
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+
+	// Create error response
+	errResp := struct {
+		Error string `json:"error"`
+	}{
+		Error: message,
+	}
+
+	// Log error for debugging (human-readable to stderr)
+	cfg := &logger.Config{
+		TimePrecision: logger.TimePrecisionSeconds,
+		AllowedFields: []string{"status", "error"},
+		MaxLineWidth:  200,
+		Colorize:      true,
+	}
+	lgr := logger.NewWithConfig(logger.ErrorLevel, os.Stderr, cfg)
+	lgr.Error("http.error",
+		logger.Int("status", status),
+		logger.String("error", message))
+
+	// Write JSON response
+	if err := json.NewEncoder(w).Encode(errResp); err != nil {
+		// If JSON encoding fails, log but don't expose to client
+		lgr.Error("failed to encode error response",
+			logger.Error(err))
 	}
 }
