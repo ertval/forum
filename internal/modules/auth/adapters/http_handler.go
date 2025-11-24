@@ -11,7 +11,6 @@ import (
 
 	authDomain "forum/internal/modules/auth/domain"
 	"forum/internal/modules/auth/ports"
-	userDomain "forum/internal/modules/user/domain"
 	userPorts "forum/internal/modules/user/ports"
 	"html/template"
 	"net/http"
@@ -100,8 +99,7 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 			errors.Is(err, authDomain.ErrWeakPassword),
 			errors.Is(err, authDomain.ErrInvalidUsername):
 			h.writeError(w, http.StatusBadRequest, err.Error())
-		case errors.Is(err, authDomain.ErrUserAlreadyExists),
-			errors.Is(err, userDomain.ErrUserNotFound):
+		case errors.Is(err, authDomain.ErrUserAlreadyExists):
 			h.writeError(w, http.StatusConflict, err.Error())
 		default:
 			// Check if error message contains validation keywords

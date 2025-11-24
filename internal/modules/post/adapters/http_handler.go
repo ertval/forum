@@ -946,7 +946,7 @@ func (h *HTTPHandler) CreatePostPage(w http.ResponseWriter, r *http.Request) {
 		categories = []*postDomain.Category{}
 	}
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"Title":           "Create Post",
 		"User":            currentUser,
 		"Categories":      categories,
@@ -1057,7 +1057,7 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 	// TODO: Fetch comments for this post when comment service is implemented
 	var comments []interface{}
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"Title":    post.Title,
 		"User":     currentUser,
 		"Post":     post,
