@@ -88,7 +88,6 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.parseJSON(r, &req); err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
-		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
@@ -110,13 +109,11 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 				strings.Contains(errMsg, "required") || strings.Contains(errMsg, "format") ||
 				strings.Contains(errMsg, "too long") || strings.Contains(errMsg, "too short") {
 				platformErrors.WriteErrorJSON(w, http.StatusBadRequest, errMsg)
-				platformErrors.WriteErrorJSON(w, http.StatusBadRequest, errMsg)
 			} else if strings.Contains(errMsg, "already exists") || strings.Contains(errMsg, "duplicate") || strings.Contains(errMsg, "taken") {
-				platformErrors.WriteErrorJSON(w, http.StatusConflict, errMsg)
 				platformErrors.WriteErrorJSON(w, http.StatusConflict, errMsg)
 			} else {
 				platformErrors.WriteErrorJSON(w, http.StatusConflict, errMsg)
-				platformErrors.WriteErrorJSON(w, http.StatusConflict, errMsg)
+
 			}
 		}
 		return
@@ -136,7 +133,6 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 	// Fetch user to get PublicID
 	user, err := h.userService.GetByID(r.Context(), userID)
 	if err != nil {
-		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve user information")
 		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve user information")
 		return
 	}
@@ -168,14 +164,12 @@ func (h *HTTPHandler) LoginAPI(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.parseJSON(r, &req); err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
-		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
 	// Call the service to login the user
 	session, err := h.authService.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
-		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid email or password")
 		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid email or password")
 		return
 	}
@@ -194,7 +188,6 @@ func (h *HTTPHandler) LoginAPI(w http.ResponseWriter, r *http.Request) {
 	// Fetch user to get PublicID
 	user, err := h.userService.GetByID(r.Context(), session.UserID)
 	if err != nil {
-		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve user information")
 		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve user information")
 		return
 	}
@@ -223,14 +216,12 @@ func (h *HTTPHandler) LogoutAPI(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "No session token found")
-		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "No session token found")
 		return
 	}
 
 	// Call the service to logout the user
 	err = h.authService.Logout(r.Context(), cookie.Value)
 	if err != nil {
-		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to logout")
 		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to logout")
 		return
 	}
@@ -260,7 +251,6 @@ func (h *HTTPHandler) GetSessionAPI(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "No session token found")
-		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "No session token found")
 		return
 	}
 
@@ -268,14 +258,12 @@ func (h *HTTPHandler) GetSessionAPI(w http.ResponseWriter, r *http.Request) {
 	session, err := h.authService.ValidateSession(r.Context(), cookie.Value)
 	if err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid or expired session")
-		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid or expired session")
 		return
 	}
 
 	// Fetch user to get PublicID
 	user, err := h.userService.GetByID(r.Context(), session.UserID)
 	if err != nil {
-		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve user information")
 		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve user information")
 		return
 	}
