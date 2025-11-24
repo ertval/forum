@@ -1,0 +1,23 @@
+// INPUT PORT - Service Interface
+// [OPTIONAL FEATURE: forum-advanced-features]
+// Package ports defines the input ports (use cases) for the notification module.
+package ports
+
+import (
+	"context"
+	"forum/internal/modules/notification/domain"
+)
+
+// NotificationService defines notification management use cases.
+type NotificationService interface {
+	// CreateNotification creates a new notification for a user.
+	// userID: internal user ID, targetPublicID: public UUID of related entity
+	CreateNotification(ctx context.Context, userID int, notifType, message string, targetPublicID string) error
+
+	// GetUserNotifications retrieves all notifications for a user.
+	// Uses internal userID from session
+	GetUserNotifications(ctx context.Context, userID int) ([]*domain.Notification, error)
+
+	// MarkAsRead marks a notification as read by its public UUID.
+	MarkAsRead(ctx context.Context, notificationPublicID string) error
+}

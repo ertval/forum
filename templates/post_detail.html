@@ -1,0 +1,104 @@
+{{define "content"}}
+<div class="post-detail">
+    <article class="post">
+        <div class="post-header">
+            <h1>{{.Post.Title}}</h1>
+            <div class="post-meta">
+                <span class="author">by {{.Post.AuthorUsername}}</span>
+                <span class="date" style="margin-left: auto;">{{.Post.CreatedAt.Format "Jan 02, 2006 at 3:04 PM"}}</span>
+            </div>
+            
+            {{if .Post.Categories}}
+            <div class="post-categories">
+                {{range .Post.Categories}}
+                <a class="category-tag" href="/board?category={{urlquery .}}">{{.}}</a>
+                {{end}}
+            </div>
+            {{end}}
+        </div>
+
+        {{if .Post.ImageURL}}
+        <div class="post-image">
+            <img src="{{.Post.ImageURL}}" alt="{{.Post.Title}}">
+        </div>
+        {{end}}
+
+        <div class="post-detail-content">
+            {{.Post.Content}}
+        </div>
+
+        <div class="post-actions">
+            <div class="reactions">
+                <button class="btn-like" data-post-id="{{.Post.PublicID}}">
+                    👍 Like ({{.Post.LikeCount}})
+                </button>
+                <button class="btn-dislike" data-post-id="{{.Post.PublicID}}">
+                    👎 Dislike ({{.Post.DislikeCount}})
+                </button>
+            </div>
+
+            {{if .User}}
+                {{if eq .User.PublicID .Post.UserPublicID}}
+                <div class="post-owner-actions">
+                    <a href="/posts/{{.Post.PublicID}}/edit" class="btn btn-secondary">Edit</a>
+                    <button class="btn btn-danger btn-delete-post" data-post-id="{{.Post.PublicID}}">Delete</button>
+                </div>
+                {{end}}
+            {{end}}
+        </div>
+    </article>
+
+    <section class="comments-section">
+        <h2>Comments ({{len .Comments}})</h2>
+
+        {{if .User}}
+        <div class="comment-form">
+            <h3>Add a Comment</h3>
+            <form id="comment-form" data-post-id="{{.Post.PublicID}}">
+                <textarea name="content" rows="4" placeholder="Write your comment..." required></textarea>
+                <button type="submit" class="btn btn-primary">Post Comment</button>
+            </form>
+        </div>
+        {{else}}
+        <div class="login-prompt">
+            <p>Please <a href="/login">login</a> to comment.</p>
+        </div>
+        {{end}}
+
+        <div class="comments-list">
+            {{if .Comments}}
+                {{range .Comments}}
+                <article class="comment" id="comment-{{.PublicID}}">
+                    <div class="comment-header">
+                        <span class="comment-author">{{.AuthorUsername}}</span>
+                        <span class="comment-date">{{.CreatedAt.Format "Jan 02, 2006 at 3:04 PM"}}</span>
+                    </div>
+                    <div class="comment-content">
+                        {{.Content}}
+                    </div>
+                    <div class="comment-actions">
+                        <button class="btn-like-comment" data-comment-id="{{.PublicID}}">
+                            👍 ({{.Likes}})
+                        </button>
+                        <button class="btn-dislike-comment" data-comment-id="{{.PublicID}}">
+                            👎 ({{.Dislikes}})
+                        </button>
+                        {{if $.User}}
+                            {{if eq $.User.PublicID .AuthorPublicID}}
+                            <button class="btn-delete-comment" data-comment-id="{{.PublicID}}">Delete</button>
+                            {{end}}
+                        {{end}}
+                    </div>
+                </article>
+                {{end}}
+            {{else}}
+                <p class="no-comments">No comments yet. Be the first to comment!</p>
+            {{end}}
+        </div>
+    </section>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script src="/static/js/post-detail.js"></script>
+{{end}}

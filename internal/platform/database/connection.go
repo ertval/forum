@@ -1,0 +1,93 @@
+package database
+
+// Package database provides database connection management and migrations.
+// This package handles SQLite database initialization, connection pooling,
+// and migration execution for the forum application.
+
+import (
+	"database/sql"
+	"fmt"
+	"os"
+	"path/filepath"
+
+	_ "github.com/mattn/go-sqlite3"
+)
+
+// Connection represents a database connection manager.
+// It handles connection lifecycle and provides access to the database.
+type Connection struct {
+	db *sql.DB
+}
+
+// NewConnection creates a new SQLite database connection manager.
+// It ensures the parent directory for the database file exists, opens the
+// connection and returns a Connection wrapper.
+func NewConnection(dsn string) (*Connection, error) {
+	// If the DSN is a simple file path (e.g. './data/forum.db'), ensure its
+	// parent directory exists. For more complex DSNs (file:... with params)
+	// try to extract the file portion up to the first '?' char.
+	dbPath := dsn
+	// If DSN looks like URI with params, strip params for directory creation.
+	if idx := indexOf(dsn, '?'); idx != -1 {
+		dbPath = dsn[:idx]
+	}
+
+	// If DSN starts with file:, remove the scheme for filesystem ops.
+	if len(dbPath) > 5 && dbPath[:5] == "file:" {
+		dbPath = dbPath[5:]
+	}
+
+	dir := filepath.Dir(dbPath)
+	if dir != "." && dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, fmt.Errorf("failed to create database directory %s: %w", dir, err)
+		}
+	}
+
+	db, err := sql.Open("sqlite3", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open sqlite database: %w", err)
+	}
+
+	// It's okay to return the connection even if ping fails here; callers may
+	// want to handle migration or retries. We'll still attempt a Ping.
+	if err := db.Ping(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to ping sqlite database: %w", err)
+	}
+
+	return &Connection{db: db}, nil
+}
+
+// DB returns the underlying database connection.
+// This is used by repositories to execute queries.
+func (c *Connection) DB() *sql.DB {
+	return c.db
+}
+
+// Close closes the database connection.
+// Should be called when the application shuts down.
+func (c *Connection) Close() error {
+	if c.db != nil {
+		return c.db.Close()
+	}
+	return nil
+}
+
+// Ping checks if the database connection is alive.
+func (c *Connection) Ping() error {
+	if c.db != nil {
+		return c.db.Ping()
+	}
+	return nil
+}
+
+// indexOf returns the index of ch in s or -1 if not present.
+func indexOf(s string, ch byte) int {
+	for i := 0; i < len(s); i++ {
+		if s[i] == ch {
+			return i
+		}
+	}
+	return -1
+}
