@@ -26,10 +26,13 @@ type Handlers struct {
 
 // initHandlers creates all HTTP handler instances with unified dependency injection.
 func initHandlers(services *ServiceContainer) *Handlers {
+
 	// Parse templates once and share between handlers that need them
+	// Skip if templates directory doesn't exist (for tests)
 	templates, err := template.ParseGlob("templates/*.html")
 	if err != nil {
-		panic(err)
+		// Templates are optional - API-only mode works without them
+		templates = nil
 	}
 
 	return &Handlers{

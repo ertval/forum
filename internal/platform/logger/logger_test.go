@@ -196,3 +196,26 @@ func TestTimestampIsRecent(t *testing.T) {
 		t.Fatalf("timestamp too old: %v", parsed)
 	}
 }
+
+func TestDurationField(t *testing.T) {
+	var buf bytes.Buffer
+	l := logger.New(logger.InfoLevel, &buf)
+
+	// Log with duration field
+	l.Info("operation completed", logger.Duration("elapsed_ms", 123*time.Millisecond))
+
+	m := unmarshalLastJSONLine(t, &buf)
+	f, ok := m["fields"].(map[string]any)
+	if !ok {
+		t.Fatalf("fields not a map")
+	}
+
+	elapsed, ok := f["elapsed_ms"].(float64)
+	if !ok {
+		t.Fatalf("elapsed_ms not a float64: %T", f["elapsed_ms"])
+	}
+
+	if elapsed != 123 {
+		t.Errorf("elapsed_ms = %v, want 123", elapsed)
+	}
+}

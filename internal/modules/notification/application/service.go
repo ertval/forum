@@ -20,11 +20,12 @@ func NewService(notificationRepo ports.NotificationRepository) *Service {
 
 // CreateNotification creates a new notification for a user.
 // TODO: Implement notification creation with validation.
-func (s *Service) CreateNotification(ctx context.Context, userID int, notifType, message string, targetID int) error {
+func (s *Service) CreateNotification(ctx context.Context, userID int, notifType, message string, targetPublicID string) error {
 	// Implementation placeholder
 	// 1. Validate notification type
-	// 2. Create notification entity
-	// 3. Save to repository
+	// 2. Resolve targetPublicID to internal target ID if needed
+	// 3. Create notification entity
+	// 4. Save to repository (repo generates PublicID)
 	return nil
 }
 
@@ -33,7 +34,7 @@ func (s *Service) GetUserNotifications(ctx context.Context, userID int) ([]*doma
 	return s.notificationRepo.GetByUserID(ctx, userID)
 }
 
-// MarkAsRead marks a notification as read.
-func (s *Service) MarkAsRead(ctx context.Context, notificationID int) error {
-	return s.notificationRepo.MarkAsRead(ctx, notificationID)
+// MarkAsRead marks a notification as read by its public UUID.
+func (s *Service) MarkAsRead(ctx context.Context, notificationPublicID string) error {
+	return s.notificationRepo.MarkAsReadByPublicID(ctx, notificationPublicID)
 }

@@ -5,20 +5,32 @@ import (
 	"context"
 	"forum/internal/modules/post/domain"
 	"forum/internal/modules/post/ports"
+	userPorts "forum/internal/modules/user/ports"
+	"time"
+
+	"github.com/gofrs/uuid/v5"
 )
 
 // Service implements the PostService interface.
 type Service struct {
 	postRepo     ports.PostRepository
 	categoryRepo ports.CategoryRepository
+	userService  userPorts.UserService
 }
 
 // NewService creates a new post service.
-func NewService(postRepo ports.PostRepository, categoryRepo ports.CategoryRepository) *Service {
+func NewService(postRepo ports.PostRepository, categoryRepo ports.CategoryRepository, userService userPorts.UserService) *Service {
 	return &Service{
 		postRepo:     postRepo,
 		categoryRepo: categoryRepo,
+		userService:  userService,
 	}
+}
+
+// generateID generates a new UUID for entities.
+func generateID() string {
+	id, _ := uuid.NewV4()
+	return id.String()
 }
 
 // CategoryService implements the CategoryService interface.
@@ -40,6 +52,12 @@ func (s *CategoryService) Create(ctx context.Context, name, description string) 
 		Description: description,
 	}
 
+	// Validate category
+	if err := category.Validate(); err != nil {
+		return nil, err
+	}
+
+	// Repository will generate both internal ID and public_id
 	if err := s.categoryRepo.Create(ctx, category); err != nil {
 		return nil, err
 	}
@@ -63,18 +81,47 @@ func (s *CategoryService) Delete(ctx context.Context, categoryID string) error {
 }
 
 // CreatePost creates a new post.
-// TODO: Implement post creation with image upload.
-func (s *Service) CreatePost(ctx context.Context, userID string, title, content string, categories []string, image []byte) (*domain.Post, error) {
-	// Implementation placeholder
-	// 1. Validate title, content, and categories
-	// 2. Verify categories exist in database
-	// 3. If image provided, validate format (JPEG/PNG/GIF) and size (< 20MB)
-	// 4. Save image to static/uploads/ with unique filename
-	// 5. Create post entity with image URL
-	// 6. Save to repository
-	// 7. Associate categories with post
-	// 8. Return created post
-	return nil, nil
+func (s *Service) CreatePost(ctx context.Context, userID int, title, content string, categories []string, image []byte) (*domain.Post, error) {
+	// Create post entity - repository will generate both internal ID and public_id
+	post := &domain.Post{
+		UserID:     userID,
+		Title:      title,
+		Content:    content,
+		Categories: categories,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+
+	// Validate post
+	if err := post.Validate(); err != nil {
+		return nil, err
+	}
+
+	// Verify all categories exist
+	for _, categoryName := range categories {
+		_, err := s.categoryRepo.GetByName(ctx, categoryName)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// TODO: Handle image upload when needed
+	// If image provided:
+	// 1. Validate format (JPEG/PNG/GIF) and size (< 20MB)
+	// 2. Save to static/uploads/ with unique filename
+	// 3. Set post.ImageURL
+
+	// Save post to repository
+	if err := s.postRepo.Create(ctx, post); err != nil {
+		return nil, err
+	}
+
+	// Increment user's post count asynchronously (non-blocking)
+	go func() {
+		_ = s.userService.IncrementPostCount(context.Background(), userID)
+	}()
+
+	return post, nil
 }
 
 // GetPost retrieves a post by ID.
@@ -83,20 +130,55 @@ func (s *Service) GetPost(ctx context.Context, postID string) (*domain.Post, err
 }
 
 // UpdatePost updates a post.
-// TODO: Implement post update.
-func (s *Service) UpdatePost(ctx context.Context, postID string, title, content string) error {
-	// Implementation placeholder
-	// 1. Retrieve existing post
-	// 2. Validate new title and content
-	// 3. Update post entity
-	// 4. Save to repository
-	return nil
+func (s *Service) UpdatePost(ctx context.Context, postID string, title, content string, categories []string) error {
+	// Retrieve existing post
+	post, err := s.postRepo.GetByID(ctx, postID)
+	if err != nil {
+		return err
+	}
+
+	// Update fields
+	post.Title = title
+	post.Content = content
+	post.Categories = categories
+	post.UpdatedAt = time.Now()
+
+	// Validate updated post
+	if err := post.Validate(); err != nil {
+		return err
+	}
+
+	// Verify all categories exist
+	for _, categoryName := range categories {
+		_, err := s.categoryRepo.GetByName(ctx, categoryName)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Save to repository
+	return s.postRepo.Update(ctx, post)
 }
 
 // DeletePost deletes a post.
-// TODO: Implement post deletion.
 func (s *Service) DeletePost(ctx context.Context, postID string) error {
-	return s.postRepo.Delete(ctx, postID)
+	// Get the post first to retrieve the user ID
+	post, err := s.postRepo.GetByID(ctx, postID)
+	if err != nil {
+		return err
+	}
+
+	// Delete the post
+	if err := s.postRepo.Delete(ctx, postID); err != nil {
+		return err
+	}
+
+	// Decrement user's post count asynchronously (non-blocking)
+	go func() {
+		_ = s.userService.DecrementPostCount(context.Background(), post.UserID)
+	}()
+
+	return nil
 }
 
 // ListPosts lists posts with optional filters.

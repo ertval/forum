@@ -1,3 +1,4 @@
+{{define "base"}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,34 +10,267 @@
 <body>
     <header>
         <nav>
-            <div class="container">
-                <h1><a href="/">Forum</a></h1>
-                <ul>
+            <div class="container header-flex">
+                <div class="nav-left">
+                    <h1><a href="/">Forum</a></h1>
+                </div>
+                <div class="nav-center">
+                    <a class="nav-link" href="/board">Board</a>
+                </div>
+                <div class="nav-right">
                     {{if .User}}
-                        <li>Welcome, {{.User.Username}}</li>
-                        <li><a href="/posts/new">Create Post</a></li>
-                        <li><a href="/logout">Logout</a></li>
+                        <span class="welcome-text">Welcome, {{.User.Username}}</span>
                     {{else}}
-                        <li><a href="/login">Login</a></li>
-                        <li><a href="/register">Register</a></li>
+                        <a class="nav-link" href="/login">Login</a>
+                        <a class="nav-link" href="/register">Register</a>
                     {{end}}
-                </ul>
+                </div>
             </div>
         </nav>
     </header>
 
     <main>
         <div class="container">
-            {{template "content" .}}
+            {{/* Determine whether we should render the sidebar layout.
+                 Show it when either the page explicitly requests a sidebar
+                 (`.ShowSidebar`) OR when a user is logged in and the page
+                 is NOT the Home or Health Status pages. This ensures the
+                 user card is visible and can be sticky on most pages. */}}
+            {{ $showUserSidebar := and .User (not (or (eq .Title "Home") (eq .Title "Health Status") (eq .Title "Create Post") (eq .Title "Edit Post"))) }}
+            {{ if or .ShowSidebar $showUserSidebar }}
+                <div class="page-layout">
+                    <aside class="sidebar">
+                        {{/* Always render the user-card if a user is present and the page isn't Home/Health */}}
+                        {{ if $showUserSidebar }}
+                            {{ template "user-card" . }}
+                        {{ else if and .User .ShowSidebar }}
+                            {{ template "user-card" . }}
+                        {{ end }}
+
+                        {{/* Preserve existing sidebar parts only when `.ShowSidebar` is true */}}
+                        {{ if .ShowFilter }}
+                            {{ template "filter-card" . }}
+                        {{ end }}
+                        {{ if .ShowPostSidebar }}
+                            {{ if eq .Title "Create Post" }}
+                                {{ template "post-create-sidebar-cards" . }}
+                            {{ else }}
+                                {{ template "post-sidebar-cards" . }}
+                            {{ end }}
+                        {{ end }}
+                    </aside>
+                    <div class="main-content">
+                        {{ template "content" . }}
+                    </div>
+                </div>
+            {{ else }}
+                {{ template "content" . }}
+            {{ end }}
         </div>
     </main>
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 Forum. All rights reserved.</p>
+            <p>&copy; 2025 Ertval Karameta & Magnus Edvall.</p>
+            <p><a href="/health" class="category-tag">Health Status</a></p>
         </div>
     </footer>
 
     <script src="/static/js/app.js"></script>
+    {{block "scripts" .}}{{end}}
 </body>
 </html>
+{{end}}
+
+{{/* User Card Component - Shows user info for logged-in users */}}
+{{define "user-card"}}
+<div class="user-card">
+    <div class="user-info">
+        <div class="user-avatar">
+            <span class="avatar-icon">👤</span>
+        </div>
+        <div class="user-details">
+            <p class="username">{{.User.Username}}</p>
+            <p class="user-email">{{.User.Email}}</p>
+        </div>
+    </div>
+    <div class="user-stats">
+        <div class="stat-item">
+            <span class="stat-value">{{.User.PostCount}}</span>
+            <span class="stat-label">Posts</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value">{{.User.CommentCount}}</span>
+            <span class="stat-label">Comments</span>
+        </div>
+    </div>
+    <div class="user-actions">
+        <a href="/posts/new" class="btn btn-primary btn-small">Create Post</a>
+        <a href="/board?user={{.User.PublicID}}{{if .SelectedCategory}}&category={{urlquery .SelectedCategory}}{{end}}{{if .DateFilter}}&date_filter={{.DateFilter}}{{end}}" class="btn btn-primary btn-small">My Posts</a>
+        <a href="/board?liked_posts=true{{if .SelectedCategory}}&category={{urlquery .SelectedCategory}}{{end}}{{if .DateFilter}}&date_filter={{.DateFilter}}{{end}}" class="btn btn-primary btn-small">My Likes</a>
+        <a href="#" class="btn btn-primary btn-small" onclick="alert('Coming soon!'); return false;">My Comments</a>
+        <a href="/settings" class="btn btn-primary btn-small">Settings</a>
+        <a href="/logout" class="btn btn-primary btn-small">Logout</a>
+    </div>
+</div>
+{{end}}
+
+{{/* Filter Card Component - Shows post filtering options */}}
+{{define "filter-card"}}
+        <div class="filters">
+    <h2>Filter Posts</h2>
+    <form method="GET" action="{{.FilterAction}}">
+        {{/* Preserve active filter state with hidden inputs */}}
+        {{if .UserFilter}}
+            <input type="hidden" name="user" value="{{.UserFilter}}">
+        {{end}}
+        {{if .MyPosts}}
+            <input type="hidden" name="my_posts" value="true">
+        {{end}}
+        {{if .LikedPosts}}
+            <input type="hidden" name="liked_posts" value="true">
+        {{end}}
+        
+        <div class="filter-group">
+            <label for="category">Category:</label>
+            <select name="category" id="category">
+                <option value="">All Categories</option>
+                {{range .Categories}}
+                    <option value="{{.Name}}" {{if eq $.SelectedCategory .Name}}selected{{end}}>{{.Name}}</option>
+                {{end}}
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="date_filter">Time Period:</label>
+            <select name="date_filter" id="date_filter">
+                <option value="all" {{if eq $.DateFilter "all"}}selected{{end}}>All Time</option>
+                <option value="today" {{if eq $.DateFilter "today"}}selected{{end}}>Today</option>
+                <option value="week" {{if eq $.DateFilter "week"}}selected{{end}}>This Week</option>
+                <option value="month" {{if eq $.DateFilter "month"}}selected{{end}}>This Month</option>
+            </select>
+        </div>
+
+        <!-- 'Posts I Liked' filter removed: use 'My Likes' button in user card instead -->
+
+        <button type="submit" class="btn btn-primary btn-small" style="font-weight: normal;">Apply Filters</button>
+        <a href="{{.FilterAction}}" class="btn btn-primary btn-small" style="margin-top: 0.5rem; display: block; text-align: center;">Reset</a>
+    </form>
+</div>
+{{end}}
+
+{{/* Post Card Component - Displays a single post card */}}
+{{define "post-card"}}
+<article class="post-card">
+    <div class="post-header">
+        <h3><a href="/posts/{{.PublicID}}">{{.Title}}</a></h3>
+        <div class="post-meta">
+            <span class="author">by {{.AuthorUsername}}</span>
+            <span class="date">{{.CreatedAt.Format "Jan 02, 2006"}}</span>
+        </div>
+    </div>
+
+    {{if .ImageURL}}
+    <div class="post-image">
+        <img src="{{.ImageURL}}" alt="{{.Title}}">
+    </div>
+    {{end}}
+
+    <div class="post-content">
+        <p>{{.Content}}</p>
+    </div>
+
+    <div class="post-footer">
+        <div class="categories">
+            {{range .Categories}}
+                <a class="category-tag" href="{{$.BaseURL}}?category={{urlquery .}}">{{.}}</a>
+            {{end}}
+        </div>
+
+        <div class="post-actions">
+            <span class="likes">👍 {{.LikeCount}}</span>
+            <span class="dislikes">👎 {{.DislikeCount}}</span>
+            <span class="comments">💬 {{.CommentCount}}</span>
+        </div>
+    </div>
+</article>
+{{end}}
+
+{{/* Post Edit Page Side Cards*/}}
+{{define "post-sidebar-cards"}}
+                        <div class="user-card">
+                            <h2>Image</h2>
+                            {{if .Post}}
+                            {{if .Post.ImageURL}}
+                            <div class="form-group">
+                                <div class="current-image">
+                                    <img src="{{.Post.ImageURL}}" alt="Current image">
+                                </div>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="remove-image" name="remove_image" form="post-edit-form">
+                                    Remove current image
+                                </label>
+                            </div>
+                            {{end}}
+
+                            <div class="form-group">
+                                <label for="image">{{if .Post.ImageURL}}Replace Image{{else}}Add Image{{end}} (Optional)</label>
+                                <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif" form="post-edit-form">
+                                <span class="form-help">JPEG, PNG, or GIF. Maximum 20MB</span>
+                                <div id="image-preview" class="image-preview"></div>
+                            </div>
+                            {{end}}
+                        </div>
+
+                        <div class="user-card" style="margin-top:1rem;">
+                            <h2>Categories</h2>
+                            <div class="form-group">
+                                <div class="category-checkboxes">
+                                    {{if .Categories}}
+                                        {{range .Categories}}
+                                            {{$cat := .}}
+                                            <label class="checkbox-label">
+                                                <input type="checkbox" name="categories" value="{{$cat.Name}}" form="post-edit-form" {{range $.Post.Categories}}{{if eq . $cat.Name}}checked{{end}}{{end}}>
+                                                {{$cat.Name}}
+                                            </label>
+                                        {{end}}
+                                    {{else}}
+                                        <p class="form-help">No categories available</p>
+                                    {{end}}
+                                </div>
+                                <span class="form-help">Select at least one category</span>
+                            </div>
+                        </div>
+{{end}}
+
+{{/* Post Create Page Side Cards*/}}
+{{define "post-create-sidebar-cards"}}
+                        <div class="user-card">
+                            <h2>Image</h2>
+                            <div class="form-group">
+                                <label for="image">Add Image (Optional)</label>
+                                <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif" form="post-create-form">
+                                <span class="form-help">JPEG, PNG, or GIF. Maximum 20MB</span>
+                                <div id="image-preview" class="image-preview"></div>
+                            </div>
+                        </div>
+
+                        <div class="user-card" style="margin-top:1rem;">
+                            <h2>Categories</h2>
+                            <div class="form-group">
+                                <div class="category-checkboxes">
+                                    {{if .Categories}}
+                                        {{range .Categories}}
+                                            <label class="checkbox-label">
+                                                <input type="checkbox" name="categories" value="{{.Name}}" form="post-create-form">
+                                                {{.Name}}
+                                            </label>
+                                        {{end}}
+                                    {{else}}
+                                        <p class="form-help">No categories available</p>
+                                    {{end}}
+                                </div>
+                                <span class="form-help">Select at least one category</span>
+                            </div>
+                        </div>
+{{end}}

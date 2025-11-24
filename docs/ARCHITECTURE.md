@@ -4,9 +4,9 @@
 
 A modular monolith web forum built with Go, following **Hexagonal Architecture** (Ports and Adapters). Clean boundaries, testable components, idiomatic Go.
 
-Current status: this repository contains an initial scaffolding of the application where module structure and many placeholder files are present but significant business logic is still to be implemented. The project is roughly 10% complete. Many files contain TODOs and reference the implementation roadmap — see `docs/IMPLEMENTATION_ROADMAP.md` for priorities and milestones.
+**Current status**: Active development — core features implemented; additional modules scaffolded. The repository contains a complete `auth` module (registration, login, sessions) and a mature `post`/`category` implementation with unit and integration tests (see `tests/unit` and `tests/integration`). Several optional modules (`comment`, `reaction`, `moderation`, `notification`, and parts of `user`) are scaffolded and include domain/ports/application/adapters directories, but many contain `// TODO:` markers in `application` packages indicating remaining business logic to implement. See `docs/IMPLEMENTATION_ROADMAP.md` for priorities and remaining work.
 
-Note on migrations: the project includes SQL migrations in the `migrations/` directory. The intended startup flow (see wiring in `cmd/forum/wire/`) runs migrations automatically when the database connection is established. Migration files use the `-- +migrate Up`/`-- +migrate Down` markers and follow the repository's conventions.
+**Migrations**: The project includes SQL migrations in the `migrations/` directory. Migrations run automatically on startup via `database.Migrator` in `cmd/forum/wire/app.go`. Migration files use `-- +migrate Up`/`-- +migrate Down` markers for forward/backward migrations.
 
 ## Core Principles
 
@@ -87,6 +87,7 @@ module/
 │
 ├── application/     # Orchestration layer
 │   └── service.go   # Implements ports/service.go
+│   └── filter_service.go # Specialized filtering logic (post module)
 │                    # Uses ports/repository.go
 │
 └── adapters/        # Technical implementations (flat, no subdirs)
@@ -114,7 +115,11 @@ This makes navigation and understanding instant.
 ### Core Modules (Required)
 1. **auth** - Registration, login, sessions
 2. **user** - User profiles, roles
-3. **post** - Create/read/update/delete posts, categories
+3. **post** - Create/read/update/delete posts, categories, filtering
+   - **FilterService**: Dedicated application service for post filtering logic
+   - Supports filtering by category, user, liked posts, and date range
+   - Date filters: Today, This Week, This Month, All Time
+   - Uses `FilterParams` for query parameter parsing and `PostFilter` for repository queries
 4. **comment** - Comments on posts
 5. **reaction** - Like/dislike posts and comments
 

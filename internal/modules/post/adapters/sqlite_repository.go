@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"forum/internal/modules/post/domain"
 	"forum/internal/modules/post/ports"
+
+	"github.com/gofrs/uuid/v5"
 )
 
 // SQLitePostRepository implements the PostRepository interface using SQLite.
@@ -21,39 +23,218 @@ func NewSQLitePostRepository(db *sql.DB) ports.PostRepository {
 }
 
 // Create stores a new post in the database.
-// TODO: Implement post creation with categories.
 func (r *SQLitePostRepository) Create(ctx context.Context, post *domain.Post) error {
-	// Implementation placeholder
-	// 1. INSERT INTO posts (user_id, title, content, image_url, created_at)
-	// 2. Get inserted post ID
-	// 3. INSERT INTO post_categories for each category
-	return nil
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Generate public UUID
+	publicID, err := uuid.NewV4()
+	if err != nil {
+		return fmt.Errorf("failed to generate UUID: %w", err)
+	}
+	post.PublicID = publicID.String()
+
+	// Insert post
+	query := `
+		INSERT INTO posts (public_id, title, content, author_id, image_path, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`
+	var imagePath *string
+	if post.ImageURL != "" {
+		imagePath = &post.ImageURL
+	}
+
+	result, err := tx.ExecContext(ctx, query,
+		post.PublicID,
+		post.Title,
+		post.Content,
+		post.UserID,
+		imagePath,
+		post.CreatedAt,
+		post.UpdatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to insert post: %w", err)
+	}
+
+	// Get the auto-generated internal ID
+	postID, err := result.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("failed to get post ID: %w", err)
+	}
+	post.ID = int(postID)
+
+	// Insert post-category associations
+	for _, categoryName := range post.Categories {
+		// Get category internal ID by name (case-insensitive)
+		var categoryID int
+		err := tx.QueryRowContext(ctx, "SELECT id FROM categories WHERE LOWER(name) = LOWER(?)", categoryName).Scan(&categoryID)
+		if err != nil {
+			return fmt.Errorf("category %s not found: %w", categoryName, err)
+		}
+
+		// Insert association using internal IDs
+		_, err = tx.ExecContext(ctx, "INSERT INTO post_categories (post_id, category_id) VALUES (?, ?)",
+			post.ID, categoryID)
+		if err != nil {
+			return fmt.Errorf("failed to insert post-category association: %w", err)
+		}
+	}
+
+	return tx.Commit()
 }
 
 // GetByID retrieves a post by ID with its categories.
-// TODO: Implement post retrieval with categories.
 func (r *SQLitePostRepository) GetByID(ctx context.Context, postID string) (*domain.Post, error) {
-	// Implementation placeholder
-	// 1. SELECT post from posts WHERE id = ?
-	// 2. SELECT categories from post_categories JOIN categories
-	// 3. Combine into Post entity
-	return nil, nil
+	query := `
+		SELECT 
+			p.id, p.public_id, p.title, p.content, p.author_id, p.image_path,
+			p.created_at, p.updated_at,
+			u.public_id as user_public_id, u.username,
+			COALESCE(like_counts.count, 0) as like_count,
+			COALESCE(dislike_counts.count, 0) as dislike_count,
+			COALESCE(comment_counts.count, 0) as comment_count
+		FROM posts p
+		LEFT JOIN users u ON p.author_id = u.id
+		LEFT JOIN (
+			SELECT target_id, COUNT(*) as count 
+			FROM reactions 
+			WHERE target_type = 'post' AND type = 'like'
+			GROUP BY target_id
+		) like_counts ON p.id = like_counts.target_id
+		LEFT JOIN (
+			SELECT target_id, COUNT(*) as count 
+			FROM reactions 
+			WHERE target_type = 'post' AND type = 'dislike'
+			GROUP BY target_id
+		) dislike_counts ON p.id = dislike_counts.target_id
+		LEFT JOIN (
+			SELECT post_id, COUNT(*) as count 
+			FROM comments 
+			GROUP BY post_id
+		) comment_counts ON p.id = comment_counts.post_id
+		WHERE p.public_id = ?
+	`
+
+	var post domain.Post
+	var imageURL sql.NullString
+	var username sql.NullString
+	var userPublicID sql.NullString
+
+	err := r.db.QueryRowContext(ctx, query, postID).Scan(
+		&post.ID,
+		&post.PublicID,
+		&post.Title,
+		&post.Content,
+		&post.UserID,
+		&imageURL,
+		&post.CreatedAt,
+		&post.UpdatedAt,
+		&userPublicID,
+		&username,
+		&post.LikeCount,
+		&post.DislikeCount,
+		&post.CommentCount,
+	)
+	if err == sql.ErrNoRows {
+		return nil, domain.ErrPostNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to query post: %w", err)
+	}
+
+	if imageURL.Valid {
+		post.ImageURL = "/static/uploads/" + imageURL.String
+	}
+	if username.Valid {
+		post.AuthorUsername = username.String
+		post.Author = username.String // Set both fields for compatibility
+	}
+	if userPublicID.Valid {
+		post.UserPublicID = userPublicID.String
+	}
+
+	// Load categories
+	categories, err := r.getPostCategories(ctx, post.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get categories: %w", err)
+	}
+	post.Categories = categories
+
+	return &post, nil
 }
 
 // Update updates an existing post.
-// TODO: Implement post update.
 func (r *SQLitePostRepository) Update(ctx context.Context, post *domain.Post) error {
-	// Implementation placeholder
-	// UPDATE posts SET title=?, content=?, updated_at=CURRENT_TIMESTAMP WHERE id=?
-	return nil
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	query := `
+		UPDATE posts 
+		SET title = ?, content = ?, updated_at = ?
+		WHERE id = ?
+	`
+
+	result, err := tx.ExecContext(ctx, query, post.Title, post.Content, post.UpdatedAt, post.ID)
+	if err != nil {
+		return fmt.Errorf("failed to update post: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rows == 0 {
+		return domain.ErrPostNotFound
+	}
+
+	// Update categories: delete old associations and insert new ones
+	_, err = tx.ExecContext(ctx, "DELETE FROM post_categories WHERE post_id = ?", post.ID)
+	if err != nil {
+		return fmt.Errorf("failed to delete old post-category associations: %w", err)
+	}
+
+	// Insert new post-category associations
+	for _, categoryName := range post.Categories {
+		var categoryID int
+		err := tx.QueryRowContext(ctx, "SELECT id FROM categories WHERE LOWER(name) = LOWER(?)", categoryName).Scan(&categoryID)
+		if err != nil {
+			return fmt.Errorf("category %s not found: %w", categoryName, err)
+		}
+
+		_, err = tx.ExecContext(ctx, "INSERT INTO post_categories (post_id, category_id) VALUES (?, ?)",
+			post.ID, categoryID)
+		if err != nil {
+			return fmt.Errorf("failed to insert post-category association: %w", err)
+		}
+	}
+
+	return tx.Commit()
 }
 
 // Delete removes a post.
-// TODO: Implement post deletion with cascading to related tables.
 func (r *SQLitePostRepository) Delete(ctx context.Context, postID string) error {
-	// Implementation placeholder
-	// DELETE FROM posts WHERE id = ?
-	// (post_categories, comments, reactions should cascade)
+	query := "DELETE FROM posts WHERE public_id = ?"
+
+	result, err := r.db.ExecContext(ctx, query, postID)
+	if err != nil {
+		return fmt.Errorf("failed to delete post: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rows == 0 {
+		return domain.ErrPostNotFound
+	}
+
 	return nil
 }
 
@@ -61,9 +242,9 @@ func (r *SQLitePostRepository) Delete(ctx context.Context, postID string) error 
 func (r *SQLitePostRepository) List(ctx context.Context, filter ports.PostFilter) ([]*domain.Post, error) {
 	query := `
 		SELECT DISTINCT 
-			p.id, p.title, p.content, p.author_id, p.image_path, 
+			p.id, p.public_id, p.title, p.content, p.author_id, p.image_path, 
 			p.created_at, p.updated_at,
-			u.username,
+			u.public_id as user_public_id, u.username,
 			COALESCE(like_counts.count, 0) as like_count,
 			COALESCE(dislike_counts.count, 0) as dislike_count,
 			COALESCE(comment_counts.count, 0) as comment_count
@@ -91,9 +272,9 @@ func (r *SQLitePostRepository) List(ctx context.Context, filter ports.PostFilter
 	var conditions []string
 	var args []interface{}
 
-	// Filter by user (created posts)
+	// Filter by user (created posts) - now using user public_id string
 	if filter.UserID != "" {
-		conditions = append(conditions, "p.author_id = ?")
+		conditions = append(conditions, "u.public_id = ?")
 		args = append(args, filter.UserID)
 	}
 
@@ -113,9 +294,22 @@ func (r *SQLitePostRepository) List(ctx context.Context, filter ports.PostFilter
 	if filter.LikedByUserID != "" {
 		query += `
 		INNER JOIN reactions r ON p.id = r.target_id 
+		INNER JOIN users liked_user ON r.user_id = liked_user.id
 		`
-		conditions = append(conditions, "r.user_id = ? AND r.target_type = 'post' AND r.type = 'like'")
+		conditions = append(conditions, "liked_user.public_id = ? AND r.target_type = 'post' AND r.type = 'like'")
 		args = append(args, filter.LikedByUserID)
+	}
+
+	// Filter by date
+	if filter.DateFilter != "" && filter.DateFilter != "all" {
+		switch filter.DateFilter {
+		case "today":
+			conditions = append(conditions, "DATE(p.created_at) = DATE('now')")
+		case "week":
+			conditions = append(conditions, "p.created_at >= DATE('now', '-7 days')")
+		case "month":
+			conditions = append(conditions, "p.created_at >= DATE('now', '-30 days')")
+		}
 	}
 
 	// Add WHERE conditions
@@ -150,15 +344,18 @@ func (r *SQLitePostRepository) List(ctx context.Context, filter ports.PostFilter
 		var post domain.Post
 		var imageURL sql.NullString
 		var username sql.NullString
+		var userPublicID sql.NullString
 
 		err := rows.Scan(
 			&post.ID,
+			&post.PublicID,
 			&post.Title,
 			&post.Content,
 			&post.UserID,
 			&imageURL,
 			&post.CreatedAt,
 			&post.UpdatedAt,
+			&userPublicID,
 			&username,
 			&post.LikeCount,
 			&post.DislikeCount,
@@ -173,12 +370,16 @@ func (r *SQLitePostRepository) List(ctx context.Context, filter ports.PostFilter
 		}
 		if username.Valid {
 			post.AuthorUsername = username.String
+			post.Author = username.String // Set both fields for compatibility
+		}
+		if userPublicID.Valid {
+			post.UserPublicID = userPublicID.String
 		}
 
 		// Load categories for this post
 		categories, err := r.getPostCategories(ctx, post.ID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get categories for post %s: %w", post.ID, err)
+			return nil, fmt.Errorf("failed to get categories for post %d: %w", post.ID, err)
 		}
 		post.Categories = categories
 
@@ -193,7 +394,7 @@ func (r *SQLitePostRepository) List(ctx context.Context, filter ports.PostFilter
 }
 
 // getPostCategories retrieves category names for a specific post.
-func (r *SQLitePostRepository) getPostCategories(ctx context.Context, postID string) ([]string, error) {
+func (r *SQLitePostRepository) getPostCategories(ctx context.Context, postID int) ([]string, error) {
 	query := `
 		SELECT c.name 
 		FROM categories c
@@ -243,29 +444,91 @@ func NewSQLiteCategoryRepository(db *sql.DB) ports.CategoryRepository {
 }
 
 // Create stores a new category.
-// TODO: Implement category creation.
 func (r *SQLiteCategoryRepository) Create(ctx context.Context, category *domain.Category) error {
-	// INSERT INTO categories (name, description) VALUES (?, ?)
+	// Generate public UUID
+	publicID, err := uuid.NewV4()
+	if err != nil {
+		return fmt.Errorf("failed to generate UUID: %w", err)
+	}
+	category.PublicID = publicID.String()
+
+	query := `
+		INSERT INTO categories (public_id, name, description, created_at)
+		VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+	`
+
+	result, err := r.db.ExecContext(ctx, query, category.PublicID, category.Name, category.Description)
+	if err != nil {
+		return fmt.Errorf("failed to insert category: %w", err)
+	}
+
+	// Get the auto-generated internal ID
+	id, err := result.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("failed to get category ID: %w", err)
+	}
+	category.ID = int(id)
+
 	return nil
 }
 
 // GetByID retrieves a category by ID.
-// TODO: Implement category retrieval by ID.
 func (r *SQLiteCategoryRepository) GetByID(ctx context.Context, categoryID string) (*domain.Category, error) {
-	// SELECT id, name, description FROM categories WHERE id = ?
-	return nil, nil
+	query := "SELECT id, public_id, name, description FROM categories WHERE public_id = ?"
+
+	var category domain.Category
+	var description sql.NullString
+
+	err := r.db.QueryRowContext(ctx, query, categoryID).Scan(
+		&category.ID,
+		&category.PublicID,
+		&category.Name,
+		&description,
+	)
+	if err == sql.ErrNoRows {
+		return nil, domain.ErrCategoryNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to query category: %w", err)
+	}
+
+	if description.Valid {
+		category.Description = description.String
+	}
+
+	return &category, nil
 }
 
-// GetByName retrieves a category by name.
-// TODO: Implement category retrieval by name.
+// GetByName retrieves a category by name (case-insensitive).
 func (r *SQLiteCategoryRepository) GetByName(ctx context.Context, name string) (*domain.Category, error) {
-	// SELECT id, name, description FROM categories WHERE name = ?
-	return nil, nil
+	query := "SELECT id, public_id, name, description FROM categories WHERE LOWER(name) = LOWER(?)"
+
+	var category domain.Category
+	var description sql.NullString
+
+	err := r.db.QueryRowContext(ctx, query, name).Scan(
+		&category.ID,
+		&category.PublicID,
+		&category.Name,
+		&description,
+	)
+	if err == sql.ErrNoRows {
+		return nil, domain.ErrCategoryNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to query category: %w", err)
+	}
+
+	if description.Valid {
+		category.Description = description.String
+	}
+
+	return &category, nil
 }
 
 // List retrieves all categories.
 func (r *SQLiteCategoryRepository) List(ctx context.Context) ([]*domain.Category, error) {
-	query := "SELECT id, name, description FROM categories ORDER BY name"
+	query := "SELECT id, public_id, name, description FROM categories ORDER BY name"
 
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
@@ -278,7 +541,7 @@ func (r *SQLiteCategoryRepository) List(ctx context.Context) ([]*domain.Category
 		var category domain.Category
 		var description sql.NullString
 
-		err := rows.Scan(&category.ID, &category.Name, &description)
+		err := rows.Scan(&category.ID, &category.PublicID, &category.Name, &description)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan category: %w", err)
 		}
@@ -298,8 +561,21 @@ func (r *SQLiteCategoryRepository) List(ctx context.Context) ([]*domain.Category
 }
 
 // Delete removes a category.
-// TODO: Implement category deletion.
 func (r *SQLiteCategoryRepository) Delete(ctx context.Context, categoryID string) error {
-	// DELETE FROM categories WHERE id = ?
+	query := "DELETE FROM categories WHERE public_id = ?"
+
+	result, err := r.db.ExecContext(ctx, query, categoryID)
+	if err != nil {
+		return fmt.Errorf("failed to delete category: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rows == 0 {
+		return domain.ErrCategoryNotFound
+	}
+
 	return nil
 }

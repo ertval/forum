@@ -1,79 +1,70 @@
 {{define "content"}}
-<div class="home">
-    <div class="filters">
-        <h2>Filter Posts</h2>
-        <form method="GET" action="/">
-            <div class="filter-group">
-                <label for="category">Category:</label>
-                <select name="category" id="category">
-                    <option value="">All Categories</option>
-                    {{range .Categories}}
-                        <option value="{{.Name}}" {{if eq $.SelectedCategory .Name}}selected{{end}}>{{.Name}}</option>
-                    {{end}}
-                </select>
-            </div>
-            
-            {{if .User}}
-            <div class="filter-group">
-                <label>
-                    <input type="checkbox" name="my_posts" value="true" {{if .MyPosts}}checked{{end}}>
-                    My Posts
-                </label>
-            </div>
-            <div class="filter-group">
-                <label>
-                    <input type="checkbox" name="liked_posts" value="true" {{if .LikedPosts}}checked{{end}}>
-                    Posts I Liked
-                </label>
-            </div>
-            {{end}}
-            
-            <button type="submit">Apply Filters</button>
-        </form>
-    </div>
+<div class="home-grid">
+    <h2 class="home-title">Latest Posts</h2>
 
-    <div class="posts">
-        <h2>Posts</h2>
-        
-        {{if .Posts}}
-            {{range .Posts}}
-            <article class="post-card">
-                <div class="post-header">
-                    <h3><a href="/posts/{{.ID}}">{{.Title}}</a></h3>
-                    <div class="post-meta">
-                        <span class="author">by {{.AuthorUsername}}</span>
-                        <span class="date">{{.CreatedAt.Format "Jan 02, 2006"}}</span>
+    {{if .Posts}}
+    <div class="home-posts-grid">
+        {{range .Posts}}
+            <article class="post-card-compact">
+                <div class="post-header-compact">
+                    <h3><a href="/posts/{{.PublicID}}">{{.Title}}</a></h3>
+                    <div class="post-meta-compact">
+                        <span class="author-compact">by {{.AuthorUsername}}</span>
+                        <span class="date-compact">{{.CreatedAt.Format "Jan 02, 2006"}}</span>
                     </div>
                 </div>
-                
+
                 {{if .ImageURL}}
-                <div class="post-image">
+                <div class="post-image-compact">
                     <img src="{{.ImageURL}}" alt="{{.Title}}">
                 </div>
                 {{end}}
-                
-                <div class="post-content">
+
+                <div class="post-content-compact">
                     <p>{{.Content}}</p>
                 </div>
-                
-                <div class="post-footer">
-                    <div class="categories">
+
+                <div class="post-footer-compact">
+                    <div class="categories-compact">
                         {{range .Categories}}
-                            <span class="category-tag">{{.}}</span>
+                            <a class="category-tag-compact" href="?category={{urlquery .}}">{{.}}</a>
                         {{end}}
                     </div>
-                    
-                    <div class="post-actions">
-                        <span class="likes">👍 {{.LikeCount}}</span>
-                        <span class="dislikes">👎 {{.DislikeCount}}</span>
-                        <span class="comments">💬 {{.CommentCount}}</span>
+
+                    <div class="post-actions-compact">
+                        <span class="likes-compact">👍 {{.LikeCount}}</span>
+                        <span class="dislikes-compact">👎 {{.DislikeCount}}</span>
+                        <span class="comments-compact">💬 {{.CommentCount}}</span>
                     </div>
                 </div>
             </article>
-            {{end}}
-        {{else}}
-            <p class="no-posts">No posts found. {{if .User}}<a href="/posts/new">Create the first post!</a>{{else}}<a href="/register">Register</a> to create posts.{{end}}</p>
         {{end}}
     </div>
+
+    <div id="additional-posts-container" class="home-posts-grid">
+        <!-- Additional posts will be loaded here -->
+    </div>
+
+    <hr class="divider">
+    <div class="load-more-container">
+        <button id="load-more-btn"
+            class="btn btn-primary"
+            data-offset="{{len .Posts}}"
+            data-category="{{if .SelectedCategory}}{{.SelectedCategory}}{{end}}"
+            data-my-posts="{{.MyPosts}}"
+            data-liked-posts="{{.LikedPosts}}">Show More</button>
+        {{if .User}}
+        <a href="/posts/new" class="btn btn-secondary">Create Post</a>
+        {{end}}
+    </div>
+    {{else}}
+    <div class="no-posts-home">
+        <p>No posts yet. {{if .User}}<a href="/posts/new">Create the first post!</a>{{else}}<a href="/register">Register</a> to create posts.{{end}}</p>
+    </div>
+    {{end}}
 </div>
+{{end}}
+
+{{define "scripts"}}
+<script src="/static/js/load-more-posts.js"></script>
 {{end}}

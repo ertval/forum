@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
+	authAdapters "forum/internal/modules/auth/adapters"
 	"forum/internal/modules/auth/application"
 	authDomain "forum/internal/modules/auth/domain"
-	authAdapters "forum/internal/modules/auth/adapters"
 	userAdapters "forum/internal/modules/user/adapters"
 	"forum/internal/platform/config"
+
 	_ "github.com/mattn/go-sqlite3" // Import SQLite driver
 )
 
@@ -40,19 +41,23 @@ func TestAuthIntegration(t *testing.T) {
 	// This replicates what the migrations do
 	_, err = db.Exec(`
 		CREATE TABLE users (
-			id INTEGER PRIMARY KEY,
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			public_id TEXT UNIQUE NOT NULL,
 			email TEXT UNIQUE NOT NULL,
 			username TEXT UNIQUE NOT NULL,
 			password_hash TEXT NOT NULL,
 			role TEXT NOT NULL DEFAULT 'user',
 			oauth_provider TEXT,
 			oauth_provider_id TEXT,
+			post_count INTEGER NOT NULL DEFAULT 0,
+			comment_count INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NOT NULL,
 			is_active INTEGER NOT NULL DEFAULT 1
 		);
 		CREATE TABLE sessions (
-			id TEXT PRIMARY KEY,
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			public_id TEXT UNIQUE NOT NULL,
 			user_id INTEGER NOT NULL,
 			token TEXT UNIQUE NOT NULL,
 			expires_at DATETIME NOT NULL,

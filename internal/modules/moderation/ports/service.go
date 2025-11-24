@@ -11,10 +11,11 @@ import (
 // ModerationService defines moderation management use cases.
 type ModerationService interface {
 	// CreateReport creates a new moderation report.
-	CreateReport(ctx context.Context, reporterID, targetID int, targetType, reason string) error
+	// reporterID: internal user ID from session, targetPublicID: public UUID of reported content
+	CreateReport(ctx context.Context, reporterID int, targetPublicID string, targetType, reason string) error
 
-	// ReviewReport marks a report as reviewed with a decision.
-	ReviewReport(ctx context.Context, reportID int, decision string) error
+	// ReviewReport marks a report as reviewed with a decision by report's public UUID.
+	ReviewReport(ctx context.Context, reportPublicID string, decision string) error
 
 	// ListReports retrieves reports filtered by status.
 	ListReports(ctx context.Context, status string) ([]*domain.Report, error)

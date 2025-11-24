@@ -4,12 +4,15 @@ package wire
 // It initializes all components and returns a fully configured App instance.
 
 import (
+	"database/sql"
 	"fmt"
 	"forum/internal/platform/config"
 	"forum/internal/platform/database"
+	"forum/internal/platform/health"
 	"forum/internal/platform/httpserver"
 	"forum/internal/platform/logger"
 	"net/http"
+	"os"
 )
 
 // App encapsulates the entire application with all its dependencies.
@@ -54,13 +57,13 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 	repos := initRepositories(db.DB())
 
 	// 3. Initialize Services (Application Layer)
-	services := initServices(repos, cfg.Session.Duration)
+	services := initServices(repos, cfg.Session.Duration, lgr)
 
 	// 4. Initialize HTTP Handlers (Input Adapters)
 	handlers := initHandlers(services)
 
 	// 5. Initialize HTTP Server
-	server := initServer(cfg, lgr, handlers)
+	server := initServer(cfg, lgr, handlers, db.DB())
 
 	lgr.Info("Application initialization complete")
 
@@ -82,7 +85,7 @@ func initDatabase(cfg *config.Config, lgr *logger.Logger) (*database.Connection,
 
 	lgr.Info("Running database migrations")
 	migrator := database.NewMigrator(dbConn)
-	if err := migrator.Migrate("./migrations"); err != nil {
+	if err := migrator.Migrate(cfg.Database.MigrationsDir); err != nil {
 		dbConn.Close()
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
@@ -91,22 +94,22 @@ func initDatabase(cfg *config.Config, lgr *logger.Logger) (*database.Connection,
 }
 
 // initServer creates and configures the HTTP server with all routes and middleware.
-func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers) *httpserver.Server {
+func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *sql.DB) *httpserver.Server {
 	lgr.Info("Initializing HTTP server")
 
 	// Create server with config as single source of truth
 	server := httpserver.New(cfg)
 
-	// Register global middleware
-	server.RegisterMiddleware(httpserver.Recovery())
-	server.RegisterMiddleware(httpserver.Logger())
+	// Register global middleware in correct order: recovery -> logger -> others
+	server.RegisterMiddleware(httpserver.Recovery(lgr))
+	server.RegisterMiddleware(httpserver.Logger(lgr))
 	server.RegisterMiddleware(httpserver.CORS([]string{"*"}))
 	server.RegisterMiddleware(httpserver.RateLimit(
 		cfg.Security.RateLimitRequests,
 		int(cfg.Security.RateLimitWindow.Seconds()),
 	))
 
-	// Register module routes
+	// Register module routes first so they are available for the health check
 	handlers.Auth.RegisterRoutes(server.Router())
 	handlers.User.RegisterRoutes(server.Router())
 	handlers.Post.RegisterRoutes(server.Router())
@@ -115,9 +118,24 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers) *htt
 	handlers.Moderation.RegisterRoutes(server.Router())
 	handlers.Notification.RegisterRoutes(server.Router())
 
-	// Serve static files
-	lgr.Info("Registering static file handler")
-	server.Router().Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
+	// Create health checker after routes are registered
+	healthChecker := health.NewChecker(db, server.Router())
+
+	// Register health check routes with proper configuration
+	server.Router().Handle("GET /health", httpserver.HealthPage(httpserver.HealthPageConfig{
+		Checker:   healthChecker,
+		Templates: handlers.Post.Templates(), // Reuse shared templates
+		AuthFunc:  handlers.Auth.GetCurrentUser,
+	}))
+	server.Router().Handle("GET /health-api", httpserver.HealthAPI(healthChecker))
+
+	// Serve static files (optional - skip if directory doesn't exist)
+	// This allows tests to run without static files
+	lgr.Info("Checking for static directory")
+	if _, err := os.Stat("./static"); err == nil {
+		lgr.Info("Registering static file handler")
+		server.Router().Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
+	}
 
 	return server
 }

@@ -4,18 +4,21 @@ Fast path to functional forum MVP following core requirements, then complete rem
 
 ## Current Status
 
-**Project Phase**: MVP Core Features (60% Complete)
+**Project Phase**: Active development — core features implemented; additional modules scaffolded.
 - ✅ Project structure created
-- ✅ Module scaffolding complete
-- ✅ Database migrations defined
-- ✅ Platform layer fully implemented (config, database, logger, httpserver, errors, validator)
-- ✅ Authentication module fully implemented (registration, login, sessions, validation)
-- ✅ User module domain and repository implemented
-- ⚠️ Most other modules are placeholders with TODO comments
+- ✅ Module scaffolding present for all planned modules
+- ✅ Database migrations defined and applied automatically via wiring
+- ✅ Platform core present (`internal/platform` with `config`, `database`, `logger`, `httpserver`, `errors`, `validator`)
+- ✅ `auth` module implemented (registration, login, sessions, validation). Auth integration tests pass.
+- ✅ `post` and `category` implementations present and exercised by integration tests (create/read, form/multipart flows pass).
+- ✅ `user` module: domain, repository, and GetUserStats implemented. User stats now display correctly in UI.
+- ✅ Filter combinations (My Posts + Category/Date filters) work correctly and preserve state.
+- ⚠️ `comment`, `reaction`, `moderation`, `notification` modules: scaffolding (domain, ports, application, adapters) exists but many `application` methods contain `// TODO:` placeholders and need implementation.
+- 🧪 Tests: Integration tests under `tests/integration` pass; unit tests under `tests/unit` mostly pass but a set of template baseline tests currently fail (template content expectations such as footer text and some navigation elements).
 
 ---
 
-## PART 1: MVP - CORE REQUIREMENTS (Minimal Functional Forum) - 60% Complete
+## PART 1: MVP - CORE REQUIREMENTS (Minimal Functional Forum) - 75% Complete
 
 Focus: Implement essential features from requirements.md to get a working forum ASAP.
 
@@ -95,12 +98,18 @@ Focus: Implement essential features from requirements.md to get a working forum 
   - [x] Return 204 No Content
 
 **Middleware:**
-- [ ] Implement RequireAuth middleware (validate session cookie, inject user into context)
-- [ ] Implement OptionalAuth middleware (for guest vs registered user views)
+- [x] Implement RequireAuth middleware (validate session cookie, inject user into context)
+- [x] Implement OptionalAuth middleware (for guest vs registered user views)
 
 **User Module (Basic):**
 - [x] User domain entity (id, email, username, password_hash, role, created_at)
 - [x] Basic user repository implementation (needed by auth)
+- [x] User stats cached in users table (post_count, comment_count columns)
+- [x] IncrementPostCount/DecrementPostCount repository methods
+- [x] IncrementCommentCount/DecrementCommentCount repository methods
+- [x] User stats updated automatically via async goroutines in post/comment services
+- [x] User stats display in templates (PostCount, CommentCount in user card)
+- [x] UserProfile struct removed - User struct now contains all data
 
 **Files**: `internal/modules/auth/`, `internal/modules/user/domain/`, `internal/modules/user/adapters/sqlite_repository.go`
 
@@ -110,47 +119,71 @@ Focus: Implement essential features from requirements.md to get a working forum 
 
 ---
 
-### Phase 3: Posts - Create & View (REQUIREMENT: Communication - Posts) - NEXT PRIORITY
+### Phase 3: Posts - Create & View (REQUIREMENT: Communication - Posts) ✅ COMPLETE
 
 **Goal**: Registered users can create posts (title + content). All users can view posts.
 
 **Post Module - Domain Layer:**
-- [ ] Post entity (id, user_id, title, content, created_at, updated_at) (post.go)
-- [ ] Domain errors (ErrPostNotFound, ErrUnauthorized, etc.) (errors.go)
+- [x] Post entity (id, user_id, title, content, created_at, updated_at) (post.go)
+- [x] Post validation (title max 300, content max 50000, categories required) (post.go)
+- [x] Category entity (id, name, description) (category.go)
+- [x] Category validation (name max 50, description max 500) (category.go)
+- [x] Domain errors (ErrPostNotFound, ErrEmptyTitle, ErrEmptyContent, ErrNoCategories, etc.) (errors.go)
+- [x] Unit tests for domain validation (post_test.go, category_test.go)
 
 **Post Module - Repository (Output Adapter):**
-- [ ] Implement SQLite post repository (sqlite_repository.go)
-  - [ ] Create(post) - create new post
-  - [ ] GetByID(postID) - retrieve single post
-  - [ ] List(limit, offset) - list all posts with pagination
-  - [ ] Update(post) - edit post
-  - [ ] Delete(postID) - delete post
-  - [ ] GetByUserID(userID) - filter user's posts
+- [x] Implement SQLite post repository (sqlite_repository.go)
+  - [x] Create(post) - create new post with category associations
+  - [x] GetByID(postID) - retrieve single post with categories and counts
+  - [x] List(filter) - list posts with pagination and filtering
+  - [x] Update(post) - edit post and update category associations
+  - [x] Delete(postID) - delete post
+  - [x] GetByUserID(userID) - filter user's posts
+- [x] Implement SQLite category repository (sqlite_repository.go)
+  - [x] Create(category) - create new category
+  - [x] GetByID(categoryID) - retrieve category
+  - [x] GetByName(name) - retrieve category by name
+  - [x] List() - list all categories
+  - [x] ExistsByName(name) - check if category exists
 
 **Post Module - Application Service:**
-- [ ] Implement CreatePost use case
-  - [ ] Validate title and content (not empty)
-  - [ ] Check user is authenticated
-  - [ ] Create post in database
-  - [ ] Return post
-- [ ] Implement GetPost use case
-- [ ] Implement ListPosts use case (with pagination)
-- [ ] Implement UpdatePost use case (only owner can edit)
-- [ ] Implement DeletePost use case (only owner can delete)
+- [x] Implement CreatePost use case
+  - [x] Validate title and content (not empty, length limits)
+  - [x] Validate categories (at least one, all must exist)
+  - [x] Check user is authenticated
+  - [x] Create post in database with category associations
+  - [x] Return post
+- [x] Implement GetPost use case (retrieve post with categories and counts)
+- [x] Implement ListPosts use case (with filtering by category, user)
+- [x] Implement UpdatePost use case (only owner can edit, validates input)
+- [x] Implement DeletePost use case (only owner can delete)
+- [x] Implement FilterService for building complex filters (My Posts + Category + Date)
+- [x] Filter state preservation in templates (hidden form inputs)
+- [x] Unit tests with mock repositories (service_test.go)
 
 **Post Module - HTTP Handlers:**
-- [ ] POST /posts - create post (requires auth)
-- [ ] GET /posts - list all posts (public)
-- [ ] GET /posts/{id} - view single post (public)
-- [ ] PUT /posts/{id} - edit post (requires auth + ownership)
-- [ ] DELETE /posts/{id} - delete post (requires auth + ownership)
+- [x] POST /posts - create post (requires auth, JSON API)
+- [x] GET /posts - list all posts (public, supports filtering)
+- [x] GET /posts/{id} - view single post (public)
+- [x] PUT /posts/{id} - edit post (requires auth + ownership)
+- [x] DELETE /posts/{id} - delete post (requires auth + ownership)
+- [x] GET / - homepage with post list
+- [x] Routes wrapped with RequireAuth middleware for protected endpoints
+
+**Integration Tests:**
+- [x] TestPostCreationAndRetrieval - create and retrieve post
+- [x] TestUnauthorizedPostCreation - verify guests cannot create posts
+- [x] TestEmptyPostValidation - verify empty posts are rejected
 
 **Frontend (Basic Templates):**
-- [ ] templates/base.html - base layout with navigation
-- [ ] templates/home.html - post list view
-- [ ] templates/post_create.html - create post form
-- [ ] templates/post_view.html - single post view
-- [ ] Basic CSS styling (static/css/style.css)
+- [x] templates/base.html - base layout with navigation, user card, filter cards
+- [x] templates/home.html - post list view
+- [x] templates/board.html - board page with filtering
+- [x] templates/post_create.html - create post form
+- [x] templates/post_detail.html - single post view
+- [x] Filter combination support (My Posts + Category + Date filters)
+- [x] Filter state preservation in user action buttons
+- [x] Basic CSS styling (static/css/style.css)
 
 **Files**: `internal/modules/post/`, `templates/`, `static/css/`
 
@@ -319,33 +352,41 @@ Add remaining features from requirements.md to meet all mandatory requirements.
 
 ---
 
-### Phase 8: Filtering (REQUIREMENT: Filter)
+### Phase 8: Filtering (REQUIREMENT: Filter) ✅ COMPLETE
 
-**Goal**: Filter posts by categories, created posts, liked posts
+**Goal**: Filter posts by categories, created posts, liked posts, and date range
 
 **Post Module - Repository:**
-- [ ] Add filter methods to post repository
-  - [ ] FilterByCategory(categoryID, limit, offset)
-  - [ ] FilterByUser(userID, limit, offset) - user's created posts
-  - [ ] FilterByLiked(userID, limit, offset) - user's liked posts (use reaction repo)
+- [x] Add filter methods to post repository
+  - [x] FilterByCategory(categoryID, limit, offset)
+  - [x] FilterByUser(userID, limit, offset) - user's created posts
+  - [x] FilterByLiked(userID, limit, offset) - user's liked posts (use reaction repo)
+  - [x] FilterByDate(dateFilter) - filter by today, week, month, or all time
 
 **Post Module - Application Service:**
-- [ ] Implement FilterPosts use case with filter options
+- [x] Implement FilterService with BuildFilter and ApplyDateFilter use cases
+- [x] FilterParams struct for query parameters
+- [x] Unit tests for FilterService
 
 **Post Module - HTTP Handlers:**
-- [ ] GET /posts?category={id} - filter by category (public)
-- [ ] GET /posts?created_by=me - filter user's posts (requires auth)
-- [ ] GET /posts?liked_by=me - filter user's liked posts (requires auth)
+- [x] GET /posts?category={name} - filter by category (public)
+- [x] GET /board?user={id} - filter by user's posts (public)
+- [x] GET /board?liked_posts=true - filter user's liked posts (requires auth)
+- [x] GET /board?date_filter={today|week|month|all} - filter by date range
 
 **Frontend:**
-- [ ] Add filter UI to home page
-- [ ] Add navigation for filter options
+- [x] Add filter UI to board page with category dropdown
+- [x] Add date filter dropdown (Today, This Week, This Month, All Time)
+- [x] Remove "My Posts" checkbox from filters
+- [x] Add "My Posts" button to user card sidebar
+- [x] Add "My Comments" placeholder button to user card sidebar
+- [x] Update create post template to match edit page sidebar layout
 
-**Files**: `internal/modules/post/adapters/sqlite_repository.go`, `internal/modules/post/adapters/http_handler.go`
+**Files**: `internal/modules/post/adapters/sqlite_repository.go`, `internal/modules/post/adapters/http_handler.go`, `internal/modules/post/application/filter_service.go`, `templates/base.html`, `templates/post_create.html`
 
-**Deliverable**: Users can filter posts by category, created posts, liked posts.
+**Deliverable**: Users can filter posts by category, created posts, liked posts, and date range through dedicated filter service.
 
-**Time**: 1-2 days
+**Time**: ✅ Completed
 
 ---
 
@@ -695,7 +736,7 @@ Implement optional features after core requirements are complete.
 | Phase 5: Categories & Association | ⏳ Scaffolding | 5% |
 | Phase 6: Comments | ⏳ Scaffolding | 5% |
 | Phase 7: Reactions | ⏳ Scaffolding | 5% |
-| Phase 8: Filtering | ❌ Not Started | 0% |
+| Phase 8: Filtering | ✅ Complete | 100% |
 | Phase 9: Docker Requirement | ⏳ Partial | 30% |
 | Phase 10: Testing & Error Handling | ⏳ Scaffolding | 5% |
 | **PART 3: BONUS FEATURES** |

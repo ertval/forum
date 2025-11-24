@@ -10,17 +10,18 @@ import (
 // ReactionRepository defines the data access contract for reactions.
 type ReactionRepository interface {
 	// Create stores a new reaction in the repository.
+	// Must generate and set PublicID (UUID) before persisting.
 	Create(ctx context.Context, reaction *domain.Reaction) error
 
-	// Delete removes a user's reaction from a target.
-	Delete(ctx context.Context, userID, targetID int, targetType string) error
+	// DeleteByTargetPublicID removes a user's reaction from a target by target's public UUID.
+	DeleteByTargetPublicID(ctx context.Context, userID int, targetPublicID string, targetType string) error
 
-	// GetByTarget retrieves all reactions for a specific target.
-	GetByTarget(ctx context.Context, targetID int, targetType string) ([]*domain.Reaction, error)
+	// GetByTargetPublicID retrieves all reactions for a specific target by its public UUID.
+	GetByTargetPublicID(ctx context.Context, targetPublicID string, targetType string) ([]*domain.Reaction, error)
 
-	// GetByUserAndTarget retrieves a user's reaction for a specific target.
-	GetByUserAndTarget(ctx context.Context, userID, targetID int, targetType string) (*domain.Reaction, error)
+	// GetByUserAndTargetPublicID retrieves a user's reaction for a specific target by target's public UUID.
+	GetByUserAndTargetPublicID(ctx context.Context, userID int, targetPublicID string, targetType string) (*domain.Reaction, error)
 
-	// Count returns the number of reactions of a specific type for a target.
-	Count(ctx context.Context, targetID int, targetType string, reactionType domain.ReactionType) (int, error)
+	// CountByTargetPublicID returns the number of reactions of a specific type for a target by its public UUID.
+	CountByTargetPublicID(ctx context.Context, targetPublicID string, targetType string, reactionType domain.ReactionType) (int, error)
 }

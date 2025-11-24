@@ -6,13 +6,17 @@ import "time"
 
 // Report represents a moderation report for inappropriate content.
 type Report struct {
-	ID         int       // Unique report identifier
-	ReporterID int       // ID of the user who created the report
-	TargetID   int       // ID of the reported content (post or comment)
-	TargetType string    // Type of target: "post" or "comment"
-	Reason     string    // Reason for the report
-	Status     string    // Report status: "pending", "reviewed", "resolved"
-	CreatedAt  time.Time // Report creation timestamp
+	ID         int       `json:"-"`           // Internal unique identifier (INT PRIMARY KEY)
+	PublicID   string    `json:"id"`          // Public UUID identifier (exposed in API)
+	ReporterID int       `json:"-"`           // Internal ID of the user who created the report
+	TargetID   int       `json:"-"`           // Internal ID of the reported content (post or comment)
+	TargetType string    `json:"target_type"` // Type of target: "post" or "comment"
+	Reason     string    `json:"reason"`      // Reason for the report
+	Status     string    `json:"status"`      // Report status: "pending", "reviewed", "resolved"
+	CreatedAt  time.Time `json:"created_at"`  // Report creation timestamp
+	// For API responses - public UUIDs of related entities
+	PublicReporterID string `json:"reporter_id,omitempty"` // Public UUID of reporter
+	PublicTargetID   string `json:"target_id,omitempty"`   // Public UUID of reported content
 }
 
 // ReportStatus constants

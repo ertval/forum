@@ -1,0 +1,60 @@
+{{define "content"}}
+<div class="posts">
+    <h2>{{.PageTitle}}</h2>
+
+    {{if .Posts}}
+        {{range .Posts}}
+        <article class="post-card">
+            <div class="post-header">
+                <h3><a href="/posts/{{.PublicID}}">{{.Title}}</a></h3>
+                <div class="post-meta">
+                    <span class="author">by {{.AuthorUsername}}</span>
+                    <span class="date">{{.CreatedAt.Format "Jan 02, 2006"}}</span>
+                </div>
+            </div>
+
+            {{if .ImageURL}}
+            <div class="post-image">
+                <img src="{{.ImageURL}}" alt="{{.Title}}">
+            </div>
+            {{end}}
+
+            <div class="post-content">
+                <p>{{.Content}}</p>
+            </div>
+
+            <div class="post-footer">
+                <div class="categories">
+                    {{range .Categories}}
+                        <a class="category-tag" href="/board?category={{urlquery .}}">{{.}}</a>
+                    {{end}}
+                </div>
+
+                <div class="post-actions">
+                    <span class="likes">👍 {{.LikeCount}}</span>
+                    <span class="dislikes">👎 {{.DislikeCount}}</span>
+                    <span class="comments">💬 {{.CommentCount}}</span>
+                </div>
+            </div>
+        </article>
+        {{end}}
+    {{else}}
+        <p class="no-posts">No posts found. {{if .User}}<a href="/posts/new">Create the first post!</a>{{else}}<a href="/register">Register</a> to create posts.{{end}}</p>
+    {{end}}
+
+    {{if .Posts}}
+        <div class="load-more-container">
+            <button id="load-more-btn"
+                    class="btn btn-primary"
+                    data-offset="{{len .Posts}}"
+                    data-category="{{if .SelectedCategory}}{{.SelectedCategory}}{{end}}"
+                    data-my-posts="{{.MyPosts}}"
+                    data-liked-posts="{{.LikedPosts}}">Show More</button>
+        </div>
+    {{end}}
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script src="/static/js/load-more-posts.js"></script>
+{{end}}

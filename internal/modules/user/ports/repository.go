@@ -12,8 +12,11 @@ type UserRepository interface {
 	// Create stores a new user in the repository.
 	Create(ctx context.Context, user *domain.User) error
 
-	// GetByID retrieves a user by their ID.
+	// GetByID retrieves a user by their internal ID (for internal use only).
 	GetByID(ctx context.Context, userID int) (*domain.User, error)
+
+	// GetByPublicID retrieves a user by their public UUID (for external API access).
+	GetByPublicID(ctx context.Context, publicID string) (*domain.User, error)
 
 	// GetByEmail retrieves a user by their email address.
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
@@ -38,4 +41,16 @@ type UserRepository interface {
 
 	// ExistsByUsername checks if a user with the given username exists.
 	ExistsByUsername(ctx context.Context, username string) (bool, error)
+
+	// IncrementPostCount atomically increments the user's post count.
+	IncrementPostCount(ctx context.Context, userID int) error
+
+	// DecrementPostCount atomically decrements the user's post count.
+	DecrementPostCount(ctx context.Context, userID int) error
+
+	// IncrementCommentCount atomically increments the user's comment count.
+	IncrementCommentCount(ctx context.Context, userID int) error
+
+	// DecrementCommentCount atomically decrements the user's comment count.
+	DecrementCommentCount(ctx context.Context, userID int) error
 }

@@ -5,8 +5,13 @@ package adapters
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
+
+	authDomain "forum/internal/modules/auth/domain"
 	"forum/internal/modules/auth/ports"
+	userPorts "forum/internal/modules/user/ports"
 	"html/template"
 	"net/http"
 	"time"
@@ -16,6 +21,7 @@ import (
 // It receives HTTP requests, validates input, calls the service, and returns responses.
 type HTTPHandler struct {
 	authService ports.AuthService
+	userService userPorts.UserService
 	templates   *template.Template
 }
 
@@ -23,27 +29,52 @@ type HTTPHandler struct {
 // This allows the handler to receive all services but only use what it needs.
 type ServiceContainer interface {
 	Auth() ports.AuthService
+	User() userPorts.UserService
 }
 
 // NewHTTPHandler creates a new HTTP handler for authentication with unified dependency injection.
 func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
 	return &HTTPHandler{
 		authService: services.Auth(),
+		userService: services.User(),
 		templates:   templates,
 	}
 }
 
+// GetCurrentUser extracts user info from session cookie (helper for other handlers).
+// Returns userID and username, or (0, "") if not authenticated.
+func (h *HTTPHandler) GetCurrentUser(r *http.Request) (userID int, username string) {
+	cookie, err := r.Cookie("session_token")
+	if err != nil || cookie.Value == "" {
+		return 0, ""
+	}
+
+	session, err := h.authService.ValidateSession(r.Context(), cookie.Value)
+	if err != nil || session == nil {
+		return 0, ""
+	}
+
+	// Fetch username from user service
+	user, err := h.userService.GetByID(r.Context(), session.UserID)
+	if err != nil || user == nil {
+		return session.UserID, "" // Return ID even if username fetch fails
+	}
+
+	return session.UserID, user.Username
+}
+
 // RegisterRoutes registers all authentication routes with the router.
 func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
+	// API routes (return JSON)
 	router.HandleFunc("POST /auth/register", h.RegisterAPI)
 	router.HandleFunc("POST /auth/login", h.LoginAPI)
-	router.HandleFunc("POST /auth/logout", h.Logout)
-	router.HandleFunc("GET /auth/session", h.GetSession)
+	router.HandleFunc("POST /auth/logout", h.LogoutAPI)
+	router.HandleFunc("GET /auth/session", h.GetSessionAPI)
 
-	// Frontend routes for auth pages
+	// Page routes (render HTML or redirect)
 	router.HandleFunc("GET /login", h.LoginPage)
 	router.HandleFunc("GET /register", h.RegisterPage)
-	router.HandleFunc("GET /logout", h.FrontendLogout)
+	router.HandleFunc("GET /logout", h.LogoutPage)
 }
 
 // RegisterAPI handles user registration API requests.
@@ -62,7 +93,27 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 	// Call the service to register the user
 	userID, session, err := h.authService.Register(r.Context(), req.Email, req.Username, req.Password)
 	if err != nil {
-		h.writeError(w, http.StatusConflict, err.Error())
+		// Differentiate between validation errors (400) and conflict errors (409)
+		switch {
+		case errors.Is(err, authDomain.ErrInvalidEmail),
+			errors.Is(err, authDomain.ErrWeakPassword),
+			errors.Is(err, authDomain.ErrInvalidUsername):
+			h.writeError(w, http.StatusBadRequest, err.Error())
+		case errors.Is(err, authDomain.ErrUserAlreadyExists):
+			h.writeError(w, http.StatusConflict, err.Error())
+		default:
+			// Check if error message contains validation keywords
+			errMsg := err.Error()
+			if strings.Contains(errMsg, "empty") || strings.Contains(errMsg, "invalid") ||
+				strings.Contains(errMsg, "required") || strings.Contains(errMsg, "format") ||
+				strings.Contains(errMsg, "too long") || strings.Contains(errMsg, "too short") {
+				h.writeError(w, http.StatusBadRequest, errMsg)
+			} else if strings.Contains(errMsg, "already exists") || strings.Contains(errMsg, "duplicate") || strings.Contains(errMsg, "taken") {
+				h.writeError(w, http.StatusConflict, errMsg)
+			} else {
+				h.writeError(w, http.StatusConflict, errMsg)
+			}
+		}
 		return
 	}
 
@@ -77,15 +128,26 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	// Return success response
+	// Fetch user to get PublicID
+	user, err := h.userService.GetByID(r.Context(), userID)
+	if err != nil {
+		h.writeError(w, http.StatusInternalServerError, "Failed to retrieve user information")
+		return
+	}
+
+	// Return success response with public UUID
 	resp := struct {
-		UserID int    `json:"user_id"`
-		Email  string `json:"email"`
-		Token  string `json:"token"`
+		ID       string `json:"id"`
+		UserID   string `json:"user_id"`
+		Email    string `json:"email"`
+		Username string `json:"username"`
+		Token    string `json:"token"`
 	}{
-		UserID: userID,
-		Email:  req.Email,
-		Token:  session.Token,
+		ID:       user.PublicID,
+		UserID:   user.PublicID,
+		Email:    req.Email,
+		Username: req.Username,
+		Token:    session.Token,
 	}
 
 	h.writeJSON(w, http.StatusCreated, resp)
@@ -121,22 +183,33 @@ func (h *HTTPHandler) LoginAPI(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	// Return success response
+	// Fetch user to get PublicID
+	user, err := h.userService.GetByID(r.Context(), session.UserID)
+	if err != nil {
+		h.writeError(w, http.StatusInternalServerError, "Failed to retrieve user information")
+		return
+	}
+
+	// Return success response with public UUID
 	resp := struct {
-		UserID int    `json:"user_id"`
-		Email  string `json:"email"`
-		Token  string `json:"token"`
+		ID       string `json:"id"`
+		UserID   string `json:"user_id"`
+		Email    string `json:"email"`
+		Username string `json:"username"`
+		Token    string `json:"token"`
 	}{
-		UserID: session.UserID,
-		Email:  req.Email,
-		Token:  session.Token,
+		ID:       user.PublicID,
+		UserID:   user.PublicID,
+		Email:    user.Email,
+		Username: user.Username,
+		Token:    session.Token,
 	}
 
 	h.writeJSON(w, http.StatusOK, resp)
 }
 
-// Logout handles user logout requests.
-func (h *HTTPHandler) Logout(w http.ResponseWriter, r *http.Request) {
+// LogoutAPI handles user logout requests.
+func (h *HTTPHandler) LogoutAPI(w http.ResponseWriter, r *http.Request) {
 	// Get session token from cookie
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
@@ -170,8 +243,8 @@ func (h *HTTPHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetSession retrieves the current session information.
-func (h *HTTPHandler) GetSession(w http.ResponseWriter, r *http.Request) {
+// GetSessionAPI retrieves the current session information.
+func (h *HTTPHandler) GetSessionAPI(w http.ResponseWriter, r *http.Request) {
 	// Get session token from cookie
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
@@ -186,13 +259,20 @@ func (h *HTTPHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return session info
+	// Fetch user to get PublicID
+	user, err := h.userService.GetByID(r.Context(), session.UserID)
+	if err != nil {
+		h.writeError(w, http.StatusInternalServerError, "Failed to retrieve user information")
+		return
+	}
+
+	// Return session info with public UUID
 	resp := struct {
-		UserID    int       `json:"user_id"`
+		UserID    string    `json:"user_id"`
 		Token     string    `json:"token"`
 		ExpiresAt time.Time `json:"expires_at"`
 	}{
-		UserID:    session.UserID,
+		UserID:    user.PublicID,
 		Token:     session.Token,
 		ExpiresAt: session.ExpiresAt,
 	}
@@ -202,24 +282,44 @@ func (h *HTTPHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 
 // LoginPage renders the login page.
 func (h *HTTPHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
-	// Execute the login template directly
-	if err := h.templates.ExecuteTemplate(w, "login.html", nil); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to render login page: %v", err), http.StatusInternalServerError)
+	data := map[string]interface{}{
+		"Title": "Login",
+	}
+
+	// Parse base and login templates together for this specific page
+	tmpl, err := template.ParseFiles("templates/base.html", "templates/login.html")
+	if err != nil {
+		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+		http.Error(w, "Failed to render login page", http.StatusInternalServerError)
 		return
 	}
 }
 
 // RegisterPage renders the registration page.
 func (h *HTTPHandler) RegisterPage(w http.ResponseWriter, r *http.Request) {
-	// Execute the register template directly
-	if err := h.templates.ExecuteTemplate(w, "register.html", nil); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to render register page: %v", err), http.StatusInternalServerError)
+	data := map[string]interface{}{
+		"Title": "Register",
+	}
+
+	// Parse base and register templates together for this specific page
+	tmpl, err := template.ParseFiles("templates/base.html", "templates/register.html")
+	if err != nil {
+		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+		http.Error(w, "Failed to render register page", http.StatusInternalServerError)
 		return
 	}
 }
 
-// FrontendLogout handles the frontend logout by invalidating the session and redirecting.
-func (h *HTTPHandler) FrontendLogout(w http.ResponseWriter, r *http.Request) {
+// LogoutPage handles the frontend logout by invalidating the session and redirecting.
+func (h *HTTPHandler) LogoutPage(w http.ResponseWriter, r *http.Request) {
 	// Get session token from cookie
 	cookie, err := r.Cookie("session_token")
 	if err == nil && cookie.Value != "" {

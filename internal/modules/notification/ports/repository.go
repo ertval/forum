@@ -11,11 +11,13 @@ import (
 // NotificationRepository defines the data access contract for notifications.
 type NotificationRepository interface {
 	// Create stores a new notification in the repository.
+	// Must generate and set PublicID (UUID) before persisting.
 	Create(ctx context.Context, notification *domain.Notification) error
 
 	// GetByUserID retrieves all notifications for a user.
+	// Uses internal userID for query
 	GetByUserID(ctx context.Context, userID int) ([]*domain.Notification, error)
 
-	// MarkAsRead marks a notification as read.
-	MarkAsRead(ctx context.Context, notificationID int) error
+	// MarkAsReadByPublicID marks a notification as read by its public UUID.
+	MarkAsReadByPublicID(ctx context.Context, notificationPublicID string) error
 }

@@ -1,373 +1,534 @@
 # Forum - AI Coding Agent Instructions
 
-## Architecture Overview
+## Quick Reference
 
-This is a **Modular Monolith** Go 1.25+ forum application using **Hexagonal Architecture** (Ports & Adapters). Each module has exactly 4 directories with strict dependency rules.
+**Architecture**: Modular Monolith with Hexagonal Architecture (Ports & Adapters)  
+**Language**: Go 1.24+ with minimal dependencies (SQLite driver, bcrypt, UUID only)  
+**Status**: 85% Complete - Auth, Posts, Categories fully implemented with tests, ID security hardened  
+**Entry Point**: `cmd/forum/main.go` → `cmd/forum/wire/` for all DI wiring  
+**Critical Files**: `docs/ARCHITECTURE.md`, `docs/IMPLEMENTATION_ROADMAP.md`, `docs/UNIFIED_DI_PATTERN.md`, `docs/ID_SECURITY_AUDIT.md`
 
-### Module Structure (Never Deviate)
+---
+
+## 🔒 CRITICAL: ID Security Rules (MUST FOLLOW)
+
+**Schema Pattern**: Internal INT IDs + Public UUID IDs
+
+### The Golden Rules
+
+1. **NEVER expose internal INT IDs** in:
+   - URLs (`?user=123` ❌)
+   - Templates (`.User.ID` if ID is INT ❌)
+   - JavaScript (`userId: 123` ❌)
+   - API responses (`"user_id": 123` ❌)
+
+2. **ALWAYS use UUIDs** for:
+   - URL parameters (`?user=550e8400-e29b-41d4-a716-446655440001` ✅)
+   - Template fields (`.User.PublicID` ✅)
+   - API JSON (`"id": "uuid"` ✅)
+
+3. **Middleware stores UUID**, never INT:
+   ```go
+   // ✅ CORRECT
+   user, err := userService.GetByID(ctx, session.UserID)
+   ctx := context.WithValue(ctx, UserIDKey, user.PublicID)  // UUID string
+   
+   // ❌ WRONG
+   ctx := context.WithValue(ctx, UserIDKey, fmt.Sprintf("%d", session.UserID))  // INT string
+   ```
+
+4. **Handlers convert UUID → INT** for service calls:
+   ```go
+   // ✅ CORRECT
+   userPublicID := authAdapters.GetUserID(r.Context())  // Gets UUID
+   userID, err := h.getInternalUserID(ctx, userPublicID)  // Converts to INT
+   service.CreatePost(ctx, userID, ...)  // Uses INT internally
+   ```
+
+5. **Templates use `.PublicID`**, not `.ID`:
+   ```gohtml
+   <!-- ✅ CORRECT -->
+   <a href="/board?user={{.User.PublicID}}">My Posts</a>
+   {{if eq .User.PublicID .Post.UserPublicID}}
+   
+   <!-- ❌ WRONG -->
+   <a href="/board?user={{.User.ID}}">My Posts</a>
+   ```
+
+6. **JSON uses lowercase `"id"`** for PublicID:
+   ```json
+   {
+     "id": "uuid",        // PublicID (✅)
+     "user_id": "uuid"    // UserPublicID (✅)
+   }
+   ```
+
+**See**: `docs/ID_SECURITY_AUDIT.md`, `docs/ID_SECURITY_FIXES_SUMMARY.md`, `docs/ID_SECURITY_VERIFICATION_REPORT.md` (✅ All issues resolved)
+
+---
+
+## Architecture Pattern: The Hexagon
+
+Each module follows **strict 4-directory structure**:
 
 ```
 internal/modules/{module}/
 ├── domain/          # Pure business logic (stdlib only)
-├── ports/           # Interfaces: service.go (INPUT), repository.go (OUTPUT)
-├── application/     # Business orchestration (implements ports/service.go)
-└── adapters/        # Tech implementations: http_handler.go, sqlite_repository.go
+│   ├── {entity}.go  # Domain entities with Validate()
+│   └── errors.go    # Domain-specific errors (errors.New())
+├── ports/           # Interface definitions (contracts)
+│   ├── service.go   # INPUT PORT - Use case interface
+│   └── repository.go # OUTPUT PORT - Data access interface
+├── application/     # Business logic orchestration
+│   └── service.go   # Implements ports interfaces
+└── adapters/        # Technical implementations (FLAT - no subdirs)
+    ├── http_handler.go       # INPUT ADAPTER - HTTP handlers
+    └── sqlite_repository.go  # OUTPUT ADAPTER - Database access
 ```
 
-### Critical Pattern: Port/Adapter Header Comments
+### Port/Adapter File Headers (MANDATORY)
 
-**Every** file in `ports/` and `adapters/` MUST start with its type declaration:
+Every file in `ports/` and `adapters/` MUST start with:
+- `// INPUT PORT - Service Interface`
+- `// OUTPUT PORT - Repository Interface`
+- `// INPUT ADAPTER - HTTP Handler`
+- `// OUTPUT ADAPTER - SQLite Repository`
 
-```go
-// INPUT PORT - Service Interface          (ports/service.go)
-// OUTPUT PORT - Repository Interface      (ports/repository.go)
-// INPUT ADAPTER - HTTP Handler            (adapters/http_handler.go)
-// OUTPUT ADAPTER - SQLite Repository      (adapters/sqlite_repository.go)
-```
-
-**Reference**: `internal/modules/auth/ports/service.go`, `internal/modules/auth/adapters/http_handler.go`
+**Example**: `internal/modules/auth/ports/service.go` starts with `// INPUT PORT - Service Interface`
 
 ### Dependency Rules (Enforced)
 
 ```
-domain      → stdlib ONLY
+domain      → stdlib ONLY (no imports from project)
 ports       → domain only
 application → domain, ports
-adapters    → domain, ports
+adapters    → domain, ports (never application!)
 ```
 
-**Cross-module**: Import `ports.XService` interface ONLY, never internal implementations.
+Cross-module: Import `ports.XService` interface ONLY. Never import `application/` or `adapters/` from other modules.
 
-## Project Status: ~10% Complete
+---
 
-- ✅ Module scaffolding, migrations, wire package structure complete
-- ⚠️ Most service/handler implementations are `// TODO:` placeholders
-- 📋 See `docs/IMPLEMENTATION_ROADMAP.md` for phase-by-phase implementation order
-- 🎯 When implementing: Replace TODOs with actual logic following reference patterns
+## Critical Workflow: Adding Features (Follow Exactly)
 
-## Critical Workflow: Adding Features
+### 1. Domain Layer First
+```go
+// internal/modules/{module}/domain/{entity}.go
+type Post struct {
+    ID        string
+    Title     string
+    Content   string
+    CreatedAt time.Time
+}
 
-**Follow this EXACT order** (no shortcuts, no deviations):
+func (p *Post) Validate() error {
+    if p.Title == "" { return domain.ErrEmptyTitle }
+    return nil
+}
 
-```bash
-# 1. Domain Layer - Pure business logic
-internal/modules/{module}/domain/{entity}.go      # Entities with validation
-internal/modules/{module}/domain/errors.go        # var Err* = errors.New()
-
-# 2. Ports - Interface contracts (write these BEFORE implementation)
-internal/modules/{module}/ports/service.go        # INPUT PORT: use case methods
-internal/modules/{module}/ports/repository.go     # OUTPUT PORT: data access methods
-
-# 3. Application - Business logic orchestration
-internal/modules/{module}/application/service.go  # Implements ports/service.go
-
-# 4. Adapters - Technical implementations
-internal/modules/{module}/adapters/sqlite_repository.go  # Implements ports/repository.go
-internal/modules/{module}/adapters/http_handler.go       # HTTP layer
-
-# 5. Wire Package - Dependency injection (CRITICAL - often forgotten!)
-cmd/forum/wire/repositories.go    # Add: NewModule: moduleAdapters.NewSQLiteRepository(db)
-cmd/forum/wire/services.go        # Add: NewModule: moduleApp.NewService(repos.NewModule)
-cmd/forum/wire/handlers.go        # Add: NewModule: moduleAdapters.NewHTTPHandler(services.NewModule)
-cmd/forum/wire/app.go (initServer) # Add: handlers.NewModule.RegisterRoutes(server.Router())
-
-# 6. Database (if schema changes needed)
-migrations/NNN_{module}_{action}.sql  # Use -- +migrate Up/Down markers
+// internal/modules/{module}/domain/errors.go
+var ErrEmptyTitle = errors.New("title cannot be empty")
 ```
 
-**Example** - See `cmd/forum/wire/` files showing complete wiring pattern for auth, user, post modules.
+### 2. Define Ports (Interfaces)
+```go
+// internal/modules/{module}/ports/service.go (INPUT PORT)
+type PostService interface {
+    CreatePost(ctx context.Context, userID, title, content string) (*domain.Post, error)
+}
 
-## Dependency Injection Architecture
-
-**All DI lives in `cmd/forum/wire/` package** (called from minimal `main.go`):
-
-```
-main.go (47 lines)
-    ↓ wire.InitializeApp(cfg, lgr)
-    ↓
-wire/app.go:InitializeApp()
-    ├─► initDatabase()       → SQLite + migrations
-    ├─► initRepositories()   → All *Repository (wire/repositories.go)
-    ├─► initServices()       → All *Service (wire/services.go)
-    ├─► initHandlers()       → All *HTTPHandler (wire/handlers.go)
-    └─► initServer()         → Middleware + route registration
+// internal/modules/{module}/ports/repository.go (OUTPUT PORT)
+type PostRepository interface {
+    Create(ctx context.Context, post *domain.Post) error
+}
 ```
 
-**Key Files**:
-- `cmd/forum/wire/app.go` - Orchestration, lifecycle (Start/Shutdown/Cleanup)
-- `cmd/forum/wire/repositories.go` - Output adapters initialization
-- `cmd/forum/wire/services.go` - Application layer initialization
-- `cmd/forum/wire/handlers.go` - Input adapters initialization
+### 3. Implement Application Service
+```go
+// internal/modules/{module}/application/service.go
+type Service struct {
+    repo ports.PostRepository
+}
 
-**Pattern**: Repositories struct → Services struct → Handlers struct → Server
+func (s *Service) CreatePost(ctx context.Context, userID, title, content string) (*domain.Post, error) {
+    post := &domain.Post{ID: generateID(), Title: title, Content: content}
+    if err := post.Validate(); err != nil { return nil, err }
+    return post, s.repo.Create(ctx, post)
+}
+```
 
-**No DI frameworks**. Everything explicit and visible.
+### 4. Implement Adapters
+```go
+// internal/modules/{module}/adapters/sqlite_repository.go (OUTPUT ADAPTER)
+type SQLiteRepository struct { db *sql.DB }
+func (r *SQLiteRepository) Create(ctx context.Context, post *domain.Post) error {
+    _, err := r.db.ExecContext(ctx, "INSERT INTO posts...", post.ID, post.Title)
+    return err
+}
 
-## Core Feature Requirements
+// internal/modules/{module}/adapters/http_handler.go (INPUT ADAPTER)
+type HTTPHandler struct { service ports.PostService }
+func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
+    // Parse request, call h.service.CreatePost(), write JSON response
+}
+```
 
-**Authentication (auth module):**
-- Email + username + password registration
-- Session management with UUID tokens (via `gofrs/uuid` or `google/uuid`)
-- Password encryption with bcrypt (cost factor: 10-12)
-- Cookie-based sessions: HttpOnly, Secure, SameSite=Lax
-- Session expiration (default: 24h, configurable)
-- Only ONE active session per user (invalidate old sessions on new login)
-- Validate email format, username uniqueness, password strength
+### 5. Wire in `cmd/forum/wire/` (CRITICAL - Don't Skip!)
+```go
+// cmd/forum/wire/repositories.go
+repos.Post = postAdapters.NewSQLitePostRepository(db)
 
-**Posts (post module):**
-- Title + content + optional image
-- Associate 1+ categories per post
-- Image validation: JPEG, PNG, GIF only, max 20MB
-- Store images in `static/uploads/` with unique filenames
-- Posts visible to all (guests + users)
-- Only registered users can create/edit/delete own posts
+// cmd/forum/wire/services.go (ServiceContainer already exists)
+post: postApp.NewService(repos.Post, repos.Category),
 
-**Comments (comment module):**
-- Associate with posts, include user_id + timestamp
-- Comments visible to all users
-- Only registered users can create/edit/delete own comments
-- Empty comments must be rejected
+// cmd/forum/wire/handlers.go
+postHandler := postAdapters.NewHTTPHandler(services, templates)
 
-**Reactions (reaction module):**
-- Like/dislike for posts AND comments
-- Track user_id + target (post/comment) + type (like/dislike)
-- User cannot like AND dislike same target (toggle behavior)
-- Reaction counts visible to all users
+// cmd/forum/wire/app.go (in initServer)
+postHandler.RegisterRoutes(server.Router())
+```
 
-**Filtering (post module):**
-- By category (all users)
-- By created posts (registered user's own posts)
-- By liked posts (registered user's liked posts)
-
-**User Roles (user module - OPTIONAL):**
-- Guest: read-only access
-- User: create, comment, react
-- Moderator: delete content, create reports
-- Administrator: promote/demote users, manage categories, review reports
-
-## Database & Migrations
-
-- **Database**: SQLite with `github.com/mattn/go-sqlite3` (requires CGO)
-- **Migrations**: Sequential numbered SQL files in `migrations/`, named `NNN_module_description.sql`
-- **Pattern**: Each migration includes `-- +migrate Up` and `-- +migrate Down` markers
-- **Foreign keys**: Always include `ON DELETE CASCADE` where appropriate
-- **Indexes**: Create indexes for frequently queried columns (tokens, user_id, expires_at)
-
-**Example migration structure (`migrations/001_auth_create_sessions.sql`):**
+### 6. Database Migration (if schema changes)
 ```sql
+-- migrations/NNN_{module}_{description}.sql
 -- +migrate Up
-CREATE TABLE IF NOT EXISTS sessions (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    token TEXT UNIQUE NOT NULL,
-    expires_at DATETIME NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-CREATE INDEX idx_sessions_token ON sessions(token);
+CREATE TABLE posts (id TEXT PRIMARY KEY, title TEXT NOT NULL);
+CREATE INDEX idx_posts_user_id ON posts(user_id);
 
 -- +migrate Down
-DROP INDEX IF EXISTS idx_sessions_token;
-DROP TABLE IF EXISTS sessions;
+DROP INDEX idx_posts_user_id;
+DROP TABLE posts;
 ```
 
-Migrations are automatically applied on startup via `database.Migrator` in `wire/app.go`.
+**Migrations run automatically on startup** via `cmd/forum/wire/app.go:initDatabase()`.
 
-## Error Handling
+---
 
-Two-layer error system:
-1. **Domain errors** (`domain/errors.go`): Simple `errors.New()` declarations per module
-2. **Platform errors** (`internal/platform/errors/errors.go`): Structured errors with codes
+## Unified Dependency Injection Pattern (CRITICAL)
+
+**Every handler uses identical ServiceContainer pattern**:
 
 ```go
-// Domain layer - simple errors
+// cmd/forum/wire/services.go - ONE concrete container with ALL services
+type ServiceContainer struct {
+    auth     authPorts.AuthService      // Private fields
+    user     userPorts.UserService
+    post     postPorts.PostService
+}
+func (sc *ServiceContainer) Auth() authPorts.AuthService { return sc.auth }
+func (sc *ServiceContainer) User() userPorts.UserService { return sc.user }
+
+// Each handler constructor: IDENTICAL signature across ALL handlers
+func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler
+
+// Each handler declares minimal local interface (only what it needs)
+type ServiceContainer interface {
+    Post() postPorts.PostService
+    Auth() authPorts.AuthService  // Only if needed for auth checks
+}
+```
+
+**Benefits**: Consistent signatures, explicit dependencies, easy mocking, no circular imports.  
+**Reference**: `docs/UNIFIED_DI_PATTERN.md`, `cmd/forum/wire/services.go`
+
+---
+
+## Handler Naming Convention
+
+- **API handlers** (JSON): End with `API` → `RegisterAPI`, `LoginAPI`, `CreatePostAPI`
+- **Page handlers** (HTML): End with `Page` → `LoginPage`, `RegisterPage`, `PostDetailPage`
+
+Group in code: API handlers first, then Page handlers.
+
+---
+
+## Error Handling (Two Layers)
+
+```go
+// 1. Domain errors (module-level, simple)
+// internal/modules/auth/domain/errors.go
 var ErrSessionExpired = errors.New("session has expired")
 
-// Platform layer - structured errors with HTTP mapping
+// 2. Platform errors (structured, HTTP-aware)
+// internal/platform/errors/errors.go
 return errors.Wrap(err, errors.ErrCodeInternal, "failed to create session")
 ```
 
-HTTP handlers should map domain errors to HTTP status codes using `errors.HTTPStatus()`.
+HTTP handlers map errors to status codes via `errors.HTTPStatus()`:
+- 200 OK, 201 Created, 204 No Content
+- 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found
+- 409 Conflict (duplicate email/username)
+- 500 Internal Server Error
 
-## Configuration
+Always return JSON: `{error: "message"}` for errors.
 
-All config in `internal/platform/config/config.go` uses structs, loaded from environment variables with defaults. No external config libraries (e.g., no viper). Configuration includes:
-- Server (ports, timeouts, TLS)
-- Database (path, connection pooling)
-- Session (duration, cookie settings)
-- Security (rate limiting, TLS certs)
-- Upload (max size, allowed types)
-
-## Logging
-
-Structured logger in `internal/platform/logger/` with levels: Debug, Info, Warn, Error. Usage:
-```go
-lgr.Info("Starting service", logger.String("module", "auth"))
-lgr.Error("Failed operation", logger.Error(err))
-```
-
-## HTTP Server & Middleware
-
-Custom HTTP server wrapper (`internal/platform/httpserver/`) around standard library `http.ServeMux`. Global middleware registered before routes:
-1. Recovery (panic handling)
-2. Logger
-3. CORS
-4. RateLimit
-
-Routes registered per-module via `handler.RegisterRoutes(router)` pattern.
-
-**HTTP Status Codes:**
-- 200 OK: Successful GET requests
-- 201 Created: Successful POST (create user, post, comment)
-- 204 No Content: Successful DELETE
-- 400 Bad Request: Invalid input, empty required fields
-- 401 Unauthorized: Missing/invalid session
-- 403 Forbidden: Insufficient permissions
-- 404 Not Found: Resource doesn't exist
-- 409 Conflict: Duplicate email/username
-- 413 Payload Too Large: Image > 20MB
-- 429 Too Many Requests: Rate limit exceeded
-- 500 Internal Server Error: Unexpected errors
-
-**Error Handling:**
-- Always return appropriate HTTP status codes
-- Return JSON error responses with `{error: "message"}` format
-- Log all 500 errors with full context
-- Never expose internal errors to clients
+---
 
 ## Testing Strategy
 
-- **Unit tests**: `tests/unit/` - Test business logic in isolation
-- **Integration tests**: `tests/integration/` - Test full request/response cycles
-- **Repository tests**: Test against real SQLite database (or in-memory)
+**Run tests**: `make test` (runs `scripts/tests/run_all_tests.sh`)  
+**Coverage**: `make test-coverage` (generates `coverage.html`)
 
-**TDD Workflow:**
-```bash
-# 1. Write failing test
-go test ./internal/modules/auth/... -run TestRegister
-# 2. Implement feature
-# 3. Verify test passes
-go test ./internal/modules/auth/... -run TestRegister
-# 4. Refactor and ensure tests still pass
+```
+tests/
+├── unit/              # Business logic, isolated mocks
+│   ├── auth_test.go          # Domain validation, service logic
+│   └── template_*_test.go    # Template rendering tests
+├── integration/       # Full request/response cycles
+    ├── auth_test.go          # Register, login, session flows
+    └── post_test.go          # CRUD operations with real DB
 ```
 
-**Test Coverage Requirements:**
-- Domain logic: Unit tests for all business rules
-- Application services: Test all use cases with mocked repositories
-- HTTP handlers: Integration tests simulating real requests
-- Repositories: Test actual database operations
-- Audit compliance: Integration tests covering every `.github/audit.md` scenario
+**TDD Workflow**:
+1. Write failing test → `go test ./internal/modules/auth/... -run TestRegister`
+2. Implement minimal code to pass
+3. Refactor while keeping tests green
+4. Commit
 
-Run tests: `go test ./...`  
-Coverage report: `go test -cover ./...`
+**Audit compliance**: ALL scenarios from `docs/requirements/audit.md` MUST have integration tests. DO NOT modify audit.md.
+
+---
 
 ## Build & Run
 
-**Local development:**
+**Local development**:
 ```bash
-go run cmd/forum/main.go
+make go              # Runs with `go run cmd/forum/main.go`
+make build           # Builds binary to bin/forum
+make run             # Builds then runs binary
 ```
 
-**Docker build** (multi-stage):
+**Docker**:
 ```bash
-docker build -t forum .
-docker-compose up
+docker-compose up    # Starts forum + database
+make docker-build    # Builds Docker image
 ```
 
-**Important**: Build requires CGO for SQLite: `CGO_ENABLED=1`
+**Important**: SQLite requires `CGO_ENABLED=1` (set in Makefile).
 
-## Key Files to Reference
+---
 
-- **Main entry point**: `cmd/forum/main.go` - Minimal lifecycle management
-- **Wire package**: `cmd/forum/wire/` - Complete DI setup and component wiring
-- **Architecture docs**: `docs/ARCHITECTURE.md` - Full design rationale with dependency rules
-- **Implementation status**: `docs/IMPLEMENTATION_ROADMAP.md` - TODO tracking with phase breakdown
-- **Module example**: `internal/modules/auth/` - Reference implementation with all 4 layers
-- **Migration example**: `migrations/001_auth_create_sessions.sql` - Shows Up/Down markers
-- **Audit spec**: `.github/audit.md` - Authoritative test scenarios (DO NOT modify)
-- **Requirements**: `docs/requirements.md` - Core feature requirements
-- **Additional features**: `docs/morefeats.md` - Optional feature specifications
+## Configuration & Logging
 
-## Go Module
+**Config**: `internal/platform/config/config.go` - loads from env vars with defaults  
+**Logger**: `internal/platform/logger/` - structured logging (Debug, Info, Warn, Error)
 
-- **Module path**: `forum` (import as `forum/internal/...`)
-- **Go version**: 1.25
-- **Dependencies**: Minimal - only uuid, sqlite3 driver, bcrypt
+```go
+lgr.Info("Starting service", logger.String("module", "auth"))
+lgr.Error("Failed operation", logger.Error(err), logger.String("user_id", uid))
+```
+
+**Middleware order** (in `cmd/forum/wire/app.go`):
+1. Recovery (panic handling) - TODO: Not yet implemented
+2. Logger (request logging) - TODO: Not yet implemented
+3. CORS
+4. RateLimit
+
+
+---
+
+## Key Files Reference
+
+- **Entry point**: `cmd/forum/main.go` - Minimal lifecycle (config → wire → start → shutdown)
+- **DI wiring**: `cmd/forum/wire/{app,repositories,services,handlers}.go` - All dependency injection
+- **Architecture**: `docs/ARCHITECTURE.md` - Design rationale, dependency rules
+- **Roadmap**: `docs/IMPLEMENTATION_ROADMAP.md` - Progress tracking (75% complete)
+- **DI pattern**: `docs/UNIFIED_DI_PATTERN.md` - ServiceContainer details
+- **Auth reference**: `internal/modules/auth/` - Fully implemented example (ports → app → adapters)
+- **Audit spec**: `docs/requirements/audit.md` - Authoritative test scenarios (DO NOT modify)
+- **Logger plan**: `docs/log/UNIFIED_LOGGER_IMPROVEMENT_PLAN.md` - Middleware implementation TODO
+
+---
+
+## Current Implementation Status (75% Complete)
+
+**✅ Fully Implemented**:
+- Auth module (register, login, sessions, validation, middleware)
+- Post module (CRUD with categories, validation)
+- Category module (CRUD operations)
+- Platform layer (config, database, logger, httpserver, errors, validator)
+- Database migrations (auto-apply on startup)
+- Unit + integration tests for auth and posts
+
+**⚠️ Placeholder/TODO** (look for `// TODO:` comments):
+- Comment module (scaffolded, not implemented)
+- Reaction module (scaffolded, not implemented)
+- User module HTTP handlers (domain + repo done, handlers TODO)
+- Moderation module (optional, scaffolded)
+- Notification module (optional, scaffolded)
+- Recovery & Logger middleware (`internal/platform/httpserver/middleware.go`)
+
+**When implementing**: Replace `// TODO:` placeholders with actual logic. Follow the hexagonal pattern exactly as shown in auth/post modules.
+
+---
 
 ## Development Workflow
 
-1. When adding new features, follow the module structure exactly
-2. Start with domain entities and errors
-3. Define ports (interfaces) before implementations
-4. Implement application service, then adapters
-5. Update migrations if database changes needed
-6. Wire new components in `cmd/forum/wire/`
-7. Update `IMPLEMENTATION_ROADMAP.md` with progress
+**Adding features**:
+1. Check `docs/IMPLEMENTATION_ROADMAP.md` for current priorities
+2. Follow the 6-step workflow (Domain → Ports → Application → Adapters → Wire → Migration)
+3. Use `internal/modules/auth/` as reference implementation
+4. Update roadmap checkboxes as you complete tasks
 
-**Example workflow for adding a new feature:**
+**Common commands**:
 ```bash
-# 1. Add domain entity
-# Edit: internal/modules/post/domain/post.go
-# 2. Add domain errors
-# Edit: internal/modules/post/domain/errors.go
-# 3. Define service port (interface)
-# Edit: internal/modules/post/ports/service.go
-# 4. Define repository port (interface)
-# Edit: internal/modules/post/ports/repository.go
-# 5. Implement application service
-# Edit: internal/modules/post/application/service.go
-# 6. Implement SQLite repository
-# Edit: internal/modules/post/adapters/sqlite_repository.go
-# 7. Implement HTTP handler
-# Edit: internal/modules/post/adapters/http_handler.go
-# 8. Wire in wire package
-# Edit: cmd/forum/wire/repositories.go (add repository)
-# Edit: cmd/forum/wire/services.go (add service)
-# Edit: cmd/forum/wire/handlers.go (add handler)
-# Edit: cmd/forum/wire/app.go (register routes)
+make go              # Run locally (go run cmd/forum/main.go)
+make test            # Full test suite
+make test-coverage   # Generate coverage.html
+make fmt             # Format code
+make vet             # Static analysis
 ```
 
-## Common Pitfalls to Avoid
+**Testing workflow**:
+```bash
+# Run specific module tests
+go test ./internal/modules/auth/... -v
+# Run with race detector
+go test -race ./...
+# Integration tests only
+go test ./tests/integration/... -v
+```
 
-- ❌ Don't add subdirectories to `adapters/` - keep it flat
-- ❌ Don't skip port/adapter type annotations in file headers
-- ❌ Don't import domain from adapters - only from application layer
-- ❌ Don't use external frameworks unnecessarily - prefer standard library
-- ❌ Don't forget to mark optional features with `[OPTIONAL FEATURE]` comments
-- ❌ Don't hard-code configuration - use the config system
-- ❌ Don't modify `docs/requirements.md` or `docs/morefeats.md` - they're the authoritative specs
+**Git commits**:
+- Format: `[module] Brief description`
+- Example: `[auth] Implement session validation`, `[post] Add category filtering`
+- Commit after each complete feature/checklist item
 
-## Code Style
+---
 
-- Follow Go idioms: simplicity, readability, explicitness
-- Apply SOLID + KISS principles to every component
-- Use standard library over external dependencies where reasonable
-- Prefer composition over inheritance
-- Keep functions small and focused
-- Use context.Context for cancellation and request-scoped values
-- Use meaningful variable names, avoid abbreviations unless conventional
+## Common Pitfalls
 
-## Workflow Conventions
+❌ **Don't do**:
+- Add subdirectories to `adapters/` (keep flat: http_handler.go, sqlite_repository.go)
+- Skip port/adapter file header comments (`// INPUT PORT - Service Interface`, etc.)
+- Import `application/` from adapters (adapters → ports only)
+- Use external frameworks unnecessarily (prefer stdlib)
+- Modify `docs/requirements/{audit,requirements,morefeats}.md` (authoritative specs)
+- Hard-code config values (use `config.Config` structs)
 
-**Test-Driven Development (TDD):**
-1. Write tests first, see them fail
-2. Implement minimal code to pass tests
-3. Refactor while keeping tests green
-4. Commit after each complete feature
+✅ **Do**:
+- Follow exact 4-directory structure for every module
+- Declare handler-specific ServiceContainer interfaces
+- Use domain errors in modules, platform errors for HTTP
+- Write tests before/during implementation (TDD)
+- Check existing modules (auth, post) for patterns
+- Mark optional features with `[OPTIONAL FEATURE]` comments
 
-**Development Cycle:**
-- Follow idiomatic Go patterns - consistency is critical
-- Check `docs/IMPLEMENTATION_ROADMAP.md` for current progress
-- Update roadmap checkboxes as you complete tasks
-- Keep commits scoped to specific checklist items
-- Update README.md if endpoints or Docker usage changes
+---
 
-**Audit Requirements:**
-- **DO NOT modify** `.github/audit.md` - it's the authoritative test specification
-- All audit questions must be covered by integration/e2e tests in `tests/integration/`
-- Test every scenario described in `audit.md` including edge cases
-- Project is only complete when all audit requirements pass
+## Quick Patterns
 
-**Git Practices:**
-- Commit frequently with descriptive messages
-- Format: `[module] Brief description` (e.g., `[auth] Implement session validation`)
-- One feature/fix per commit when possible
+**Domain validation**:
+```go
+func (p *Post) Validate() error {
+    if p.Title == "" { return domain.ErrEmptyTitle }
+    if len(p.Title) > 300 { return domain.ErrTitleTooLong }
+    if len(p.Categories) == 0 { return domain.ErrNoCategoriesSelected }
+    return nil
+}
+```
+
+**Service implementation**:
+```go
+func (s *Service) CreatePost(ctx context.Context, userID, title, content string, categories []string) (*domain.Post, error) {
+    post := &domain.Post{ID: generateID(), UserID: userID, Title: title, Content: content, Categories: categories}
+    if err := post.Validate(); err != nil { return nil, err }
+    return post, s.postRepo.Create(ctx, post)
+}
+```
+
+**HTTP handler pattern**:
+```go
+func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
+    // 1. Parse & validate input
+    // 2. Extract user from session (if auth required)
+    // 3. Call service method
+    // 4. Handle errors with appropriate status codes
+    // 5. Return JSON response
+}
+```
+
+**Repository pattern**:
+```go
+func (r *SQLiteRepository) Create(ctx context.Context, post *domain.Post) error {
+    tx, _ := r.db.BeginTx(ctx, nil)
+    defer tx.Rollback()
+    _, err := tx.ExecContext(ctx, "INSERT INTO posts (id, title, content, user_id) VALUES (?, ?, ?, ?)", ...)
+    return tx.Commit()
+}
+```
+
+---
+
+## Project Structure Summary
+
+```
+forum/
+├── cmd/forum/
+│   ├── main.go                    # Entry point (config → wire → run)
+│   └── wire/                      # Dependency injection (repos → services → handlers)
+├── internal/
+│   ├── modules/                   # Business modules (hexagonal structure)
+│   │   ├── auth/                  # ✅ Auth (fully implemented)
+│   │   ├── post/                  # ✅ Posts (fully implemented)
+│   │   ├── comment/               # ⚠️ TODO: Implement
+│   │   └── reaction/              # ⚠️ TODO: Implement
+│   └── platform/                  # ✅ Technical infrastructure
+│       ├── config/                # Env-based config
+│       ├── database/              # SQLite connection + migrator
+│       ├── errors/                # Structured error types
+│       ├── httpserver/            # HTTP server + middleware
+│       ├── logger/                # Structured logging
+│       └── validator/             # Input validation
+├── migrations/                    # SQL migrations (auto-applied)
+├── templates/                     # HTML templates (Go html/template)
+├── static/                        # CSS, JS, uploads
+├── tests/
+│   ├── unit/                      # Business logic tests
+│   └── integration/               # Full HTTP cycle tests
+└── docs/
+    ├── ARCHITECTURE.md            # Design decisions
+    ├── IMPLEMENTATION_ROADMAP.md  # Progress tracking
+    └── requirements/              # Specs (DO NOT modify)
+```
+
+---
+
+## 🔒 ID Security Patterns (CRITICAL)
+
+### Problem: Internal INT ID Exposure
+
+**Never expose internal sequential IDs** - attackers can enumerate users, posts, etc.
+
+### Solution: INT (internal) + UUID (public) Pattern
+
+**Database**: Uses INT primary keys for performance  
+**Public APIs**: Uses UUID strings for security
+
+### Implementation Rules
+
+✅ **Middleware** stores UUID in context (never INT):
+```go
+user, err := userService.GetByID(ctx, session.UserID)
+ctx := context.WithValue(ctx, UserIDKey, user.PublicID)  // UUID string
+```
+
+✅ **Handlers** convert UUID → INT for services:
+```go
+userPublicID := authAdapters.GetUserID(r.Context())  // UUID from context
+userID, err := h.getInternalUserID(r.Context(), userPublicID)  // Convert to INT
+service.CreatePost(ctx, userID, ...)  // Use INT internally
+```
+
+✅ **Templates** use `.PublicID` explicitly:
+```gohtml
+<a href="/board?user={{.User.PublicID}}">My Posts</a>
+{{if eq .User.PublicID .Post.UserPublicID}}
+```
+
+✅ **JavaScript** uses lowercase `post.id` (matches JSON):
+```javascript
+<a href="/posts/${post.id}">${post.Title}</a>
+```
+
+**See**: `docs/ID_SECURITY_AUDIT.md`, `docs/ID_SECURITY_FIXES_SUMMARY.md`

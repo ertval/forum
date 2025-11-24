@@ -1,87 +1,26 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Forum</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-</head>
-<body>
-    <header>
-        <nav>
-            <div class="container">
-                <h1><a href="/">Forum</a></h1>
-                <ul>
-                    <li><a href="/login">Login</a></li>
-                    <li><a href="/register">Register</a></li>
-                </ul>
+{{define "content"}}
+<div class="auth-container">
+    <div class="auth-form">
+        <h2>Login</h2>
+        <form id="loginForm" method="POST" action="/auth/login">
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required>
             </div>
-        </nav>
-    </header>
 
-    <main>
-        <div class="container">
-            <div class="auth-container">
-                <div class="auth-form">
-                    <h2>Login</h2>
-                    <form id="loginForm" method="POST" action="/auth/login">
-                        <div class="form-group">
-                            <label for="email">Email:</label>
-                            <input type="email" id="email" name="email" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="password">Password:</label>
-                            <input type="password" id="password" name="password" required>
-                        </div>
-
-                        <button type="submit">Login</button>
-                    </form>
-
-                    <p class="auth-link">Don't have an account? <a href="/register">Register here</a></p>
-                </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
             </div>
-        </div>
-    </main>
 
-    <footer>
-        <div class="container">
-            <p>&copy; 2025 Forum. All rights reserved.</p>
-        </div>
-    </footer>
+            <button type="submit">Login</button>
+        </form>
 
-    <script>
-        document.getElementById('loginForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
+        <p class="auth-link">Don't have an account? <a href="/register">Register here</a></p>
+    </div>
+</div>
+{{end}}
 
-            const formData = new FormData(e.target);
-            const data = {
-                email: formData.get('email'),
-                password: formData.get('password')
-            };
-
-            try {
-                const response = await fetch('/auth/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    // Redirect to home page after successful login
-                    window.location.href = '/';
-                } else {
-                    const error = await response.json();
-                    alert(error.error || 'Login failed');
-                }
-            } catch (error) {
-                console.error('Login error:', error);
-                alert('An error occurred during login');
-            }
-        });
-    </script>
-</body>
-</html>
+{{define "scripts"}}
+<script src="/static/js/auth.js"></script>
+{{end}}

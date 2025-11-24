@@ -37,26 +37,26 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	// PUT /users/{id}/deactivate - Deactivate user
 }
 
-// GetUser retrieves a user's profile.
-// TODO: Implement user profile handler.
-func (h *HTTPHandler) GetUser(w http.ResponseWriter, r *http.Request) {
+// GetUserAPI handles user retrieval requests.
+// TODO: Implement user retrieval handler.
+func (h *HTTPHandler) GetUserAPI(w http.ResponseWriter, r *http.Request) {
 	// Implementation placeholder
 }
 
-// ListUsers lists all users (paginated).
+// ListUsersAPI handles listing users.
 // TODO: Implement user listing handler.
-func (h *HTTPHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPHandler) ListUsersAPI(w http.ResponseWriter, r *http.Request) {
 	// Implementation placeholder
 }
 
-// UpdateRole updates a user's role.
+// UpdateRoleAPI handles updating a user's role.
 // TODO: Implement role update handler.
-func (h *HTTPHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPHandler) UpdateRoleAPI(w http.ResponseWriter, r *http.Request) {
 	// Implementation placeholder
 }
 
-// DeactivateUser deactivates a user account.
-// TODO: Implement deactivation handler.
-func (h *HTTPHandler) DeactivateUser(w http.ResponseWriter, r *http.Request) {
+// DeactivateUserAPI handles deactivating a user account.
+// TODO: Implement user deactivation handler.
+func (h *HTTPHandler) DeactivateUserAPI(w http.ResponseWriter, r *http.Request) {
 	// Implementation placeholder
 }

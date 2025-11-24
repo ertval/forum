@@ -37,20 +37,20 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	// PUT /reports/{id} - Review report
 }
 
-// CreateReport handles report creation requests.
+// CreateReportAPI handles creating a new report.
 // TODO: Implement report creation handler.
-func (h *HTTPHandler) CreateReport(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPHandler) CreateReportAPI(w http.ResponseWriter, r *http.Request) {
 	// Implementation placeholder
 }
 
-// ListReports handles listing reports.
+// ListReportsAPI handles listing reports.
 // TODO: Implement report listing handler.
-func (h *HTTPHandler) ListReports(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPHandler) ListReportsAPI(w http.ResponseWriter, r *http.Request) {
 	// Implementation placeholder
 }
 
-// ReviewReport handles report review requests.
+// ReviewReportAPI handles reviewing and updating a report.
 // TODO: Implement report review handler.
-func (h *HTTPHandler) ReviewReport(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPHandler) ReviewReportAPI(w http.ResponseWriter, r *http.Request) {
 	// Implementation placeholder
 }

@@ -19,10 +19,15 @@ func NewService(userRepo ports.UserRepository) *Service {
 	}
 }
 
-// GetByID retrieves a user by their ID.
+// GetByID retrieves a user by their internal ID (for internal use only).
 // TODO: Implement user retrieval.
 func (s *Service) GetByID(ctx context.Context, userID int) (*domain.User, error) {
 	return s.userRepo.GetByID(ctx, userID)
+}
+
+// GetByPublicID retrieves a user by their public UUID (for external API access).
+func (s *Service) GetByPublicID(ctx context.Context, publicID string) (*domain.User, error) {
+	return s.userRepo.GetByPublicID(ctx, publicID)
 }
 
 // GetByUsername retrieves a user by their username.
@@ -35,13 +40,6 @@ func (s *Service) GetByUsername(ctx context.Context, username string) (*domain.U
 // TODO: Implement email-based retrieval.
 func (s *Service) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	return s.userRepo.GetByEmail(ctx, email)
-}
-
-// GetProfile retrieves a user's public profile.
-// TODO: Implement profile retrieval.
-func (s *Service) GetProfile(ctx context.Context, userID int) (*domain.UserProfile, error) {
-	// Implementation placeholder
-	return nil, nil
 }
 
 // UpdateRole updates a user's role.
@@ -71,9 +69,22 @@ func (s *Service) ListUsers(ctx context.Context, offset, limit int) ([]*domain.U
 	return s.userRepo.List(ctx, offset, limit)
 }
 
-// GetUserStats retrieves statistics about a user's activity.
-// TODO: Implement user statistics aggregation.
-func (s *Service) GetUserStats(ctx context.Context, userID int) (*ports.UserStats, error) {
-	// Implementation placeholder
-	return nil, nil
+// IncrementPostCount atomically increments the user's post count.
+func (s *Service) IncrementPostCount(ctx context.Context, userID int) error {
+	return s.userRepo.IncrementPostCount(ctx, userID)
+}
+
+// DecrementPostCount atomically decrements the user's post count.
+func (s *Service) DecrementPostCount(ctx context.Context, userID int) error {
+	return s.userRepo.DecrementPostCount(ctx, userID)
+}
+
+// IncrementCommentCount atomically increments the user's comment count.
+func (s *Service) IncrementCommentCount(ctx context.Context, userID int) error {
+	return s.userRepo.IncrementCommentCount(ctx, userID)
+}
+
+// DecrementCommentCount atomically decrements the user's comment count.
+func (s *Service) DecrementCommentCount(ctx context.Context, userID int) error {
+	return s.userRepo.DecrementCommentCount(ctx, userID)
 }

@@ -72,7 +72,13 @@ func (s *Server) RegisterHandler(method, path string, handler http.HandlerFunc) 
 // RegisterMiddleware registers global middleware.
 // Middleware is executed in the order it is registered.
 func (s *Server) RegisterMiddleware(middleware Middleware) {
-	// Implementation placeholder
+	s.middleware = append(s.middleware, middleware)
+	// Rebuild the handler chain with all registered middleware
+	s.handler = Chain(s.middleware...)(s.router)
+	s.httpServer.Handler = s.handler
+	if s.tlsServer != nil {
+		s.tlsServer.Handler = s.handler
+	}
 }
 
 // Start starts the HTTP and HTTPS servers.
