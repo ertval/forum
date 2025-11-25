@@ -24,4 +24,7 @@ type CommentService interface {
 
 	// ListCommentsByPost retrieves all comments for a post.
 	ListCommentsByPost(ctx context.Context, postPublicID string) ([]*domain.Comment, error)
+
+	// ListCommentsByUser retrieves all comments made by a specific user.
+	ListCommentsByUser(ctx context.Context, userPublicID string) ([]*domain.Comment, error)
 }

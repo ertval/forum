@@ -29,6 +29,7 @@ type PostFilter struct {
 	UserID        string
 	Categories    []string
 	LikedByUserID string
+	CommenterID   string
 	DateFilter    string // "today", "week", "month", "all" (default)
 	Offset        int
 	Limit         int
@@ -48,6 +49,7 @@ type FilterParams struct {
 	UserID        string
 	MyPosts       bool
 	LikedPosts    bool
+	Commenter     string
 	DateFilter    string
 	Limit         int
 	Offset        int

@@ -82,6 +82,16 @@ func (m *MockCommentRepository) DeleteByPublicID(ctx context.Context, commentPub
 	return nil
 }
 
+func (m *MockCommentRepository) ListByUser(ctx context.Context, userID int) ([]*domain.Comment, error) {
+	var result []*domain.Comment
+	for _, comment := range m.comments {
+		if comment.UserID == userID {
+			result = append(result, comment)
+		}
+	}
+	return result, nil
+}
+
 // MockUserService implements a minimal UserService for testing
 type MockUserService struct{}
 

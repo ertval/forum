@@ -172,7 +172,8 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	router.Handle("POST /posts", authMiddleware(http.HandlerFunc(h.CreatePostAPI)))
 	router.Handle("PUT /posts/{id}", authMiddleware(http.HandlerFunc(h.UpdatePostAPI)))
 	router.Handle("DELETE /posts/{id}", authMiddleware(http.HandlerFunc(h.DeletePostAPI)))
-	
+	router.Handle("GET /comments", authMiddleware(http.HandlerFunc(h.MyCommentsPage)))
+
 }
 
 // HomePage handles the homepage rendering with post list.
@@ -212,6 +213,7 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 		UserID:        r.URL.Query().Get("user"),
 		MyPosts:       r.URL.Query().Get("my_posts") == "true",
 		LikedPosts:    r.URL.Query().Get("liked_posts") == "true",
+		Commenter:     r.URL.Query().Get("commenter"),
 		DateFilter:    r.URL.Query().Get("date_filter"),
 		Limit:         12,
 		Offset:        0,
@@ -328,6 +330,7 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 		UserID:        r.URL.Query().Get("user"),
 		MyPosts:       r.URL.Query().Get("my_posts") == "true",
 		LikedPosts:    r.URL.Query().Get("liked_posts") == "true",
+		Commenter:     r.URL.Query().Get("commenter"),
 		DateFilter:    r.URL.Query().Get("date_filter"),
 		Limit:         10,
 		Offset:        0,
@@ -1162,3 +1165,114 @@ func createPostPreview(content string) string {
 
 	return preview + "..."
 }
+
+// MyCommentsPage handles the page that displays all comments made by the current user.
+func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get current user if logged in (full profile/stats)
+	var currentUser interface{}
+	cookie, err := r.Cookie("session_token")
+	if err != nil || cookie.Value == "" {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	session, err := h.authService.ValidateSession(ctx, cookie.Value)
+	if err != nil || session == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	currentUser = h.buildCurrentUser(ctx, session.UserID)
+
+	// Fetch comments made by this user
+	var comments []interface{}
+	if h.commentService != nil {
+		// Get the current user's full info to get their public ID
+		currentUserInfo, ok := currentUser.(map[string]interface{})
+		if !ok {
+			http.Error(w, "Failed to get user info", http.StatusInternalServerError)
+			return
+		}
+
+		userPublicID, ok := currentUserInfo["PublicID"].(string)
+		if !ok || userPublicID == "" {
+			http.Error(w, "User not authenticated properly", http.StatusUnauthorized)
+			return
+		}
+
+		// Get all comments by the current user
+		commentsFromService, err := h.commentService.ListCommentsByUser(ctx, userPublicID)
+		if err != nil {
+			// Log the error but continue with empty comments
+			fmt.Printf("Error fetching user comments: %v\n", err)
+		} else {
+			// Convert domain comments to template-compatible format
+			for _, comment := range commentsFromService {
+				// Get author username
+				var authorUsername string
+				if comment.UserID != 0 {
+					user, err := h.userService.GetByID(ctx, comment.UserID)
+					if err == nil && user != nil {
+						authorUsername = user.Username
+					}
+				}
+
+				// Get post title for context
+				var postTitle string
+				if comment.PublicPostID != "" {
+					post, err := h.postService.GetPost(ctx, comment.PublicPostID)
+					if err == nil && post != nil {
+						postTitle = post.Title
+					} else {
+						// If there's an error fetching the post, show a default message
+						postTitle = "Post not found"
+					}
+				} else {
+					// If comment.PublicPostID is empty, there's no post association
+					postTitle = "Post ID unknown"
+				}
+
+				commentData := map[string]interface{}{
+					"PublicID":       comment.PublicID,
+					"AuthorUsername": authorUsername,
+					"Content":        comment.Content,
+					"PostPublicID":   comment.PublicPostID,
+					"PostTitle":      postTitle,
+					"CreatedAt":      comment.CreatedAt,
+					"UpdatedAt":      comment.UpdatedAt,
+					"Likes":          0, // TODO: Implement reaction counts for comments
+					"Dislikes":       0, // TODO: Implement reaction counts for comments
+				}
+				comments = append(comments, commentData)
+			}
+		}
+	}
+
+	data := map[string]interface{}{
+		"Title":    "My Comments",
+		"User":     currentUser,
+		"Comments": comments,
+	}
+
+	// Parse templates individually for this page
+	tmpl, err := template.ParseFiles("templates/base.html", "templates/comments.html")
+	if err != nil {
+		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
+		// Log the actual template error for debugging
+		fmt.Printf("Template error: %v\n", err)
+		http.Error(w, fmt.Sprintf("Failed to render page: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if _, err := buf.WriteTo(w); err != nil {
+		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+	}
+}
+

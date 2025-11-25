@@ -120,3 +120,43 @@ func (r *SQLiteCommentRepository) ListByPostPublicID(ctx context.Context, postPu
 
 	return comments, nil
 }
+
+// ListByUser retrieves all comments made by a specific user.
+func (r *SQLiteCommentRepository) ListByUser(ctx context.Context, userID int) ([]*domain.Comment, error) {
+	query := `
+		SELECT c.id, c.public_id, c.post_id, c.author_id, c.content, c.created_at, c.updated_at, p.public_id as post_public_id
+		FROM comments c
+		INNER JOIN posts p ON c.post_id = p.id
+		WHERE c.author_id = ?
+		ORDER BY c.created_at DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var comments []*domain.Comment
+	for rows.Next() {
+		var comment domain.Comment
+		var postPublicID string
+		err := rows.Scan(
+			&comment.ID,
+			&comment.PublicID,
+			&comment.PostID,
+			&comment.UserID,
+			&comment.Content,
+			&comment.CreatedAt,
+			&comment.UpdatedAt,
+			&postPublicID,
+		)
+		if err != nil {
+			return nil, err
+		}
+		comment.PublicPostID = postPublicID
+		comments = append(comments, &comment)
+	}
+
+	return comments, nil
+}

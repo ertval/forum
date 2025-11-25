@@ -125,3 +125,15 @@ func (s *Service) DeleteComment(ctx context.Context, commentPublicID string) err
 func (s *Service) ListCommentsByPost(ctx context.Context, postPublicID string) ([]*domain.Comment, error) {
 	return s.commentRepo.ListByPostPublicID(ctx, postPublicID)
 }
+
+// ListCommentsByUser retrieves all comments made by a specific user.
+func (s *Service) ListCommentsByUser(ctx context.Context, userPublicID string) ([]*domain.Comment, error) {
+	// First get the internal user ID from the public ID
+	user, err := s.userService.GetByPublicID(ctx, userPublicID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+
+	// Call the repository to get comments by user ID
+	return s.commentRepo.ListByUser(ctx, user.ID)
+}
