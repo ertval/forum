@@ -19,6 +19,7 @@ import (
 
 	authAdapters "forum/internal/modules/auth/adapters"
 	authPorts "forum/internal/modules/auth/ports"
+	commentPorts "forum/internal/modules/comment/ports"
 	userPorts "forum/internal/modules/user/ports"
 
 	postDomain "forum/internal/modules/post/domain"
@@ -32,6 +33,7 @@ type HTTPHandler struct {
 	filterService   postPorts.FilterService
 	authService     authPorts.AuthService
 	userService     userPorts.UserService
+	commentService  commentPorts.CommentService
 	templates       *template.Template
 }
 
@@ -42,6 +44,7 @@ type ServiceContainer interface {
 	Filter() postPorts.FilterService
 	Auth() authPorts.AuthService
 	User() userPorts.UserService
+	Comment() commentPorts.CommentService
 }
 
 // NewHTTPHandler creates a new HTTP handler for posts with unified dependency injection.
@@ -52,6 +55,7 @@ func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HT
 		filterService:   services.Filter(),
 		authService:     services.Auth(),
 		userService:     services.User(),
+		commentService:  services.Comment(),
 		templates:       templates,
 	}
 }
@@ -168,6 +172,7 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	router.Handle("POST /posts", authMiddleware(http.HandlerFunc(h.CreatePostAPI)))
 	router.Handle("PUT /posts/{id}", authMiddleware(http.HandlerFunc(h.UpdatePostAPI)))
 	router.Handle("DELETE /posts/{id}", authMiddleware(http.HandlerFunc(h.DeletePostAPI)))
+	
 }
 
 // HomePage handles the homepage rendering with post list.
@@ -1055,8 +1060,38 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 		}
 	}
 
-	// TODO: Fetch comments for this post when comment service is implemented
+	// Fetch comments for this post from the comment service
 	var comments []interface{}
+	if h.commentService != nil {
+		commentsFromService, err := h.commentService.ListCommentsByPost(ctx, post.PublicID)
+		if err == nil {
+			// Convert domain comments to template-compatible format
+			for _, comment := range commentsFromService {
+				// Get author username
+				var authorUsername string
+				var authorPublicID string
+				if comment.UserID != 0 {
+					user, err := h.userService.GetByID(ctx, comment.UserID)
+					if err == nil && user != nil {
+						authorUsername = user.Username
+						authorPublicID = user.PublicID
+					}
+				}
+				
+				commentData := map[string]interface{}{
+					"PublicID":       comment.PublicID,
+					"AuthorUsername": authorUsername,
+					"AuthorPublicID": authorPublicID,
+					"Content":        comment.Content,
+					"CreatedAt":      comment.CreatedAt,
+					"UpdatedAt":      comment.UpdatedAt,
+					"Likes":          0, // TODO: Implement reaction counts for comments
+					"Dislikes":       0, // TODO: Implement reaction counts for comments
+				}
+				comments = append(comments, commentData)
+			}
+		}
+	}
 
 	data := map[string]any{
 		"Title":    post.Title,
