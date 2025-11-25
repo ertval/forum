@@ -85,6 +85,7 @@
                         </button>
                         {{if $.User}}
                             {{if eq $.User.PublicID .AuthorPublicID}}
+                            <button class="btn-edit-comment" data-comment-id="{{.PublicID}}">Edit</button>
                             <button class="btn-delete-comment" data-comment-id="{{.PublicID}}">Delete</button>
                             {{end}}
                         {{end}}

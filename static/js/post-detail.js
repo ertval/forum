@@ -37,6 +37,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const commentId = e.target.getAttribute('data-comment-id');
             await deleteComment(commentId);
         }
+
+        // Handle comment editing
+        if (e.target.classList.contains('btn-edit-comment')) {
+            e.preventDefault();
+            const commentId = e.target.getAttribute('data-comment-id');
+            const commentElement = document.getElementById(`comment-${commentId}`);
+            if (commentElement) {
+                startEditingComment(commentElement, commentId);
+            }
+        }
     });
 
     // Handle comment form submission
@@ -175,4 +185,99 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('An error occurred while deleting the comment');
         }
     }
+
+    // Function to start editing a comment
+    function startEditingComment(commentElement, commentId) {
+        const contentElement = commentElement.querySelector('.comment-content');
+        const currentContent = contentElement.textContent.trim();
+
+        // Create textarea with current content
+        const textarea = document.createElement('textarea');
+        textarea.className = 'edit-comment-textarea';
+        textarea.value = currentContent;
+        textarea.rows = 4;
+
+        // Save original content for reference
+        const originalContent = contentElement.innerHTML;
+        contentElement.setAttribute('data-original-content', originalContent);
+
+        // Replace content with textarea
+        contentElement.innerHTML = '';
+        contentElement.appendChild(textarea);
+
+        // Create save and cancel buttons
+        const actionsDiv = commentElement.querySelector('.comment-actions');
+        const originalActions = actionsDiv.innerHTML;
+        // Store original actions in a data attribute for later restoration
+        actionsDiv.setAttribute('data-original-actions', originalActions);
+        actionsDiv.innerHTML = `
+            <button class="btn-save-comment" data-comment-id="${commentId}">Save</button>
+            <button class="btn-cancel-edit">Cancel</button>
+        `;
+
+        // Focus on the textarea
+        textarea.focus();
+    }
+
+    // Function to update a comment
+    async function updateComment(commentId, newContent) {
+        try {
+            const response = await fetch(`/api/comments/${commentId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content: newContent })
+            });
+
+            if (response.ok) {
+                // Reload the page to reflect the updated comment
+                location.reload();
+            } else {
+                const error = await response.json();
+                alert(error.error || 'Failed to update comment');
+                return false;
+            }
+        } catch (error) {
+            console.error('Update comment error:', error);
+            alert('An error occurred while updating the comment');
+            return false;
+        }
+        return true;
+    }
+
+    // Add event listener for save and cancel buttons
+    document.body.addEventListener('click', async function(e) {
+        if (e.target.classList.contains('btn-save-comment')) {
+            e.preventDefault();
+            const commentId = e.target.getAttribute('data-comment-id');
+            const commentElement = document.getElementById(`comment-${commentId}`);
+            if (commentElement) {
+                const textarea = commentElement.querySelector('textarea');
+                if (textarea) {
+                    const newContent = textarea.value.trim();
+                    if (!newContent) {
+                        alert('Comment content cannot be empty');
+                        return;
+                    }
+                    await updateComment(commentId, newContent);
+                }
+            }
+        }
+
+        if (e.target.classList.contains('btn-cancel-edit')) {
+            e.preventDefault();
+            const commentElement = e.target.closest('.comment');
+            if (commentElement) {
+                const contentElement = commentElement.querySelector('.comment-content');
+                const actionsDiv = commentElement.querySelector('.comment-actions');
+
+                // Restore original content
+                contentElement.innerHTML = contentElement.getAttribute('data-original-content') || '';
+
+                // Restore original actions
+                actionsDiv.innerHTML = actionsDiv.getAttribute('data-original-actions') || '';
+            }
+        }
+    });
 });
