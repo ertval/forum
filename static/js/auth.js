@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', function() {
         loginForm.addEventListener('submit', async function(e) {
             e.preventDefault();
 
+            const formErrors = document.getElementById('form-errors');
+            if (formErrors) formErrors.innerHTML = '';
+
             const formData = new FormData(e.target);
             const data = {
                 email: formData.get('email'),
@@ -28,11 +31,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.location.href = '/';
                 } else {
                     const error = await response.json();
-                    alert(error.error || 'Login failed');
+                    if (formErrors) formErrors.innerHTML = `<p class="error">${error.error || 'Login failed'}</p>`;
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                alert('An error occurred during login');
+                if (formErrors) formErrors.innerHTML = '<p class="error">An error occurred during login</p>';
             }
         });
     }
@@ -42,6 +45,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (registerForm) {
         registerForm.addEventListener('submit', async function(e) {
             e.preventDefault();
+
+            const formErrors = document.getElementById('form-errors');
+            if (formErrors) formErrors.innerHTML = '';
 
             const formData = new FormData(e.target);
             const data = {
@@ -65,11 +71,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.location.href = '/';
                 } else {
                     const error = await response.json();
-                    alert(error.error || 'Registration failed');
+                    if (formErrors) formErrors.innerHTML = `<p class="error">${error.error || 'Registration failed'}</p>`;
                 }
             } catch (error) {
                 console.error('Registration error:', error);
-                alert('An error occurred during registration');
+                if (formErrors) formErrors.innerHTML = '<p class="error">An error occurred during registration</p>';
             }
         });
     }
