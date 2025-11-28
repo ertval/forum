@@ -591,3 +591,499 @@ func TestService_ListPosts(t *testing.T) {
 		})
 	}
 }
+
+// TestCategoryService tests for category operations
+func TestCategoryService_Create(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name          string
+		catName       string
+		description   string
+		setupMocks    func(*mockCategoryRepository)
+		expectedError error
+	}{
+		{
+			name:        "valid category",
+			catName:     "General",
+			description: "General discussion",
+			setupMocks: func(mcr *mockCategoryRepository) {
+				mcr.createFunc = func(ctx context.Context, category *domain.Category) error {
+					category.ID = 1
+					category.PublicID = "cat-uuid"
+					return nil
+				}
+			},
+			expectedError: nil,
+		},
+		{
+			name:        "empty name",
+			catName:     "",
+			description: "Description",
+			setupMocks: func(mcr *mockCategoryRepository) {
+			},
+			expectedError: domain.ErrEmptyCategoryName,
+		},
+		{
+			name:        "name too long",
+			catName:     "This is a very long category name that exceeds the maximum allowed length of fifty characters",
+			description: "Description",
+			setupMocks: func(mcr *mockCategoryRepository) {
+			},
+			expectedError: domain.ErrCategoryNameTooLong,
+		},
+		{
+			name:        "description too long",
+			catName:     "ValidName",
+			description: string(make([]byte, 501)),
+			setupMocks: func(mcr *mockCategoryRepository) {
+			},
+			expectedError: domain.ErrCategoryDescriptionTooLong,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockCategoryRepo := &mockCategoryRepository{}
+
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockCategoryRepo)
+			}
+
+			service := NewCategoryService(mockCategoryRepo)
+
+			category, err := service.Create(ctx, tt.catName, tt.description)
+
+			if tt.expectedError != nil {
+				if err == nil {
+					t.Errorf("expected error %v, got nil", tt.expectedError)
+				} else if !errors.Is(err, tt.expectedError) {
+					t.Errorf("expected error %v, got %v", tt.expectedError, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if category == nil {
+					t.Error("expected category to be created, got nil")
+				}
+				if category != nil && category.Name != tt.catName {
+					t.Errorf("expected name %s, got %s", tt.catName, category.Name)
+				}
+			}
+		})
+	}
+}
+
+func TestCategoryService_Get(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name          string
+		categoryID    string
+		setupMocks    func(*mockCategoryRepository)
+		expectedError error
+	}{
+		{
+			name:       "category found",
+			categoryID: "cat-1",
+			setupMocks: func(mcr *mockCategoryRepository) {
+				mcr.getByIDFunc = func(ctx context.Context, categoryID string) (*domain.Category, error) {
+					return &domain.Category{
+						ID:       1,
+						PublicID: categoryID,
+						Name:     "General",
+					}, nil
+				}
+			},
+			expectedError: nil,
+		},
+		{
+			name:       "category not found",
+			categoryID: "nonexistent",
+			setupMocks: func(mcr *mockCategoryRepository) {
+				mcr.getByIDFunc = func(ctx context.Context, categoryID string) (*domain.Category, error) {
+					return nil, domain.ErrCategoryNotFound
+				}
+			},
+			expectedError: domain.ErrCategoryNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockCategoryRepo := &mockCategoryRepository{}
+
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockCategoryRepo)
+			}
+
+			service := NewCategoryService(mockCategoryRepo)
+
+			category, err := service.Get(ctx, tt.categoryID)
+
+			if tt.expectedError != nil {
+				if err == nil {
+					t.Errorf("expected error %v, got nil", tt.expectedError)
+				} else if !errors.Is(err, tt.expectedError) {
+					t.Errorf("expected error %v, got %v", tt.expectedError, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if category == nil {
+					t.Error("expected category to be returned, got nil")
+				}
+			}
+		})
+	}
+}
+
+func TestCategoryService_List(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name       string
+		setupMocks func(*mockCategoryRepository)
+		wantCount  int
+		wantError  bool
+	}{
+		{
+			name: "list all categories",
+			setupMocks: func(mcr *mockCategoryRepository) {
+				mcr.listFunc = func(ctx context.Context) ([]*domain.Category, error) {
+					return []*domain.Category{
+						{ID: 1, PublicID: "cat-1", Name: "General"},
+						{ID: 2, PublicID: "cat-2", Name: "Technology"},
+						{ID: 3, PublicID: "cat-3", Name: "Sports"},
+					}, nil
+				}
+			},
+			wantCount: 3,
+			wantError: false,
+		},
+		{
+			name: "empty list",
+			setupMocks: func(mcr *mockCategoryRepository) {
+				mcr.listFunc = func(ctx context.Context) ([]*domain.Category, error) {
+					return []*domain.Category{}, nil
+				}
+			},
+			wantCount: 0,
+			wantError: false,
+		},
+		{
+			name: "repository error",
+			setupMocks: func(mcr *mockCategoryRepository) {
+				mcr.listFunc = func(ctx context.Context) ([]*domain.Category, error) {
+					return nil, errors.New("database error")
+				}
+			},
+			wantCount: 0,
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockCategoryRepo := &mockCategoryRepository{}
+
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockCategoryRepo)
+			}
+
+			service := NewCategoryService(mockCategoryRepo)
+
+			categories, err := service.List(ctx)
+
+			if tt.wantError {
+				if err == nil {
+					t.Error("expected error, got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if len(categories) != tt.wantCount {
+					t.Errorf("expected %d categories, got %d", tt.wantCount, len(categories))
+				}
+			}
+		})
+	}
+}
+
+func TestCategoryService_Delete(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name          string
+		categoryID    string
+		setupMocks    func(*mockCategoryRepository)
+		expectedError error
+	}{
+		{
+			name:       "successful deletion",
+			categoryID: "cat-1",
+			setupMocks: func(mcr *mockCategoryRepository) {
+				mcr.deleteFunc = func(ctx context.Context, categoryID string) error {
+					return nil
+				}
+			},
+			expectedError: nil,
+		},
+		{
+			name:       "category not found",
+			categoryID: "nonexistent",
+			setupMocks: func(mcr *mockCategoryRepository) {
+				mcr.deleteFunc = func(ctx context.Context, categoryID string) error {
+					return domain.ErrCategoryNotFound
+				}
+			},
+			expectedError: domain.ErrCategoryNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockCategoryRepo := &mockCategoryRepository{}
+
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockCategoryRepo)
+			}
+
+			service := NewCategoryService(mockCategoryRepo)
+
+			err := service.Delete(ctx, tt.categoryID)
+
+			if tt.expectedError != nil {
+				if err == nil {
+					t.Errorf("expected error %v, got nil", tt.expectedError)
+				} else if !errors.Is(err, tt.expectedError) {
+					t.Errorf("expected error %v, got %v", tt.expectedError, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}
+
+// TestFilterService tests for filter service
+func TestFilterService_BuildFilter(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name   string
+		params ports.FilterParams
+		want   ports.PostFilter
+	}{
+		{
+			name: "empty params defaults",
+			params: ports.FilterParams{
+				Limit:  10,
+				Offset: 0,
+			},
+			want: ports.PostFilter{
+				Limit:      10,
+				Offset:     0,
+				DateFilter: "all",
+			},
+		},
+		{
+			name: "with category filter",
+			params: ports.FilterParams{
+				Category: "Technology",
+				Limit:    10,
+				Offset:   0,
+			},
+			want: ports.PostFilter{
+				Categories: []string{"Technology"},
+				Limit:      10,
+				Offset:     0,
+				DateFilter: "all",
+			},
+		},
+		{
+			name: "with explicit user ID",
+			params: ports.FilterParams{
+				UserID: "user-123",
+				Limit:  10,
+				Offset: 0,
+			},
+			want: ports.PostFilter{
+				UserID:     "user-123",
+				Limit:      10,
+				Offset:     0,
+				DateFilter: "all",
+			},
+		},
+		{
+			name: "my posts filter",
+			params: ports.FilterParams{
+				MyPosts:       true,
+				CurrentUserID: "current-user-uuid",
+				Limit:         10,
+				Offset:        0,
+			},
+			want: ports.PostFilter{
+				UserID:     "current-user-uuid",
+				Limit:      10,
+				Offset:     0,
+				DateFilter: "all",
+			},
+		},
+		{
+			name: "liked posts filter",
+			params: ports.FilterParams{
+				LikedPosts:    true,
+				CurrentUserID: "current-user-uuid",
+				Limit:         10,
+				Offset:        0,
+			},
+			want: ports.PostFilter{
+				LikedByUserID: "current-user-uuid",
+				Limit:         10,
+				Offset:        0,
+				DateFilter:    "all",
+			},
+		},
+		{
+			name: "date filter today",
+			params: ports.FilterParams{
+				DateFilter: "today",
+				Limit:      10,
+				Offset:     0,
+			},
+			want: ports.PostFilter{
+				DateFilter: "today",
+				Limit:      10,
+				Offset:     0,
+			},
+		},
+		{
+			name: "date filter week",
+			params: ports.FilterParams{
+				DateFilter: "week",
+				Limit:      10,
+				Offset:     0,
+			},
+			want: ports.PostFilter{
+				DateFilter: "week",
+				Limit:      10,
+				Offset:     0,
+			},
+		},
+		{
+			name: "combined filters",
+			params: ports.FilterParams{
+				Category:      "Technology",
+				LikedPosts:    true,
+				CurrentUserID: "user-123",
+				DateFilter:    "month",
+				Limit:         20,
+				Offset:        10,
+			},
+			want: ports.PostFilter{
+				Categories:    []string{"Technology"},
+				LikedByUserID: "user-123",
+				DateFilter:    "month",
+				Limit:         20,
+				Offset:        10,
+			},
+		},
+		{
+			name: "explicit user ID takes precedence over my posts",
+			params: ports.FilterParams{
+				UserID:        "explicit-user",
+				MyPosts:       true,
+				CurrentUserID: "current-user",
+				Limit:         10,
+			},
+			want: ports.PostFilter{
+				UserID:     "explicit-user",
+				Limit:      10,
+				DateFilter: "all",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service := NewFilterService()
+			got := service.BuildFilter(ctx, tt.params)
+
+			if got.Limit != tt.want.Limit {
+				t.Errorf("Limit: expected %d, got %d", tt.want.Limit, got.Limit)
+			}
+			if got.Offset != tt.want.Offset {
+				t.Errorf("Offset: expected %d, got %d", tt.want.Offset, got.Offset)
+			}
+			if got.UserID != tt.want.UserID {
+				t.Errorf("UserID: expected %s, got %s", tt.want.UserID, got.UserID)
+			}
+			if got.LikedByUserID != tt.want.LikedByUserID {
+				t.Errorf("LikedByUserID: expected %s, got %s", tt.want.LikedByUserID, got.LikedByUserID)
+			}
+			if got.DateFilter != tt.want.DateFilter {
+				t.Errorf("DateFilter: expected %s, got %s", tt.want.DateFilter, got.DateFilter)
+			}
+			if len(got.Categories) != len(tt.want.Categories) {
+				t.Errorf("Categories length: expected %d, got %d", len(tt.want.Categories), len(got.Categories))
+			}
+			for i, c := range got.Categories {
+				if i < len(tt.want.Categories) && c != tt.want.Categories[i] {
+					t.Errorf("Categories[%d]: expected %s, got %s", i, tt.want.Categories[i], c)
+				}
+			}
+		})
+	}
+}
+
+func TestFilterService_ApplyDateFilter(t *testing.T) {
+	tests := []struct {
+		name       string
+		dateFilter string
+		want       string
+	}{
+		{
+			name:       "today filter",
+			dateFilter: "today",
+			want:       "today",
+		},
+		{
+			name:       "week filter",
+			dateFilter: "week",
+			want:       "week",
+		},
+		{
+			name:       "month filter",
+			dateFilter: "month",
+			want:       "month",
+		},
+		{
+			name:       "empty defaults to all",
+			dateFilter: "",
+			want:       "all",
+		},
+		{
+			name:       "all filter",
+			dateFilter: "all",
+			want:       "all",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service := NewFilterService()
+			filter := &ports.PostFilter{}
+			service.ApplyDateFilter(filter, tt.dateFilter)
+
+			if filter.DateFilter != tt.want {
+				t.Errorf("expected %s, got %s", tt.want, filter.DateFilter)
+			}
+		})
+	}
+}
