@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	authAdapters "forum/internal/modules/auth/adapters"
 	authDomain "forum/internal/modules/auth/domain"
 	authPorts "forum/internal/modules/auth/ports"
 	postDomain "forum/internal/modules/post/domain"
@@ -122,8 +123,8 @@ type mockAuthService struct {
 	validateFunc func(ctx context.Context, token string) (*authDomain.Session, error)
 }
 
-func (m *mockAuthService) Register(ctx context.Context, username, email, password string) (*authDomain.Session, error) {
-	return nil, nil
+func (m *mockAuthService) Register(ctx context.Context, email, username, password string) (int, *authDomain.Session, error) {
+	return 0, nil, nil
 }
 
 func (m *mockAuthService) Login(ctx context.Context, email, password string) (*authDomain.Session, error) {
@@ -138,6 +139,14 @@ func (m *mockAuthService) ValidateSession(ctx context.Context, token string) (*a
 	if m.validateFunc != nil {
 		return m.validateFunc(ctx, token)
 	}
+	return nil, nil
+}
+
+func (m *mockAuthService) RefreshSession(ctx context.Context, token string) (*authDomain.Session, error) {
+	return nil, nil
+}
+
+func (m *mockAuthService) GetSession(ctx context.Context, token string) (*authDomain.Session, error) {
 	return nil, nil
 }
 
@@ -255,7 +264,7 @@ func createTestHandler(postSvc *mockPostService, catSvc *mockCategoryService, au
 
 // Test helpers
 func addAuthContext(r *http.Request, userPublicID string) *http.Request {
-	ctx := context.WithValue(r.Context(), "user_id", userPublicID)
+	ctx := context.WithValue(r.Context(), authAdapters.UserIDKey, userPublicID)
 	return r.WithContext(ctx)
 }
 
@@ -1008,9 +1017,9 @@ func TestHTTPHandler_CreatePostAPI_UnsupportedMediaType(t *testing.T) {
 
 func TestHTTPHandler_UpdatePostAPI_ValidationErrors(t *testing.T) {
 	tests := []struct {
-		name          string
-		updateErr     error
-		expectedCode  int
+		name         string
+		updateErr    error
+		expectedCode int
 	}{
 		{
 			name:         "empty title",
