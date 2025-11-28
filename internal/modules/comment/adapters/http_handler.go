@@ -80,7 +80,7 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 // CreateCommentAPI handles comment creation requests.
 func (h *HTTPHandler) CreateCommentAPI(w http.ResponseWriter, r *http.Request) {
 	// Extract post ID from URL path
-	postPublicID := strings.Split(r.URL.Path, "/")[3] // /api/posts/{post_id}/comments
+	postPublicID := r.PathValue("post_id")
 	if postPublicID == "" {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Post ID is required")
 		return
@@ -141,7 +141,7 @@ func (h *HTTPHandler) CreateCommentAPI(w http.ResponseWriter, r *http.Request) {
 // GetCommentAPI handles comment retrieval requests.
 func (h *HTTPHandler) GetCommentAPI(w http.ResponseWriter, r *http.Request) {
 	// Extract comment ID from URL path
-	commentPublicID := strings.Split(r.URL.Path, "/")[3] // /api/comments/{id}
+	commentPublicID := r.PathValue("id")
 	if commentPublicID == "" {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Comment ID is required")
 		return
@@ -181,7 +181,7 @@ func (h *HTTPHandler) GetCommentAPI(w http.ResponseWriter, r *http.Request) {
 // UpdateCommentAPI handles comment update requests.
 func (h *HTTPHandler) UpdateCommentAPI(w http.ResponseWriter, r *http.Request) {
 	// Extract comment ID from URL path
-	commentPublicID := strings.Split(r.URL.Path, "/")[3] // /api/comments/{id}
+	commentPublicID := r.PathValue("id")
 	if commentPublicID == "" {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Comment ID is required")
 		return
@@ -259,7 +259,7 @@ func (h *HTTPHandler) UpdateCommentAPI(w http.ResponseWriter, r *http.Request) {
 // DeleteCommentAPI handles comment deletion requests.
 func (h *HTTPHandler) DeleteCommentAPI(w http.ResponseWriter, r *http.Request) {
 	// Extract comment ID from URL path
-	commentPublicID := strings.Split(r.URL.Path, "/")[3] // /api/comments/{id}
+	commentPublicID := r.PathValue("id")
 	if commentPublicID == "" {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Comment ID is required")
 		return
@@ -313,7 +313,7 @@ func (h *HTTPHandler) DeleteCommentAPI(w http.ResponseWriter, r *http.Request) {
 // ListCommentsByPostAPI handles listing comments for a post.
 func (h *HTTPHandler) ListCommentsByPostAPI(w http.ResponseWriter, r *http.Request) {
 	// Extract post ID from URL path
-	postPublicID := strings.Split(r.URL.Path, "/")[3] // /api/posts/{post_id}/comments
+	postPublicID := r.PathValue("post_id")
 	if postPublicID == "" {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Post ID is required")
 		return
