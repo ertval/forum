@@ -459,6 +459,15 @@ func TestService_DeletePost(t *testing.T) {
 			name:   "successful deletion",
 			postID: "post-1",
 			setupMocks: func(mpr *mockPostRepository) {
+				mpr.getByIDFunc = func(ctx context.Context, postID string) (*domain.Post, error) {
+					return &domain.Post{
+						PublicID: postID,
+						ID:       1,
+						UserID:   1,
+						Title:    "Test Post",
+						Content:  "Test content",
+					}, nil
+				}
 				mpr.deleteFunc = func(ctx context.Context, postID string) error {
 					return nil
 				}
@@ -466,9 +475,28 @@ func TestService_DeletePost(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:   "post not found",
+			name:   "post not found on get",
 			postID: "nonexistent",
 			setupMocks: func(mpr *mockPostRepository) {
+				mpr.getByIDFunc = func(ctx context.Context, postID string) (*domain.Post, error) {
+					return nil, domain.ErrPostNotFound
+				}
+			},
+			expectedError: domain.ErrPostNotFound,
+		},
+		{
+			name:   "post not found on delete",
+			postID: "post-1",
+			setupMocks: func(mpr *mockPostRepository) {
+				mpr.getByIDFunc = func(ctx context.Context, postID string) (*domain.Post, error) {
+					return &domain.Post{
+						PublicID: postID,
+						ID:       1,
+						UserID:   1,
+						Title:    "Test Post",
+						Content:  "Test content",
+					}, nil
+				}
 				mpr.deleteFunc = func(ctx context.Context, postID string) error {
 					return domain.ErrPostNotFound
 				}
