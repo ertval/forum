@@ -851,6 +851,22 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx := r.Context()
+
+	// Get user PUBLIC ID (UUID) from session cookie if available.
+	// This endpoint is NOT wrapped with auth middleware, so we must read the session directly.
+	var userPublicID string
+	cookie, err := r.Cookie("session_token")
+	if err == nil && cookie.Value != "" {
+		if session, err := h.authService.ValidateSession(ctx, cookie.Value); err == nil && session != nil {
+			// Fetch user to get PublicID (UUID)
+			user, err := h.userService.GetByID(ctx, session.UserID)
+			if err == nil && user != nil {
+				userPublicID = user.PublicID
+			}
+		}
+	}
+
 	// Parse query parameters
 	filter := postPorts.PostFilter{
 		Limit:  20, // Load 20 posts at a time
@@ -864,7 +880,6 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 
 	// User's own posts filter (requires auth)
 	if r.URL.Query().Get("my_posts") == "true" {
-		userPublicID := authAdapters.GetUserID(r.Context())
 		if userPublicID != "" {
 			filter.UserID = userPublicID // Use PublicID (UUID) for filtering
 		}
@@ -872,7 +887,6 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 
 	// Liked posts filter (requires auth)
 	if r.URL.Query().Get("liked_posts") == "true" {
-		userPublicID := authAdapters.GetUserID(r.Context())
 		if userPublicID != "" {
 			filter.LikedByUserID = userPublicID // Use PublicID (UUID) for filtering
 		}
@@ -883,6 +897,11 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 		if offset, err := strconv.Atoi(offsetStr); err == nil && offset >= 0 {
 			filter.Offset = offset
 		}
+	}
+
+	// Date filter (for when user has filtered by date)
+	if dateFilter := r.URL.Query().Get("date_filter"); dateFilter != "" {
+		filter.DateFilter = dateFilter
 	}
 
 	// Get posts

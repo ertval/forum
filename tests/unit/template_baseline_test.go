@@ -27,6 +27,8 @@ func TestBaseTemplateRendering(t *testing.T) {
 		html := helper.RenderTemplate(t, "base", data)
 
 		helper.AssertHasAuthenticatedNav(t, html, "testuser")
+		helper.AssertContains(t, html, `href="/board?my_posts=true"`)    // Check My Posts link uses my_posts=true
+		helper.AssertContains(t, html, `href="/board?liked_posts=true"`) // Check My Likes link
 	})
 
 	t.Run("renders with guest user", func(t *testing.T) {
