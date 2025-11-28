@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io"
 	"mime/multipart"
@@ -1261,5 +1262,893 @@ func TestHTTPHandler_writeJSON(t *testing.T) {
 	body, _ := io.ReadAll(w.Body)
 	if !strings.Contains(string(body), "test") {
 		t.Error("Response body should contain 'test'")
+	}
+}
+
+// Additional tests for better coverage
+
+func TestHTTPHandler_UpdatePostAPI_ServiceError(t *testing.T) {
+	postSvc := &mockPostService{
+		getFunc: func(ctx context.Context, postID string) (*postDomain.Post, error) {
+			return &postDomain.Post{
+				ID:           1,
+				PublicID:     postID,
+				UserID:       1,
+				UserPublicID: "user-uuid-1",
+				Title:        "Test Post",
+				Content:      "Test Content",
+			}, nil
+		},
+		updateFunc: func(ctx context.Context, postID, title, content string, categories []string) error {
+			return postDomain.ErrEmptyTitle // Validation error
+		},
+	}
+
+	userSvc := &mockUserService{
+		getByPublicIDFunc: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+			return &userDomain.User{ID: 1, PublicID: publicID}, nil
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService: postSvc,
+		userService: userSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	body := `{"title":"","content":"Updated","categories":["tech"]}`
+	req := httptest.NewRequest(http.MethodPut, "/posts/post-uuid-1", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.SetPathValue("id", "post-uuid-1")
+	req = addAuthContext(req, "user-uuid-1")
+
+	w := httptest.NewRecorder()
+	handler.UpdatePostAPI(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_DeletePostAPI_ServiceError(t *testing.T) {
+	postSvc := &mockPostService{
+		getFunc: func(ctx context.Context, postID string) (*postDomain.Post, error) {
+			return &postDomain.Post{
+				ID:           1,
+				PublicID:     postID,
+				UserID:       1,
+				UserPublicID: "user-uuid-1",
+			}, nil
+		},
+		deleteFunc: func(ctx context.Context, postID string) error {
+			return postDomain.ErrPostNotFound
+		},
+	}
+
+	userSvc := &mockUserService{
+		getByPublicIDFunc: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+			return &userDomain.User{ID: 1, PublicID: publicID}, nil
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService: postSvc,
+		userService: userSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	req := httptest.NewRequest(http.MethodDelete, "/posts/post-uuid-1", nil)
+	req.SetPathValue("id", "post-uuid-1")
+	req = addAuthContext(req, "user-uuid-1")
+
+	w := httptest.NewRecorder()
+	handler.DeletePostAPI(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected status 404, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_ListPostsAPI_ServiceError(t *testing.T) {
+	postSvc := &mockPostService{
+		listFunc: func(ctx context.Context, filter postPorts.PostFilter) ([]*postDomain.Post, error) {
+			return nil, postDomain.ErrPostNotFound
+		},
+	}
+
+	filterSvc := &mockFilterService{}
+
+	container := &mockServiceContainer{
+		postService:   postSvc,
+		filterService: filterSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/posts", nil)
+	w := httptest.NewRecorder()
+	handler.ListPostsAPI(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_CreatePostAPI_ServiceError(t *testing.T) {
+	postSvc := &mockPostService{
+		createFunc: func(ctx context.Context, userID int, title, content string, categories []string, image []byte) (*postDomain.Post, error) {
+			return nil, postDomain.ErrEmptyTitle
+		},
+	}
+
+	userSvc := &mockUserService{
+		getByPublicIDFunc: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+			return &userDomain.User{ID: 1, PublicID: publicID}, nil
+		},
+	}
+
+	categorySvc := &mockCategoryService{
+		getFunc: func(ctx context.Context, categoryID string) (*postDomain.Category, error) {
+			return &postDomain.Category{ID: 1, PublicID: "cat-uuid-1", Name: "Tech"}, nil
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService:     postSvc,
+		userService:     userSvc,
+		categoryService: categorySvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	body := `{"title":"Test","content":"Content","categories":["cat-uuid-1"]}`
+	req := httptest.NewRequest(http.MethodPost, "/posts", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = addAuthContext(req, "user-uuid-1")
+
+	w := httptest.NewRecorder()
+	handler.CreatePostAPI(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_LoadMorePostsAPI_ServiceError(t *testing.T) {
+	postSvc := &mockPostService{
+		listFunc: func(ctx context.Context, filter postPorts.PostFilter) ([]*postDomain.Post, error) {
+			return nil, postDomain.ErrPostNotFound
+		},
+	}
+
+	filterSvc := &mockFilterService{}
+
+	container := &mockServiceContainer{
+		postService:   postSvc,
+		filterService: filterSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/posts/load-more?offset=0", nil)
+	w := httptest.NewRecorder()
+	handler.LoadMorePostsAPI(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_GetPostAPI_InvalidID(t *testing.T) {
+	postSvc := &mockPostService{
+		getFunc: func(ctx context.Context, postID string) (*postDomain.Post, error) {
+			return nil, postDomain.ErrPostNotFound
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService: postSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/posts/", nil)
+	req.SetPathValue("id", "") // Empty ID
+
+	w := httptest.NewRecorder()
+	handler.GetPostAPI(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_UpdatePostAPI_GetPostError(t *testing.T) {
+	postSvc := &mockPostService{
+		getFunc: func(ctx context.Context, postID string) (*postDomain.Post, error) {
+			return nil, postDomain.ErrPostNotFound
+		},
+	}
+
+	userSvc := &mockUserService{
+		getByPublicIDFunc: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+			return &userDomain.User{ID: 1, PublicID: publicID}, nil
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService: postSvc,
+		userService: userSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	body := `{"title":"Updated","content":"Updated","categories":["tech"]}`
+	req := httptest.NewRequest(http.MethodPut, "/posts/nonexistent", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.SetPathValue("id", "nonexistent")
+	req = addAuthContext(req, "user-uuid-1")
+
+	w := httptest.NewRecorder()
+	handler.UpdatePostAPI(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected status 404, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_min(t *testing.T) {
+	tests := []struct {
+		a, b, want int
+	}{
+		{1, 2, 1},
+		{2, 1, 1},
+		{0, 0, 0},
+		{-1, 1, -1},
+	}
+
+	for _, tt := range tests {
+		got := min(tt.a, tt.b)
+		if got != tt.want {
+			t.Errorf("min(%d, %d) = %d, want %d", tt.a, tt.b, got, tt.want)
+		}
+	}
+}
+
+func TestHTTPHandler_RegisterRoutes(t *testing.T) {
+	authSvc := &mockAuthService{
+		validateFunc: func(ctx context.Context, token string) (*authDomain.Session, error) {
+			return nil, authDomain.ErrSessionNotFound
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService: &mockPostService{},
+		authService: authSvc,
+		userService: &mockUserService{},
+	}
+
+	handler := NewHTTPHandler(container, nil)
+
+	router := http.NewServeMux()
+	handler.RegisterRoutes(router)
+
+	// Test that routes are registered by making a simple request
+	req := httptest.NewRequest(http.MethodGet, "/posts", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// Should not get 404 since route is registered
+	if w.Code == http.StatusNotFound {
+		t.Error("Expected route /posts to be registered")
+	}
+}
+
+func TestHTTPHandler_CreatePostAPI_MultipartWithImage(t *testing.T) {
+	postSvc := &mockPostService{
+		createFunc: func(ctx context.Context, userID int, title, content string, categories []string, image []byte) (*postDomain.Post, error) {
+			return &postDomain.Post{
+				ID:           1,
+				PublicID:     "new-post-uuid",
+				Title:        title,
+				Content:      content,
+				Categories:   []string{"Tech"},
+				UserID:       userID,
+				UserPublicID: "user-uuid-1",
+				ImageURL:     "/uploads/test.jpg",
+			}, nil
+		},
+	}
+
+	userSvc := &mockUserService{
+		getByPublicIDFunc: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+			return &userDomain.User{ID: 1, PublicID: publicID}, nil
+		},
+	}
+
+	categorySvc := &mockCategoryService{
+		getFunc: func(ctx context.Context, categoryID string) (*postDomain.Category, error) {
+			return &postDomain.Category{ID: 1, PublicID: categoryID, Name: "Tech"}, nil
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService:     postSvc,
+		userService:     userSvc,
+		categoryService: categorySvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	// Create multipart form with image
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	_ = writer.WriteField("title", "Test Post")
+	_ = writer.WriteField("content", "Test Content")
+	_ = writer.WriteField("categories", "cat-uuid-1")
+
+	// Add a fake image
+	imagePart, _ := writer.CreateFormFile("image", "test.jpg")
+	imagePart.Write([]byte("fake image data"))
+	writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/posts", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req = addAuthContext(req, "user-uuid-1")
+
+	w := httptest.NewRecorder()
+	handler.CreatePostAPI(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("Expected status 201, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_UpdatePostAPI_FormURLEncoded(t *testing.T) {
+	postSvc := &mockPostService{
+		getFunc: func(ctx context.Context, postID string) (*postDomain.Post, error) {
+			return &postDomain.Post{
+				ID:           1,
+				PublicID:     postID,
+				UserID:       1,
+				UserPublicID: "user-uuid-1",
+				Title:        "Original",
+				Content:      "Original",
+			}, nil
+		},
+		updateFunc: func(ctx context.Context, postID, title, content string, categories []string) error {
+			return nil
+		},
+	}
+
+	userSvc := &mockUserService{
+		getByPublicIDFunc: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+			return &userDomain.User{ID: 1, PublicID: publicID}, nil
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService: postSvc,
+		userService: userSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	form := "title=Updated&content=Updated&categories=tech"
+	req := httptest.NewRequest(http.MethodPut, "/posts/post-uuid-1", strings.NewReader(form))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetPathValue("id", "post-uuid-1")
+	req = addAuthContext(req, "user-uuid-1")
+
+	w := httptest.NewRecorder()
+	handler.UpdatePostAPI(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf("Expected status 204, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_CreatePostAPI_ValidationEmptyContent(t *testing.T) {
+	postSvc := &mockPostService{
+		createFunc: func(ctx context.Context, userID int, title, content string, categories []string, image []byte) (*postDomain.Post, error) {
+			if content == "" {
+				return nil, postDomain.ErrEmptyContent
+			}
+			return &postDomain.Post{}, nil
+		},
+	}
+
+	userSvc := &mockUserService{
+		getByPublicIDFunc: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+			return &userDomain.User{ID: 1, PublicID: publicID}, nil
+		},
+	}
+
+	categorySvc := &mockCategoryService{
+		getFunc: func(ctx context.Context, categoryID string) (*postDomain.Category, error) {
+			return &postDomain.Category{ID: 1, PublicID: categoryID, Name: "Tech"}, nil
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService:     postSvc,
+		userService:     userSvc,
+		categoryService: categorySvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	body := `{"title":"Test","content":"","categories":["tech"]}`
+	req := httptest.NewRequest(http.MethodPost, "/posts", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = addAuthContext(req, "user-uuid-1")
+
+	w := httptest.NewRecorder()
+	handler.CreatePostAPI(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_CreatePostAPI_NoCategories(t *testing.T) {
+	postSvc := &mockPostService{
+		createFunc: func(ctx context.Context, userID int, title, content string, categories []string, image []byte) (*postDomain.Post, error) {
+			if len(categories) == 0 {
+				return nil, postDomain.ErrNoCategories
+			}
+			return &postDomain.Post{}, nil
+		},
+	}
+
+	userSvc := &mockUserService{
+		getByPublicIDFunc: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+			return &userDomain.User{ID: 1, PublicID: publicID}, nil
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService: postSvc,
+		userService: userSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	body := `{"title":"Test","content":"Content","categories":[]}`
+	req := httptest.NewRequest(http.MethodPost, "/posts", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = addAuthContext(req, "user-uuid-1")
+
+	w := httptest.NewRecorder()
+	handler.CreatePostAPI(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_ListPostsAPI_WithCookie(t *testing.T) {
+	postSvc := &mockPostService{
+		listFunc: func(ctx context.Context, filter postPorts.PostFilter) ([]*postDomain.Post, error) {
+			return []*postDomain.Post{
+				{
+					ID:        1,
+					PublicID:  "post-1",
+					Title:     "Test",
+					Content:   "Content",
+					CreatedAt: time.Now(),
+				},
+			}, nil
+		},
+	}
+
+	filterSvc := &mockFilterService{}
+
+	authSvc := &mockAuthService{
+		validateFunc: func(ctx context.Context, token string) (*authDomain.Session, error) {
+			return &authDomain.Session{UserID: 1, Token: token}, nil
+		},
+	}
+
+	userSvc := &mockUserService{
+		getByIDFunc: func(ctx context.Context, userID int) (*userDomain.User, error) {
+			return &userDomain.User{ID: userID, PublicID: "user-uuid-1", Username: "testuser"}, nil
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService:   postSvc,
+		filterService: filterSvc,
+		authService:   authSvc,
+		userService:   userSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/posts", nil)
+	req.AddCookie(&http.Cookie{Name: "session_token", Value: "valid-token"})
+
+	w := httptest.NewRecorder()
+	handler.ListPostsAPI(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_LoadMorePostsAPI_InvalidOffset(t *testing.T) {
+	filterSvc := &mockFilterService{}
+
+	postSvc := &mockPostService{
+		listFunc: func(ctx context.Context, filter postPorts.PostFilter) ([]*postDomain.Post, error) {
+			return []*postDomain.Post{}, nil
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService:   postSvc,
+		filterService: filterSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/posts/load-more?offset=invalid", nil)
+	w := httptest.NewRecorder()
+	handler.LoadMorePostsAPI(w, req)
+
+	// Should still work but with offset 0
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200 (with default offset), got %d", w.Code)
+	}
+}
+
+// Tests for page handlers (error paths before template rendering)
+
+func TestHTTPHandler_CreatePostPage_Unauthorized(t *testing.T) {
+	container := &mockServiceContainer{
+		postService: &mockPostService{},
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	// Request without auth context
+	req := httptest.NewRequest(http.MethodGet, "/posts/new", nil)
+	w := httptest.NewRecorder()
+	handler.CreatePostPage(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status 401, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_CreatePostPage_InvalidUser(t *testing.T) {
+	userSvc := &mockUserService{
+		getByPublicIDFunc: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+			return nil, userDomain.ErrUserNotFound
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService: &mockPostService{},
+		userService: userSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/posts/new", nil)
+	req = addAuthContext(req, "nonexistent-user")
+	w := httptest.NewRecorder()
+	handler.CreatePostPage(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_EditPostPage_Unauthorized(t *testing.T) {
+	container := &mockServiceContainer{
+		postService: &mockPostService{},
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/posts/post-uuid-1/edit", nil)
+	req.SetPathValue("id", "post-uuid-1")
+	w := httptest.NewRecorder()
+	handler.EditPostPage(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status 401, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_EditPostPage_InvalidUser(t *testing.T) {
+	userSvc := &mockUserService{
+		getByPublicIDFunc: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+			return nil, userDomain.ErrUserNotFound
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService: &mockPostService{},
+		userService: userSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/posts/post-uuid-1/edit", nil)
+	req.SetPathValue("id", "post-uuid-1")
+	req = addAuthContext(req, "nonexistent-user")
+	w := httptest.NewRecorder()
+	handler.EditPostPage(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_EditPostPage_EmptyPostID(t *testing.T) {
+	userSvc := &mockUserService{
+		getByPublicIDFunc: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+			return &userDomain.User{ID: 1, PublicID: publicID}, nil
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService: &mockPostService{},
+		userService: userSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/posts//edit", nil)
+	req.SetPathValue("id", "")
+	req = addAuthContext(req, "user-uuid-1")
+	w := httptest.NewRecorder()
+	handler.EditPostPage(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_EditPostPage_PostNotFound(t *testing.T) {
+	postSvc := &mockPostService{
+		getFunc: func(ctx context.Context, postID string) (*postDomain.Post, error) {
+			return nil, postDomain.ErrPostNotFound
+		},
+	}
+
+	userSvc := &mockUserService{
+		getByPublicIDFunc: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+			return &userDomain.User{ID: 1, PublicID: publicID}, nil
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService: postSvc,
+		userService: userSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/posts/nonexistent/edit", nil)
+	req.SetPathValue("id", "nonexistent")
+	req = addAuthContext(req, "user-uuid-1")
+	w := httptest.NewRecorder()
+	handler.EditPostPage(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected status 404, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_EditPostPage_Forbidden(t *testing.T) {
+	postSvc := &mockPostService{
+		getFunc: func(ctx context.Context, postID string) (*postDomain.Post, error) {
+			return &postDomain.Post{
+				ID:           1,
+				PublicID:     postID,
+				UserID:       2, // Different user
+				UserPublicID: "other-user-uuid",
+			}, nil
+		},
+	}
+
+	userSvc := &mockUserService{
+		getByPublicIDFunc: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+			return &userDomain.User{ID: 1, PublicID: publicID}, nil
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService: postSvc,
+		userService: userSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/posts/post-uuid-1/edit", nil)
+	req.SetPathValue("id", "post-uuid-1")
+	req = addAuthContext(req, "user-uuid-1")
+	w := httptest.NewRecorder()
+	handler.EditPostPage(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("Expected status 403, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_HomePage_NotRoot(t *testing.T) {
+	container := &mockServiceContainer{
+		postService: &mockPostService{},
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/other-path", nil)
+	w := httptest.NewRecorder()
+	handler.HomePage(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected status 404, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_BoardPage_NotBoard(t *testing.T) {
+	container := &mockServiceContainer{
+		postService: &mockPostService{},
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/board/other", nil)
+	w := httptest.NewRecorder()
+	handler.BoardPage(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected status 404, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_GetPostAPI_ServiceError(t *testing.T) {
+	postSvc := &mockPostService{
+		getFunc: func(ctx context.Context, postID string) (*postDomain.Post, error) {
+			return nil, fmt.Errorf("database error")
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService: postSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/posts/post-uuid-1", nil)
+	req.SetPathValue("id", "post-uuid-1")
+
+	w := httptest.NewRecorder()
+	handler.GetPostAPI(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_UpdatePostAPI_InvalidJSON(t *testing.T) {
+	postSvc := &mockPostService{
+		getFunc: func(ctx context.Context, postID string) (*postDomain.Post, error) {
+			return &postDomain.Post{
+				ID:           1,
+				PublicID:     postID,
+				UserID:       1,
+				UserPublicID: "user-uuid-1",
+			}, nil
+		},
+	}
+
+	userSvc := &mockUserService{
+		getByPublicIDFunc: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+			return &userDomain.User{ID: 1, PublicID: publicID}, nil
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService: postSvc,
+		userService: userSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	req := httptest.NewRequest(http.MethodPut, "/posts/post-uuid-1", strings.NewReader("invalid json"))
+	req.Header.Set("Content-Type", "application/json")
+	req.SetPathValue("id", "post-uuid-1")
+	req = addAuthContext(req, "user-uuid-1")
+
+	w := httptest.NewRecorder()
+	handler.UpdatePostAPI(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_DeletePostAPI_MethodNotAllowed(t *testing.T) {
+	// Note: DeletePostAPI doesn't have a method check, it proceeds with post logic
+	// This test verifies that it tries to get the post (which returns nil and causes error)
+	postSvc := &mockPostService{
+		getFunc: func(ctx context.Context, postID string) (*postDomain.Post, error) {
+			return nil, postDomain.ErrPostNotFound
+		},
+	}
+
+	userSvc := &mockUserService{
+		getByPublicIDFunc: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+			return &userDomain.User{ID: 1, PublicID: publicID}, nil
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService: postSvc,
+		userService: userSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/posts/post-uuid-1", nil)
+	req.SetPathValue("id", "post-uuid-1")
+	req = addAuthContext(req, "user-uuid-1")
+
+	w := httptest.NewRecorder()
+	handler.DeletePostAPI(w, req)
+
+	// Should return 404 not found since handler doesn't check method and goes to get post
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected status 404, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_UpdatePostAPI_MethodNotAllowed(t *testing.T) {
+	// Note: UpdatePostAPI doesn't have explicit method check, but parses body based on content-type
+	// With GET request and no body, it will try to parse and fail at JSON or form parsing
+	postSvc := &mockPostService{
+		getFunc: func(ctx context.Context, postID string) (*postDomain.Post, error) {
+			return &postDomain.Post{
+				ID:           1,
+				PublicID:     postID,
+				UserID:       1,
+				UserPublicID: "user-uuid-1",
+			}, nil
+		},
+	}
+
+	userSvc := &mockUserService{
+		getByPublicIDFunc: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+			return &userDomain.User{ID: 1, PublicID: publicID}, nil
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService: postSvc,
+		userService: userSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	// GET request with no content-type - should fail at parsing stage
+	req := httptest.NewRequest(http.MethodGet, "/posts/post-uuid-1", nil)
+	req.SetPathValue("id", "post-uuid-1")
+	req = addAuthContext(req, "user-uuid-1")
+
+	w := httptest.NewRecorder()
+	handler.UpdatePostAPI(w, req)
+
+	// Should get error related to unsupported content type or parsing
+	// The handler returns 400 for invalid/missing request body
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHTTPHandler_CreatePostAPI_UserLookupError(t *testing.T) {
+	userSvc := &mockUserService{
+		getByPublicIDFunc: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+			return nil, userDomain.ErrUserNotFound
+		},
+	}
+
+	container := &mockServiceContainer{
+		postService: &mockPostService{},
+		userService: userSvc,
+	}
+	handler := NewHTTPHandler(container, nil)
+
+	body := `{"title":"Test","content":"Content","categories":["tech"]}`
+	req := httptest.NewRequest(http.MethodPost, "/posts", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = addAuthContext(req, "user-uuid-1")
+
+	w := httptest.NewRecorder()
+	handler.CreatePostAPI(w, req)
+
+	// Returns 401 because user lookup fails
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status 401, got %d", w.Code)
 	}
 }

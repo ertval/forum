@@ -1209,3 +1209,111 @@ func TestSQLitePostRepository_GetByID_WithReactions(t *testing.T) {
 		t.Errorf("Expected CommentCount 1, got %d", post.CommentCount)
 	}
 }
+
+func TestSQLitePostRepository_List_WithMultipleCategories(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Insert a test user
+	_, err := db.Exec("INSERT INTO users (public_id, username, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"user-uuid-1", "testuser", "test@example.com", "hash", time.Now(), time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert test user: %v", err)
+	}
+
+	// Insert multiple categories
+	result1, _ := db.Exec("INSERT INTO categories (public_id, name, description, created_at) VALUES (?, ?, ?, ?)",
+		"cat-uuid-1", "Tech", "Technology posts", time.Now())
+	catID1, _ := result1.LastInsertId()
+
+	result2, _ := db.Exec("INSERT INTO categories (public_id, name, description, created_at) VALUES (?, ?, ?, ?)",
+		"cat-uuid-2", "Science", "Science posts", time.Now())
+	catID2, _ := result2.LastInsertId()
+
+	result3, _ := db.Exec("INSERT INTO categories (public_id, name, description, created_at) VALUES (?, ?, ?, ?)",
+		"cat-uuid-3", "Art", "Art posts", time.Now())
+	catID3, _ := result3.LastInsertId()
+
+	repo := NewSQLitePostRepository(db)
+
+	// Insert posts with different categories
+	now := time.Now()
+	result, _ := db.Exec("INSERT INTO posts (public_id, title, content, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"post-uuid-1", "Tech Post", "Tech content", 1, now, now)
+	postID1, _ := result.LastInsertId()
+	db.Exec("INSERT INTO post_categories (post_id, category_id) VALUES (?, ?)", postID1, catID1)
+
+	result, _ = db.Exec("INSERT INTO posts (public_id, title, content, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"post-uuid-2", "Science Post", "Science content", 1, now, now)
+	postID2, _ := result.LastInsertId()
+	db.Exec("INSERT INTO post_categories (post_id, category_id) VALUES (?, ?)", postID2, catID2)
+
+	result, _ = db.Exec("INSERT INTO posts (public_id, title, content, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"post-uuid-3", "Art Post", "Art content", 1, now, now)
+	postID3, _ := result.LastInsertId()
+	db.Exec("INSERT INTO post_categories (post_id, category_id) VALUES (?, ?)", postID3, catID3)
+
+	ctx := context.Background()
+
+	// Filter by multiple categories - this exercises repeatPlaceholders with count > 0
+	filter := ports.PostFilter{
+		Categories: []string{"Tech", "Science"},
+		Limit:      10,
+	}
+	posts, err := repo.List(ctx, filter)
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+
+	if len(posts) != 2 {
+		t.Errorf("Expected 2 posts, got %d", len(posts))
+	}
+}
+
+func TestSQLitePostRepository_Create_WithCategories(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Insert a test user
+	_, err := db.Exec("INSERT INTO users (public_id, username, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"user-uuid-1", "testuser", "test@example.com", "hash", time.Now(), time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert test user: %v", err)
+	}
+
+	// Insert categories
+	_, err = db.Exec("INSERT INTO categories (public_id, name, description, created_at) VALUES (?, ?, ?, ?)",
+		"cat-uuid-1", "Tech", "Technology posts", time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert category: %v", err)
+	}
+
+	repo := NewSQLitePostRepository(db)
+	ctx := context.Background()
+
+	post := &domain.Post{
+		Title:      "Test Post",
+		Content:    "Test Content",
+		UserID:     1,
+		Categories: []string{"Tech"},
+	}
+
+	err = repo.Create(ctx, post)
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	if post.PublicID == "" {
+		t.Error("Expected PublicID to be set")
+	}
+
+	// Verify categories are linked
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM post_categories WHERE post_id = ?", post.ID).Scan(&count)
+	if err != nil {
+		t.Fatalf("Failed to count categories: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("Expected 1 category link, got %d", count)
+	}
+}
