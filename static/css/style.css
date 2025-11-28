@@ -1178,6 +1178,77 @@ footer p {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* Current image display in edit form */
+.current-image {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.current-image p {
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #5a5a5a;
+}
+
+.current-image img {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.image-actions {
+    margin-top: 0.75rem;
+}
+
+.remove-image-checkbox {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    color: #d32f2f;
+}
+
+.remove-image-checkbox input {
+    margin-right: 0.5rem;
+}
+
+/* Categories grid for post forms */
+.categories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.category-checkbox {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.category-checkbox:hover {
+    background-color: #e8f4f0;
+    border-color: #a3d9c5;
+}
+
+.category-checkbox input[type="checkbox"] {
+    margin-right: 0.5rem;
+    width: 16px;
+    height: 16px;
+    accent-color: #a3d9c5;
+}
+
+.category-checkbox input[type="checkbox"]:checked + span {
+    color: #2d7a5e;
+    font-weight: 500;
+}
+
 /* Post edit page */
 .post-edit, .post-create {
     max-width: 800px;

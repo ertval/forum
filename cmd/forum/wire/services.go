@@ -21,6 +21,7 @@ import (
 	userPorts "forum/internal/modules/user/ports"
 
 	"forum/internal/platform/logger"
+	"forum/internal/platform/upload"
 )
 
 // ServiceContainer holds all application services for dependency injection.
@@ -53,15 +54,21 @@ func (sc *ServiceContainer) Notification() notificationPorts.NotificationService
 }
 func (sc *ServiceContainer) Logger() *logger.Logger { return sc.logger }
 
+// DefaultUploadDir is the default directory for image uploads.
+const DefaultUploadDir = "static/uploads"
+
 // initServices creates a ServiceContainer with all service instances and their dependencies.
 func initServices(repos *Repositories, sessionDuration time.Duration, lgr *logger.Logger) *ServiceContainer {
 	// Initialize user service first (no dependencies)
 	userService := userApp.NewService(repos.User)
 
+	// Initialize image handler for post uploads
+	imageHandler := upload.NewImageHandler(DefaultUploadDir)
+
 	return &ServiceContainer{
 		auth:         authApp.NewService(repos.Session, repos.User, sessionDuration),
 		user:         userService,
-		post:         postApp.NewService(repos.Post, repos.Category, userService),
+		post:         postApp.NewService(repos.Post, repos.Category, userService, imageHandler),
 		category:     postApp.NewCategoryService(repos.Category),
 		filter:       postApp.NewFilterService(),
 		comment:      commentApp.NewService(repos.Comment, userService),

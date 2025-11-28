@@ -12,11 +12,13 @@ import (
 
 // Mock repositories for testing
 type mockPostRepository struct {
-	createFunc  func(ctx context.Context, post *domain.Post) error
-	getByIDFunc func(ctx context.Context, postID string) (*domain.Post, error)
-	updateFunc  func(ctx context.Context, post *domain.Post) error
-	deleteFunc  func(ctx context.Context, postID string) error
-	listFunc    func(ctx context.Context, filter ports.PostFilter) ([]*domain.Post, error)
+	createFunc          func(ctx context.Context, post *domain.Post) error
+	getByIDFunc         func(ctx context.Context, postID string) (*domain.Post, error)
+	updateFunc          func(ctx context.Context, post *domain.Post) error
+	deleteFunc          func(ctx context.Context, postID string) error
+	listFunc            func(ctx context.Context, filter ports.PostFilter) ([]*domain.Post, error)
+	updateImagePathFunc func(ctx context.Context, postID string, imagePath string) error
+	getImagePathFunc    func(ctx context.Context, postID string) (string, error)
 }
 
 func (m *mockPostRepository) Create(ctx context.Context, post *domain.Post) error {
@@ -52,6 +54,20 @@ func (m *mockPostRepository) List(ctx context.Context, filter ports.PostFilter) 
 		return m.listFunc(ctx, filter)
 	}
 	return nil, nil
+}
+
+func (m *mockPostRepository) UpdateImagePath(ctx context.Context, postID string, imagePath string) error {
+	if m.updateImagePathFunc != nil {
+		return m.updateImagePathFunc(ctx, postID, imagePath)
+	}
+	return nil
+}
+
+func (m *mockPostRepository) GetImagePath(ctx context.Context, postID string) (string, error) {
+	if m.getImagePathFunc != nil {
+		return m.getImagePathFunc(ctx, postID)
+	}
+	return "", nil
 }
 
 type mockCategoryRepository struct {
@@ -148,6 +164,26 @@ func (m *mockUserService) DecrementCommentCount(ctx context.Context, userID int)
 	return nil
 }
 
+// mockImageHandler implements ports.ImageHandler for testing
+type mockImageHandler struct {
+	saveFunc   func(data []byte) (string, error)
+	deleteFunc func(filename string) error
+}
+
+func (m *mockImageHandler) Save(data []byte) (string, error) {
+	if m.saveFunc != nil {
+		return m.saveFunc(data)
+	}
+	return "test-image.jpg", nil
+}
+
+func (m *mockImageHandler) Delete(filename string) error {
+	if m.deleteFunc != nil {
+		return m.deleteFunc(filename)
+	}
+	return nil
+}
+
 func TestService_CreatePost(t *testing.T) {
 	ctx := context.Background()
 
@@ -237,7 +273,7 @@ func TestService_CreatePost(t *testing.T) {
 				tt.setupMocks(mockPostRepo, mockCategoryRepo)
 			}
 
-			service := NewService(mockPostRepo, mockCategoryRepo, mockUserSvc)
+			service := NewService(mockPostRepo, mockCategoryRepo, mockUserSvc, nil)
 
 			post, err := service.CreatePost(ctx, tt.userID, tt.title, tt.content, tt.categories, tt.image)
 
@@ -359,7 +395,7 @@ func TestService_UpdatePost(t *testing.T) {
 				tt.setupMocks(mockPostRepo)
 			}
 
-			service := NewService(mockPostRepo, mockCategoryRepo, mockUserSvc)
+			service := NewService(mockPostRepo, mockCategoryRepo, mockUserSvc, nil)
 
 			err := service.UpdatePost(ctx, tt.postID, tt.title, tt.content, tt.categories)
 
@@ -424,7 +460,7 @@ func TestService_GetPost(t *testing.T) {
 				tt.setupMocks(mockPostRepo)
 			}
 
-			service := NewService(mockPostRepo, nil, mockUserSvc)
+			service := NewService(mockPostRepo, nil, mockUserSvc, nil)
 
 			post, err := service.GetPost(ctx, tt.postID)
 
@@ -459,6 +495,14 @@ func TestService_DeletePost(t *testing.T) {
 			name:   "successful deletion",
 			postID: "post-1",
 			setupMocks: func(mpr *mockPostRepository) {
+				mpr.getByIDFunc = func(ctx context.Context, postID string) (*domain.Post, error) {
+					return &domain.Post{
+						ID:       1,
+						PublicID: postID,
+						UserID:   1,
+						Title:    "Test Post",
+					}, nil
+				}
 				mpr.deleteFunc = func(ctx context.Context, postID string) error {
 					return nil
 				}
@@ -469,8 +513,8 @@ func TestService_DeletePost(t *testing.T) {
 			name:   "post not found",
 			postID: "nonexistent",
 			setupMocks: func(mpr *mockPostRepository) {
-				mpr.deleteFunc = func(ctx context.Context, postID string) error {
-					return domain.ErrPostNotFound
+				mpr.getByIDFunc = func(ctx context.Context, postID string) (*domain.Post, error) {
+					return nil, domain.ErrPostNotFound
 				}
 			},
 			expectedError: domain.ErrPostNotFound,
@@ -486,7 +530,7 @@ func TestService_DeletePost(t *testing.T) {
 				tt.setupMocks(mockPostRepo)
 			}
 
-			service := NewService(mockPostRepo, nil, mockUserSvc)
+			service := NewService(mockPostRepo, nil, mockUserSvc, nil)
 
 			err := service.DeletePost(ctx, tt.postID)
 
@@ -550,7 +594,7 @@ func TestService_ListPosts(t *testing.T) {
 				tt.setupMocks(mockPostRepo)
 			}
 
-			service := NewService(mockPostRepo, nil, mockUserSvc)
+			service := NewService(mockPostRepo, nil, mockUserSvc, nil)
 
 			posts, err := service.ListPosts(ctx, tt.filter)
 

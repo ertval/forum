@@ -30,6 +30,30 @@
             <div id="content-preview" class="post-detail-content" style="border: 1px solid #e0e0e0; padding: 1rem; min-height: 100px; background-color: #fafafa;"></div>
         </div>
 
+        <div class="form-group">
+            <label for="image">Image (optional)</label>
+            <input 
+                type="file" 
+                id="image" 
+                name="image" 
+                accept="image/jpeg,image/png,image/gif">
+            <span class="form-help">Accepted formats: JPEG, PNG, GIF. Maximum size: 20MB</span>
+            <div id="image-preview" class="image-preview"></div>
+        </div>
+
+        <div class="form-group">
+            <label>Categories *</label>
+            <div class="categories-grid">
+                {{range .Categories}}
+                <label class="category-checkbox">
+                    <input type="checkbox" name="categories" value="{{.Name}}">
+                    <span>{{.Name}}</span>
+                </label>
+                {{end}}
+            </div>
+            <span class="form-help">Select at least one category</span>
+        </div>
+
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Create Post</button>
             <a href="/" class="btn btn-secondary">Cancel</a>

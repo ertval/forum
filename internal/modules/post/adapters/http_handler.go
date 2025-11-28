@@ -621,11 +621,13 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 	// Parse request body. The edit form sends a PUT with multipart/form-data (FormData),
 	// so support multipart parsing as well as JSON bodies.
 	var req struct {
-		Title      string   `json:"title"`
-		Content    string   `json:"content"`
-		Categories []string `json:"categories"`
+		Title       string   `json:"title"`
+		Content     string   `json:"content"`
+		Categories  []string `json:"categories"`
+		RemoveImage bool     `json:"remove_image"`
 	}
 
+	var imageData []byte
 	contentType := r.Header.Get("Content-Type")
 
 	// Log incoming request for debugging
@@ -650,6 +652,7 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 		}
 		req.Title = strings.TrimSpace(r.FormValue("title"))
 		req.Content = strings.TrimSpace(r.FormValue("content"))
+		req.RemoveImage = r.FormValue("remove_image") == "true"
 		// categories may be posted as categories[] or categories
 		req.Categories = r.Form["categories[]"]
 		if len(req.Categories) == 0 {
@@ -662,6 +665,24 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 					req.Categories[i] = strings.TrimSpace(req.Categories[i])
 				}
 			}
+		}
+
+		// Handle image upload
+		file, header, err := r.FormFile("image")
+		if err == nil {
+			defer file.Close()
+			if header.Size > maxUploadSize {
+				platformErrors.WriteErrorJSON(w, http.StatusRequestEntityTooLarge, "Image exceeds 20MB limit")
+				return
+			}
+			imageData, err = io.ReadAll(io.LimitReader(file, maxUploadSize))
+			if err != nil {
+				platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Failed to read image upload")
+				return
+			}
+		} else if err != http.ErrMissingFile {
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid image upload")
+			return
 		}
 
 	case strings.HasPrefix(contentType, "application/json"), strings.HasPrefix(contentType, "text/json"), contentType == "":
@@ -723,6 +744,17 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 			platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to update post")
 		}
 		return
+	}
+
+	// Handle image update if there's new image data or removal request
+	if len(imageData) > 0 || req.RemoveImage {
+		if err := h.postService.UpdatePostImage(r.Context(), postID, imageData, req.RemoveImage); err != nil {
+			l.Error("http.post.update.image_error",
+				logger.String("error", err.Error()),
+				logger.String("post_id", postID))
+			// Don't fail the whole request, post content was already updated
+			// Just log the error
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)

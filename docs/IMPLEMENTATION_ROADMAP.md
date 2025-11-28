@@ -474,29 +474,40 @@ Implement optional features after core requirements are complete.
 
 ---
 
-### Phase 12: [BONUS] Image Upload (forum-image-upload)
+### Phase 12: [BONUS] Image Upload (forum-image-upload) ✅ COMPLETE
 
 **Goal**: Users can upload images (JPEG, PNG, GIF) with posts, max 20MB
 
-**Image Module:**
-- [ ] Image upload handler
-- [ ] Image validation (format: JPEG, PNG, GIF only)
-- [ ] Image size validation (max 20MB)
-- [ ] Generate unique filenames (UUID-based)
-- [ ] Store images in `static/uploads/`
-- [ ] Image deletion when post is deleted
+**Status**: ✅ Implemented
+
+**Image Module (platform/upload):**
+- [x] Image upload handler with magic bytes detection
+- [x] Image validation (format: JPEG, PNG, GIF only)
+- [x] Image size validation (max 20MB)
+- [x] Generate unique filenames (UUID-based)
+- [x] Store images in `static/uploads/`
+- [x] Image deletion when post is deleted
+- [x] Path traversal security protection
 
 **Post Module Updates:**
-- [ ] Add image_path field to Post entity
-- [ ] Update CreatePost to accept image upload
-- [ ] Update repository to store image path
-- [ ] Update templates to display images
+- [x] ImageURL field already in Post entity
+- [x] UpdatePostImage service method for add/replace/remove
+- [x] Repository UpdateImagePath and GetImagePath methods
+- [x] HTTP handlers accept multipart/form-data for image uploads
+- [x] Templates updated with image input, preview, and display
 
-**Files**: `internal/modules/post/`, `static/uploads/`
+**Implementation Details:**
+- Images validated using `http.DetectContentType` (magic bytes)
+- Files saved atomically using temp file + rename pattern
+- Old images deleted when replaced or post deleted
+- Categories grid added to create/edit post forms
+- CSS styles for image preview and category selection
+
+**Files**: `internal/platform/upload/`, `internal/modules/post/`, `static/uploads/`, `templates/`
 
 **Deliverable**: Users can create posts with images. Images validated and stored properly.
 
-**Time**: 1-2 days
+**Time**: Completed
 
 ---
 

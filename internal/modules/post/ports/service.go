@@ -12,6 +12,10 @@ type PostService interface {
 	CreatePost(ctx context.Context, userID int, title, content string, categories []string, image []byte) (*domain.Post, error)
 	GetPost(ctx context.Context, postID string) (*domain.Post, error)
 	UpdatePost(ctx context.Context, postID string, title, content string, categories []string) error
+	// UpdatePostImage updates or removes the image for a post.
+	// If image is nil or empty and removeImage is true, the existing image is removed.
+	// If image is provided, the existing image is replaced.
+	UpdatePostImage(ctx context.Context, postID string, image []byte, removeImage bool) error
 	DeletePost(ctx context.Context, postID string) error
 	ListPosts(ctx context.Context, filter PostFilter) ([]*domain.Post, error)
 }
