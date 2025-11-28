@@ -1161,6 +1161,11 @@ footer p {
     border: 1px solid #f5d98f;
 }
 
+/* Hide empty error containers */
+.form-errors:empty {
+    display: none;
+}
+
 .error {
     color: #d32f2f;
     margin: 0.25rem 0;

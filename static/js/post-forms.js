@@ -25,7 +25,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (file) {
                 if (file.size > 20 * 1024 * 1024) {  // 20MB limit
-                    alert('Image must be less than 20MB');
+                    const formErrors = document.getElementById('form-errors');
+                    if (formErrors) formErrors.innerHTML = '<p class="error">Image must be less than 20MB</p>';
                     e.target.value = '';
                     if (preview) preview.innerHTML = '';
                     return;
@@ -184,11 +185,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.href = '/';
             } else {
                 const error = await response.json();
-                alert(error.error || 'Failed to delete post');
+                const formErrors = document.getElementById('form-errors');
+                if (formErrors) formErrors.innerHTML = `<p class="error">${error.error || 'Failed to delete post'}</p>`;
             }
         } catch (error) {
             console.error('Delete error:', error);
-            alert('An error occurred while deleting the post');
+            const formErrors = document.getElementById('form-errors');
+            if (formErrors) formErrors.innerHTML = '<p class="error">An error occurred while deleting the post</p>';
         }
     };
 });

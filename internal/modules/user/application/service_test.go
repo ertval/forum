@@ -197,7 +197,7 @@ func (m *MockUserRepository) DecrementCommentCount(ctx context.Context, userID i
 	return nil
 }
 
-func TestService_GetByID(t *testing.T) {
+func TestService_GetByPublicID(t *testing.T) {
 	ctx := context.Background()
 	mockRepo := &MockUserRepository{}
 	service := NewService(mockRepo)
@@ -206,6 +206,7 @@ func TestService_GetByID(t *testing.T) {
 	now := time.Now()
 	user := &domain.User{
 		ID:           1,
+		PublicID:     "test-public-id",
 		Email:        "test@example.com",
 		Username:     "testuser",
 		PasswordHash: "hashed_password",
@@ -218,24 +219,24 @@ func TestService_GetByID(t *testing.T) {
 		1: user,
 	}
 
-	t.Run("successful get user by ID", func(t *testing.T) {
-		result, err := service.GetByID(ctx, 1)
+	t.Run("successful get user by public ID", func(t *testing.T) {
+		result, err := service.GetByPublicID(ctx, "test-public-id")
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
 		}
 		if result == nil {
 			t.Fatal("Expected user, got nil")
 		}
-		if result.ID != 1 {
-			t.Errorf("Expected ID 1, got %d", result.ID)
+		if result.PublicID != "test-public-id" {
+			t.Errorf("Expected PublicID 'test-public-id', got '%s'", result.PublicID)
 		}
 		if result.Email != "test@example.com" {
 			t.Errorf("Expected Email 'test@example.com', got '%s'", result.Email)
 		}
 	})
 
-	t.Run("user not found", func(t *testing.T) {
-		_, err := service.GetByID(ctx, 999)
+	t.Run("user not found by public ID", func(t *testing.T) {
+		_, err := service.GetByPublicID(ctx, "nonexistent")
 		if err != nil {
 			t.Errorf("Expected no error for non-existent user, got %v", err)
 		}
@@ -434,6 +435,64 @@ func TestService_IncrementPostCount(t *testing.T) {
 	// Verify count was incremented
 	if user.PostCount != 6 {
 		t.Errorf("Expected PostCount 6, got %d", user.PostCount)
+	}
+}
+
+func TestService_DecrementPostCount(t *testing.T) {
+	ctx := context.Background()
+	mockRepo := &MockUserRepository{}
+	service := NewService(mockRepo)
+
+	// Add a test user
+	now := time.Now()
+	user := &domain.User{
+		ID:        1,
+		Email:     "test@example.com",
+		Username:  "testuser",
+		PostCount: 5,
+		CreatedAt: now,
+		UpdatedAt: now,
+		IsActive:  true,
+	}
+	mockRepo.users = map[int]*domain.User{1: user}
+
+	err := service.DecrementPostCount(ctx, 1)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+
+	// Verify count was decremented
+	if user.PostCount != 4 {
+		t.Errorf("Expected PostCount 4, got %d", user.PostCount)
+	}
+}
+
+func TestService_IncrementCommentCount(t *testing.T) {
+	ctx := context.Background()
+	mockRepo := &MockUserRepository{}
+	service := NewService(mockRepo)
+
+	// Add a test user
+	now := time.Now()
+	user := &domain.User{
+		ID:           1,
+		Email:        "test@example.com",
+		Username:     "testuser",
+		CommentCount: 3,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+		IsActive:     true,
+	}
+	mockRepo.users = map[int]*domain.User{1: user}
+
+	err := service.IncrementCommentCount(ctx, 1)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+
+	// Verify count was incremented
+	if user.CommentCount != 4 {
+		t.Errorf("Expected CommentCount 4, got %d", user.CommentCount)
 	}
 }
 

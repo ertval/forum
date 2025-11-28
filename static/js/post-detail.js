@@ -1,5 +1,19 @@
 // JavaScript functions for post detail page
 
+// Helper function to show inline error messages
+function showPageError(message) {
+    const pageErrors = document.getElementById('page-errors');
+    if (pageErrors) {
+        pageErrors.innerHTML = `<p class="error">${message}</p>`;
+        pageErrors.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+function clearPageError() {
+    const pageErrors = document.getElementById('page-errors');
+    if (pageErrors) pageErrors.innerHTML = '';
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Handle post reactions
     document.body.addEventListener('click', async function(e) {
@@ -54,12 +68,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (commentForm) {
         commentForm.addEventListener('submit', async function(e) {
             e.preventDefault();
+            clearPageError();
 
             const postId = commentForm.getAttribute('data-post-id');
             const content = commentForm.querySelector('textarea[name="content"]').value.trim();
 
             if (!content) {
-                alert('Comment content is required');
+                showPageError('Comment content is required');
                 return;
             }
 
@@ -79,11 +94,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     location.reload(); // Simple approach to refresh comments
                 } else {
                     const error = await response.json();
-                    alert(error.error || 'Failed to post comment');
+                    showPageError(error.error || 'Failed to post comment');
                 }
             } catch (error) {
                 console.error('Comment error:', error);
-                alert('An error occurred while posting the comment');
+                showPageError('An error occurred while posting the comment');
             }
         });
     }
@@ -103,16 +118,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.href = '/';
             } else {
                 const error = await response.json();
-                alert(error.error || 'Failed to delete post');
+                showPageError(error.error || 'Failed to delete post');
             }
         } catch (error) {
             console.error('Delete error:', error);
-            alert('An error occurred while deleting the post');
+            showPageError('An error occurred while deleting the post');
         }
     };
 
     // Function to handle post reactions
     async function handlePostReaction(postId, reactionType) {
+        clearPageError();
         try {
             const response = await fetch(`/posts/${postId}/reactions`, {
                 method: 'POST',
@@ -127,16 +143,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 location.reload(); // Simple approach; in a real app we'd update the UI dynamically
             } else {
                 const error = await response.json();
-                alert(error.error || `Failed to ${reactionType} post`);
+                showPageError(error.error || `Failed to ${reactionType} post`);
             }
         } catch (error) {
             console.error(`Reaction error (${reactionType}):`, error);
-            alert(`An error occurred while ${reactionType}ing the post`);
+            showPageError(`An error occurred while ${reactionType}ing the post`);
         }
     }
 
     // Function to handle comment reactions
     async function handleCommentReaction(commentId, reactionType) {
+        clearPageError();
         try {
             const response = await fetch(`/comments/${commentId}/reactions`, {
                 method: 'POST',
@@ -151,11 +168,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 location.reload(); // Simple approach; in a real app we'd update the UI dynamically
             } else {
                 const error = await response.json();
-                alert(error.error || `Failed to ${reactionType} comment`);
+                showPageError(error.error || `Failed to ${reactionType} comment`);
             }
         } catch (error) {
             console.error(`Comment reaction error (${reactionType}):`, error);
-            alert(`An error occurred while ${reactionType}ing the comment`);
+            showPageError(`An error occurred while ${reactionType}ing the comment`);
         }
     }
 
@@ -165,6 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        clearPageError();
         try {
             const response = await fetch(`/comments/${commentId}`, {
                 method: 'DELETE'
@@ -178,11 +196,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else {
                 const error = await response.json();
-                alert(error.error || 'Failed to delete comment');
+                showPageError(error.error || 'Failed to delete comment');
             }
         } catch (error) {
             console.error('Delete comment error:', error);
-            alert('An error occurred while deleting the comment');
+            showPageError('An error occurred while deleting the comment');
         }
     }
 
