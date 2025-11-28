@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -48,7 +49,7 @@ type Logger struct {
 type TimePrecision int
 
 const (
-	// TimePrecisionSeconds prints up to seconds (yyyy-mm-ddThh:mm:ss)
+	// TimePrecisionSeconds prints up to seconds (yyyy-mm-dd hh:mm:ss)
 	TimePrecisionSeconds TimePrecision = iota
 	// TimePrecisionNano preserves full RFC3339Nano formatting
 	TimePrecisionNano
@@ -293,7 +294,7 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 		// apply configured time precision if available
 		if l.config != nil && l.config.TimePrecision == TimePrecisionSeconds {
 			if parsed, err := time.Parse(time.RFC3339Nano, ts); err == nil {
-				ts = parsed.Format("2006-01-02T15:04:05")
+				ts = parsed.Format("2006-01-02 15:04:05")
 			}
 		}
 
@@ -334,13 +335,7 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 					}
 				} else if l.config != nil {
 					// if not using AllowedFields, respect OmitFields
-					skip := false
-					for _, om := range l.config.OmitFields {
-						if om == k {
-							skip = true
-							break
-						}
-					}
+					skip := slices.Contains(l.config.OmitFields, k)
 					if skip {
 						continue
 					}

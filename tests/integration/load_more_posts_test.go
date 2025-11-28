@@ -32,10 +32,8 @@ func TestLoadMorePostsAPI(t *testing.T) {
 	createCategory(t, app, "tests")
 
 	// Create multiple posts
-	var createdPostIDs []string
 	for i := 0; i < 5; i++ {
-		postID := createPost(t, app, sessionToken, "Test Post "+string(rune('A'+i)), "Content "+string(rune('A'+i)), []string{"tests"})
-		createdPostIDs = append(createdPostIDs, postID)
+		createPost(t, app, sessionToken, "Test Post "+string(rune('A'+i)), "Content "+string(rune('A'+i)), []string{"tests"})
 	}
 
 	t.Run("LoadMorePostsReturnsPostsWithPublicID", func(t *testing.T) {
