@@ -40,8 +40,6 @@ func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HT
 	}
 }
 
-
-
 // GetCurrentUser extracts user info from session cookie (helper for other handlers).
 // Returns userID and username, or (0, "") if not authenticated.
 func (h *HTTPHandler) GetCurrentUser(r *http.Request) (userID int, username string) {
@@ -71,7 +69,7 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	router.HandleFunc("DELETE /api/comments/{id}", h.DeleteCommentAPI)
 	// GET /api/posts/{post_id}/comments - List comments for post (public)
 	router.HandleFunc("GET /api/posts/{post_id}/comments", h.ListCommentsByPostAPI)
-	
+
 	// Form routes (HTML responses)
 	// POST /posts/{post_id}/comments - Create comment via form (requires auth)
 	router.HandleFunc("POST /posts/{post_id}/comments", h.CreateCommentForm)
@@ -337,7 +335,7 @@ func (h *HTTPHandler) ListCommentsByPostAPI(w http.ResponseWriter, r *http.Reque
 		CreatedAt string `json:"created_at"`
 		UpdatedAt string `json:"updated_at"`
 	}
-	
+
 	for _, comment := range comments {
 		commentResp := struct {
 			ID        string `json:"id"`
