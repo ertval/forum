@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"runtime/debug"
+	"sync"
 	"time"
 
 	"forum/internal/platform/logger"
@@ -108,51 +109,150 @@ func Logger(lgr *logger.Logger) Middleware {
 }
 
 // CORS middleware adds CORS headers to responses.
-// TODO: Implement CORS handling.
+// This is a generic HTTP concern that doesn't require business logic.
 func CORS(allowedOrigins []string) Middleware {
+	// Build origin lookup map for O(1) checks
+	originSet := make(map[string]bool)
+	allowAll := false
+	for _, origin := range allowedOrigins {
+		if origin == "*" {
+			allowAll = true
+			break
+		}
+		originSet[origin] = true
+	}
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Implementation placeholder
-			// Set CORS headers
+			origin := r.Header.Get("Origin")
+
+			// Determine if origin is allowed
+			if allowAll {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+			} else if origin != "" && originSet[origin] {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Vary", "Origin")
+			}
+
+			// Set common CORS headers
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
+
+			// Handle preflight requests
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// rateLimiter tracks request counts per IP address.
+type rateLimiter struct {
+	requests map[string][]time.Time
+	mu       sync.Mutex
+	limit    int
+	window   time.Duration
 }
 
 // RateLimit middleware limits the number of requests per time window.
-// TODO: Implement rate limiting.
-func RateLimit(requests int, window int) Middleware {
+// This is IP-based rate limiting that doesn't require user context.
+// For user-based rate limiting, use auth module middleware.
+func RateLimit(requests int, windowSeconds int) Middleware {
+	limiter := &rateLimiter{
+		requests: make(map[string][]time.Time),
+		limit:    requests,
+		window:   time.Duration(windowSeconds) * time.Second,
+	}
+
+	// Cleanup goroutine to prevent memory leak
+	go func() {
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			limiter.cleanup()
+		}
+	}()
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Implementation placeholder
-			// Check rate limit and reject if exceeded
+			// Extract client IP (handle proxies)
+			clientIP := r.RemoteAddr
+			if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+				clientIP = forwarded
+			}
+
+			if !limiter.allow(clientIP) {
+				w.Header().Set("Retry-After", fmt.Sprintf("%d", windowSeconds))
+				http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+				return
+			}
+
 			next.ServeHTTP(w, r)
 		})
 	}
 }
 
-// Authentication middleware checks if the request has a valid session.
-// TODO: Implement session validation.
-func Authentication() Middleware {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Implementation placeholder
-			// Validate session cookie
-			// Add user info to request context
-			next.ServeHTTP(w, r)
-		})
+// allow checks if a request from the given IP is allowed.
+func (rl *rateLimiter) allow(ip string) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	now := time.Now()
+	windowStart := now.Add(-rl.window)
+
+	// Filter out old requests
+	var recent []time.Time
+	for _, t := range rl.requests[ip] {
+		if t.After(windowStart) {
+			recent = append(recent, t)
+		}
+	}
+
+	// Check if under limit
+	if len(recent) >= rl.limit {
+		rl.requests[ip] = recent
+		return false
+	}
+
+	// Record this request
+	rl.requests[ip] = append(recent, now)
+	return true
+}
+
+// cleanup removes expired entries to prevent memory growth.
+func (rl *rateLimiter) cleanup() {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	now := time.Now()
+	windowStart := now.Add(-rl.window)
+
+	for ip, times := range rl.requests {
+		var recent []time.Time
+		for _, t := range times {
+			if t.After(windowStart) {
+				recent = append(recent, t)
+			}
+		}
+		if len(recent) == 0 {
+			delete(rl.requests, ip)
+		} else {
+			rl.requests[ip] = recent
+		}
 	}
 }
 
-// Authorization middleware checks if the user has the required permissions.
-// TODO: Implement authorization checks.
-func Authorization(requiredRole string) Middleware {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Implementation placeholder
-			// Check user role from context
-			// Reject if insufficient permissions
-			next.ServeHTTP(w, r)
-		})
-	}
-}
+// NOTE: Authentication and Authorization middleware are intentionally NOT here.
+// They require business logic (AuthService, UserService) and belong in the
+// auth module: internal/modules/auth/adapters/middleware.go
+//
+// This follows the hexagonal architecture principle:
+//   - Platform packages must NOT import module packages
+//   - Modules CAN import platform packages
+//
+// See: auth/adapters/middleware.go for RequireAuth() and OptionalAuth()
