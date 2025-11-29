@@ -209,28 +209,37 @@ document.addEventListener('DOMContentLoaded', function() {
         const contentElement = commentElement.querySelector('.comment-content');
         const currentContent = contentElement.textContent.trim();
 
-        // Create textarea with current content
+        // Create form structure similar to post edit form
+        const formGroup = document.createElement('div');
+        formGroup.className = 'form-group';
+
         const textarea = document.createElement('textarea');
         textarea.className = 'edit-comment-textarea';
         textarea.value = currentContent;
         textarea.rows = 4;
+        textarea.required = true;
+        textarea.placeholder = "Edit your comment...";
+
+        formGroup.appendChild(textarea);
 
         // Save original content for reference
         const originalContent = contentElement.innerHTML;
         contentElement.setAttribute('data-original-content', originalContent);
 
-        // Replace content with textarea
+        // Replace content with form structure
         contentElement.innerHTML = '';
-        contentElement.appendChild(textarea);
+        contentElement.appendChild(formGroup);
 
-        // Create save and cancel buttons
+        // Create save and cancel buttons with consistent styling
         const actionsDiv = commentElement.querySelector('.comment-actions');
         const originalActions = actionsDiv.innerHTML;
         // Store original actions in a data attribute for later restoration
         actionsDiv.setAttribute('data-original-actions', originalActions);
+
+        // Use consistent button styling like in post edit form
         actionsDiv.innerHTML = `
-            <button class="btn-save-comment" data-comment-id="${commentId}">Save</button>
-            <button class="btn-cancel-edit">Cancel</button>
+            <button class="btn btn-primary btn-save-comment" data-comment-id="${commentId}">Save</button>
+            <button class="btn btn-secondary btn-cancel-edit">Cancel</button>
         `;
 
         // Focus on the textarea

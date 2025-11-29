@@ -1020,6 +1020,32 @@ footer p {
     color: #5a5a5a;
 }
 
+/* Edit comment textarea style - to match form styling */
+.edit-comment-textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #c5d0b8; /* Same as comment form */
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: #5a5a5a;
+    background-color: #ffffff;
+    resize: vertical;
+    margin: 0.5rem 0;
+    transition: all 0.3s ease;
+}
+
+.edit-comment-textarea:focus {
+    outline: none;
+    border-color: #a3d9c5; /* Darker pastel green with blue tint */
+    box-shadow: 0 0 0 2px rgba(163, 217, 197, 0.3);
+}
+
+/* Form group structure for inline comment editing */
+.comment .form-group {
+    margin-bottom: 1rem;
+}
+
 /* Comment form styles */
 .comment-form {
     margin: 1.5rem 0;
