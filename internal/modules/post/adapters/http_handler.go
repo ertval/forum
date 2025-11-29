@@ -31,7 +31,7 @@ type HTTPHandler struct {
 	filterService      postPorts.FilterService
 	authService        authPorts.AuthService
 	userService        userPorts.UserService
-	middlewareProvider authPorts.MiddlewareProvider
+	middlewareProvider authPorts.AuthMiddleware
 	templates          *template.Template
 }
 
@@ -42,7 +42,7 @@ type ServiceContainer interface {
 	Filter() postPorts.FilterService
 	Auth() authPorts.AuthService
 	User() userPorts.UserService
-	AuthMiddleware() authPorts.MiddlewareProvider
+	AuthMiddleware() authPorts.AuthMiddleware
 }
 
 // NewHTTPHandler creates a new HTTP handler for posts with unified dependency injection.

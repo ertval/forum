@@ -20,9 +20,9 @@ const (
 	UsernameKey ContextKey = "username"
 )
 
-// MiddlewareProvider provides authentication middleware.
+// AuthMiddleware provides authentication middleware.
 // This interface allows modules to use auth middleware without importing auth/adapters.
-type MiddlewareProvider interface {
+type AuthMiddleware interface {
 	// RequireAuth returns middleware that requires authentication.
 	// It validates the session token and adds user PUBLIC ID (UUID) to the context.
 	// If authentication fails, it returns 401 Unauthorized.

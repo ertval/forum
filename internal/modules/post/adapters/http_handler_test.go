@@ -248,7 +248,7 @@ type mockServiceContainer struct {
 	filterService      postPorts.FilterService
 	authService        authPorts.AuthService
 	userService        userPorts.UserService
-	middlewareProvider authPorts.MiddlewareProvider
+	middlewareProvider authPorts.AuthMiddleware
 }
 
 func (m *mockServiceContainer) Post() postPorts.PostService {
@@ -271,7 +271,7 @@ func (m *mockServiceContainer) User() userPorts.UserService {
 	return m.userService
 }
 
-func (m *mockServiceContainer) AuthMiddleware() authPorts.MiddlewareProvider {
+func (m *mockServiceContainer) AuthMiddleware() authPorts.AuthMiddleware {
 	if m.middlewareProvider != nil {
 		return m.middlewareProvider
 	}

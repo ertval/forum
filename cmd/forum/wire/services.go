@@ -29,7 +29,7 @@ import (
 // Fields are lowercase (private) with public accessor methods for interface satisfaction.
 type ServiceContainer struct {
 	auth           authPorts.AuthService
-	authMiddleware authPorts.MiddlewareProvider
+	authMiddleware authPorts.AuthMiddleware
 	user           userPorts.UserService
 	post           postPorts.PostService
 	category       postPorts.CategoryService
@@ -43,7 +43,7 @@ type ServiceContainer struct {
 
 // Accessor methods for ServiceContainer to satisfy handler interfaces
 func (sc *ServiceContainer) Auth() authPorts.AuthService                   { return sc.auth }
-func (sc *ServiceContainer) AuthMiddleware() authPorts.MiddlewareProvider  { return sc.authMiddleware }
+func (sc *ServiceContainer) AuthMiddleware() authPorts.AuthMiddleware      { return sc.authMiddleware }
 func (sc *ServiceContainer) User() userPorts.UserService                   { return sc.user }
 func (sc *ServiceContainer) Post() postPorts.PostService                   { return sc.post }
 func (sc *ServiceContainer) Category() postPorts.CategoryService           { return sc.category }
@@ -58,26 +58,33 @@ func (sc *ServiceContainer) Logger() *logger.Logger { return sc.logger }
 
 // initServices creates a ServiceContainer with all service instances and their dependencies.
 func initServices(repos *Repositories, sessionDuration time.Duration, lgr *logger.Logger) *ServiceContainer {
-	// Initialize user service first (no dependencies)
+	// Layer 1: Services with no dependencies
 	userService := userApp.NewService(repos.User)
+	categoryService := postApp.NewCategoryService(repos.Category)
+	filterService := postApp.NewFilterService()
+	reactionService := reactionApp.NewService(repos.Reaction)
+	moderationService := moderationApp.NewService(repos.Moderation)
+	notificationService := notificationApp.NewService(repos.Notification)
 
-	// Initialize auth service
+	// Layer 2: Services depending on Layer 1
 	authService := authApp.NewService(repos.Session, repos.User, sessionDuration)
+	postService := postApp.NewService(repos.Post, repos.Category, userService)
+	commentService := commentApp.NewService(repos.Comment, userService)
 
-	// Initialize auth middleware provider (adapter that implements ports interface)
+	// Layer 3: Adapters/middleware depending on services
 	authMiddleware := authAdapters.NewMiddlewareProvider(authService, userService)
 
 	return &ServiceContainer{
 		auth:           authService,
 		authMiddleware: authMiddleware,
 		user:           userService,
-		post:           postApp.NewService(repos.Post, repos.Category, userService),
-		category:       postApp.NewCategoryService(repos.Category),
-		filter:         postApp.NewFilterService(),
-		comment:        commentApp.NewService(repos.Comment, userService),
-		reaction:       reactionApp.NewService(repos.Reaction),
-		moderation:     moderationApp.NewService(repos.Moderation),
-		notification:   notificationApp.NewService(repos.Notification),
+		post:           postService,
+		category:       categoryService,
+		filter:         filterService,
+		comment:        commentService,
+		reaction:       reactionService,
+		moderation:     moderationService,
+		notification:   notificationService,
 		logger:         lgr,
 	}
 }
