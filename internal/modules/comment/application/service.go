@@ -91,12 +91,6 @@ func (s *Service) UpdateComment(ctx context.Context, commentPublicID string, con
 		return err
 	}
 
-	// Check authorization (user owns comment)
-	// Note: In a real implementation, we'd pass the authenticated user ID
-	// to compare with existingComment.UserID, but for now we'll assume
-	// authorization was already checked by the HTTP handler
-
-	// Update comment
 	return s.commentRepo.Update(ctx, updatedComment)
 }
 
