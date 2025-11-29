@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	authDomain "forum/internal/modules/auth/domain"
-	"forum/internal/modules/auth/ports"
+	authPorts "forum/internal/modules/auth/ports"
 	userPorts "forum/internal/modules/user/ports"
 	platformErrors "forum/internal/platform/errors"
 	"html/template"
@@ -21,7 +21,7 @@ import (
 // HTTPHandler handles HTTP requests for authentication.
 // It receives HTTP requests, validates input, calls the service, and returns responses.
 type HTTPHandler struct {
-	authService ports.AuthService
+	authService authPorts.AuthService
 	userService userPorts.UserService
 	templates   *template.Template
 }
@@ -29,7 +29,7 @@ type HTTPHandler struct {
 // ServiceContainer defines the minimal interface needed by this handler.
 // This allows the handler to receive all services but only use what it needs.
 type ServiceContainer interface {
-	Auth() ports.AuthService
+	Auth() authPorts.AuthService
 	User() userPorts.UserService
 }
 

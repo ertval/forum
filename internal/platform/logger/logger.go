@@ -182,14 +182,6 @@ func levelToString(l Level) string {
 	}
 }
 
-// colorize wraps a string with an ANSI color code when color is non-empty.
-func colorize(s, color string) string {
-	if color == "" {
-		return s
-	}
-	return color + s + colorReset
-}
-
 // applyColor applies colorization depending on the logger config.
 func (l *Logger) applyColor(s, color string) string {
 	if l.config == nil {
