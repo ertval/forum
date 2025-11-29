@@ -10,8 +10,10 @@ import (
 	commentDomain "forum/internal/modules/comment/domain"
 	commentPorts "forum/internal/modules/comment/ports"
 	platformErrors "forum/internal/platform/errors"
+	logger "forum/internal/platform/logger"
 	"html/template"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -376,7 +378,13 @@ func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interfac
 
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		// Log the error, but don't send it to the client
-		fmt.Printf("Error encoding JSON response: %v\n", err)
+		cfg := &logger.Config{
+			TimePrecision: logger.TimePrecisionSeconds,
+		}
+		lgr := logger.NewWithConfig(logger.ErrorLevel, os.Stderr, cfg)
+		lgr.Error("Failed to encode JSON response",
+			logger.Error(err),
+			logger.String("method", "writeJSON"))
 	}
 }
 
