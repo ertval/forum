@@ -998,12 +998,18 @@ footer p {
 
 .comment-actions {
     display: flex;
+    justify-content: space-between;
+    align-items: center;
     gap: 0.75rem;
     margin-top: 0.5rem;
-    flex-wrap: wrap;
 }
 
-.comment-actions button {
+.comment-reactions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.comment-reactions button {
     background: #e0f7e9; /* Pastel green */
     border: none;
     padding: 0.35rem 0.75rem;
@@ -1015,7 +1021,7 @@ footer p {
     border: 1px solid #c2e6d6;
 }
 
-.comment-actions button:hover {
+.comment-reactions button:hover {
     background: #b5ead7; /* Pastel Green */
     color: #5a5a5a;
 }
@@ -1168,6 +1174,13 @@ footer p {
 .post-owner-actions {
     display: flex;
     gap: 0.75rem;
+}
+
+/* Comment owner actions - similar style to post owner actions */
+.comment-owner-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-left: auto; /* Push to the right */
 }
 
 /* Form elements */
