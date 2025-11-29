@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"forum/internal/modules/post/domain"
-	"forum/internal/modules/post/ports"
 	userDomain "forum/internal/modules/user/domain"
 	"testing"
 	"time"
@@ -16,7 +15,7 @@ type mockPostRepository struct {
 	getByIDFunc func(ctx context.Context, postID string) (*domain.Post, error)
 	updateFunc  func(ctx context.Context, post *domain.Post) error
 	deleteFunc  func(ctx context.Context, postID string) error
-	listFunc    func(ctx context.Context, filter ports.PostFilter) ([]*domain.Post, error)
+	listFunc    func(ctx context.Context, filter domain.PostFilter) ([]*domain.Post, error)
 }
 
 func (m *mockPostRepository) Create(ctx context.Context, post *domain.Post) error {
@@ -47,7 +46,7 @@ func (m *mockPostRepository) Delete(ctx context.Context, postID string) error {
 	return nil
 }
 
-func (m *mockPostRepository) List(ctx context.Context, filter ports.PostFilter) ([]*domain.Post, error) {
+func (m *mockPostRepository) List(ctx context.Context, filter domain.PostFilter) ([]*domain.Post, error) {
 	if m.listFunc != nil {
 		return m.listFunc(ctx, filter)
 	}
@@ -538,15 +537,15 @@ func TestService_ListPosts(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		filter     ports.PostFilter
+		filter     domain.PostFilter
 		setupMocks func(*mockPostRepository)
 		wantCount  int
 	}{
 		{
 			name:   "list all posts",
-			filter: ports.PostFilter{Limit: 10, Offset: 0},
+			filter: domain.PostFilter{Limit: 10, Offset: 0},
 			setupMocks: func(mpr *mockPostRepository) {
-				mpr.listFunc = func(ctx context.Context, filter ports.PostFilter) ([]*domain.Post, error) {
+				mpr.listFunc = func(ctx context.Context, filter domain.PostFilter) ([]*domain.Post, error) {
 					return []*domain.Post{
 						{ID: 1, PublicID: "post-1-uuid", Title: "Post 1"},
 						{ID: 2, PublicID: "post-2-uuid", Title: "Post 2"},
@@ -557,9 +556,9 @@ func TestService_ListPosts(t *testing.T) {
 		},
 		{
 			name:   "filter by user",
-			filter: ports.PostFilter{UserID: "user-1", Limit: 10, Offset: 0},
+			filter: domain.PostFilter{UserID: "user-1", Limit: 10, Offset: 0},
 			setupMocks: func(mpr *mockPostRepository) {
-				mpr.listFunc = func(ctx context.Context, filter ports.PostFilter) ([]*domain.Post, error) {
+				mpr.listFunc = func(ctx context.Context, filter domain.PostFilter) ([]*domain.Post, error) {
 					return []*domain.Post{
 						{ID: 1, PublicID: "post-1-uuid", UserID: 1, UserPublicID: "user-1-uuid", Title: "Post 1"},
 					}, nil
@@ -877,16 +876,16 @@ func TestFilterService_BuildFilter(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		params ports.FilterParams
-		want   ports.PostFilter
+		params domain.FilterParams
+		want   domain.PostFilter
 	}{
 		{
 			name: "empty params defaults",
-			params: ports.FilterParams{
+			params: domain.FilterParams{
 				Limit:  10,
 				Offset: 0,
 			},
-			want: ports.PostFilter{
+			want: domain.PostFilter{
 				Limit:      10,
 				Offset:     0,
 				DateFilter: "all",
@@ -894,12 +893,12 @@ func TestFilterService_BuildFilter(t *testing.T) {
 		},
 		{
 			name: "with category filter",
-			params: ports.FilterParams{
+			params: domain.FilterParams{
 				Category: "Technology",
 				Limit:    10,
 				Offset:   0,
 			},
-			want: ports.PostFilter{
+			want: domain.PostFilter{
 				Categories: []string{"Technology"},
 				Limit:      10,
 				Offset:     0,
@@ -908,12 +907,12 @@ func TestFilterService_BuildFilter(t *testing.T) {
 		},
 		{
 			name: "with explicit user ID",
-			params: ports.FilterParams{
+			params: domain.FilterParams{
 				UserID: "user-123",
 				Limit:  10,
 				Offset: 0,
 			},
-			want: ports.PostFilter{
+			want: domain.PostFilter{
 				UserID:     "user-123",
 				Limit:      10,
 				Offset:     0,
@@ -922,13 +921,13 @@ func TestFilterService_BuildFilter(t *testing.T) {
 		},
 		{
 			name: "my posts filter",
-			params: ports.FilterParams{
+			params: domain.FilterParams{
 				MyPosts:       true,
 				CurrentUserID: "current-user-uuid",
 				Limit:         10,
 				Offset:        0,
 			},
-			want: ports.PostFilter{
+			want: domain.PostFilter{
 				UserID:     "current-user-uuid",
 				Limit:      10,
 				Offset:     0,
@@ -937,13 +936,13 @@ func TestFilterService_BuildFilter(t *testing.T) {
 		},
 		{
 			name: "liked posts filter",
-			params: ports.FilterParams{
+			params: domain.FilterParams{
 				LikedPosts:    true,
 				CurrentUserID: "current-user-uuid",
 				Limit:         10,
 				Offset:        0,
 			},
-			want: ports.PostFilter{
+			want: domain.PostFilter{
 				LikedByUserID: "current-user-uuid",
 				Limit:         10,
 				Offset:        0,
@@ -952,12 +951,12 @@ func TestFilterService_BuildFilter(t *testing.T) {
 		},
 		{
 			name: "date filter today",
-			params: ports.FilterParams{
+			params: domain.FilterParams{
 				DateFilter: "today",
 				Limit:      10,
 				Offset:     0,
 			},
-			want: ports.PostFilter{
+			want: domain.PostFilter{
 				DateFilter: "today",
 				Limit:      10,
 				Offset:     0,
@@ -965,12 +964,12 @@ func TestFilterService_BuildFilter(t *testing.T) {
 		},
 		{
 			name: "date filter week",
-			params: ports.FilterParams{
+			params: domain.FilterParams{
 				DateFilter: "week",
 				Limit:      10,
 				Offset:     0,
 			},
-			want: ports.PostFilter{
+			want: domain.PostFilter{
 				DateFilter: "week",
 				Limit:      10,
 				Offset:     0,
@@ -978,7 +977,7 @@ func TestFilterService_BuildFilter(t *testing.T) {
 		},
 		{
 			name: "combined filters",
-			params: ports.FilterParams{
+			params: domain.FilterParams{
 				Category:      "Technology",
 				LikedPosts:    true,
 				CurrentUserID: "user-123",
@@ -986,7 +985,7 @@ func TestFilterService_BuildFilter(t *testing.T) {
 				Limit:         20,
 				Offset:        10,
 			},
-			want: ports.PostFilter{
+			want: domain.PostFilter{
 				Categories:    []string{"Technology"},
 				LikedByUserID: "user-123",
 				DateFilter:    "month",
@@ -996,13 +995,13 @@ func TestFilterService_BuildFilter(t *testing.T) {
 		},
 		{
 			name: "explicit user ID takes precedence over my posts",
-			params: ports.FilterParams{
+			params: domain.FilterParams{
 				UserID:        "explicit-user",
 				MyPosts:       true,
 				CurrentUserID: "current-user",
 				Limit:         10,
 			},
-			want: ports.PostFilter{
+			want: domain.PostFilter{
 				UserID:     "explicit-user",
 				Limit:      10,
 				DateFilter: "all",
@@ -1078,7 +1077,7 @@ func TestFilterService_ApplyDateFilter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			service := NewFilterService()
-			filter := &ports.PostFilter{}
+			filter := &domain.PostFilter{}
 			service.ApplyDateFilter(filter, tt.dateFilter)
 
 			if filter.DateFilter != tt.want {

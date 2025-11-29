@@ -17,7 +17,6 @@ import (
 	platformErrors "forum/internal/platform/errors"
 	logger "forum/internal/platform/logger"
 
-	authAdapters "forum/internal/modules/auth/adapters"
 	authPorts "forum/internal/modules/auth/ports"
 	userPorts "forum/internal/modules/user/ports"
 
@@ -27,12 +26,13 @@ import (
 
 // HTTPHandler handles HTTP requests for posts.
 type HTTPHandler struct {
-	postService     postPorts.PostService
-	categoryService postPorts.CategoryService
-	filterService   postPorts.FilterService
-	authService     authPorts.AuthService
-	userService     userPorts.UserService
-	templates       *template.Template
+	postService        postPorts.PostService
+	categoryService    postPorts.CategoryService
+	filterService      postPorts.FilterService
+	authService        authPorts.AuthService
+	userService        userPorts.UserService
+	middlewareProvider authPorts.MiddlewareProvider
+	templates          *template.Template
 }
 
 // ServiceContainer defines the minimal interface needed by this handler.
@@ -42,17 +42,19 @@ type ServiceContainer interface {
 	Filter() postPorts.FilterService
 	Auth() authPorts.AuthService
 	User() userPorts.UserService
+	AuthMiddleware() authPorts.MiddlewareProvider
 }
 
 // NewHTTPHandler creates a new HTTP handler for posts with unified dependency injection.
 func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
 	return &HTTPHandler{
-		postService:     services.Post(),
-		categoryService: services.Category(),
-		filterService:   services.Filter(),
-		authService:     services.Auth(),
-		userService:     services.User(),
-		templates:       templates,
+		postService:        services.Post(),
+		categoryService:    services.Category(),
+		filterService:      services.Filter(),
+		authService:        services.Auth(),
+		userService:        services.User(),
+		middlewareProvider: services.AuthMiddleware(),
+		templates:          templates,
 	}
 }
 
@@ -105,7 +107,7 @@ func (h *HTTPHandler) getInternalUserID(ctx context.Context, userPublicID string
 }
 
 // buildPageTitle creates a dynamic page title based on active filters.
-func (h *HTTPHandler) buildPageTitle(filterParams postPorts.FilterParams) string {
+func (h *HTTPHandler) buildPageTitle(filterParams postDomain.FilterParams) string {
 	// Build title parts: [My] [Category] Posts [TimePeriod]
 	var parts []string
 
@@ -161,8 +163,8 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	router.HandleFunc("GET /api/posts/load-more", h.LoadMorePostsAPI)
 
 	// Protected routes (require authentication)
-	// Wrap handlers with RequireAuth middleware
-	authMiddleware := authAdapters.RequireAuth(h.authService, h.userService)
+	// Use middleware provider from ports (clean architecture compliant)
+	authMiddleware := h.middlewareProvider.RequireAuth()
 	router.Handle("GET /posts/new", authMiddleware(http.HandlerFunc(h.CreatePostPage)))
 	router.Handle("GET /posts/{id}/edit", authMiddleware(http.HandlerFunc(h.EditPostPage)))
 	router.Handle("POST /posts", authMiddleware(http.HandlerFunc(h.CreatePostAPI)))
@@ -202,7 +204,7 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build filter using FilterService
-	filterParams := postPorts.FilterParams{
+	filterParams := postDomain.FilterParams{
 		Category:      r.URL.Query().Get("category"),
 		UserID:        r.URL.Query().Get("user"),
 		MyPosts:       r.URL.Query().Get("my_posts") == "true",
@@ -318,7 +320,7 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build filter using FilterService
-	filterParams := postPorts.FilterParams{
+	filterParams := postDomain.FilterParams{
 		Category:      r.URL.Query().Get("category"),
 		UserID:        r.URL.Query().Get("user"),
 		MyPosts:       r.URL.Query().Get("my_posts") == "true",
@@ -416,7 +418,7 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get user PUBLIC ID (UUID) from context (set by RequireAuth middleware)
-	userPublicID := authAdapters.GetUserID(r.Context())
+	userPublicID := authPorts.GetUserID(r.Context())
 	if userPublicID == "" {
 		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
 		return
@@ -582,7 +584,7 @@ func (h *HTTPHandler) GetPostAPI(w http.ResponseWriter, r *http.Request) {
 // UpdatePostAPI handles post update requests.
 func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 	// Get user PUBLIC ID (UUID) from context
-	userPublicID := authAdapters.GetUserID(r.Context())
+	userPublicID := authPorts.GetUserID(r.Context())
 	if userPublicID == "" {
 		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
 		return
@@ -731,7 +733,7 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 // DeletePostAPI handles post deletion requests.
 func (h *HTTPHandler) DeletePostAPI(w http.ResponseWriter, r *http.Request) {
 	// Get user PUBLIC ID (UUID) from context
-	userPublicID := authAdapters.GetUserID(r.Context())
+	userPublicID := authPorts.GetUserID(r.Context())
 	if userPublicID == "" {
 		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
 		return
@@ -792,7 +794,7 @@ func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse query parameters
-	filter := postPorts.PostFilter{
+	filter := postDomain.PostFilter{
 		Limit:  50, // Default limit
 		Offset: 0,
 	}
@@ -804,7 +806,7 @@ func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 
 	// User's own posts filter (requires auth)
 	if r.URL.Query().Get("my_posts") == "true" {
-		userPublicID := authAdapters.GetUserID(r.Context())
+		userPublicID := authPorts.GetUserID(r.Context())
 		if userPublicID != "" {
 			filter.UserID = userPublicID // Use PublicID (UUID) for filtering
 		}
@@ -812,7 +814,7 @@ func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 
 	// Liked posts filter (requires auth)
 	if r.URL.Query().Get("liked_posts") == "true" {
-		userPublicID := authAdapters.GetUserID(r.Context())
+		userPublicID := authPorts.GetUserID(r.Context())
 		if userPublicID != "" {
 			filter.LikedByUserID = userPublicID // Use PublicID (UUID) for filtering
 		}
@@ -868,7 +870,7 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse query parameters
-	filter := postPorts.PostFilter{
+	filter := postDomain.PostFilter{
 		Limit:  20, // Load 20 posts at a time
 		Offset: 0,
 	}
@@ -944,7 +946,7 @@ func (h *HTTPHandler) CreatePostPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user PUBLIC ID (UUID) from context (set by RequireAuth middleware)
-	userPublicID := authAdapters.GetUserID(ctx)
+	userPublicID := authPorts.GetUserID(ctx)
 	if userPublicID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -993,7 +995,7 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Get user PUBLIC ID (UUID) from context (set by RequireAuth middleware)
-	userPublicID := authAdapters.GetUserID(ctx)
+	userPublicID := authPorts.GetUserID(ctx)
 	if userPublicID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"forum/internal/modules/post/domain"
-	"forum/internal/modules/post/ports"
 	"testing"
 	"time"
 
@@ -420,7 +419,7 @@ func TestSQLitePostRepository_List(t *testing.T) {
 	ctx := context.Background()
 
 	// Test list all posts
-	filter := ports.PostFilter{
+	filter := domain.PostFilter{
 		Limit:  10,
 		Offset: 0,
 	}
@@ -433,7 +432,7 @@ func TestSQLitePostRepository_List(t *testing.T) {
 	}
 
 	// Test filter by user
-	filter = ports.PostFilter{
+	filter = domain.PostFilter{
 		UserID: "user-uuid-1",
 		Limit:  10,
 		Offset: 0,
@@ -447,7 +446,7 @@ func TestSQLitePostRepository_List(t *testing.T) {
 	}
 
 	// Test filter by category
-	filter = ports.PostFilter{
+	filter = domain.PostFilter{
 		Categories: []string{"General"},
 		Limit:      10,
 		Offset:     0,
@@ -579,7 +578,7 @@ func TestSQLitePostRepository_List_WithDateFilter(t *testing.T) {
 	ctx := context.Background()
 
 	// Test date filter - today
-	filter := ports.PostFilter{
+	filter := domain.PostFilter{
 		DateFilter: "today",
 		Limit:      10,
 		Offset:     0,
@@ -593,7 +592,7 @@ func TestSQLitePostRepository_List_WithDateFilter(t *testing.T) {
 	}
 
 	// Test date filter - week
-	filter = ports.PostFilter{
+	filter = domain.PostFilter{
 		DateFilter: "week",
 		Limit:      10,
 		Offset:     0,
@@ -607,7 +606,7 @@ func TestSQLitePostRepository_List_WithDateFilter(t *testing.T) {
 	}
 
 	// Test date filter - month
-	filter = ports.PostFilter{
+	filter = domain.PostFilter{
 		DateFilter: "month",
 		Limit:      10,
 		Offset:     0,
@@ -621,7 +620,7 @@ func TestSQLitePostRepository_List_WithDateFilter(t *testing.T) {
 	}
 
 	// Test date filter - all
-	filter = ports.PostFilter{
+	filter = domain.PostFilter{
 		DateFilter: "all",
 		Limit:      10,
 		Offset:     0,
@@ -685,7 +684,7 @@ func TestSQLitePostRepository_List_WithLikedByUser(t *testing.T) {
 	ctx := context.Background()
 
 	// Test filter by liked posts
-	filter := ports.PostFilter{
+	filter := domain.PostFilter{
 		LikedByUserID: "user-uuid-2",
 		Limit:         10,
 		Offset:        0,
@@ -699,7 +698,7 @@ func TestSQLitePostRepository_List_WithLikedByUser(t *testing.T) {
 	}
 
 	// Test filter by liked posts - no matches
-	filter = ports.PostFilter{
+	filter = domain.PostFilter{
 		LikedByUserID: "user-uuid-1",
 		Limit:         10,
 		Offset:        0,
@@ -752,7 +751,7 @@ func TestSQLitePostRepository_List_WithPagination(t *testing.T) {
 	ctx := context.Background()
 
 	// Test pagination - first page
-	filter := ports.PostFilter{
+	filter := domain.PostFilter{
 		Limit:  2,
 		Offset: 0,
 	}
@@ -765,7 +764,7 @@ func TestSQLitePostRepository_List_WithPagination(t *testing.T) {
 	}
 
 	// Test pagination - second page
-	filter = ports.PostFilter{
+	filter = domain.PostFilter{
 		Limit:  2,
 		Offset: 2,
 	}
@@ -778,7 +777,7 @@ func TestSQLitePostRepository_List_WithPagination(t *testing.T) {
 	}
 
 	// Test pagination - third page (only 1 post remaining)
-	filter = ports.PostFilter{
+	filter = domain.PostFilter{
 		Limit:  2,
 		Offset: 4,
 	}
@@ -827,7 +826,7 @@ func TestSQLitePostRepository_List_WithImageURL(t *testing.T) {
 
 	ctx := context.Background()
 
-	filter := ports.PostFilter{
+	filter := domain.PostFilter{
 		Limit:  10,
 		Offset: 0,
 	}
@@ -1256,7 +1255,7 @@ func TestSQLitePostRepository_List_WithMultipleCategories(t *testing.T) {
 	ctx := context.Background()
 
 	// Filter by multiple categories - this exercises repeatPlaceholders with count > 0
-	filter := ports.PostFilter{
+	filter := domain.PostFilter{
 		Categories: []string{"Tech", "Science"},
 		Limit:      10,
 	}

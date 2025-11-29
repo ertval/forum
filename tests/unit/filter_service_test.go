@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"forum/internal/modules/post/application"
-	"forum/internal/modules/post/ports"
+	"forum/internal/modules/post/domain"
 )
 
 func TestFilterService_BuildFilter(t *testing.T) {
@@ -14,17 +14,17 @@ func TestFilterService_BuildFilter(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		params   ports.FilterParams
-		expected ports.PostFilter
+		params   domain.FilterParams
+		expected domain.PostFilter
 	}{
 		{
 			name: "basic category filter",
-			params: ports.FilterParams{
+			params: domain.FilterParams{
 				Category: "Tech",
 				Limit:    10,
 				Offset:   0,
 			},
-			expected: ports.PostFilter{
+			expected: domain.PostFilter{
 				Categories: []string{"Tech"},
 				Limit:      10,
 				Offset:     0,
@@ -33,11 +33,11 @@ func TestFilterService_BuildFilter(t *testing.T) {
 		},
 		{
 			name: "user filter with explicit user ID",
-			params: ports.FilterParams{
+			params: domain.FilterParams{
 				UserID: "123",
 				Limit:  10,
 			},
-			expected: ports.PostFilter{
+			expected: domain.PostFilter{
 				UserID:     "123",
 				Limit:      10,
 				Offset:     0,
@@ -46,12 +46,12 @@ func TestFilterService_BuildFilter(t *testing.T) {
 		},
 		{
 			name: "my posts filter",
-			params: ports.FilterParams{
+			params: domain.FilterParams{
 				MyPosts:       true,
 				CurrentUserID: "456",
 				Limit:         10,
 			},
-			expected: ports.PostFilter{
+			expected: domain.PostFilter{
 				UserID:     "456",
 				Limit:      10,
 				Offset:     0,
@@ -60,13 +60,13 @@ func TestFilterService_BuildFilter(t *testing.T) {
 		},
 		{
 			name: "explicit user ID overrides my posts",
-			params: ports.FilterParams{
+			params: domain.FilterParams{
 				UserID:        "789",
 				MyPosts:       true,
 				CurrentUserID: "456",
 				Limit:         10,
 			},
-			expected: ports.PostFilter{
+			expected: domain.PostFilter{
 				UserID:     "789",
 				Limit:      10,
 				Offset:     0,
@@ -75,12 +75,12 @@ func TestFilterService_BuildFilter(t *testing.T) {
 		},
 		{
 			name: "liked posts filter",
-			params: ports.FilterParams{
+			params: domain.FilterParams{
 				LikedPosts:    true,
 				CurrentUserID: "456",
 				Limit:         10,
 			},
-			expected: ports.PostFilter{
+			expected: domain.PostFilter{
 				LikedByUserID: "456",
 				Limit:         10,
 				Offset:        0,
@@ -89,11 +89,11 @@ func TestFilterService_BuildFilter(t *testing.T) {
 		},
 		{
 			name: "date filter - today",
-			params: ports.FilterParams{
+			params: domain.FilterParams{
 				DateFilter: "today",
 				Limit:      10,
 			},
-			expected: ports.PostFilter{
+			expected: domain.PostFilter{
 				DateFilter: "today",
 				Limit:      10,
 				Offset:     0,
@@ -101,11 +101,11 @@ func TestFilterService_BuildFilter(t *testing.T) {
 		},
 		{
 			name: "date filter - week",
-			params: ports.FilterParams{
+			params: domain.FilterParams{
 				DateFilter: "week",
 				Limit:      10,
 			},
-			expected: ports.PostFilter{
+			expected: domain.PostFilter{
 				DateFilter: "week",
 				Limit:      10,
 				Offset:     0,
@@ -113,11 +113,11 @@ func TestFilterService_BuildFilter(t *testing.T) {
 		},
 		{
 			name: "date filter - month",
-			params: ports.FilterParams{
+			params: domain.FilterParams{
 				DateFilter: "month",
 				Limit:      10,
 			},
-			expected: ports.PostFilter{
+			expected: domain.PostFilter{
 				DateFilter: "month",
 				Limit:      10,
 				Offset:     0,
@@ -125,7 +125,7 @@ func TestFilterService_BuildFilter(t *testing.T) {
 		},
 		{
 			name: "combined filters",
-			params: ports.FilterParams{
+			params: domain.FilterParams{
 				Category:      "Tech",
 				DateFilter:    "week",
 				LikedPosts:    true,
@@ -133,7 +133,7 @@ func TestFilterService_BuildFilter(t *testing.T) {
 				Limit:         20,
 				Offset:        10,
 			},
-			expected: ports.PostFilter{
+			expected: domain.PostFilter{
 				Categories:    []string{"Tech"},
 				LikedByUserID: "456",
 				DateFilter:    "week",
@@ -183,31 +183,31 @@ func TestFilterService_ApplyDateFilter(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		initialFilter  ports.PostFilter
+		initialFilter  domain.PostFilter
 		dateFilter     string
 		expectedFilter string
 	}{
 		{
 			name:           "apply today filter",
-			initialFilter:  ports.PostFilter{},
+			initialFilter:  domain.PostFilter{},
 			dateFilter:     "today",
 			expectedFilter: "today",
 		},
 		{
 			name:           "apply week filter",
-			initialFilter:  ports.PostFilter{},
+			initialFilter:  domain.PostFilter{},
 			dateFilter:     "week",
 			expectedFilter: "week",
 		},
 		{
 			name:           "apply month filter",
-			initialFilter:  ports.PostFilter{},
+			initialFilter:  domain.PostFilter{},
 			dateFilter:     "month",
 			expectedFilter: "month",
 		},
 		{
 			name:           "empty filter defaults to all",
-			initialFilter:  ports.PostFilter{},
+			initialFilter:  domain.PostFilter{},
 			dateFilter:     "",
 			expectedFilter: "all",
 		},

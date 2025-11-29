@@ -182,11 +182,6 @@ func (s *Service) DeletePost(ctx context.Context, postID string) error {
 }
 
 // ListPosts lists posts with optional filters.
-// TODO: Implement post filtering.
-func (s *Service) ListPosts(ctx context.Context, filter ports.PostFilter) ([]*domain.Post, error) {
-	// Implementation placeholder
-	// 1. Apply filters (by category, by user, by liked posts)
-	// 2. Apply pagination (offset, limit)
-	// 3. Return filtered posts
+func (s *Service) ListPosts(ctx context.Context, filter domain.PostFilter) ([]*domain.Post, error) {
 	return s.postRepo.List(ctx, filter)
 }

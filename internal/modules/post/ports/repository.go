@@ -13,7 +13,7 @@ type PostRepository interface {
 	GetByID(ctx context.Context, postID string) (*domain.Post, error)
 	Update(ctx context.Context, post *domain.Post) error
 	Delete(ctx context.Context, postID string) error
-	List(ctx context.Context, filter PostFilter) ([]*domain.Post, error)
+	List(ctx context.Context, filter domain.PostFilter) ([]*domain.Post, error)
 }
 
 // CategoryRepository defines data access for categories.

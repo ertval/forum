@@ -4,6 +4,7 @@ package wire
 import (
 	"time"
 
+	authAdapters "forum/internal/modules/auth/adapters"
 	authApp "forum/internal/modules/auth/application"
 	commentApp "forum/internal/modules/comment/application"
 	moderationApp "forum/internal/modules/moderation/application"
@@ -27,20 +28,22 @@ import (
 // This provides a unified way to pass dependencies to handlers.
 // Fields are lowercase (private) with public accessor methods for interface satisfaction.
 type ServiceContainer struct {
-	auth         authPorts.AuthService
-	user         userPorts.UserService
-	post         postPorts.PostService
-	category     postPorts.CategoryService
-	filter       postPorts.FilterService
-	comment      commentPorts.CommentService
-	reaction     reactionPorts.ReactionService
-	moderation   moderationPorts.ModerationService
-	notification notificationPorts.NotificationService
-	logger       *logger.Logger
+	auth           authPorts.AuthService
+	authMiddleware authPorts.MiddlewareProvider
+	user           userPorts.UserService
+	post           postPorts.PostService
+	category       postPorts.CategoryService
+	filter         postPorts.FilterService
+	comment        commentPorts.CommentService
+	reaction       reactionPorts.ReactionService
+	moderation     moderationPorts.ModerationService
+	notification   notificationPorts.NotificationService
+	logger         *logger.Logger
 }
 
 // Accessor methods for ServiceContainer to satisfy handler interfaces
 func (sc *ServiceContainer) Auth() authPorts.AuthService                   { return sc.auth }
+func (sc *ServiceContainer) AuthMiddleware() authPorts.MiddlewareProvider  { return sc.authMiddleware }
 func (sc *ServiceContainer) User() userPorts.UserService                   { return sc.user }
 func (sc *ServiceContainer) Post() postPorts.PostService                   { return sc.post }
 func (sc *ServiceContainer) Category() postPorts.CategoryService           { return sc.category }
@@ -58,16 +61,23 @@ func initServices(repos *Repositories, sessionDuration time.Duration, lgr *logge
 	// Initialize user service first (no dependencies)
 	userService := userApp.NewService(repos.User)
 
+	// Initialize auth service
+	authService := authApp.NewService(repos.Session, repos.User, sessionDuration)
+
+	// Initialize auth middleware provider (adapter that implements ports interface)
+	authMiddleware := authAdapters.NewMiddlewareProvider(authService, userService)
+
 	return &ServiceContainer{
-		auth:         authApp.NewService(repos.Session, repos.User, sessionDuration),
-		user:         userService,
-		post:         postApp.NewService(repos.Post, repos.Category, userService),
-		category:     postApp.NewCategoryService(repos.Category),
-		filter:       postApp.NewFilterService(),
-		comment:      commentApp.NewService(repos.Comment, userService),
-		reaction:     reactionApp.NewService(repos.Reaction),
-		moderation:   moderationApp.NewService(repos.Moderation),
-		notification: notificationApp.NewService(repos.Notification),
-		logger:       lgr,
+		auth:           authService,
+		authMiddleware: authMiddleware,
+		user:           userService,
+		post:           postApp.NewService(repos.Post, repos.Category, userService),
+		category:       postApp.NewCategoryService(repos.Category),
+		filter:         postApp.NewFilterService(),
+		comment:        commentApp.NewService(repos.Comment, userService),
+		reaction:       reactionApp.NewService(repos.Reaction),
+		moderation:     moderationApp.NewService(repos.Moderation),
+		notification:   notificationApp.NewService(repos.Notification),
+		logger:         lgr,
 	}
 }
