@@ -155,6 +155,18 @@ type mockUserService struct {
 	getByPublicIDFunc func(ctx context.Context, publicID string) (*userDomain.User, error)
 }
 
+func (m *mockUserService) CreateUser(ctx context.Context, email, username, passwordHash string) (userID int, err error) {
+	return 1, nil
+}
+
+func (m *mockUserService) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	return false, nil
+}
+
+func (m *mockUserService) ExistsByUsername(ctx context.Context, username string) (bool, error) {
+	return false, nil
+}
+
 func (m *mockUserService) GetByID(ctx context.Context, userID int) (*userDomain.User, error) {
 	if m.getByIDFunc != nil {
 		return m.getByIDFunc(ctx, userID)

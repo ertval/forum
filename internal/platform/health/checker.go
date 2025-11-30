@@ -44,7 +44,7 @@ func (c *Checker) checkAPIEndpoints(ctx context.Context, results map[string]stri
 	// Check all endpoints per module and only mark the module as "up" if ALL endpoints are accessible
 
 	// Auth module endpoints
-	authEndpoints := []struct{method, path string}{
+	authEndpoints := []struct{ method, path string }{
 		{"POST", "/auth/register"},
 		{"POST", "/auth/login"},
 		{"POST", "/auth/logout"},
@@ -54,19 +54,19 @@ func (c *Checker) checkAPIEndpoints(ctx context.Context, results map[string]stri
 	results["auth_api"] = map[bool]string{true: "up", false: "down"}[authAllUp]
 
 	// Post module endpoints
-	postEndpoints := []struct{method, path string}{
-		{"GET", "/"}, // homepage
-		{"GET", "/posts"}, // list posts
-		{"POST", "/posts"}, // create post
-		{"GET", "/posts/{id}"}, // get post (parameterized)
-		{"PUT", "/posts/{id}"}, // update post (parameterized)
+	postEndpoints := []struct{ method, path string }{
+		{"GET", "/"},              // homepage
+		{"GET", "/posts"},         // list posts
+		{"POST", "/posts"},        // create post
+		{"GET", "/posts/{id}"},    // get post (parameterized)
+		{"PUT", "/posts/{id}"},    // update post (parameterized)
 		{"DELETE", "/posts/{id}"}, // delete post (parameterized)
 	}
 	postAllUp := c.areAllRoutesRegistered(ctx, postEndpoints)
 	results["post_api"] = map[bool]string{true: "up", false: "down"}[postAllUp]
 
 	// User module endpoints
-	userEndpoints := []struct{method, path string}{
+	userEndpoints := []struct{ method, path string }{
 		{"GET", "/users/{id}"},
 		{"GET", "/users"},
 		{"PUT", "/users/{id}/role"},
@@ -76,7 +76,7 @@ func (c *Checker) checkAPIEndpoints(ctx context.Context, results map[string]stri
 	results["user_api"] = map[bool]string{true: "up", false: "down"}[userAllUp]
 
 	// Comment module endpoints
-	commentEndpoints := []struct{method, path string}{
+	commentEndpoints := []struct{ method, path string }{
 		{"POST", "/comments"},
 		{"GET", "/comments/{id}"},
 		{"PUT", "/comments/{id}"},
@@ -87,7 +87,7 @@ func (c *Checker) checkAPIEndpoints(ctx context.Context, results map[string]stri
 	results["comment_api"] = map[bool]string{true: "up", false: "down"}[commentAllUp]
 
 	// Reaction module endpoints
-	reactionEndpoints := []struct{method, path string}{
+	reactionEndpoints := []struct{ method, path string }{
 		{"POST", "/reactions"},
 		{"DELETE", "/reactions"},
 		{"GET", "/reactions/{targetType}/{targetId}"},
@@ -97,7 +97,7 @@ func (c *Checker) checkAPIEndpoints(ctx context.Context, results map[string]stri
 	results["reaction_api"] = map[bool]string{true: "up", false: "down"}[reactionAllUp]
 
 	// Moderation module endpoints
-	moderationEndpoints := []struct{method, path string}{
+	moderationEndpoints := []struct{ method, path string }{
 		{"POST", "/reports"},
 		{"GET", "/reports"},
 		{"PUT", "/reports/{id}"},
@@ -106,7 +106,7 @@ func (c *Checker) checkAPIEndpoints(ctx context.Context, results map[string]stri
 	results["moderation_api"] = map[bool]string{true: "up", false: "down"}[moderationAllUp]
 
 	// Notification module endpoints
-	notificationEndpoints := []struct{method, path string}{
+	notificationEndpoints := []struct{ method, path string }{
 		{"GET", "/notifications"},
 		{"PUT", "/notifications/{id}/read"},
 	}
@@ -115,7 +115,7 @@ func (c *Checker) checkAPIEndpoints(ctx context.Context, results map[string]stri
 }
 
 // areAllRoutesRegistered checks if all routes in the list are registered in the router
-func (c *Checker) areAllRoutesRegistered(ctx context.Context, endpoints []struct{method, path string}) bool {
+func (c *Checker) areAllRoutesRegistered(ctx context.Context, endpoints []struct{ method, path string }) bool {
 	for _, endpoint := range endpoints {
 		if !c.isRouteRegistered(ctx, endpoint.method, endpoint.path) {
 			return false
@@ -156,4 +156,3 @@ func (c *Checker) isRouteRegistered(ctx context.Context, method, path string) bo
 	// or "GET /posts/{id}" for parameterized routes
 	return pattern == expectedPattern
 }
-

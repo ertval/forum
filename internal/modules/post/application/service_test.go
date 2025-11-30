@@ -99,6 +99,18 @@ func (m *mockCategoryRepository) Delete(ctx context.Context, categoryID string) 
 // MockUserService implements a minimal UserService for testing
 type mockUserService struct{}
 
+func (m *mockUserService) CreateUser(ctx context.Context, email, username, passwordHash string) (userID int, err error) {
+	return 1, nil
+}
+
+func (m *mockUserService) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	return false, nil
+}
+
+func (m *mockUserService) ExistsByUsername(ctx context.Context, username string) (bool, error) {
+	return false, nil
+}
+
 func (m *mockUserService) GetByID(ctx context.Context, userID int) (*userDomain.User, error) {
 	return nil, nil
 }

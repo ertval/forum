@@ -13,8 +13,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// MockUserRepository implements user ports UserRepository for testing
-type MockUserRepository struct {
+// MockUserService implements user ports UserService for testing
+type MockUserService struct {
 	users           map[string]*userDomain.User
 	emailExists     map[string]bool
 	usernameExists  map[string]bool
@@ -23,125 +23,40 @@ type MockUserRepository struct {
 	nextID          int // Track next ID for Create
 }
 
-func (m *MockUserRepository) Create(ctx context.Context, user *userDomain.User) error {
+func (m *MockUserService) CreateUser(ctx context.Context, email, username, passwordHash string) (userID int, err error) {
 	if m.createError != nil {
-		return m.createError
+		return 0, m.createError
 	}
 	if m.users == nil {
 		m.users = make(map[string]*userDomain.User)
 		m.nextID = 1
 	}
-	// Simulate database auto-increment
 	m.nextID++
-	user.ID = m.nextID
-	// Generate a public ID if not set
-	if user.PublicID == "" {
-		user.PublicID = fmt.Sprintf("user-public-id-%d", user.ID)
+	user := &userDomain.User{
+		ID:           m.nextID,
+		PublicID:     fmt.Sprintf("user-public-id-%d", m.nextID),
+		Email:        email,
+		Username:     username,
+		PasswordHash: passwordHash,
+		Role:         userDomain.RoleUser,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		IsActive:     true,
 	}
-	m.users[user.Email] = user
-	return nil
+	m.users[email] = user
+	return user.ID, nil
 }
 
-func (m *MockUserRepository) Get(ctx context.Context, id int) (*userDomain.User, error) {
-	// Find user by ID in our map
+func (m *MockUserService) GetByID(ctx context.Context, userID int) (*userDomain.User, error) {
 	for _, user := range m.users {
-		if user.ID == id {
+		if user.ID == userID {
 			return user, nil
 		}
 	}
 	return nil, errors.New("user not found")
 }
 
-func (m *MockUserRepository) GetByEmail(ctx context.Context, email string) (*userDomain.User, error) {
-	if m.getByEmailError != nil {
-		return nil, m.getByEmailError
-	}
-	if m.users[email] != nil {
-		return m.users[email], nil
-	}
-	return nil, errors.New("user not found")
-}
-
-func (m *MockUserRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
-	if m.emailExists != nil {
-		return m.emailExists[email], nil
-	}
-	_, exists := m.users[email]
-	return exists, nil
-}
-
-func (m *MockUserRepository) ExistsByUsername(ctx context.Context, username string) (bool, error) {
-	if m.usernameExists != nil {
-		// Search through users to find matching username
-		for _, user := range m.users {
-			if user.Username == username {
-				return true, nil
-			}
-		}
-		return false, nil
-	}
-	// Search through users to find matching username
-	for _, user := range m.users {
-		if user.Username == username {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func (m *MockUserRepository) Update(ctx context.Context, user *userDomain.User) error {
-	// Not implemented for this test
-	return nil
-}
-
-func (m *MockUserRepository) Delete(ctx context.Context, id int) error {
-	// Not implemented for this test
-	return nil
-}
-
-func (m *MockUserRepository) UpdatePassword(ctx context.Context, userID int, newPasswordHash string) error {
-	// Not implemented for this test
-	return nil
-}
-
-func (m *MockUserRepository) Count(ctx context.Context) (int, error) {
-	// Not implemented for this test
-	return len(m.users), nil
-}
-
-func (m *MockUserRepository) GetByID(ctx context.Context, id int) (*userDomain.User, error) {
-	if m.users == nil {
-		return nil, errors.New("user not found")
-	}
-	for _, user := range m.users {
-		if user.ID == id {
-			return user, nil
-		}
-	}
-	return nil, errors.New("user not found")
-}
-
-func (m *MockUserRepository) GetByUsername(ctx context.Context, username string) (*userDomain.User, error) {
-	if m.users == nil {
-		return nil, errors.New("user not found")
-	}
-	for _, user := range m.users {
-		if user.Username == username {
-			return user, nil
-		}
-	}
-	return nil, errors.New("user not found")
-}
-
-func (m *MockUserRepository) List(ctx context.Context, offset, limit int) ([]*userDomain.User, error) {
-	return nil, nil
-}
-
-// GetByPublicID retrieves a user by their public UUID.
-func (m *MockUserRepository) GetByPublicID(ctx context.Context, publicID string) (*userDomain.User, error) {
-	if m.users == nil {
-		return nil, errors.New("user not found")
-	}
+func (m *MockUserService) GetByPublicID(ctx context.Context, publicID string) (*userDomain.User, error) {
 	for _, user := range m.users {
 		if user.PublicID == publicID {
 			return user, nil
@@ -150,36 +65,75 @@ func (m *MockUserRepository) GetByPublicID(ctx context.Context, publicID string)
 	return nil, errors.New("user not found")
 }
 
-// IncrementPostCount increments the user's post count.
-func (m *MockUserRepository) IncrementPostCount(ctx context.Context, userID int) error {
-	if user, err := m.GetByID(ctx, userID); err == nil && user != nil {
-		user.PostCount++
+func (m *MockUserService) GetByUsername(ctx context.Context, username string) (*userDomain.User, error) {
+	for _, user := range m.users {
+		if user.Username == username {
+			return user, nil
+		}
 	}
+	return nil, errors.New("user not found")
+}
+
+func (m *MockUserService) GetByEmail(ctx context.Context, email string) (*userDomain.User, error) {
+	if m.getByEmailError != nil {
+		return nil, m.getByEmailError
+	}
+	if user, exists := m.users[email]; exists {
+		return user, nil
+	}
+	return nil, errors.New("user not found")
+}
+
+func (m *MockUserService) UpdateRole(ctx context.Context, userID int, newRole userDomain.Role) error {
 	return nil
 }
 
-// DecrementPostCount decrements the user's post count.
-func (m *MockUserRepository) DecrementPostCount(ctx context.Context, userID int) error {
-	if user, err := m.GetByID(ctx, userID); err == nil && user != nil && user.PostCount > 0 {
-		user.PostCount--
-	}
+func (m *MockUserService) DeactivateUser(ctx context.Context, userID int) error {
 	return nil
 }
 
-// IncrementCommentCount increments the user's comment count.
-func (m *MockUserRepository) IncrementCommentCount(ctx context.Context, userID int) error {
-	if user, err := m.GetByID(ctx, userID); err == nil && user != nil {
-		user.CommentCount++
-	}
+func (m *MockUserService) ActivateUser(ctx context.Context, userID int) error {
 	return nil
 }
 
-// DecrementCommentCount decrements the user's comment count.
-func (m *MockUserRepository) DecrementCommentCount(ctx context.Context, userID int) error {
-	if user, err := m.GetByID(ctx, userID); err == nil && user != nil && user.CommentCount > 0 {
-		user.CommentCount--
-	}
+func (m *MockUserService) ListUsers(ctx context.Context, offset, limit int) ([]*userDomain.User, error) {
+	return nil, nil
+}
+
+func (m *MockUserService) IncrementPostCount(ctx context.Context, userID int) error {
 	return nil
+}
+
+func (m *MockUserService) DecrementPostCount(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *MockUserService) IncrementCommentCount(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *MockUserService) DecrementCommentCount(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *MockUserService) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	if m.emailExists != nil {
+		return m.emailExists[email], nil
+	}
+	_, exists := m.users[email]
+	return exists, nil
+}
+
+func (m *MockUserService) ExistsByUsername(ctx context.Context, username string) (bool, error) {
+	if m.usernameExists != nil {
+		return m.usernameExists[username], nil
+	}
+	for _, user := range m.users {
+		if user.Username == username {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // MockSessionRepository implements auth ports SessionRepository for testing
@@ -257,9 +211,9 @@ func (m *MockSessionRepository) DeleteExpired(ctx context.Context) error {
 
 func TestService_Register(t *testing.T) {
 	ctx := context.Background()
-	mockUserRepo := &MockUserRepository{}
+	mockUserService := &MockUserService{}
 	mockSessionRepo := &MockSessionRepository{}
-	service := NewService(mockSessionRepo, mockUserRepo, 24*time.Hour)
+	service := NewService(mockSessionRepo, mockUserService, 24*time.Hour)
 
 	tests := []struct {
 		name          string
@@ -318,7 +272,7 @@ func TestService_Register(t *testing.T) {
 			password:      "password123",
 			expectedError: domain.ErrUserAlreadyExists,
 			setup: func() {
-				mockUserRepo.emailExists = map[string]bool{
+				mockUserService.emailExists = map[string]bool{
 					"existing@example.com": true,
 				}
 			},
@@ -328,9 +282,9 @@ func TestService_Register(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset mocks
-			mockUserRepo = &MockUserRepository{}
+			mockUserService = &MockUserService{}
 			mockSessionRepo = &MockSessionRepository{}
-			service = NewService(mockSessionRepo, mockUserRepo, 24*time.Hour)
+			service = NewService(mockSessionRepo, mockUserService, 24*time.Hour)
 
 			if tt.setup != nil {
 				tt.setup()
@@ -367,9 +321,9 @@ func TestService_Register(t *testing.T) {
 
 func TestService_Login(t *testing.T) {
 	ctx := context.Background()
-	mockUserRepo := &MockUserRepository{}
+	mockUserService := &MockUserService{}
 	mockSessionRepo := &MockSessionRepository{}
-	service := NewService(mockSessionRepo, mockUserRepo, 24*time.Hour)
+	service := NewService(mockSessionRepo, mockUserService, 24*time.Hour)
 
 	// Create a user for testing
 	passwordHash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
@@ -382,7 +336,7 @@ func TestService_Login(t *testing.T) {
 		UpdatedAt:    time.Now(),
 		IsActive:     true,
 	}
-	mockUserRepo.users = map[string]*userDomain.User{
+	mockUserService.users = map[string]*userDomain.User{
 		"test@example.com": testUser,
 	}
 
@@ -460,9 +414,9 @@ func TestService_Login(t *testing.T) {
 
 func TestService_Logout(t *testing.T) {
 	ctx := context.Background()
-	mockUserRepo := &MockUserRepository{}
+	mockUserService := &MockUserService{}
 	mockSessionRepo := &MockSessionRepository{}
-	service := NewService(mockSessionRepo, mockUserRepo, 24*time.Hour)
+	service := NewService(mockSessionRepo, mockUserService, 24*time.Hour)
 
 	// Create a session for testing
 	testSession := &domain.Session{
@@ -488,9 +442,9 @@ func TestService_Logout(t *testing.T) {
 
 func TestService_ValidateSession(t *testing.T) {
 	ctx := context.Background()
-	mockUserRepo := &MockUserRepository{}
+	mockUserService := &MockUserService{}
 	mockSessionRepo := &MockSessionRepository{}
-	service := NewService(mockSessionRepo, mockUserRepo, 24*time.Hour)
+	service := NewService(mockSessionRepo, mockUserService, 24*time.Hour)
 
 	// Create a valid session
 	validSession := &domain.Session{
@@ -538,9 +492,9 @@ func TestService_ValidateSession(t *testing.T) {
 
 func TestService_RefreshSession(t *testing.T) {
 	ctx := context.Background()
-	mockUserRepo := &MockUserRepository{}
+	mockUserService := &MockUserService{}
 	mockSessionRepo := &MockSessionRepository{}
-	service := NewService(mockSessionRepo, mockUserRepo, 24*time.Hour)
+	service := NewService(mockSessionRepo, mockUserService, 24*time.Hour)
 
 	// Create a valid session
 	originalTime := time.Now().Add(1 * time.Hour)

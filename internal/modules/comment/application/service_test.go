@@ -83,6 +83,18 @@ func (m *MockCommentRepository) DeleteByPublicID(ctx context.Context, commentPub
 // MockUserService implements a minimal UserService for testing
 type MockUserService struct{}
 
+func (m *MockUserService) CreateUser(ctx context.Context, email, username, passwordHash string) (userID int, err error) {
+	return 1, nil
+}
+
+func (m *MockUserService) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	return false, nil
+}
+
+func (m *MockUserService) ExistsByUsername(ctx context.Context, username string) (bool, error) {
+	return false, nil
+}
+
 func (m *MockUserService) GetByID(ctx context.Context, userID int) (*userDomain.User, error) {
 	return nil, nil
 }

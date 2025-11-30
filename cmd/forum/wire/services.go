@@ -67,7 +67,7 @@ func initServices(repos *Repositories, sessionDuration time.Duration, lgr *logge
 	notificationService := notificationApp.NewService(repos.Notification)
 
 	// Layer 2: Services depending on Layer 1
-	authService := authApp.NewService(repos.Session, repos.User, sessionDuration)
+	authService := authApp.NewService(repos.Session, userService, sessionDuration)
 	postService := postApp.NewService(repos.Post, repos.Category, userService)
 	commentService := commentApp.NewService(repos.Comment, userService)
 
