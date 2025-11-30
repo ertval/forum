@@ -305,14 +305,15 @@ func TestService_Register(t *testing.T) {
 				if userID == 0 {
 					t.Error("Expected a valid user ID")
 				}
-				if session == nil {
+				if session != nil {
+					if session.Token == "" {
+						t.Error("Expected a valid session token")
+					}
+					if session.UserID != userID {
+						t.Error("Session user ID doesn't match returned user ID")
+					}
+				} else {
 					t.Error("Expected a valid session")
-				}
-				if session.Token == "" {
-					t.Error("Expected a valid session token")
-				}
-				if session.UserID != userID {
-					t.Error("Session user ID doesn't match returned user ID")
 				}
 			}
 		})
@@ -398,14 +399,15 @@ func TestService_Login(t *testing.T) {
 				if err != nil {
 					t.Errorf("Expected no error, but got %v", err)
 				}
-				if session == nil {
+				if session != nil {
+					if session.Token == "" {
+						t.Error("Expected a valid session token")
+					}
+					if session.UserID != testUser.ID {
+						t.Error("Session user ID doesn't match user ID")
+					}
+				} else {
 					t.Error("Expected a valid session")
-				}
-				if session.Token == "" {
-					t.Error("Expected a valid session token")
-				}
-				if session.UserID != testUser.ID {
-					t.Error("Session user ID doesn't match user ID")
 				}
 			}
 		})
@@ -513,11 +515,12 @@ func TestService_RefreshSession(t *testing.T) {
 	if err != nil {
 		t.Errorf("Expected no error, but got %v", err)
 	}
-	if session == nil {
+	if session != nil {
+		if session.ExpiresAt.Before(originalTime) {
+			t.Error("Expected session to have extended expiration time")
+		}
+	} else {
 		t.Error("Expected a valid session")
-	}
-	if session.ExpiresAt.Before(originalTime) {
-		t.Error("Expected session to have extended expiration time")
 	}
 
 	// Test refreshing an expired session
