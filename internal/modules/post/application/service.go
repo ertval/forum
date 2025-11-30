@@ -3,12 +3,11 @@ package application
 
 import (
 	"context"
+	"time"
+
 	"forum/internal/modules/post/domain"
 	"forum/internal/modules/post/ports"
 	userPorts "forum/internal/modules/user/ports"
-	"time"
-
-	"github.com/gofrs/uuid/v5"
 )
 
 // Service implements the PostService interface.
@@ -25,12 +24,6 @@ func NewService(postRepo ports.PostRepository, categoryRepo ports.CategoryReposi
 		categoryRepo: categoryRepo,
 		userService:  userService,
 	}
-}
-
-// generateID generates a new UUID for entities.
-func generateID() string {
-	id, _ := uuid.NewV4()
-	return id.String()
 }
 
 // CategoryService implements the CategoryService interface.

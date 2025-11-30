@@ -4,7 +4,7 @@ package application
 
 import (
 	"context"
-	"errors"
+
 	"forum/internal/modules/auth/domain"
 	authPort "forum/internal/modules/auth/ports"
 	userDomain "forum/internal/modules/user/domain"
@@ -274,36 +274,28 @@ func (s *Service) comparePassword(hash, password string) error {
 // ValidateCredentials validates the credentials.
 // Returns an error if the credentials are invalid.
 func ValidateCredentials(c *domain.Credentials) error {
-	validator := validator.New()
+	v := validator.New()
 
-	validator.Required("email", c.Email)
+	v.Required("email", c.Email)
 	if c.Email != "" {
-		validator.Email("email", c.Email)
+		v.Email("email", c.Email)
 	}
 
-	validator.Required("password", c.Password)
+	v.Required("password", c.Password)
 	if c.Password != "" {
 		// Using minimum 6 characters for basic validation, can be increased for production
-		validator.Password("password", c.Password, 6)
+		v.Password("password", c.Password, 6)
 	}
 
-	if !validator.Valid() {
+	if !v.Valid() {
 		// Convert validator errors to domain-specific errors
-		for field, msg := range validator.Errors() {
-			if field == "email" {
-				if msg == "This field is required" {
-					return domain.ErrInvalidEmail
-				}
+		for field := range v.Errors() {
+			switch field {
+			case "email":
 				return domain.ErrInvalidEmail
-			}
-			if field == "password" {
-				if msg == "This field is required" {
-					return domain.ErrWeakPassword
-				}
+			case "password":
 				return domain.ErrWeakPassword
 			}
-			// Fallback to generic error
-			return errors.New(msg)
 		}
 	}
 
