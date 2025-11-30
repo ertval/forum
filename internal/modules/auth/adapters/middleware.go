@@ -9,16 +9,16 @@ import (
 	userPorts "forum/internal/modules/user/ports"
 )
 
-// MiddlewareProvider implements authPorts.MiddlewareProvider.
+// AuthMiddleware implements authPorts.AuthMiddleware.
 // It provides authentication middleware using auth and user services.
-type MiddlewareProvider struct {
+type AuthMiddleware struct {
 	authService authPorts.AuthService
 	userService userPorts.UserService
 }
 
-// NewMiddlewareProvider creates a new MiddlewareProvider.
-func NewMiddlewareProvider(authService authPorts.AuthService, userService userPorts.UserService) *MiddlewareProvider {
-	return &MiddlewareProvider{
+// NewAuthMiddleware creates a new AuthMiddleware.
+func NewAuthMiddleware(authService authPorts.AuthService, userService userPorts.UserService) *AuthMiddleware {
+	return &AuthMiddleware{
 		authService: authService,
 		userService: userService,
 	}
@@ -28,7 +28,7 @@ func NewMiddlewareProvider(authService authPorts.AuthService, userService userPo
 // It validates the session token and adds user PUBLIC ID (UUID) to the context.
 // If authentication fails, it returns 401 Unauthorized.
 // SECURITY: Stores PublicID (UUID) in context, never internal INT ID.
-func (p *MiddlewareProvider) RequireAuth() authPorts.Middleware {
+func (p *AuthMiddleware) RequireAuth() authPorts.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Get session token from cookie
@@ -63,9 +63,9 @@ func (p *MiddlewareProvider) RequireAuth() authPorts.Middleware {
 
 // RequireAuthFunc is a standalone function for backward compatibility.
 // Prefer using MiddlewareProvider.RequireAuth() for new code.
-// DEPRECATED: Use MiddlewareProvider instead.
+// DEPRECATED: Use AuthMiddleware instead.
 func RequireAuth(authService authPorts.AuthService, userService userPorts.UserService) func(http.Handler) http.Handler {
-	provider := NewMiddlewareProvider(authService, userService)
+	provider := NewAuthMiddleware(authService, userService)
 	return provider.RequireAuth()
 }
 
@@ -73,7 +73,7 @@ func RequireAuth(authService authPorts.AuthService, userService userPorts.UserSe
 // It validates the session token if present and adds user PUBLIC ID (UUID) to the context.
 // If authentication fails or is not present, it continues without error.
 // SECURITY: Stores PublicID (UUID) in context, never internal INT ID.
-func (p *MiddlewareProvider) OptionalAuth() authPorts.Middleware {
+func (p *AuthMiddleware) OptionalAuth() authPorts.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Try to get session token from cookie
@@ -111,9 +111,9 @@ func (p *MiddlewareProvider) OptionalAuth() authPorts.Middleware {
 
 // OptionalAuthFunc is a standalone function for backward compatibility.
 // Prefer using MiddlewareProvider.OptionalAuth() for new code.
-// DEPRECATED: Use MiddlewareProvider instead.
+// DEPRECATED: Use AuthMiddleware instead.
 func OptionalAuth(authService authPorts.AuthService, userService userPorts.UserService) func(http.Handler) http.Handler {
-	provider := NewMiddlewareProvider(authService, userService)
+	provider := NewAuthMiddleware(authService, userService)
 	return provider.OptionalAuth()
 }
 
