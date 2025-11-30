@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -24,14 +25,6 @@ func getEnvInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
-func getEnvInt64(key string, defaultValue int64) int64 {
-	if value := os.Getenv(key); value != "" {
-		if int64Value, err := strconv.ParseInt(value, 10, 64); err == nil {
-			return int64Value
-		}
-	}
-	return defaultValue
-}
 
 func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
 	if value := os.Getenv(key); value != "" {
@@ -46,6 +39,21 @@ func getEnvBool(key string, defaultValue bool) bool {
 	if value := os.Getenv(key); value != "" {
 		if boolValue, err := strconv.ParseBool(value); err == nil {
 			return boolValue
+		}
+	}
+	return defaultValue
+}
+
+func getEnvStringSlice(key string, defaultValue []string) []string {
+	if value := os.Getenv(key); value != "" {
+		// Simple comma-separated parsing
+		if value != "" {
+			// Split by comma and trim spaces
+			parts := strings.Split(value, ",")
+			for i, part := range parts {
+				parts[i] = strings.TrimSpace(part)
+			}
+			return parts
 		}
 	}
 	return defaultValue

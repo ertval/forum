@@ -98,8 +98,8 @@ func New(level Level, output io.Writer) *Logger {
 	defCfg := &Config{
 		TimePrecision: TimePrecisionSeconds,
 		OmitFields:    []string{"user_agent"},
-		// default to only show essential HTTP info in human output
-		AllowedFields: []string{"url", "response", "status", "error", "errors"},
+		// default to show HTTP request info and other essential fields
+		AllowedFields: []string{"method", "path", "query", "status", "size", "duration_ms", "remote", "url", "response", "error", "errors"},
 		MaxLineWidth:  200,
 		Colorize:      true,
 	}

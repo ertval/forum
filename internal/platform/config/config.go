@@ -27,6 +27,9 @@ type Config struct {
 	// File upload configuration
 	Upload UploadConfig
 
+	// Logger configuration
+	Logger LoggerConfig
+
 	// OAuth configuration (optional)
 	OAuth OAuthConfig
 }
@@ -79,6 +82,16 @@ type UploadConfig struct {
 	MaxSize      int64    // Maximum file size in bytes (default: 20MB)
 	AllowedTypes []string // Allowed file types (JPEG, PNG, GIF)
 	UploadDir    string   // Upload directory path
+}
+
+// LoggerConfig contains logging settings.
+type LoggerConfig struct {
+	Level         string   // Log level: DEBUG, INFO, WARN, ERROR
+	TimePrecision string   // Time precision: seconds, nano
+	OmitFields    []string // Fields to omit from human output
+	AllowedFields []string // Fields to allow in human output (empty = all)
+	MaxLineWidth  int      // Maximum line width for human output
+	Colorize      bool     // Enable ANSI colors in human output
 }
 
 // OAuthConfig contains OAuth provider settings (optional).
@@ -137,6 +150,13 @@ func Load() (*Config, error) {
 	cfg.Upload.MaxSize = int64(getEnvInt("UPLOAD_MAX_SIZE_MB", 20)) * 1024 * 1024
 	cfg.Upload.AllowedTypes = []string{"image/jpeg", "image/png", "image/gif"}
 	cfg.Upload.UploadDir = getEnvString("UPLOAD_DIR", "./static/uploads")
+
+	cfg.Logger.Level = getEnvString("LOG_LEVEL", "INFO")
+	cfg.Logger.TimePrecision = getEnvString("LOG_TIME_PRECISION", "seconds")
+	cfg.Logger.OmitFields = getEnvStringSlice("LOG_OMIT_FIELDS", []string{"user_agent"})
+	cfg.Logger.AllowedFields = getEnvStringSlice("LOG_ALLOWED_FIELDS", []string{"method", "path", "query", "status", "size", "duration_ms", "remote", "url", "response", "error", "errors"})
+	cfg.Logger.MaxLineWidth = getEnvInt("LOG_MAX_LINE_WIDTH", 200)
+	cfg.Logger.Colorize = getEnvBool("LOG_COLORIZE", true)
 
 	cfg.OAuth.Google.ClientID = getEnvString("GOOGLE_OAUTH_CLIENT_ID", "")
 	cfg.OAuth.Google.ClientSecret = getEnvString("GOOGLE_OAUTH_CLIENT_SECRET", "")
@@ -247,6 +267,19 @@ func (c *Config) Validate() error {
 	uploadBase := filepath.Base(c.Upload.UploadDir)
 	if !(c.Upload.UploadDir == "./static/uploads" || c.Upload.UploadDir == "./uploads" || uploadBase == "uploads") {
 		return fmt.Errorf("upload directory path must point to an 'uploads' directory (e.g. './static/uploads' or './uploads')")
+	}
+
+	// Validate Logger configuration
+	validLevels := map[string]bool{"DEBUG": true, "INFO": true, "WARN": true, "WARNING": true, "ERROR": true}
+	if !validLevels[c.Logger.Level] {
+		return fmt.Errorf("invalid log level: %s (must be DEBUG, INFO, WARN, or ERROR)", c.Logger.Level)
+	}
+	validTimePrecisions := map[string]bool{"seconds": true, "nano": true}
+	if !validTimePrecisions[c.Logger.TimePrecision] {
+		return fmt.Errorf("invalid log time precision: %s (must be 'seconds' or 'nano')", c.Logger.TimePrecision)
+	}
+	if c.Logger.MaxLineWidth < 0 {
+		return fmt.Errorf("log max line width must be non-negative")
 	}
 
 	// OAuth configuration is optional, but if provided, validate it
