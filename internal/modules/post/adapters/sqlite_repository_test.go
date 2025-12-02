@@ -459,3 +459,369 @@ func TestSQLitePostRepository_List(t *testing.T) {
 		t.Errorf("Expected 1 post for category, got %d", len(posts))
 	}
 }
+
+// ============================================================================
+// Image-related tests
+// ============================================================================
+
+func TestSQLitePostRepository_UpdateImagePath(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Insert a test user
+	_, err := db.Exec("INSERT INTO users (public_id, username, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"user-uuid-1", "testuser", "test@example.com", "hash", time.Now(), time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert test user: %v", err)
+	}
+
+	repo := NewSQLitePostRepository(db)
+	ctx := context.Background()
+
+	// Insert a post directly for testing
+	now := time.Now()
+	postPublicID := "test-post-public-id"
+	_, err = db.Exec("INSERT INTO posts (public_id, title, content, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		postPublicID, "Test Post", "Test content", 1, now, now)
+	if err != nil {
+		t.Fatalf("Failed to insert test post: %v", err)
+	}
+
+	t.Run("update image path successfully", func(t *testing.T) {
+		imagePath := "images/test-image.png"
+		err := repo.UpdateImagePath(ctx, postPublicID, imagePath)
+		if err != nil {
+			t.Errorf("UpdateImagePath returned error: %v", err)
+		}
+
+		// Verify in database
+		var storedPath sql.NullString
+		err = db.QueryRow("SELECT image_path FROM posts WHERE public_id = ?", postPublicID).Scan(&storedPath)
+		if err != nil {
+			t.Errorf("Failed to query database: %v", err)
+		}
+		if !storedPath.Valid || storedPath.String != imagePath {
+			t.Errorf("Expected image_path '%s', got '%v'", imagePath, storedPath)
+		}
+	})
+
+	t.Run("update to empty image path (remove image)", func(t *testing.T) {
+		err := repo.UpdateImagePath(ctx, postPublicID, "")
+		if err != nil {
+			t.Errorf("UpdateImagePath returned error: %v", err)
+		}
+
+		// Verify in database - should be NULL
+		var storedPath sql.NullString
+		err = db.QueryRow("SELECT image_path FROM posts WHERE public_id = ?", postPublicID).Scan(&storedPath)
+		if err != nil {
+			t.Errorf("Failed to query database: %v", err)
+		}
+		if storedPath.Valid {
+			t.Errorf("Expected NULL image_path, got '%s'", storedPath.String)
+		}
+	})
+
+	t.Run("post not found", func(t *testing.T) {
+		err := repo.UpdateImagePath(ctx, "non-existent-post-id", "images/test.png")
+		if err != domain.ErrPostNotFound {
+			t.Errorf("Expected ErrPostNotFound, got: %v", err)
+		}
+	})
+}
+
+func TestSQLitePostRepository_GetImagePath(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Insert a test user
+	_, err := db.Exec("INSERT INTO users (public_id, username, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"user-uuid-1", "testuser", "test@example.com", "hash", time.Now(), time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert test user: %v", err)
+	}
+
+	repo := NewSQLitePostRepository(db)
+	ctx := context.Background()
+	now := time.Now()
+
+	t.Run("get existing image path", func(t *testing.T) {
+		postPublicID := "post-with-image"
+		imagePath := "images/test-image.png"
+		_, err := db.Exec("INSERT INTO posts (public_id, title, content, author_id, image_path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+			postPublicID, "Post With Image", "Content", 1, imagePath, now, now)
+		if err != nil {
+			t.Fatalf("Failed to insert test post: %v", err)
+		}
+
+		result, err := repo.GetImagePath(ctx, postPublicID)
+		if err != nil {
+			t.Errorf("GetImagePath returned error: %v", err)
+		}
+		if result != imagePath {
+			t.Errorf("Expected image path '%s', got '%s'", imagePath, result)
+		}
+	})
+
+	t.Run("get empty image path (no image)", func(t *testing.T) {
+		postPublicID := "post-without-image"
+		_, err := db.Exec("INSERT INTO posts (public_id, title, content, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+			postPublicID, "Post Without Image", "Content", 1, now, now)
+		if err != nil {
+			t.Fatalf("Failed to insert test post: %v", err)
+		}
+
+		result, err := repo.GetImagePath(ctx, postPublicID)
+		if err != nil {
+			t.Errorf("GetImagePath returned error: %v", err)
+		}
+		if result != "" {
+			t.Errorf("Expected empty image path, got '%s'", result)
+		}
+	})
+
+	t.Run("post not found", func(t *testing.T) {
+		_, err := repo.GetImagePath(ctx, "non-existent-post-id")
+		if err != domain.ErrPostNotFound {
+			t.Errorf("Expected ErrPostNotFound, got: %v", err)
+		}
+	})
+}
+
+func TestSQLitePostRepository_CreateWithImagePath(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Insert a test user
+	_, err := db.Exec("INSERT INTO users (public_id, username, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"user-uuid-1", "testuser", "test@example.com", "hash", time.Now(), time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert test user: %v", err)
+	}
+
+	// Insert a test category
+	_, err = db.Exec("INSERT INTO categories (public_id, name, description, created_at) VALUES (?, ?, ?, ?)",
+		"cat-uuid-1", "General", "General discussions", time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert test category: %v", err)
+	}
+
+	repo := NewSQLitePostRepository(db)
+	ctx := context.Background()
+	now := time.Now()
+
+	t.Run("create post with image path", func(t *testing.T) {
+		imagePath := "images/uploaded-image.jpg"
+		post := &domain.Post{
+			UserID:     1,
+			Title:      "Post With Image",
+			Content:    "Content with an image",
+			ImageURL:   imagePath, // ImageURL is used for storing the path during creation
+			CreatedAt:  now,
+			UpdatedAt:  now,
+			Categories: []string{"General"},
+		}
+
+		err := repo.Create(ctx, post)
+		if err != nil {
+			t.Errorf("Create returned error: %v", err)
+		}
+
+		// Verify the image path was stored correctly in the database
+		var storedPath sql.NullString
+		err = db.QueryRow("SELECT image_path FROM posts WHERE public_id = ?", post.PublicID).Scan(&storedPath)
+		if err != nil {
+			t.Errorf("Failed to query database: %v", err)
+		}
+		if !storedPath.Valid || storedPath.String != imagePath {
+			t.Errorf("Expected image_path '%s', got '%v'", imagePath, storedPath)
+		}
+	})
+
+	t.Run("create post without image path", func(t *testing.T) {
+		post := &domain.Post{
+			UserID:     1,
+			Title:      "Post Without Image",
+			Content:    "Content without an image",
+			ImageURL:   "", // No image
+			CreatedAt:  now,
+			UpdatedAt:  now,
+			Categories: []string{"General"},
+		}
+
+		err := repo.Create(ctx, post)
+		if err != nil {
+			t.Errorf("Create returned error: %v", err)
+		}
+
+		// Verify the image path is NULL in the database
+		var storedPath sql.NullString
+		err = db.QueryRow("SELECT image_path FROM posts WHERE public_id = ?", post.PublicID).Scan(&storedPath)
+		if err != nil {
+			t.Errorf("Failed to query database: %v", err)
+		}
+		if storedPath.Valid {
+			t.Errorf("Expected NULL image_path, got '%s'", storedPath.String)
+		}
+	})
+}
+
+func TestSQLitePostRepository_GetByIDWithImage(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Insert a test user
+	_, err := db.Exec("INSERT INTO users (public_id, username, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"user-uuid-1", "testuser", "test@example.com", "hash", time.Now(), time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert test user: %v", err)
+	}
+
+	repo := NewSQLitePostRepository(db)
+	ctx := context.Background()
+	now := time.Now()
+
+	t.Run("get post with image - URL prefix added", func(t *testing.T) {
+		postPublicID := "post-with-image-getbyid"
+		imagePath := "images/test-image.png"
+		_, err := db.Exec("INSERT INTO posts (public_id, title, content, author_id, image_path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+			postPublicID, "Post With Image", "Content", 1, imagePath, now, now)
+		if err != nil {
+			t.Fatalf("Failed to insert test post: %v", err)
+		}
+
+		post, err := repo.GetByID(ctx, postPublicID)
+		if err != nil {
+			t.Errorf("GetByID returned error: %v", err)
+		}
+
+		// Verify ImageURL has the /static/uploads/ prefix
+		expectedURL := "/static/uploads/" + imagePath
+		if post.ImageURL != expectedURL {
+			t.Errorf("Expected ImageURL '%s', got '%s'", expectedURL, post.ImageURL)
+		}
+	})
+
+	t.Run("get post without image - ImageURL empty", func(t *testing.T) {
+		postPublicID := "post-without-image-getbyid"
+		_, err := db.Exec("INSERT INTO posts (public_id, title, content, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+			postPublicID, "Post Without Image", "Content", 1, now, now)
+		if err != nil {
+			t.Fatalf("Failed to insert test post: %v", err)
+		}
+
+		post, err := repo.GetByID(ctx, postPublicID)
+		if err != nil {
+			t.Errorf("GetByID returned error: %v", err)
+		}
+
+		// Verify ImageURL is empty when no image
+		if post.ImageURL != "" {
+			t.Errorf("Expected empty ImageURL, got '%s'", post.ImageURL)
+		}
+	})
+}
+
+func TestSQLitePostRepository_ListWithImages(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Insert test users
+	_, err := db.Exec("INSERT INTO users (public_id, username, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"user-uuid-1", "testuser1", "test1@example.com", "hash", time.Now(), time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert test user: %v", err)
+	}
+
+	// Insert test category
+	result, err := db.Exec("INSERT INTO categories (public_id, name, description, created_at) VALUES (?, ?, ?, ?)",
+		"cat-uuid-1", "General", "General discussions", time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert test category: %v", err)
+	}
+	catID, _ := result.LastInsertId()
+
+	repo := NewSQLitePostRepository(db)
+	ctx := context.Background()
+	now := time.Now()
+
+	// Insert posts with and without images
+	imagePath1 := "images/image1.png"
+	imagePath2 := "images/image2.jpg"
+
+	result, err = db.Exec("INSERT INTO posts (public_id, title, content, author_id, image_path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		"post-uuid-1", "Post 1 With Image", "Content 1", 1, imagePath1, now, now)
+	if err != nil {
+		t.Fatalf("Failed to insert test post: %v", err)
+	}
+	postID1, _ := result.LastInsertId()
+
+	result, err = db.Exec("INSERT INTO posts (public_id, title, content, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"post-uuid-2", "Post 2 No Image", "Content 2", 1, now.Add(1*time.Second), now.Add(1*time.Second))
+	if err != nil {
+		t.Fatalf("Failed to insert test post: %v", err)
+	}
+	postID2, _ := result.LastInsertId()
+
+	result, err = db.Exec("INSERT INTO posts (public_id, title, content, author_id, image_path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		"post-uuid-3", "Post 3 With Image", "Content 3", 1, imagePath2, now.Add(2*time.Second), now.Add(2*time.Second))
+	if err != nil {
+		t.Fatalf("Failed to insert test post: %v", err)
+	}
+	postID3, _ := result.LastInsertId()
+
+	// Link categories
+	_, _ = db.Exec("INSERT INTO post_categories (post_id, category_id) VALUES (?, ?)", postID1, catID)
+	_, _ = db.Exec("INSERT INTO post_categories (post_id, category_id) VALUES (?, ?)", postID2, catID)
+	_, _ = db.Exec("INSERT INTO post_categories (post_id, category_id) VALUES (?, ?)", postID3, catID)
+
+	// Test listing all posts
+	filter := ports.PostFilter{
+		Limit:  10,
+		Offset: 0,
+	}
+	posts, err := repo.List(ctx, filter)
+	if err != nil {
+		t.Errorf("List returned error: %v", err)
+	}
+
+	if len(posts) != 3 {
+		t.Fatalf("Expected 3 posts, got %d", len(posts))
+	}
+
+	// Posts are ordered by created_at DESC, so post-uuid-3 is first
+	// Find each post and verify ImageURL
+	postMap := make(map[string]*domain.Post)
+	for _, p := range posts {
+		postMap[p.PublicID] = p
+	}
+
+	// Verify post 1 - has image
+	post1 := postMap["post-uuid-1"]
+	if post1 == nil {
+		t.Fatal("Post 1 not found in list")
+	}
+	expectedURL1 := "/static/uploads/" + imagePath1
+	if post1.ImageURL != expectedURL1 {
+		t.Errorf("Post 1: Expected ImageURL '%s', got '%s'", expectedURL1, post1.ImageURL)
+	}
+
+	// Verify post 2 - no image
+	post2 := postMap["post-uuid-2"]
+	if post2 == nil {
+		t.Fatal("Post 2 not found in list")
+	}
+	if post2.ImageURL != "" {
+		t.Errorf("Post 2: Expected empty ImageURL, got '%s'", post2.ImageURL)
+	}
+
+	// Verify post 3 - has image
+	post3 := postMap["post-uuid-3"]
+	if post3 == nil {
+		t.Fatal("Post 3 not found in list")
+	}
+	expectedURL3 := "/static/uploads/" + imagePath2
+	if post3.ImageURL != expectedURL3 {
+		t.Errorf("Post 3: Expected ImageURL '%s', got '%s'", expectedURL3, post3.ImageURL)
+	}
+}

@@ -503,6 +503,13 @@ Implement optional features after core requirements are complete.
 - Categories grid added to create/edit post forms
 - CSS styles for image preview and category selection
 
+**Testing:**
+- [x] Unit tests: `internal/platform/upload/image_test.go` - 79% coverage
+- [x] Service tests: `internal/modules/post/application/service_image_test.go`
+- [x] Repository tests: `internal/modules/post/adapters/sqlite_repository_test.go`
+- [x] HTTP handler tests: `internal/modules/post/adapters/http_handler_test.go`
+- [x] E2E curl tests: `scripts/tests/test_image_upload.sh` (audit-image.md coverage)
+
 **Files**: `internal/platform/upload/`, `internal/modules/post/`, `static/uploads/`, `templates/`
 
 **Deliverable**: Users can create posts with images. Images validated and stored properly.

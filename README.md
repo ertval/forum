@@ -455,10 +455,25 @@ go test ./internal/platform/upload/... -v -cover
 # Run service-level image tests
 go test ./internal/modules/post/application/... -run Image -v
 
+# Run HTTP handler image tests
+go test ./internal/modules/post/adapters/... -run Image -v
+
 # Test with coverage
 go test ./internal/platform/upload/... -coverprofile=upload_coverage.out
 go tool cover -func=upload_coverage.out
+
+# Run E2E image upload tests (requires server)
+chmod +x scripts/tests/test_image_upload.sh
+./scripts/tests/test_image_upload.sh           # Starts server automatically
+./scripts/tests/test_image_upload.sh --no-server  # Use existing server
+./scripts/tests/test_image_upload.sh -v        # Verbose output
 ```
+
+The E2E test script (`scripts/tests/test_image_upload.sh`) validates all audit requirements:
+- PNG, JPEG, GIF image uploads
+- Oversized image (>20MB) rejection
+- Image persistence verification
+- Unsupported format rejection (BMP, WebP, SVG, TIFF)
 
 ---
 
