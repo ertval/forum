@@ -29,10 +29,4 @@ type CategoryRepository interface {
 	Delete(ctx context.Context, categoryID string) error
 }
 
-// ImageHandler defines file operations for image uploads.
-type ImageHandler interface {
-	// Save saves image data and returns the filename (without path prefix).
-	Save(data []byte) (filename string, err error)
-	// Delete removes an image file by filename.
-	Delete(filename string) error
-}
+// NOTE: ImageHandler interface is defined in image.go to maintain separation of concerns.

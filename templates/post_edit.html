@@ -31,43 +31,7 @@
             <div id="content-preview" class="post-detail-content" style="border: 1px solid #e0e0e0; padding: 1rem; min-height: 100px; background-color: #fafafa;"></div>
         </div>
 
-        <div class="form-group">
-            <label for="image">Image</label>
-            {{if .Post.ImageURL}}
-            <div class="current-image">
-                <p>Current image:</p>
-                <img src="{{.Post.ImageURL}}" alt="Current post image" style="max-width: 300px; max-height: 200px;">
-                <div class="image-actions">
-                    <label class="remove-image-checkbox">
-                        <input type="checkbox" id="remove-image" name="remove_image" value="true">
-                        <span>Remove current image</span>
-                    </label>
-                </div>
-            </div>
-            {{end}}
-            <input 
-                type="file" 
-                id="image" 
-                name="image" 
-                accept="image/jpeg,image/png,image/gif">
-            <span class="form-help">Upload a new image to replace current (JPEG, PNG, GIF. Max: 20MB)</span>
-            <div id="image-preview" class="image-preview"></div>
-        </div>
-
-        <div class="form-group">
-            <label>Categories *</label>
-            <div class="categories-grid">
-                {{$postCategories := .Post.Categories}}
-                {{range .Categories}}
-                <label class="category-checkbox">
-                    <input type="checkbox" name="categories" value="{{.Name}}"
-                        {{range $postCategories}}{{if eq . $.Name}}checked{{end}}{{end}}>
-                    <span>{{.Name}}</span>
-                </label>
-                {{end}}
-            </div>
-            <span class="form-help">Select at least one category</span>
-        </div>
+        {{/* Image upload and category selection are in the sidebar cards (base.html) */}}
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Update Post</button>
@@ -82,4 +46,3 @@
 {{define "scripts"}}
 <script src="/static/js/post-forms.js"></script>
 {{end}}
-

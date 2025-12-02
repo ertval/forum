@@ -411,7 +411,7 @@ test_png_upload() {
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -F "title=PNG Image Test Post" \
         -F "content=This post contains a PNG image for testing" \
-        -F "categories=Tests" \
+        -F "categories=General" \
         -F "image=@$TEST_DIR/test.png")
     
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
@@ -448,7 +448,7 @@ test_jpeg_upload() {
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -F "title=JPEG Image Test Post" \
         -F "content=This post contains a JPEG image for testing" \
-        -F "categories=Tests" \
+        -F "categories=General" \
         -F "image=@$TEST_DIR/test.jpg")
     
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
@@ -485,7 +485,7 @@ test_gif_upload() {
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -F "title=GIF Image Test Post" \
         -F "content=This post contains a GIF image for testing" \
-        -F "categories=Tests" \
+        -F "categories=General" \
         -F "image=@$TEST_DIR/test.gif")
     
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
@@ -522,7 +522,7 @@ test_oversized_image() {
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -F "title=Oversized Image Test" \
         -F "content=This should fail due to image size" \
-        -F "categories=Tests" \
+        -F "categories=General" \
         -F "image=@$TEST_DIR/test_large.png")
     
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
@@ -618,7 +618,7 @@ test_unsupported_bmp() {
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -F "title=BMP Image Test" \
         -F "content=This should fail - BMP not supported" \
-        -F "categories=Tests" \
+        -F "categories=General" \
         -F "image=@$TEST_DIR/test.bmp")
     
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
@@ -655,7 +655,7 @@ test_unsupported_webp() {
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -F "title=WebP Image Test" \
         -F "content=This should fail - WebP not supported" \
-        -F "categories=Tests" \
+        -F "categories=General" \
         -F "image=@$TEST_DIR/test.webp")
     
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
@@ -687,7 +687,7 @@ test_unsupported_svg() {
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -F "title=SVG Image Test" \
         -F "content=This should fail - SVG not supported" \
-        -F "categories=Tests" \
+        -F "categories=General" \
         -F "image=@$TEST_DIR/test.svg")
     
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
@@ -719,7 +719,7 @@ test_unsupported_tiff() {
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -F "title=TIFF Image Test" \
         -F "content=This should fail - TIFF not supported" \
-        -F "categories=Tests" \
+        -F "categories=General" \
         -F "image=@$TEST_DIR/test.tiff")
     
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
@@ -750,7 +750,7 @@ test_post_without_image() {
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -H "Content-Type: application/json" \
-        -d '{"title":"No Image Test Post","content":"This post has no image attached","categories":["Tests"]}')
+        -d '{"title":"No Image Test Post","content":"This post has no image attached","categories":["General"]}')
     
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     BODY=$(echo "$RESPONSE" | sed '$d')
@@ -779,7 +779,7 @@ test_unauthenticated_upload() {
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
         -F "title=Unauthenticated Upload Test" \
         -F "content=This should fail - not logged in" \
-        -F "categories=Tests" \
+        -F "categories=General" \
         -F "image=@$TEST_DIR/test.png")
     
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
