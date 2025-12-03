@@ -17,14 +17,18 @@
                 {{.Content}}
             </div>
             <div class="comment-actions">
-                <button class="btn-like-comment" data-comment-id="{{.PublicID}}">
-                    👍 ({{.Likes}})
-                </button>
-                <button class="btn-dislike-comment" data-comment-id="{{.PublicID}}">
-                    👎 ({{.Dislikes}})
-                </button>
-                <button class="btn-edit-comment" data-comment-id="{{.PublicID}}">Edit</button>
-                <button class="btn-delete-comment" data-comment-id="{{.PublicID}}">Delete</button>
+                <div class="comment-reactions">
+                    <button class="btn-like-comment" data-comment-id="{{.PublicID}}">
+                        👍 ({{.Likes}})
+                    </button>
+                    <button class="btn-dislike-comment" data-comment-id="{{.PublicID}}">
+                        👎 ({{.Dislikes}})
+                    </button>
+                </div>
+                <div class="comment-owner-actions">
+                    <button class="btn btn-secondary btn-edit-comment" data-comment-id="{{.PublicID}}">Edit</button>
+                    <button class="btn btn-danger btn-delete-comment" data-comment-id="{{.PublicID}}">Delete</button>
+                </div>
             </div>
         </article>
         {{end}}
