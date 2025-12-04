@@ -10,7 +10,7 @@ import (
 func TestCommentServiceInterface(t *testing.T) {
 	// This test ensures that the CommentService interface is properly defined
 	// and that we can create a variable of the interface type
-	
+
 	var commentService CommentService
 	if commentService != nil {
 		t.Error("CommentService interface should be usable as a nil variable")
@@ -73,31 +73,31 @@ func (m *mockCommentRepository) ListByPostID(ctx context.Context, postID int) ([
 func TestCommentServiceInterfaceMethods(t *testing.T) {
 	// Create context for testing
 	ctx := context.Background()
-	
+
 	// Test that we can call interface methods on a variable of the interface type
 	service := &mockCommentService{}
-	
+
 	// Test each method signature
 	_, err := service.CreateComment(ctx, 1, 1, "test content")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	_, err = service.GetComment(ctx, 1)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	err = service.UpdateComment(ctx, 1, "updated content")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	err = service.DeleteComment(ctx, 1)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	_, err = service.ListCommentsByPost(ctx, 1)
 	if err != nil {
 		// Expected to be not implemented in mock
@@ -107,44 +107,44 @@ func TestCommentServiceInterfaceMethods(t *testing.T) {
 func TestCommentRepositoryInterfaceMethods(t *testing.T) {
 	// Create context for testing
 	ctx := context.Background()
-	
+
 	// Create mock repository
 	repo := &mockCommentRepository{}
-	
+
 	// Test that we can call interface methods on a variable of the interface type
 	var comment *domain.Comment
 	var comments []*domain.Comment
 	var err error
-	
+
 	// Test Create method
 	err = repo.Create(ctx, comment)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	// Test GetByID method
 	comment, err = repo.GetByID(ctx, 1)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	// Test Update method
 	err = repo.Update(ctx, comment)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	// Test Delete method
 	err = repo.Delete(ctx, 1)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	// Test ListByPostID method
 	comments, err = repo.ListByPostID(ctx, 1)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	_ = comments // Use the variable to avoid unused variable warning
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"forum/internal/modules/comment/domain"
 	postDomain "forum/internal/modules/post/domain"
-	postPorts "forum/internal/modules/post/ports"
 	userDomain "forum/internal/modules/user/domain"
 	"testing"
 	"time"
@@ -95,6 +94,18 @@ func (m *MockCommentRepository) ListByUser(ctx context.Context, userID int) ([]*
 // MockUserService implements a minimal UserService for testing
 type MockUserService struct{}
 
+func (m *MockUserService) CreateUser(ctx context.Context, email, username, passwordHash string) (userID int, err error) {
+	return 1, nil
+}
+
+func (m *MockUserService) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	return false, nil
+}
+
+func (m *MockUserService) ExistsByUsername(ctx context.Context, username string) (bool, error) {
+	return false, nil
+}
+
 func (m *MockUserService) GetByID(ctx context.Context, userID int) (*userDomain.User, error) {
 	return nil, nil
 }
@@ -151,7 +162,7 @@ func (m *MockPostService) GetPost(ctx context.Context, publicID string) (*postDo
 	return &postDomain.Post{
 		ID:       10, // Internal Post ID
 		PublicID: publicID,
-		UserID:   1,  // Author ID
+		UserID:   1, // Author ID
 	}, nil
 }
 
@@ -167,7 +178,7 @@ func (m *MockPostService) DeletePost(ctx context.Context, publicID string) error
 	return nil
 }
 
-func (m *MockPostService) ListPosts(ctx context.Context, filter postPorts.PostFilter) ([]*postDomain.Post, error) {
+func (m *MockPostService) ListPosts(ctx context.Context, filter postDomain.PostFilter) ([]*postDomain.Post, error) {
 	return nil, nil
 }
 

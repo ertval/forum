@@ -10,6 +10,10 @@ import (
 
 // UserService defines the user management use cases.
 type UserService interface {
+	// CreateUser creates a new user with the given details.
+	// Returns the created user's internal ID or an error.
+	CreateUser(ctx context.Context, email, username, passwordHash string) (userID int, err error)
+
 	// GetByID retrieves a user by their internal ID (for internal use only).
 	GetByID(ctx context.Context, userID int) (*domain.User, error)
 
@@ -45,4 +49,10 @@ type UserService interface {
 
 	// DecrementCommentCount atomically decrements the user's comment count.
 	DecrementCommentCount(ctx context.Context, userID int) error
+
+	// ExistsByEmail checks if a user with the given email exists.
+	ExistsByEmail(ctx context.Context, email string) (bool, error)
+
+	// ExistsByUsername checks if a user with the given username exists.
+	ExistsByUsername(ctx context.Context, username string) (bool, error)
 }

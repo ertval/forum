@@ -7,7 +7,7 @@
         {{range .Comments}}
         <article class="comment" id="comment-{{.PublicID}}">
             <div class="comment-context">
-                <p>On post: <a href="/posts/{{.PostPublicID}}">{{.PostTitle}}</a></p>
+                <p>On post: <a class="comment-post-link" href="/posts/{{.PostPublicID}}">{{.PostTitle}}</a> by <span class="comment-post-author">{{.PostAuthorUsername}}</span></p>
             </div>
             <div class="comment-header">
                 <span class="comment-author">{{.AuthorUsername}}</span>

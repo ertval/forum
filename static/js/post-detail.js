@@ -82,9 +82,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 const formData = new FormData();
                 formData.append('content', content);
 
-                const response = await fetch(`/posts/${postId}/comments`, {
+                const response = await fetch(`/api/comments/posts/${postId}`, {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ content: content })
                 });
 
                 if (response.ok) {
@@ -110,7 +113,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            const response = await fetch(`/posts/${postId}`, {
+            const response = await fetch(`/api/posts/${postId}`, {
                 method: 'DELETE'
             });
 
@@ -130,12 +133,12 @@ document.addEventListener('DOMContentLoaded', function() {
     async function handlePostReaction(postId, reactionType) {
         clearPageError();
         try {
-            const response = await fetch(`/posts/${postId}/reactions`, {
+            const response = await fetch(`/api/reactions`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ type: reactionType })
+                body: JSON.stringify({ target_type: 'post', target_id: postId, type: reactionType })
             });
 
             if (response.ok) {
@@ -155,12 +158,12 @@ document.addEventListener('DOMContentLoaded', function() {
     async function handleCommentReaction(commentId, reactionType) {
         clearPageError();
         try {
-            const response = await fetch(`/comments/${commentId}/reactions`, {
+            const response = await fetch(`/api/reactions`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ type: reactionType })
+                body: JSON.stringify({ target_type: 'comment', target_id: commentId, type: reactionType })
             });
 
             if (response.ok) {
@@ -184,7 +187,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         clearPageError();
         try {
-            const response = await fetch(`/comments/${commentId}`, {
+            const response = await fetch(`/api/comments/${commentId}`, {
                 method: 'DELETE'
             });
 

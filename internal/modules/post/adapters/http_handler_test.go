@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	authAdapters "forum/internal/modules/auth/adapters"
 	authDomain "forum/internal/modules/auth/domain"
 	authPorts "forum/internal/modules/auth/ports"
+	commentPorts "forum/internal/modules/comment/ports"
 	postDomain "forum/internal/modules/post/domain"
 	postPorts "forum/internal/modules/post/ports"
 	userDomain "forum/internal/modules/user/domain"
@@ -30,7 +30,7 @@ type mockPostService struct {
 	getFunc    func(ctx context.Context, postID string) (*postDomain.Post, error)
 	updateFunc func(ctx context.Context, postID string, title, content string, categories []string) error
 	deleteFunc func(ctx context.Context, postID string) error
-	listFunc   func(ctx context.Context, filter postPorts.PostFilter) ([]*postDomain.Post, error)
+	listFunc   func(ctx context.Context, filter postDomain.PostFilter) ([]*postDomain.Post, error)
 }
 
 func (m *mockPostService) CreatePost(ctx context.Context, userID int, title, content string, categories []string, image []byte) (*postDomain.Post, error) {
@@ -61,7 +61,7 @@ func (m *mockPostService) DeletePost(ctx context.Context, postID string) error {
 	return nil
 }
 
-func (m *mockPostService) ListPosts(ctx context.Context, filter postPorts.PostFilter) ([]*postDomain.Post, error) {
+func (m *mockPostService) ListPosts(ctx context.Context, filter postDomain.PostFilter) ([]*postDomain.Post, error) {
 	if m.listFunc != nil {
 		return m.listFunc(ctx, filter)
 	}
@@ -105,8 +105,8 @@ func (m *mockCategoryService) Delete(ctx context.Context, categoryID string) err
 
 type mockFilterService struct{}
 
-func (m *mockFilterService) BuildFilter(ctx context.Context, params postPorts.FilterParams) postPorts.PostFilter {
-	return postPorts.PostFilter{
+func (m *mockFilterService) BuildFilter(ctx context.Context, params postDomain.FilterParams) postDomain.PostFilter {
+	return postDomain.PostFilter{
 		Categories:    []string{params.Category},
 		UserID:        params.UserID,
 		LikedByUserID: "",
@@ -116,7 +116,7 @@ func (m *mockFilterService) BuildFilter(ctx context.Context, params postPorts.Fi
 	}
 }
 
-func (m *mockFilterService) ApplyDateFilter(filter *postPorts.PostFilter, dateFilter string) {
+func (m *mockFilterService) ApplyDateFilter(filter *postDomain.PostFilter, dateFilter string) {
 	filter.DateFilter = dateFilter
 }
 
@@ -154,6 +154,18 @@ func (m *mockAuthService) GetSession(ctx context.Context, token string) (*authDo
 type mockUserService struct {
 	getByIDFunc       func(ctx context.Context, userID int) (*userDomain.User, error)
 	getByPublicIDFunc func(ctx context.Context, publicID string) (*userDomain.User, error)
+}
+
+func (m *mockUserService) CreateUser(ctx context.Context, email, username, passwordHash string) (userID int, err error) {
+	return 1, nil
+}
+
+func (m *mockUserService) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	return false, nil
+}
+
+func (m *mockUserService) ExistsByUsername(ctx context.Context, username string) (bool, error) {
+	return false, nil
 }
 
 func (m *mockUserService) GetByID(ctx context.Context, userID int) (*userDomain.User, error) {
@@ -222,13 +234,35 @@ func (m *mockUserService) DecrementCommentCount(ctx context.Context, userID int)
 	return nil
 }
 
+// Mock middleware provider for testing
+type mockMiddlewareProvider struct{}
+
+func (m *mockMiddlewareProvider) RequireAuth() authPorts.Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// In tests, we add context via addAuthContext
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func (m *mockMiddlewareProvider) OptionalAuth() authPorts.Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // ServiceContainer mock
 type mockServiceContainer struct {
-	postService     postPorts.PostService
-	categoryService postPorts.CategoryService
-	filterService   postPorts.FilterService
-	authService     authPorts.AuthService
-	userService     userPorts.UserService
+	postService        postPorts.PostService
+	categoryService    postPorts.CategoryService
+	filterService      postPorts.FilterService
+	authService        authPorts.AuthService
+	userService        userPorts.UserService
+	middlewareProvider authPorts.AuthMiddleware
+	commentService     commentPorts.CommentService
 }
 
 func (m *mockServiceContainer) Post() postPorts.PostService {
@@ -251,13 +285,25 @@ func (m *mockServiceContainer) User() userPorts.UserService {
 	return m.userService
 }
 
+func (m *mockServiceContainer) AuthMiddleware() authPorts.AuthMiddleware {
+	if m.middlewareProvider != nil {
+		return m.middlewareProvider
+	}
+	return &mockMiddlewareProvider{}
+}
+
+func (m *mockServiceContainer) Comment() commentPorts.CommentService {
+	return m.commentService
+}
+
 func createTestHandler(postSvc *mockPostService, catSvc *mockCategoryService, authSvc *mockAuthService, userSvc *mockUserService) *HTTPHandler {
 	container := &mockServiceContainer{
-		postService:     postSvc,
-		categoryService: catSvc,
-		filterService:   &mockFilterService{},
-		authService:     authSvc,
-		userService:     userSvc,
+		postService:        postSvc,
+		categoryService:    catSvc,
+		filterService:      &mockFilterService{},
+		authService:        authSvc,
+		userService:        userSvc,
+		middlewareProvider: &mockMiddlewareProvider{},
 	}
 
 	return NewHTTPHandler(container, nil)
@@ -265,7 +311,7 @@ func createTestHandler(postSvc *mockPostService, catSvc *mockCategoryService, au
 
 // Test helpers
 func addAuthContext(r *http.Request, userPublicID string) *http.Request {
-	ctx := context.WithValue(r.Context(), authAdapters.UserIDKey, userPublicID)
+	ctx := context.WithValue(r.Context(), authPorts.UserIDKey, userPublicID)
 	return r.WithContext(ctx)
 }
 
@@ -273,7 +319,7 @@ func addAuthContext(r *http.Request, userPublicID string) *http.Request {
 
 func TestHTTPHandler_ListPostsAPI(t *testing.T) {
 	postSvc := &mockPostService{
-		listFunc: func(ctx context.Context, filter postPorts.PostFilter) ([]*postDomain.Post, error) {
+		listFunc: func(ctx context.Context, filter postDomain.PostFilter) ([]*postDomain.Post, error) {
 			return []*postDomain.Post{
 				{
 					ID:             1,
@@ -320,7 +366,7 @@ func TestHTTPHandler_ListPostsAPI_MethodNotAllowed(t *testing.T) {
 
 func TestHTTPHandler_ListPostsAPI_WithFilters(t *testing.T) {
 	postSvc := &mockPostService{
-		listFunc: func(ctx context.Context, filter postPorts.PostFilter) ([]*postDomain.Post, error) {
+		listFunc: func(ctx context.Context, filter postDomain.PostFilter) ([]*postDomain.Post, error) {
 			return []*postDomain.Post{}, nil
 		},
 	}
@@ -810,7 +856,7 @@ func TestHTTPHandler_DeletePostAPI_Success(t *testing.T) {
 
 func TestHTTPHandler_LoadMorePostsAPI(t *testing.T) {
 	postSvc := &mockPostService{
-		listFunc: func(ctx context.Context, filter postPorts.PostFilter) ([]*postDomain.Post, error) {
+		listFunc: func(ctx context.Context, filter postDomain.PostFilter) ([]*postDomain.Post, error) {
 			return []*postDomain.Post{
 				{
 					ID:             1,
@@ -852,7 +898,7 @@ func TestHTTPHandler_LoadMorePostsAPI_MethodNotAllowed(t *testing.T) {
 
 func TestHTTPHandler_LoadMorePostsAPI_WithFilters(t *testing.T) {
 	postSvc := &mockPostService{
-		listFunc: func(ctx context.Context, filter postPorts.PostFilter) ([]*postDomain.Post, error) {
+		listFunc: func(ctx context.Context, filter postDomain.PostFilter) ([]*postDomain.Post, error) {
 			return []*postDomain.Post{}, nil
 		},
 	}
@@ -885,59 +931,59 @@ func TestHTTPHandler_buildPageTitle(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		params postPorts.FilterParams
+		params postDomain.FilterParams
 		want   string
 	}{
 		{
 			name:   "no filters",
-			params: postPorts.FilterParams{},
+			params: postDomain.FilterParams{},
 			want:   "All Posts",
 		},
 		{
 			name: "my posts",
-			params: postPorts.FilterParams{
+			params: postDomain.FilterParams{
 				MyPosts: true,
 			},
 			want: "My Posts",
 		},
 		{
 			name: "liked posts",
-			params: postPorts.FilterParams{
+			params: postDomain.FilterParams{
 				LikedPosts: true,
 			},
 			want: "My Liked Posts",
 		},
 		{
 			name: "category filter",
-			params: postPorts.FilterParams{
+			params: postDomain.FilterParams{
 				Category: "Technology",
 			},
 			want: "Technology Posts",
 		},
 		{
 			name: "date filter today",
-			params: postPorts.FilterParams{
+			params: postDomain.FilterParams{
 				DateFilter: "today",
 			},
 			want: "Posts Today",
 		},
 		{
 			name: "date filter week",
-			params: postPorts.FilterParams{
+			params: postDomain.FilterParams{
 				DateFilter: "week",
 			},
 			want: "Posts This Week",
 		},
 		{
 			name: "date filter month",
-			params: postPorts.FilterParams{
+			params: postDomain.FilterParams{
 				DateFilter: "month",
 			},
 			want: "Posts This Month",
 		},
 		{
 			name: "combined my posts and category",
-			params: postPorts.FilterParams{
+			params: postDomain.FilterParams{
 				MyPosts:  true,
 				Category: "Technology",
 			},
@@ -945,7 +991,7 @@ func TestHTTPHandler_buildPageTitle(t *testing.T) {
 		},
 		{
 			name: "user ID filter",
-			params: postPorts.FilterParams{
+			params: postDomain.FilterParams{
 				UserID: "user-123",
 			},
 			want: "My Posts",
@@ -1351,7 +1397,7 @@ func TestHTTPHandler_DeletePostAPI_ServiceError(t *testing.T) {
 
 func TestHTTPHandler_ListPostsAPI_ServiceError(t *testing.T) {
 	postSvc := &mockPostService{
-		listFunc: func(ctx context.Context, filter postPorts.PostFilter) ([]*postDomain.Post, error) {
+		listFunc: func(ctx context.Context, filter postDomain.PostFilter) ([]*postDomain.Post, error) {
 			return nil, postDomain.ErrPostNotFound
 		},
 	}
@@ -1414,7 +1460,7 @@ func TestHTTPHandler_CreatePostAPI_ServiceError(t *testing.T) {
 
 func TestHTTPHandler_LoadMorePostsAPI_ServiceError(t *testing.T) {
 	postSvc := &mockPostService{
-		listFunc: func(ctx context.Context, filter postPorts.PostFilter) ([]*postDomain.Post, error) {
+		listFunc: func(ctx context.Context, filter postDomain.PostFilter) ([]*postDomain.Post, error) {
 			return nil, postDomain.ErrPostNotFound
 		},
 	}
@@ -1448,12 +1494,13 @@ func TestHTTPHandler_GetPostAPI_InvalidID(t *testing.T) {
 	}
 	handler := NewHTTPHandler(container, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/posts/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/posts/", nil)
 	req.SetPathValue("id", "") // Empty ID
 
 	w := httptest.NewRecorder()
 	handler.GetPostAPI(w, req)
 
+	// When post ID is empty, the handler returns 400 Bad Request
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", w.Code)
 	}
@@ -1529,13 +1576,13 @@ func TestHTTPHandler_RegisterRoutes(t *testing.T) {
 	handler.RegisterRoutes(router)
 
 	// Test that routes are registered by making a simple request
-	req := httptest.NewRequest(http.MethodGet, "/posts", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/posts", nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	// Should not get 404 since route is registered
 	if w.Code == http.StatusNotFound {
-		t.Error("Expected route /posts to be registered")
+		t.Error("Expected route /api/posts to be registered")
 	}
 }
 
@@ -1720,7 +1767,7 @@ func TestHTTPHandler_CreatePostAPI_NoCategories(t *testing.T) {
 
 func TestHTTPHandler_ListPostsAPI_WithCookie(t *testing.T) {
 	postSvc := &mockPostService{
-		listFunc: func(ctx context.Context, filter postPorts.PostFilter) ([]*postDomain.Post, error) {
+		listFunc: func(ctx context.Context, filter postDomain.PostFilter) ([]*postDomain.Post, error) {
 			return []*postDomain.Post{
 				{
 					ID:        1,
@@ -1770,7 +1817,7 @@ func TestHTTPHandler_LoadMorePostsAPI_InvalidOffset(t *testing.T) {
 	filterSvc := &mockFilterService{}
 
 	postSvc := &mockPostService{
-		listFunc: func(ctx context.Context, filter postPorts.PostFilter) ([]*postDomain.Post, error) {
+		listFunc: func(ctx context.Context, filter postDomain.PostFilter) ([]*postDomain.Post, error) {
 			return []*postDomain.Post{}, nil
 		},
 	}

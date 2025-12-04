@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"forum/internal/modules/auth/adapters"
 	authDomain "forum/internal/modules/auth/domain"
+	authPorts "forum/internal/modules/auth/ports"
 )
 
 // TestNoIntegerIDsInURLs verifies that all URLs use UUID format, not integer IDs
@@ -221,10 +221,10 @@ func TestGetUserIDReturnsUUID(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Simulate storing value in context
-			ctx := context.WithValue(ctx, adapters.UserIDKey, tc.contextValue)
+			ctx := context.WithValue(ctx, authPorts.UserIDKey, tc.contextValue)
 
 			// Extract using GetUserID
-			userID := adapters.GetUserID(ctx)
+			userID := authPorts.GetUserID(ctx)
 
 			if userID == "" {
 				t.Error("GetUserID returned empty string")

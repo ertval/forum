@@ -11,6 +11,7 @@ import (
 	"forum/internal/modules/auth/application"
 	authDomain "forum/internal/modules/auth/domain"
 	userAdapters "forum/internal/modules/user/adapters"
+	userApp "forum/internal/modules/user/application"
 	"forum/internal/platform/config"
 
 	_ "github.com/mattn/go-sqlite3" // Import SQLite driver
@@ -36,6 +37,7 @@ func TestAuthIntegration(t *testing.T) {
 	// Setup repositories
 	sessionRepo := authAdapters.NewSQLiteSessionRepository(db)
 	userRepo := userAdapters.NewSQLiteUserRepository(db)
+	userService := userApp.NewService(userRepo)
 
 	// Create required tables manually since we're not running migrations in memory
 	// This replicates what the migrations do
@@ -77,7 +79,7 @@ func TestAuthIntegration(t *testing.T) {
 	}
 
 	// Setup service
-	authService := application.NewService(sessionRepo, userRepo, cfg.Session.Duration)
+	authService := application.NewService(sessionRepo, userService, cfg.Session.Duration)
 
 	t.Run("Register and Login User", func(t *testing.T) {
 		// Test registration

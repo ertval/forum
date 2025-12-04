@@ -1,4 +1,4 @@
-// INPUT ADAPTER - HTTP Handler
+// INPUT ADAPTER - HTTP Handler Base
 // Package adapters implements HTTP handlers for reaction endpoints.
 package adapters
 
@@ -28,39 +28,7 @@ func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HT
 }
 
 // RegisterRoutes registers all reaction routes.
-// TODO: Implement route registration.
 func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
-	// Implementation placeholder
-	// POST /reactions - Add or update reaction
-	// DELETE /reactions - Remove reaction
-	// GET /reactions/{targetType}/{targetId} - Get reactions for target
-	// GET /reactions/{targetType}/{targetId}/count - Count reactions
-}
-
-// AddReactionAPI handles adding a reaction to a post or comment.
-// TODO: Implement reaction addition handler.
-func (h *HTTPHandler) AddReactionAPI(w http.ResponseWriter, r *http.Request) {
-	// Implementation placeholder
-	// 1. Parse request body (targetID, targetType, reactionType)
-	// 2. Get userID from session
-	// 3. Call reactionService.React
-	// 4. Return 200 OK
-}
-
-// RemoveReactionAPI handles removing a reaction from a post or comment.
-// TODO: Implement reaction removal handler.
-func (h *HTTPHandler) RemoveReactionAPI(w http.ResponseWriter, r *http.Request) {
-	// Implementation placeholder
-}
-
-// GetReactionsAPI handles retrieving reactions for a post or comment.
-// TODO: Implement reaction retrieval handler.
-func (h *HTTPHandler) GetReactionsAPI(w http.ResponseWriter, r *http.Request) {
-	// Implementation placeholder
-}
-
-// CountReactionsAPI handles counting reactions for a target.
-// TODO: Implement count reactions handler.
-func (h *HTTPHandler) CountReactionsAPI(w http.ResponseWriter, r *http.Request) {
-	// Implementation placeholder
+	// Register API routes
+	h.RegisterAPIRoutes(router)
 }

@@ -3,6 +3,8 @@ package application
 
 import (
 	"context"
+	"time"
+
 	"forum/internal/modules/user/domain"
 	"forum/internal/modules/user/ports"
 )
@@ -17,6 +19,27 @@ func NewService(userRepo ports.UserRepository) *Service {
 	return &Service{
 		userRepo: userRepo,
 	}
+}
+
+// CreateUser creates a new user with the given details.
+// Returns the created user's internal ID or an error.
+func (s *Service) CreateUser(ctx context.Context, email, username, passwordHash string) (userID int, err error) {
+	user := &domain.User{
+		Email:        email,
+		Username:     username,
+		PasswordHash: passwordHash,
+		Role:         domain.RoleUser, // Default role is User
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		IsActive:     true,
+	}
+
+	err = s.userRepo.Create(ctx, user)
+	if err != nil {
+		return 0, err
+	}
+
+	return user.ID, nil
 }
 
 // GetByID retrieves a user by their internal ID (for internal use only).
@@ -87,4 +110,14 @@ func (s *Service) IncrementCommentCount(ctx context.Context, userID int) error {
 // DecrementCommentCount atomically decrements the user's comment count.
 func (s *Service) DecrementCommentCount(ctx context.Context, userID int) error {
 	return s.userRepo.DecrementCommentCount(ctx, userID)
+}
+
+// ExistsByEmail checks if a user with the given email exists.
+func (s *Service) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	return s.userRepo.ExistsByEmail(ctx, email)
+}
+
+// ExistsByUsername checks if a user with the given username exists.
+func (s *Service) ExistsByUsername(ctx context.Context, username string) (bool, error) {
+	return s.userRepo.ExistsByUsername(ctx, username)
 }

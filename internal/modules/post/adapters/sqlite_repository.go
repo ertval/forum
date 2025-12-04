@@ -239,7 +239,7 @@ func (r *SQLitePostRepository) Delete(ctx context.Context, postID string) error 
 }
 
 // List returns filtered posts.
-func (r *SQLitePostRepository) List(ctx context.Context, filter ports.PostFilter) ([]*domain.Post, error) {
+func (r *SQLitePostRepository) List(ctx context.Context, filter domain.PostFilter) ([]*domain.Post, error) {
 	query := `
 		SELECT DISTINCT 
 			p.id, p.public_id, p.title, p.content, p.author_id, p.image_path, 

@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             try {
-                const response = await fetch('/posts', {
+                const response = await fetch('/api/posts', {
                     method: 'POST',
                     body: formData
                 });
@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             try {
-                const response = await fetch(`/posts/${postId}`, {
+                const response = await fetch(`/api/posts/${postId}`, {
                     method: 'PUT',
                     body: formData
                 });
@@ -177,7 +177,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
-            const response = await fetch(`/posts/${postId}`, {
+            const response = await fetch(`/api/posts/${postId}`, {
                 method: 'DELETE'
             });
             

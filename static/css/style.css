@@ -991,6 +991,34 @@ footer p {
     color: #7a7a7a;
 }
 
+/* Comment context link styled like post titles */
+.comment-context {
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+    color: #7a7a7a;
+}
+
+.comment-context p {
+    margin: 0;
+}
+
+.comment-post-link {
+    color: #5a5a5a;
+    text-decoration: none;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.comment-post-link:hover {
+    color: #a3d9c5; /* Darker pastel green with blue tint - same as post titles */
+}
+
+.comment-post-author {
+    font-weight: 600;
+    color: #5a5a5a;
+}
+
 .comment-content {
     margin: 0.5rem 0;
     color: #5a5a5a;

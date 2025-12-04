@@ -111,11 +111,9 @@ func (m *MockSessionRepository) DeleteExpired(ctx context.Context) error {
 func TestAuthServiceInterface(t *testing.T) {
 	// This test ensures that the AuthService interface is properly defined
 	// and that we can create a variable of the interface type
-	
+
 	var authService AuthService
-	if authService != nil {
-		t.Error("AuthService interface should be usable as a nil variable")
-	}
+	_ = authService // ensure the interface is defined and can be used
 }
 
 func TestAuthServiceInterfaceMethods(t *testing.T) {
@@ -190,9 +188,7 @@ func (m *mockAuthService) GetSession(ctx context.Context, sessionToken string) (
 func TestSessionRepositoryInterface(t *testing.T) {
 	// This test ensures that the SessionRepository interface is properly defined
 	var sessionRepo SessionRepository
-	if sessionRepo != nil {
-		t.Error("SessionRepository interface should be usable as a nil variable")
-	}
+	_ = sessionRepo // ensure the interface is defined and can be used
 }
 
 // Helper function to test that the interface methods exist with correct signatures
@@ -251,7 +247,7 @@ func verifySessionRepositoryInterface(repo SessionRepository, ctx context.Contex
 func TestSessionRepositoryInterfaceMethods(t *testing.T) {
 	sessionRepo := &mockSessionRepository{}
 	ctx := context.Background()
-	
+
 	// This call verifies that all methods exist with correct signatures
 	_ = verifySessionRepositoryInterface(sessionRepo, ctx)
 }
