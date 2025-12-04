@@ -76,12 +76,12 @@ func (c *Checker) checkAPIEndpoints(ctx context.Context, results map[string]stri
 	results["user_api"] = map[bool]string{true: "up", false: "down"}[userAllUp]
 
 	// Comment module endpoints
-	commentEndpoints := []struct{ method, path string }{
-		{"POST", "/comments"},
-		{"GET", "/comments/{id}"},
-		{"PUT", "/comments/{id}"},
-		{"DELETE", "/comments/{id}"},
-		{"GET", "/posts/{postId}/comments"},
+	commentEndpoints := []struct{method, path string}{
+		{"POST", "/api/posts/{post_id}/comments"},
+		{"GET", "/api/comments/{id}"},
+		{"PUT", "/api/comments/{id}"},
+		{"DELETE", "/api/comments/{id}"},
+		{"GET", "/api/posts/{post_id}/comments"},
 	}
 	commentAllUp := c.areAllRoutesRegistered(ctx, commentEndpoints)
 	results["comment_api"] = map[bool]string{true: "up", false: "down"}[commentAllUp]

@@ -33,7 +33,7 @@ func TestComment_Validate(t *testing.T) {
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			},
-			expectError: false, // Currently Validate returns nil (TODO implementation)
+			expectError: true, // Now Validate returns ErrEmptyContent
 		},
 		{
 			name: "comment with only whitespace content",
@@ -45,7 +45,7 @@ func TestComment_Validate(t *testing.T) {
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			},
-			expectError: false, // Currently Validate returns nil (TODO implementation)
+			expectError: true, // Now Validate returns ErrEmptyContent
 		},
 	}
 
