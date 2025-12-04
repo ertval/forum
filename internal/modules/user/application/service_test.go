@@ -375,38 +375,181 @@ func TestService_ListUsers(t *testing.T) {
 
 func TestService_UpdateRole(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := &MockUserRepository{}
-	service := NewService(mockRepo)
+	now := time.Now()
 
-	// Test the current implementation (returns nil since it's a placeholder)
-	err := service.UpdateRole(ctx, 1, domain.RoleAdmin)
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
+	t.Run("successfully update role", func(t *testing.T) {
+		mockRepo := &MockUserRepository{
+			users: map[int]*domain.User{
+				1: {
+					ID:        1,
+					Email:     "test@example.com",
+					Username:  "testuser",
+					Role:      domain.RoleUser,
+					IsActive:  true,
+					CreatedAt: now,
+					UpdatedAt: now,
+				},
+			},
+		}
+		service := NewService(mockRepo)
+
+		err := service.UpdateRole(ctx, 1, domain.RoleModerator)
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+
+		// Verify the role was updated
+		if mockRepo.users[1].Role != domain.RoleModerator {
+			t.Errorf("Expected role to be moderator, got %s", mockRepo.users[1].Role)
+		}
+	})
+
+	t.Run("invalid role returns error", func(t *testing.T) {
+		mockRepo := &MockUserRepository{
+			users: map[int]*domain.User{
+				1: {ID: 1, Email: "test@example.com", Role: domain.RoleUser, IsActive: true},
+			},
+		}
+		service := NewService(mockRepo)
+
+		err := service.UpdateRole(ctx, 1, domain.Role("invalid"))
+		if err != domain.ErrInvalidRole {
+			t.Errorf("Expected ErrInvalidRole, got %v", err)
+		}
+	})
+
+	t.Run("user not found returns error", func(t *testing.T) {
+		mockRepo := &MockUserRepository{
+			users: map[int]*domain.User{},
+			getByIDFn: func(ctx context.Context, id int) (*domain.User, error) {
+				return nil, domain.ErrUserNotFound
+			},
+		}
+		service := NewService(mockRepo)
+
+		err := service.UpdateRole(ctx, 999, domain.RoleAdmin)
+		if err != domain.ErrUserNotFound {
+			t.Errorf("Expected ErrUserNotFound, got %v", err)
+		}
+	})
 }
 
 func TestService_DeactivateUser(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := &MockUserRepository{}
-	service := NewService(mockRepo)
+	now := time.Now()
 
-	// Test the current implementation (returns nil since it's a placeholder)
-	err := service.DeactivateUser(ctx, 1)
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
+	t.Run("successfully deactivate user", func(t *testing.T) {
+		mockRepo := &MockUserRepository{
+			users: map[int]*domain.User{
+				1: {
+					ID:        1,
+					Email:     "test@example.com",
+					IsActive:  true,
+					CreatedAt: now,
+					UpdatedAt: now,
+				},
+			},
+		}
+		service := NewService(mockRepo)
+
+		err := service.DeactivateUser(ctx, 1)
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+
+		// Verify user was deactivated
+		if mockRepo.users[1].IsActive {
+			t.Error("Expected user to be deactivated")
+		}
+	})
+
+	t.Run("deactivate already inactive user succeeds", func(t *testing.T) {
+		mockRepo := &MockUserRepository{
+			users: map[int]*domain.User{
+				1: {ID: 1, Email: "test@example.com", IsActive: false},
+			},
+		}
+		service := NewService(mockRepo)
+
+		err := service.DeactivateUser(ctx, 1)
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+	})
+
+	t.Run("user not found returns error", func(t *testing.T) {
+		mockRepo := &MockUserRepository{
+			users: map[int]*domain.User{},
+			getByIDFn: func(ctx context.Context, id int) (*domain.User, error) {
+				return nil, domain.ErrUserNotFound
+			},
+		}
+		service := NewService(mockRepo)
+
+		err := service.DeactivateUser(ctx, 999)
+		if err != domain.ErrUserNotFound {
+			t.Errorf("Expected ErrUserNotFound, got %v", err)
+		}
+	})
 }
 
 func TestService_ActivateUser(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := &MockUserRepository{}
-	service := NewService(mockRepo)
+	now := time.Now()
 
-	// Test the current implementation (returns nil since it's a placeholder)
-	err := service.ActivateUser(ctx, 1)
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
+	t.Run("successfully activate user", func(t *testing.T) {
+		mockRepo := &MockUserRepository{
+			users: map[int]*domain.User{
+				1: {
+					ID:        1,
+					Email:     "test@example.com",
+					IsActive:  false,
+					CreatedAt: now,
+					UpdatedAt: now,
+				},
+			},
+		}
+		service := NewService(mockRepo)
+
+		err := service.ActivateUser(ctx, 1)
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+
+		// Verify user was activated
+		if !mockRepo.users[1].IsActive {
+			t.Error("Expected user to be activated")
+		}
+	})
+
+	t.Run("activate already active user succeeds", func(t *testing.T) {
+		mockRepo := &MockUserRepository{
+			users: map[int]*domain.User{
+				1: {ID: 1, Email: "test@example.com", IsActive: true},
+			},
+		}
+		service := NewService(mockRepo)
+
+		err := service.ActivateUser(ctx, 1)
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+	})
+
+	t.Run("user not found returns error", func(t *testing.T) {
+		mockRepo := &MockUserRepository{
+			users: map[int]*domain.User{},
+			getByIDFn: func(ctx context.Context, id int) (*domain.User, error) {
+				return nil, domain.ErrUserNotFound
+			},
+		}
+		service := NewService(mockRepo)
+
+		err := service.ActivateUser(ctx, 999)
+		if err != domain.ErrUserNotFound {
+			t.Errorf("Expected ErrUserNotFound, got %v", err)
+		}
+	})
 }
 
 func TestService_IncrementPostCount(t *testing.T) {

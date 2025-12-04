@@ -66,24 +66,70 @@ func (s *Service) GetByEmail(ctx context.Context, email string) (*domain.User, e
 }
 
 // UpdateRole updates a user's role.
-// TODO: Implement role update with permission checks.
+// Validates the new role and updates the user in the repository.
 func (s *Service) UpdateRole(ctx context.Context, userID int, newRole domain.Role) error {
-	// Implementation placeholder
-	return nil
+	// Validate role
+	if !isValidRole(newRole) {
+		return domain.ErrInvalidRole
+	}
+
+	// Get the user first to ensure they exist
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return domain.ErrUserNotFound
+	}
+
+	// Update role and timestamp
+	user.Role = newRole
+	user.UpdatedAt = time.Now()
+
+	return s.userRepo.Update(ctx, user)
 }
 
 // DeactivateUser deactivates a user account.
-// TODO: Implement user deactivation.
+// Sets IsActive to false and updates the repository.
 func (s *Service) DeactivateUser(ctx context.Context, userID int) error {
-	// Implementation placeholder
-	return nil
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return domain.ErrUserNotFound
+	}
+
+	if !user.IsActive {
+		return nil // Already inactive
+	}
+
+	user.IsActive = false
+	user.UpdatedAt = time.Now()
+
+	return s.userRepo.Update(ctx, user)
 }
 
 // ActivateUser reactivates a user account.
-// TODO: Implement user activation.
+// Sets IsActive to true and updates the repository.
 func (s *Service) ActivateUser(ctx context.Context, userID int) error {
-	// Implementation placeholder
-	return nil
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return domain.ErrUserNotFound
+	}
+
+	if user.IsActive {
+		return nil // Already active
+	}
+
+	user.IsActive = true
+	user.UpdatedAt = time.Now()
+
+	return s.userRepo.Update(ctx, user)
+}
+
+// isValidRole checks if a role string is a valid role.
+func isValidRole(role domain.Role) bool {
+	switch role {
+	case domain.RoleGuest, domain.RoleUser, domain.RoleModerator, domain.RoleAdmin:
+		return true
+	default:
+		return false
+	}
 }
 
 // ListUsers returns a paginated list of users.

@@ -21,6 +21,42 @@
                 <div class="nav-right">
                     {{if .User}}
                         <span class="welcome-text">Welcome, {{.User.Username}}</span>
+                        {{/* User menu dropdown for narrow screens */}}
+                        <div class="user-menu-container">
+                            <button class="user-menu-btn" id="user-menu-btn">
+                                <span class="avatar-icon-small">👤</span>
+                                <span>▼</span>
+                            </button>
+                            <div class="user-menu-dropdown" id="user-menu-dropdown">
+                                <div class="user-info">
+                                    <div class="user-avatar">
+                                        <span class="avatar-icon">👤</span>
+                                    </div>
+                                    <div class="user-details">
+                                        <p class="username">{{.User.Username}}</p>
+                                        <p class="user-email">{{.User.Email}}</p>
+                                    </div>
+                                </div>
+                                <div class="user-stats">
+                                    <div class="stat-item">
+                                        <span class="stat-value">{{.User.PostCount}}</span>
+                                        <span class="stat-label">Posts</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-value">{{.User.CommentCount}}</span>
+                                        <span class="stat-label">Comments</span>
+                                    </div>
+                                </div>
+                                <div class="user-actions">
+                                    <a href="/posts/new" class="btn btn-primary btn-small">Create Post</a>
+                                    <a href="/board?my_posts=true" class="btn btn-primary btn-small">My Posts</a>
+                                    <a href="/board?liked_posts=true" class="btn btn-primary btn-small">My Reactions</a>
+                                    <a href="/comments" class="btn btn-primary btn-small">My Comments</a>
+                                    <a href="/settings" class="btn btn-primary btn-small">Settings</a>
+                                    <a href="/logout" class="btn btn-primary btn-small">Logout</a>
+                                </div>
+                            </div>
+                        </div>
                     {{else}}
                         <a class="nav-link" href="/login">Login</a>
                         <a class="nav-link" href="/register">Register</a>
@@ -32,23 +68,37 @@
 
     <main>
         <div class="container">
-            {{/* Determine whether we should render the sidebar layout.
-                 Show it when either the page explicitly requests a sidebar
-                 (`.ShowSidebar`) OR when a user is logged in and the page
-                 is NOT the Home or Health Status pages. This ensures the
-                 user card is visible and can be sticky on most pages. */}}
+            {{/* Determine layout based on page type and user status */}}
             {{ $showUserSidebar := and .User (not (or (eq .Title "Home") (eq .Title "Health Status") (eq .Title "Create Post") (eq .Title "Edit Post"))) }}
-            {{ if or .ShowSidebar $showUserSidebar }}
+            {{ $showLeftSidebar := .ShowFilter }}
+            
+            {{/* Three-column layout: filter left, content center, user right */}}
+            {{ if and $showLeftSidebar $showUserSidebar }}
+                <div class="page-layout-three-col">
+                    <aside class="sidebar-left">
+                        {{ template "filter-card" . }}
+                    </aside>
+                    <div class="main-content">
+                        {{ template "content" . }}
+                    </div>
+                    <aside class="sidebar-right">
+                        {{ template "user-card" . }}
+                    </aside>
+                </div>
+            {{/* Two-column layout: content left, user right (no filter) */}}
+            {{ else if $showUserSidebar }}
+                <div class="page-layout-right">
+                    <div class="main-content">
+                        {{ template "content" . }}
+                    </div>
+                    <aside class="sidebar-right">
+                        {{ template "user-card" . }}
+                    </aside>
+                </div>
+            {{/* Two-column layout: filter/sidebar left, content right */}}
+            {{ else if .ShowSidebar }}
                 <div class="page-layout">
                     <aside class="sidebar">
-                        {{/* Always render the user-card if a user is present and the page isn't Home/Health */}}
-                        {{ if $showUserSidebar }}
-                            {{ template "user-card" . }}
-                        {{ else if and .User .ShowSidebar }}
-                            {{ template "user-card" . }}
-                        {{ end }}
-
-                        {{/* Preserve existing sidebar parts only when `.ShowSidebar` is true */}}
                         {{ if .ShowFilter }}
                             {{ template "filter-card" . }}
                         {{ end }}
@@ -64,6 +114,7 @@
                         {{ template "content" . }}
                     </div>
                 </div>
+            {{/* Single column layout (Home, Health, etc.) */}}
             {{ else }}
                 {{ template "content" . }}
             {{ end }}
