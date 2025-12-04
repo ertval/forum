@@ -16,6 +16,7 @@ import (
 
 	authDomain "forum/internal/modules/auth/domain"
 	authPorts "forum/internal/modules/auth/ports"
+	commentPorts "forum/internal/modules/comment/ports"
 	postDomain "forum/internal/modules/post/domain"
 	postPorts "forum/internal/modules/post/ports"
 	userDomain "forum/internal/modules/user/domain"
@@ -261,6 +262,7 @@ type mockServiceContainer struct {
 	authService        authPorts.AuthService
 	userService        userPorts.UserService
 	middlewareProvider authPorts.AuthMiddleware
+	commentService     commentPorts.CommentService
 }
 
 func (m *mockServiceContainer) Post() postPorts.PostService {
@@ -288,6 +290,10 @@ func (m *mockServiceContainer) AuthMiddleware() authPorts.AuthMiddleware {
 		return m.middlewareProvider
 	}
 	return &mockMiddlewareProvider{}
+}
+
+func (m *mockServiceContainer) Comment() commentPorts.CommentService {
+	return m.commentService
 }
 
 func createTestHandler(postSvc *mockPostService, catSvc *mockCategoryService, authSvc *mockAuthService, userSvc *mockUserService) *HTTPHandler {

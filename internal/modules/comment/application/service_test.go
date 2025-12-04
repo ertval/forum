@@ -4,7 +4,6 @@ import (
 	"context"
 	"forum/internal/modules/comment/domain"
 	postDomain "forum/internal/modules/post/domain"
-	postPorts "forum/internal/modules/post/ports"
 	userDomain "forum/internal/modules/user/domain"
 	"testing"
 	"time"
@@ -179,7 +178,7 @@ func (m *MockPostService) DeletePost(ctx context.Context, publicID string) error
 	return nil
 }
 
-func (m *MockPostService) ListPosts(ctx context.Context, filter postPorts.PostFilter) ([]*postDomain.Post, error) {
+func (m *MockPostService) ListPosts(ctx context.Context, filter postDomain.PostFilter) ([]*postDomain.Post, error) {
 	return nil, nil
 }
 

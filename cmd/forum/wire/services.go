@@ -69,7 +69,7 @@ func initServices(repos *Repositories, sessionDuration time.Duration, lgr *logge
 	// Layer 2: Services depending on Layer 1
 	authService := authApp.NewService(repos.Session, userService, sessionDuration)
 	postService := postApp.NewService(repos.Post, repos.Category, userService)
-	commentService := commentApp.NewService(repos.Comment, userService)
+	commentService := commentApp.NewService(repos.Comment, postService, userService)
 
 	// Layer 3: Adapters/middleware depending on services
 	authMiddleware := authAdapters.NewAuthMiddleware(authService, userService)
