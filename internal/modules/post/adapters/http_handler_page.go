@@ -527,27 +527,32 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 				}
 
 				var postTitle string
+				var postAuthorUsername string
 				if comment.PublicPostID != "" {
 					post, err := h.postService.GetPost(ctx, comment.PublicPostID)
 					if err == nil && post != nil {
 						postTitle = post.Title
+						postAuthorUsername = post.AuthorUsername
 					} else {
 						postTitle = "Post not found"
+						postAuthorUsername = "Unknown"
 					}
 				} else {
 					postTitle = "Post ID unknown"
+					postAuthorUsername = "Unknown"
 				}
 
 				commentData := map[string]interface{}{
-					"PublicID":       comment.PublicID,
-					"AuthorUsername": authorUsername,
-					"Content":        comment.Content,
-					"PostPublicID":   comment.PublicPostID,
-					"PostTitle":      postTitle,
-					"CreatedAt":      comment.CreatedAt,
-					"UpdatedAt":      comment.UpdatedAt,
-					"Likes":          0,
-					"Dislikes":       0,
+					"PublicID":           comment.PublicID,
+					"AuthorUsername":     authorUsername,
+					"Content":            comment.Content,
+					"PostPublicID":       comment.PublicPostID,
+					"PostTitle":          postTitle,
+					"PostAuthorUsername": postAuthorUsername,
+					"CreatedAt":          comment.CreatedAt,
+					"UpdatedAt":          comment.UpdatedAt,
+					"Likes":              0,
+					"Dislikes":           0,
 				}
 				comments = append(comments, commentData)
 			}

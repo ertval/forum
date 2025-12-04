@@ -86,7 +86,8 @@ func (c *Checker) checkAPIEndpoints(ctx context.Context, results map[string]stri
 	commentAllUp := c.areAllRoutesRegistered(ctx, commentEndpoints)
 	results["comment_api"] = map[bool]string{true: "up", false: "down"}[commentAllUp]
 
-	// Reaction module endpoints
+	// Reaction module endpoints - NOT YET IMPLEMENTED
+	// These endpoints are scaffolded but not functional yet
 	reactionEndpoints := []struct{ method, path string }{
 		{"POST", "/api/reactions"},
 		{"DELETE", "/api/reactions"},
@@ -94,24 +95,25 @@ func (c *Checker) checkAPIEndpoints(ctx context.Context, results map[string]stri
 		{"GET", "/api/reactions/{targetType}/{targetId}/count"},
 	}
 	reactionAllUp := c.areAllRoutesRegistered(ctx, reactionEndpoints)
-	results["reaction_api"] = map[bool]string{true: "up", false: "down"}[reactionAllUp]
+	// Mark as down if routes not registered OR module not fully implemented
+	results["reaction_api"] = map[bool]string{true: "down", false: "down"}[reactionAllUp] // TODO: change to "up" when implemented
 
-	// Moderation module endpoints
+	// Moderation module endpoints - NOT YET IMPLEMENTED
 	moderationEndpoints := []struct{ method, path string }{
 		{"POST", "/api/moderation/reports"},
 		{"GET", "/api/moderation/reports"},
 		{"PUT", "/api/moderation/reports/{id}"},
 	}
 	moderationAllUp := c.areAllRoutesRegistered(ctx, moderationEndpoints)
-	results["moderation_api"] = map[bool]string{true: "up", false: "down"}[moderationAllUp]
+	results["moderation_api"] = map[bool]string{true: "down", false: "down"}[moderationAllUp] // TODO: change to "up" when implemented
 
-	// Notification module endpoints
+	// Notification module endpoints - NOT YET IMPLEMENTED
 	notificationEndpoints := []struct{ method, path string }{
 		{"GET", "/api/notifications"},
 		{"PUT", "/api/notifications/{id}/read"},
 	}
 	notificationAllUp := c.areAllRoutesRegistered(ctx, notificationEndpoints)
-	results["notification_api"] = map[bool]string{true: "up", false: "down"}[notificationAllUp]
+	results["notification_api"] = map[bool]string{true: "down", false: "down"}[notificationAllUp] // TODO: change to "up" when implemented
 }
 
 // areAllRoutesRegistered checks if all routes in the list are registered in the router
