@@ -174,6 +174,10 @@ func (m *MockPostService) UpdatePost(ctx context.Context, publicID, title, conte
 	return nil
 }
 
+func (m *MockPostService) UpdatePostImage(ctx context.Context, postID string, image []byte, removeImage bool) error {
+	return nil
+}
+
 func (m *MockPostService) DeletePost(ctx context.Context, publicID string) error {
 	return nil
 }

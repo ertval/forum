@@ -9,15 +9,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"os"
-	"strconv"
-	"strings"
 
-	platformErrors "forum/internal/platform/errors"
-	logger "forum/internal/platform/logger"
-	"forum/internal/platform/upload"
-
-	authAdapters "forum/internal/modules/auth/adapters"
 	authPorts "forum/internal/modules/auth/ports"
 	commentPorts "forum/internal/modules/comment/ports"
 	postDomain "forum/internal/modules/post/domain"

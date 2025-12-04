@@ -15,7 +15,7 @@ type mockPostRepository struct {
 	getByIDFunc         func(ctx context.Context, postID string) (*domain.Post, error)
 	updateFunc          func(ctx context.Context, post *domain.Post) error
 	deleteFunc          func(ctx context.Context, postID string) error
-	listFunc            func(ctx context.Context, filter ports.PostFilter) ([]*domain.Post, error)
+	listFunc            func(ctx context.Context, filter domain.PostFilter) ([]*domain.Post, error)
 	updateImagePathFunc func(ctx context.Context, postID string, imagePath string) error
 	getImagePathFunc    func(ctx context.Context, postID string) (string, error)
 }

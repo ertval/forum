@@ -1633,7 +1633,7 @@ func TestSQLitePostRepository_ListWithImages(t *testing.T) {
 	_, _ = db.Exec("INSERT INTO post_categories (post_id, category_id) VALUES (?, ?)", postID3, catID)
 
 	// Test listing all posts
-	filter := ports.PostFilter{
+	filter := domain.PostFilter{
 		Limit:  10,
 		Offset: 0,
 	}

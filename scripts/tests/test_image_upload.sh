@@ -368,7 +368,7 @@ register_and_login() {
     info_log "Registering test user: $TEST_USERNAME"
     
     # Register
-    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/auth/register" \
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
         -H "Content-Type: application/json" \
         -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"$TEST_USERNAME\",\"password\":\"$TEST_PASSWORD\"}")
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
@@ -383,7 +383,7 @@ register_and_login() {
     info_log "Logging in as test user..."
     
     # Login
-    RESPONSE=$(curl -s -i -X POST "$BASE_URL/auth/login" \
+    RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
         -H "Content-Type: application/json" \
         -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}")
     HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP" | tail -n1 | awk '{print $2}')
@@ -407,7 +407,7 @@ test_png_upload() {
     echo -e "${CYAN}Test 1: PNG Image Upload${NC}"
     echo "Testing: Create a post with a PNG image"
     
-    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -F "title=PNG Image Test Post" \
         -F "content=This post contains a PNG image for testing" \
@@ -444,7 +444,7 @@ test_jpeg_upload() {
     echo -e "${CYAN}Test 2: JPEG Image Upload${NC}"
     echo "Testing: Create a post with a JPEG image"
     
-    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -F "title=JPEG Image Test Post" \
         -F "content=This post contains a JPEG image for testing" \
@@ -481,7 +481,7 @@ test_gif_upload() {
     echo -e "${CYAN}Test 3: GIF Image Upload${NC}"
     echo "Testing: Create a post with a GIF image"
     
-    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -F "title=GIF Image Test Post" \
         -F "content=This post contains a GIF image for testing" \
@@ -518,7 +518,7 @@ test_oversized_image() {
     echo -e "${CYAN}Test 4: Oversized Image Rejection (>20MB)${NC}"
     echo "Testing: Attempt to create a post with an image larger than 20MB"
     
-    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -F "title=Oversized Image Test" \
         -F "content=This should fail due to image size" \
@@ -563,7 +563,7 @@ test_image_persistence() {
         debug_log "Checking post: $POST_ID"
         
         # Fetch the post
-        RESPONSE=$(curl -s -w "\n%{http_code}" -H "Accept: application/json" "$BASE_URL/posts/$POST_ID")
+        RESPONSE=$(curl -s -w "\n%{http_code}" -H "Accept: application/json" "$BASE_URL/api/posts/$POST_ID")
         HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
         BODY=$(echo "$RESPONSE" | sed '$d')
         
@@ -614,7 +614,7 @@ test_unsupported_bmp() {
     echo -e "${CYAN}Test 6 (BONUS): BMP Image Rejection${NC}"
     echo "Testing: Attempt to upload an unsupported BMP image"
     
-    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -F "title=BMP Image Test" \
         -F "content=This should fail - BMP not supported" \
@@ -651,7 +651,7 @@ test_unsupported_webp() {
     echo -e "${CYAN}Test 7 (BONUS): WebP Image Rejection${NC}"
     echo "Testing: Attempt to upload an unsupported WebP image"
     
-    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -F "title=WebP Image Test" \
         -F "content=This should fail - WebP not supported" \
@@ -683,7 +683,7 @@ test_unsupported_svg() {
     echo -e "${CYAN}Test 8 (BONUS): SVG Image Rejection${NC}"
     echo "Testing: Attempt to upload an unsupported SVG image"
     
-    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -F "title=SVG Image Test" \
         -F "content=This should fail - SVG not supported" \
@@ -715,7 +715,7 @@ test_unsupported_tiff() {
     echo -e "${CYAN}Test 9 (BONUS): TIFF Image Rejection${NC}"
     echo "Testing: Attempt to upload an unsupported TIFF image"
     
-    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -F "title=TIFF Image Test" \
         -F "content=This should fail - TIFF not supported" \
@@ -747,7 +747,7 @@ test_post_without_image() {
     echo -e "${CYAN}Test 10: Post Creation Without Image${NC}"
     echo "Testing: Create a post without any image (baseline test)"
     
-    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -H "Content-Type: application/json" \
         -d '{"title":"No Image Test Post","content":"This post has no image attached","categories":["General"]}')
@@ -776,7 +776,7 @@ test_unauthenticated_upload() {
     echo -e "${CYAN}Test 11: Unauthenticated Image Upload${NC}"
     echo "Testing: Attempt to upload an image without authentication"
     
-    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/posts" \
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
         -F "title=Unauthenticated Upload Test" \
         -F "content=This should fail - not logged in" \
         -F "categories=General" \

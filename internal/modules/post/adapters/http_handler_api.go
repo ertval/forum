@@ -15,6 +15,7 @@ import (
 	postDomain "forum/internal/modules/post/domain"
 	platformErrors "forum/internal/platform/errors"
 	logger "forum/internal/platform/logger"
+	"forum/internal/platform/upload"
 )
 
 // RegisterAPIRoutes registers all post API routes with the router.
@@ -275,7 +276,7 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-				// Parse image upload using the dedicated helper
+		// Parse image upload using the dedicated helper
 		imageResult, err := ParseImageUpload(r, "image")
 		if err != nil {
 			if err == upload.ErrImageTooLarge {
@@ -289,7 +290,6 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 		if imageResult.RemoveImage {
 			req.RemoveImage = true
 		}
-
 
 	case strings.HasPrefix(contentType, "application/json"), strings.HasPrefix(contentType, "text/json"), contentType == "":
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -339,7 +339,7 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-		// Handle image update if there's new image data or removal request
+	// Handle image update if there's new image data or removal request
 	if len(imageData) > 0 || req.RemoveImage {
 		if err := h.postService.UpdatePostImage(r.Context(), postID, imageData, req.RemoveImage); err != nil {
 			l.Error("http.post.update.image_error",
