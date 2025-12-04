@@ -83,19 +83,24 @@ Focus: Implement essential features from requirements.md to get a working forum 
 - [x] Implement ValidateSession use case
 
 **Auth Module - HTTP Handlers (Input Adapters):**
-- [x] POST /auth/register - registration handler
-  - [x] Parse form data (email, username, password)
+- [x] Handler files split into API and Page handlers:
+  - `http_handler.go` - Base handler, ServiceContainer, RegisterRoutes
+  - `http_handler_api.go` - JSON API handlers with `/api/auth/...` routes
+  - `http_handler_page.go` - HTML page handlers (/login, /register, /logout pages)
+- [x] POST /api/auth/register - registration handler
+  - [x] Parse JSON (email, username, password)
   - [x] Validate input and create user
   - [x] Set session cookie
   - [x] Return 201 Created or 409 Conflict (duplicate email/username)
-- [x] POST /auth/login - login handler
+- [x] POST /api/auth/login - login handler
   - [x] Parse credentials
   - [x] Authenticate user
   - [x] Set session cookie
   - [x] Return 200 OK or 401 Unauthorized
-- [x] POST /auth/logout - logout handler
+- [x] POST /api/auth/logout - logout handler
   - [x] Delete session cookie
   - [x] Return 204 No Content
+- [x] GET /api/auth/session - session validation handler
 
 **Middleware:**
 - [x] Implement RequireAuth middleware (validate session cookie, inject user into context)
@@ -162,11 +167,15 @@ Focus: Implement essential features from requirements.md to get a working forum 
 - [x] Unit tests with mock repositories (service_test.go)
 
 **Post Module - HTTP Handlers:**
-- [x] POST /posts - create post (requires auth, JSON API)
-- [x] GET /posts - list all posts (public, supports filtering)
-- [x] GET /posts/{id} - view single post (public)
-- [x] PUT /posts/{id} - edit post (requires auth + ownership)
-- [x] DELETE /posts/{id} - delete post (requires auth + ownership)
+- [x] Handler files split into API and Page handlers:
+  - `http_handler.go` - Base handler, ServiceContainer, RegisterRoutes
+  - `http_handler_api.go` - JSON API handlers with `/api/posts/...` routes
+  - `http_handler_page.go` - HTML page handlers (/, /board, /posts/{id}, etc.)
+- [x] POST /api/posts - create post (requires auth, JSON API)
+- [x] GET /api/posts - list all posts (public, supports filtering)
+- [x] GET /api/posts/{id} - view single post (public)
+- [x] PUT /api/posts/{id} - edit post (requires auth + ownership)
+- [x] DELETE /api/posts/{id} - delete post (requires auth + ownership)
 - [x] GET / - homepage with post list
 - [x] Routes wrapped with RequireAuth middleware for protected endpoints
 

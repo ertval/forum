@@ -45,70 +45,70 @@ func (c *Checker) checkAPIEndpoints(ctx context.Context, results map[string]stri
 
 	// Auth module endpoints
 	authEndpoints := []struct{ method, path string }{
-		{"POST", "/auth/register"},
-		{"POST", "/auth/login"},
-		{"POST", "/auth/logout"},
-		{"GET", "/auth/session"},
+		{"POST", "/api/auth/register"},
+		{"POST", "/api/auth/login"},
+		{"POST", "/api/auth/logout"},
+		{"GET", "/api/auth/session"},
 	}
 	authAllUp := c.areAllRoutesRegistered(ctx, authEndpoints)
 	results["auth_api"] = map[bool]string{true: "up", false: "down"}[authAllUp]
 
 	// Post module endpoints
 	postEndpoints := []struct{ method, path string }{
-		{"GET", "/"},              // homepage
-		{"GET", "/posts"},         // list posts
-		{"POST", "/posts"},        // create post
-		{"GET", "/posts/{id}"},    // get post (parameterized)
-		{"PUT", "/posts/{id}"},    // update post (parameterized)
-		{"DELETE", "/posts/{id}"}, // delete post (parameterized)
+		{"GET", "/"},                  // homepage
+		{"GET", "/api/posts"},         // list posts
+		{"POST", "/api/posts"},        // create post
+		{"GET", "/api/posts/{id}"},    // get post (parameterized)
+		{"PUT", "/api/posts/{id}"},    // update post (parameterized)
+		{"DELETE", "/api/posts/{id}"}, // delete post (parameterized)
 	}
 	postAllUp := c.areAllRoutesRegistered(ctx, postEndpoints)
 	results["post_api"] = map[bool]string{true: "up", false: "down"}[postAllUp]
 
 	// User module endpoints
 	userEndpoints := []struct{ method, path string }{
-		{"GET", "/users/{id}"},
-		{"GET", "/users"},
-		{"PUT", "/users/{id}/role"},
-		{"PUT", "/users/{id}/deactivate"},
+		{"GET", "/api/users/{id}"},
+		{"GET", "/api/users"},
+		{"PUT", "/api/users/{id}/role"},
+		{"PUT", "/api/users/{id}/deactivate"},
 	}
 	userAllUp := c.areAllRoutesRegistered(ctx, userEndpoints)
 	results["user_api"] = map[bool]string{true: "up", false: "down"}[userAllUp]
 
 	// Comment module endpoints
-	commentEndpoints := []struct{method, path string}{
-		{"POST", "/api/posts/{post_id}/comments"},
+	commentEndpoints := []struct{ method, path string }{
+		{"POST", "/api/comments/posts/{post_id}"},
 		{"GET", "/api/comments/{id}"},
 		{"PUT", "/api/comments/{id}"},
 		{"DELETE", "/api/comments/{id}"},
-		{"GET", "/api/posts/{post_id}/comments"},
+		{"GET", "/api/comments/posts/{post_id}"},
 	}
 	commentAllUp := c.areAllRoutesRegistered(ctx, commentEndpoints)
 	results["comment_api"] = map[bool]string{true: "up", false: "down"}[commentAllUp]
 
 	// Reaction module endpoints
 	reactionEndpoints := []struct{ method, path string }{
-		{"POST", "/reactions"},
-		{"DELETE", "/reactions"},
-		{"GET", "/reactions/{targetType}/{targetId}"},
-		{"GET", "/reactions/{targetType}/{targetId}/count"},
+		{"POST", "/api/reactions"},
+		{"DELETE", "/api/reactions"},
+		{"GET", "/api/reactions/{targetType}/{targetId}"},
+		{"GET", "/api/reactions/{targetType}/{targetId}/count"},
 	}
 	reactionAllUp := c.areAllRoutesRegistered(ctx, reactionEndpoints)
 	results["reaction_api"] = map[bool]string{true: "up", false: "down"}[reactionAllUp]
 
 	// Moderation module endpoints
 	moderationEndpoints := []struct{ method, path string }{
-		{"POST", "/reports"},
-		{"GET", "/reports"},
-		{"PUT", "/reports/{id}"},
+		{"POST", "/api/moderation/reports"},
+		{"GET", "/api/moderation/reports"},
+		{"PUT", "/api/moderation/reports/{id}"},
 	}
 	moderationAllUp := c.areAllRoutesRegistered(ctx, moderationEndpoints)
 	results["moderation_api"] = map[bool]string{true: "up", false: "down"}[moderationAllUp]
 
 	// Notification module endpoints
 	notificationEndpoints := []struct{ method, path string }{
-		{"GET", "/notifications"},
-		{"PUT", "/notifications/{id}/read"},
+		{"GET", "/api/notifications"},
+		{"PUT", "/api/notifications/{id}/read"},
 	}
 	notificationAllUp := c.areAllRoutesRegistered(ctx, notificationEndpoints)
 	results["notification_api"] = map[bool]string{true: "up", false: "down"}[notificationAllUp]

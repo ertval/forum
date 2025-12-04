@@ -41,16 +41,16 @@ echo "AUTH MODULE TESTS"
 echo "---"
 
 # Register
-test_endpoint "Register new user" "POST" "$BASE_URL/auth/register" \
+test_endpoint "Register new user" "POST" "$BASE_URL/api/auth/register" \
     '{"email":"final@test.com","username":"finaluser","password":"password123"}' \
     "" "201"
 
 # Login  
-RESPONSE=$(curl -s -i -X POST "$BASE_URL/auth/register" \
+RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
     -d '{"email":"login@test.com","username":"loginuser","password":"password123"}' 2>&1)
 
-RESPONSE=$(curl -s -i -X POST "$BASE_URL/auth/login" \
+RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
     -H "Content-Type: application/json" \
     -d '{"email":"login@test.com","password":"password123"}' 2>&1)
 TOKEN=$(echo "$RESPONSE" | grep -i "set-cookie" | grep "session_token" | sed 's/.*session_token=\([^;]*\).*/\1/' | head -n 1)
@@ -64,12 +64,12 @@ else
 fi
 
 # Invalid credentials
-test_endpoint "Login with wrong password" "POST" "$BASE_URL/auth/login" \
+test_endpoint "Login with wrong password" "POST" "$BASE_URL/api/auth/login" \
     '{"email":"login@test.com","password":"wrongpass"}' \
     "" "401"
 
 # Duplicate email
-test_endpoint "Register duplicate email" "POST" "$BASE_URL/auth/register" \
+test_endpoint "Register duplicate email" "POST" "$BASE_URL/api/auth/register" \
     '{"email":"login@test.com","username":"different","password":"password123"}' \
     "" "409"
 

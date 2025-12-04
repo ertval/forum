@@ -162,7 +162,7 @@ func (m *MockPostService) GetPost(ctx context.Context, publicID string) (*postDo
 	return &postDomain.Post{
 		ID:       10, // Internal Post ID
 		PublicID: publicID,
-		UserID:   1,  // Author ID
+		UserID:   1, // Author ID
 	}, nil
 }
 

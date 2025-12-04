@@ -91,8 +91,63 @@ module/
 │                    # Uses ports/repository.go
 │
 └── adapters/        # Technical implementations (flat, no subdirs)
-    ├── http_handler.go       # INPUT - HTTP endpoints
+    ├── http_handler.go       # INPUT - Base handler struct & route registration
+    ├── http_handler_api.go   # INPUT - JSON API endpoints (/api/...)
+    ├── http_handler_page.go  # INPUT - HTML page endpoints (/, /posts/...)
     └── sqlite_repository.go  # OUTPUT - Database access
+```
+
+### Handler File Organization
+
+Each module's HTTP handlers are split into 3 files:
+
+1. **http_handler.go** - Base handler with:
+   - `HTTPHandler` struct definition
+   - `ServiceContainer` interface (declares needed dependencies)
+   - `NewHTTPHandler()` constructor
+   - `RegisterRoutes()` dispatcher that calls API and page route registration
+   - Helper methods (e.g., `GetCurrentUser`, `parseJSON`)
+
+2. **http_handler_api.go** - JSON API handlers:
+   - `RegisterAPIRoutes()` - Registers all `/api/...` routes
+   - Handler methods with suffix `API` (e.g., `RegisterAPI`, `CreatePostAPI`)
+   - Returns JSON responses, uses proper HTTP status codes
+   - Routes follow pattern: `/api/{module}/{action}`
+
+3. **http_handler_page.go** - HTML page handlers:
+   - `RegisterPageRoutes()` - Registers page routes (e.g., `/`, `/login`, `/posts/{id}`)
+   - Handler methods with suffix `Page` (e.g., `LoginPage`, `CreatePostPage`)
+   - Returns rendered HTML templates
+
+### API URL Pattern
+
+All JSON API endpoints follow the pattern: `/api/{module}/{action}`
+
+```
+Authentication:
+  POST /api/auth/register    - Register new user
+  POST /api/auth/login       - Login user
+  POST /api/auth/logout      - Logout user
+  GET  /api/auth/session     - Get current session
+
+Posts:
+  GET    /api/posts          - List posts (with filtering)
+  POST   /api/posts          - Create post
+  GET    /api/posts/{id}     - Get post
+  PUT    /api/posts/{id}     - Update post
+  DELETE /api/posts/{id}     - Delete post
+
+Comments:
+  GET    /api/comments/posts/{post_id}  - List comments for post
+  POST   /api/comments/posts/{post_id}  - Create comment
+  GET    /api/comments/{id}             - Get comment
+  PUT    /api/comments/{id}             - Update comment
+  DELETE /api/comments/{id}             - Delete comment
+
+Reactions:
+  POST   /api/reactions                             - Add reaction
+  DELETE /api/reactions                             - Remove reaction
+  GET    /api/reactions/{targetType}/{targetId}     - Get reactions
 ```
 
 ### Port/Adapter Markers

@@ -355,13 +355,13 @@ fi
 
 # Test 8: Register and login via page endpoint (functional test)
 echo "Test 8: Register user via API for page tests"
-RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/auth/register" \
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
     -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"$TEST_USERNAME\",\"password\":\"$TEST_PASSWORD\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "201" ]; then
     # Now login to get session
-    RESPONSE=$(curl -s -i -X POST "$BASE_URL/auth/login" \
+    RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
         -H "Content-Type: application/json" \
         -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}")
     HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP" | tail -n1 | awk '{print $2}')
@@ -515,13 +515,13 @@ fi
 # Test 14: GET /posts/:id/edit - Forbidden for non-owner (403/401)
 echo "Test 14: GET /posts/:id/edit - Forbidden for non-owner"
 # Register second user
-RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/auth/register" \
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
     -d "{\"email\":\"$TEST_EMAIL2\",\"username\":\"$TEST_USERNAME2\",\"password\":\"$TEST_PASSWORD\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "201" ]; then
     # Login as second user
-    RESPONSE=$(curl -s -i -X POST "$BASE_URL/auth/login" \
+    RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
         -H "Content-Type: application/json" \
         -d "{\"email\":\"$TEST_EMAIL2\",\"password\":\"$TEST_PASSWORD\"}")
     SESSION_TOKEN2=$(extract_session_cookie "$RESPONSE")
@@ -551,9 +551,9 @@ echo -e "${YELLOW}--- NAVIGATION TESTS ---${NC}"
 echo ""
 
 # Test 15: Verify logout redirects properly
-echo "Test 15: POST /auth/logout - Logout redirects or returns 200/204"
+echo "Test 15: POST /api/auth/logout - Logout redirects or returns 200/204"
 if [ -n "$SESSION_TOKEN" ]; then
-    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/auth/logout" \
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/logout" \
         -H "Cookie: session_token=$SESSION_TOKEN")
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "302" ]; then
@@ -707,7 +707,7 @@ fi
 # Test 28: Create post form has required fields
 echo "Test 28: Create post form has required fields"
 # Re-login to get fresh session
-RESPONSE=$(curl -s -i -X POST "$BASE_URL/auth/login" \
+RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
     -H "Content-Type: application/json" \
     -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}")
 SESSION_TOKEN=$(extract_session_cookie "$RESPONSE")
@@ -727,7 +727,7 @@ fi
 
 # Test 29: Error messages displayed on invalid registration
 echo "Test 29: Error messages displayed on invalid form submission"
-RESPONSE=$(curl -s -L -X POST "$BASE_URL/auth/register" \
+RESPONSE=$(curl -s -L -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/x-www-form-urlencoded" \
     -d "email=&username=&password=")
 if validate_html "$RESPONSE" "error\|invalid\|required"; then

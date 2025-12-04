@@ -1,0 +1,580 @@
+// INPUT ADAPTER - HTTP Page Handler
+// Package adapters implements HTTP page handlers for post endpoints.
+// This adapter handles HTML page requests for post operations.
+package adapters
+
+import (
+	"bytes"
+	"fmt"
+	"html/template"
+	"net/http"
+
+	authPorts "forum/internal/modules/auth/ports"
+	postDomain "forum/internal/modules/post/domain"
+)
+
+// RegisterPageRoutes registers all post page routes with the router.
+func (h *HTTPHandler) RegisterPageRoutes(router *http.ServeMux) {
+	// Public page routes (no auth required)
+	router.HandleFunc("GET /", h.HomePage)
+	router.HandleFunc("GET /board", h.BoardPage)
+	router.HandleFunc("GET /posts/{id}", h.PostDetailPage)
+
+	// Protected page routes (require authentication)
+	authMiddleware := h.middlewareProvider.RequireAuth()
+	router.Handle("GET /posts/new", authMiddleware(http.HandlerFunc(h.CreatePostPage)))
+	router.Handle("GET /posts/{id}/edit", authMiddleware(http.HandlerFunc(h.EditPostPage)))
+	router.Handle("GET /comments", authMiddleware(http.HandlerFunc(h.MyCommentsPage)))
+}
+
+// HomePage handles the homepage rendering with post list.
+func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
+	ctx := r.Context()
+
+	// Get session token from cookie and build full user info when available
+	cookie, err := r.Cookie("session_token")
+	var currentUser any = nil
+
+	if err == nil && cookie.Value != "" {
+		if session, err := h.authService.ValidateSession(ctx, cookie.Value); err == nil && session != nil {
+			currentUser = h.buildCurrentUser(ctx, session.UserID)
+		}
+	}
+
+	// Parse filter parameters
+	var currentUserPublicID string
+	if currentUser != nil {
+		if userMap, ok := currentUser.(map[string]interface{}); ok {
+			if uid, ok := userMap["PublicID"].(string); ok {
+				currentUserPublicID = uid
+			}
+		}
+	}
+
+	// Build filter using FilterService
+	filterParams := postDomain.FilterParams{
+		Category:      r.URL.Query().Get("category"),
+		UserID:        r.URL.Query().Get("user"),
+		MyPosts:       r.URL.Query().Get("my_posts") == "true",
+		LikedPosts:    r.URL.Query().Get("liked_posts") == "true",
+		Commenter:     r.URL.Query().Get("commenter"),
+		DateFilter:    r.URL.Query().Get("date_filter"),
+		Limit:         12,
+		Offset:        0,
+		CurrentUserID: currentUserPublicID,
+	}
+
+	filter := h.filterService.BuildFilter(ctx, filterParams)
+
+	// Fetch posts
+	posts, err := h.postService.ListPosts(ctx, filter)
+	if err != nil {
+		http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+		return
+	}
+
+	// Create preview content for posts on home page
+	previewPosts := make([]map[string]interface{}, len(posts))
+	for i, post := range posts {
+		previewPost := make(map[string]interface{})
+
+		previewPost["ID"] = post.PublicID
+		previewPost["PublicID"] = post.PublicID
+		previewPost["UserID"] = post.UserPublicID
+		previewPost["UserPublicID"] = post.UserPublicID
+		previewPost["AuthorUsername"] = post.AuthorUsername
+		previewPost["Author"] = post.Author
+		previewPost["Title"] = post.Title
+		previewPost["Content"] = createPostPreview(post.Content)
+		previewPost["ImageURL"] = post.ImageURL
+		previewPost["Categories"] = post.Categories
+		previewPost["LikeCount"] = post.LikeCount
+		previewPost["DislikeCount"] = post.DislikeCount
+		previewPost["CommentCount"] = post.CommentCount
+		previewPost["CreatedAt"] = post.CreatedAt
+		previewPost["UpdatedAt"] = post.UpdatedAt
+
+		previewPosts[i] = previewPost
+	}
+
+	// Fetch all categories for filter dropdown
+	var categories []*postDomain.Category
+	if h.categoryService != nil {
+		categories, err = h.categoryService.List(ctx)
+		if err != nil {
+			categories = []*postDomain.Category{}
+		}
+	}
+
+	// Prepare template data for home page
+	data := map[string]interface{}{
+		"Title":            "Home",
+		"Posts":            previewPosts,
+		"Categories":       categories,
+		"SelectedCategory": filterParams.Category,
+		"DateFilter":       filterParams.DateFilter,
+		"MyPosts":          filterParams.MyPosts,
+		"LikedPosts":       filterParams.LikedPosts,
+		"UserFilter":       filterParams.UserID,
+		"User":             currentUser,
+		"FilterAction":     "/",
+		"ShowFilter":       false,
+		"ShowSidebar":      false,
+	}
+
+	// Parse templates individually for this page
+	tmpl, err := template.ParseFiles("templates/base.html", "templates/home.html")
+	if err != nil {
+		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		return
+	}
+
+	// Render template
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		return
+	}
+}
+
+// BoardPage handles the board page rendering with post list (identical to homepage).
+func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/board" {
+		http.NotFound(w, r)
+		return
+	}
+
+	ctx := r.Context()
+
+	// Get session token from cookie
+	cookie, err := r.Cookie("session_token")
+	var currentUser any = nil
+
+	if err == nil && cookie.Value != "" {
+		if session, err := h.authService.ValidateSession(ctx, cookie.Value); err == nil && session != nil {
+			currentUser = h.buildCurrentUser(ctx, session.UserID)
+		}
+	}
+
+	// Parse filter parameters
+	var currentUserPublicID string
+	if currentUser != nil {
+		if userMap, ok := currentUser.(map[string]interface{}); ok {
+			if uid, ok := userMap["PublicID"].(string); ok {
+				currentUserPublicID = uid
+			}
+		}
+	}
+
+	// Build filter using FilterService
+	filterParams := postDomain.FilterParams{
+		Category:      r.URL.Query().Get("category"),
+		UserID:        r.URL.Query().Get("user"),
+		MyPosts:       r.URL.Query().Get("my_posts") == "true",
+		LikedPosts:    r.URL.Query().Get("liked_posts") == "true",
+		Commenter:     r.URL.Query().Get("commenter"),
+		DateFilter:    r.URL.Query().Get("date_filter"),
+		Limit:         10,
+		Offset:        0,
+		CurrentUserID: currentUserPublicID,
+	}
+
+	filter := h.filterService.BuildFilter(ctx, filterParams)
+
+	// Fetch posts
+	posts, err := h.postService.ListPosts(ctx, filter)
+	if err != nil {
+		http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+		return
+	}
+
+	// Create preview content for posts on board page
+	previewPosts := make([]map[string]interface{}, len(posts))
+	for i, post := range posts {
+		previewPost := make(map[string]interface{})
+
+		previewPost["ID"] = post.PublicID
+		previewPost["PublicID"] = post.PublicID
+		previewPost["UserID"] = post.UserPublicID
+		previewPost["UserPublicID"] = post.UserPublicID
+		previewPost["AuthorUsername"] = post.AuthorUsername
+		previewPost["Author"] = post.Author
+		previewPost["Title"] = post.Title
+		previewPost["Content"] = createPostPreview(post.Content)
+		previewPost["ImageURL"] = post.ImageURL
+		previewPost["Categories"] = post.Categories
+		previewPost["LikeCount"] = post.LikeCount
+		previewPost["DislikeCount"] = post.DislikeCount
+		previewPost["CommentCount"] = post.CommentCount
+		previewPost["CreatedAt"] = post.CreatedAt
+		previewPost["UpdatedAt"] = post.UpdatedAt
+
+		previewPosts[i] = previewPost
+	}
+
+	// Fetch all categories for filter dropdown
+	var categories []*postDomain.Category
+	if h.categoryService != nil {
+		categories, err = h.categoryService.List(ctx)
+		if err != nil {
+			categories = []*postDomain.Category{}
+		}
+	}
+
+	// Build dynamic page title based on active filters
+	pageTitle := h.buildPageTitle(filterParams)
+
+	// Prepare template data for board page
+	data := map[string]interface{}{
+		"Title":            "Board",
+		"PageTitle":        pageTitle,
+		"Posts":            previewPosts,
+		"Categories":       categories,
+		"SelectedCategory": filterParams.Category,
+		"DateFilter":       filterParams.DateFilter,
+		"FilterAction":     "/board",
+		"ShowFilter":       true,
+		"ShowSidebar":      true,
+		"MyPosts":          filterParams.MyPosts,
+		"LikedPosts":       filterParams.LikedPosts,
+		"UserFilter":       filterParams.UserID,
+		"User":             currentUser,
+	}
+
+	// Parse templates individually for this page
+	tmpl, err := template.ParseFiles("templates/base.html", "templates/board.html")
+	if err != nil {
+		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		return
+	}
+}
+
+// PostDetailPage handles post detail page rendering with comments.
+func (h *HTTPHandler) PostDetailPage(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Extract post ID from path variable
+	postID := r.PathValue("id")
+	if postID == "" {
+		http.Error(w, "Post ID required", http.StatusBadRequest)
+		return
+	}
+
+	// Get post
+	post, err := h.postService.GetPost(ctx, postID)
+	if err != nil {
+		if err == postDomain.ErrPostNotFound {
+			http.Error(w, "Post not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Failed to retrieve post", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Render HTML template
+	h.renderPostDetail(w, r, post)
+}
+
+// renderPostDetail renders the post detail page with comments.
+func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, post *postDomain.Post) {
+	ctx := r.Context()
+
+	// Get current user if logged in
+	var currentUser interface{}
+	cookie, err := r.Cookie("session_token")
+	if err == nil && cookie.Value != "" {
+		if session, err := h.authService.ValidateSession(ctx, cookie.Value); err == nil && session != nil {
+			currentUser = h.buildCurrentUser(ctx, session.UserID)
+		}
+	}
+
+	// Fetch comments for this post from the comment service
+	var comments []interface{}
+	if h.commentService != nil {
+		commentsFromService, err := h.commentService.ListCommentsByPost(ctx, post.PublicID)
+		if err == nil {
+			for _, comment := range commentsFromService {
+				var authorUsername string
+				var authorPublicID string
+				if comment.UserID != 0 {
+					user, err := h.userService.GetByID(ctx, comment.UserID)
+					if err == nil && user != nil {
+						authorUsername = user.Username
+						authorPublicID = user.PublicID
+					}
+				}
+
+				commentData := map[string]interface{}{
+					"PublicID":       comment.PublicID,
+					"AuthorUsername": authorUsername,
+					"AuthorPublicID": authorPublicID,
+					"Content":        comment.Content,
+					"CreatedAt":      comment.CreatedAt,
+					"UpdatedAt":      comment.UpdatedAt,
+					"Likes":          0,
+					"Dislikes":       0,
+				}
+				comments = append(comments, commentData)
+			}
+		}
+	}
+
+	data := map[string]any{
+		"Title":    post.Title,
+		"User":     currentUser,
+		"Post":     post,
+		"Comments": comments,
+	}
+
+	// Parse templates individually for this page
+	tmpl, err := template.ParseFiles("templates/base.html", "templates/post_detail.html")
+	if err != nil {
+		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
+		fmt.Printf("Template error: %v\n", err)
+		http.Error(w, fmt.Sprintf("Failed to render page: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if _, err := buf.WriteTo(w); err != nil {
+		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+	}
+}
+
+// CreatePostPage renders the post creation form.
+func (h *HTTPHandler) CreatePostPage(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get user PUBLIC ID (UUID) from context (set by RequireAuth middleware)
+	userPublicID := authPorts.GetUserID(ctx)
+	if userPublicID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Convert PUBLIC ID (UUID) to internal INT ID for service layer
+	userID, err := h.getInternalUserID(ctx, userPublicID)
+	if err != nil {
+		http.Error(w, "Invalid user", http.StatusInternalServerError)
+		return
+	}
+
+	// Get current user (populate full profile/stats)
+	currentUser := h.buildCurrentUser(ctx, userID)
+
+	// Fetch all categories
+	categories, err := h.categoryService.List(ctx)
+	if err != nil {
+		categories = []*postDomain.Category{}
+	}
+
+	data := map[string]any{
+		"Title":           "Create Post",
+		"User":            currentUser,
+		"Categories":      categories,
+		"ShowSidebar":     true,
+		"ShowPostSidebar": true,
+	}
+
+	// Parse templates individually for this page
+	tmpl, err := template.ParseFiles("templates/base.html", "templates/post_create.html")
+	if err != nil {
+		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		return
+	}
+
+	// Render template
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+	}
+}
+
+// EditPostPage renders the post edit form.
+func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get user PUBLIC ID (UUID) from context (set by RequireAuth middleware)
+	userPublicID := authPorts.GetUserID(ctx)
+	if userPublicID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Convert PUBLIC ID (UUID) to internal INT ID for service layer
+	userID, err := h.getInternalUserID(ctx, userPublicID)
+	if err != nil {
+		http.Error(w, "Invalid user", http.StatusInternalServerError)
+		return
+	}
+
+	// Extract post ID
+	postID := r.PathValue("id")
+	if postID == "" {
+		http.Error(w, "Post ID required", http.StatusBadRequest)
+		return
+	}
+
+	// Get post
+	post, err := h.postService.GetPost(ctx, postID)
+	if err != nil {
+		if err == postDomain.ErrPostNotFound {
+			http.Error(w, "Post not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Failed to retrieve post", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Check ownership
+	if post.UserID != userID {
+		http.Error(w, "You can only edit your own posts", http.StatusForbidden)
+		return
+	}
+
+	// Get current user info (full profile/stats)
+	currentUser := h.buildCurrentUser(ctx, userID)
+
+	// Fetch all categories
+	categories, err := h.categoryService.List(ctx)
+	if err != nil {
+		categories = []*postDomain.Category{}
+	}
+
+	data := map[string]interface{}{
+		"Title":           "Edit Post",
+		"User":            currentUser,
+		"Post":            post,
+		"Categories":      categories,
+		"ShowSidebar":     true,
+		"ShowPostSidebar": true,
+	}
+
+	// Parse templates individually for this page
+	tmpl, err := template.ParseFiles("templates/base.html", "templates/post_edit.html")
+	if err != nil {
+		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+	}
+}
+
+// MyCommentsPage handles the page that displays all comments made by the current user.
+func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get current user if logged in
+	var currentUser interface{}
+	cookie, err := r.Cookie("session_token")
+	if err != nil || cookie.Value == "" {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	session, err := h.authService.ValidateSession(ctx, cookie.Value)
+	if err != nil || session == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	currentUser = h.buildCurrentUser(ctx, session.UserID)
+
+	// Fetch comments made by this user
+	var comments []interface{}
+	if h.commentService != nil {
+		currentUserInfo, ok := currentUser.(map[string]interface{})
+		if !ok {
+			http.Error(w, "Failed to get user info", http.StatusInternalServerError)
+			return
+		}
+
+		userPublicID, ok := currentUserInfo["PublicID"].(string)
+		if !ok || userPublicID == "" {
+			http.Error(w, "User not authenticated properly", http.StatusUnauthorized)
+			return
+		}
+
+		commentsFromService, err := h.commentService.ListCommentsByUser(ctx, userPublicID)
+		if err != nil {
+			fmt.Printf("Error fetching user comments: %v\n", err)
+		} else {
+			for _, comment := range commentsFromService {
+				var authorUsername string
+				if comment.UserID != 0 {
+					user, err := h.userService.GetByID(ctx, comment.UserID)
+					if err == nil && user != nil {
+						authorUsername = user.Username
+					}
+				}
+
+				var postTitle string
+				if comment.PublicPostID != "" {
+					post, err := h.postService.GetPost(ctx, comment.PublicPostID)
+					if err == nil && post != nil {
+						postTitle = post.Title
+					} else {
+						postTitle = "Post not found"
+					}
+				} else {
+					postTitle = "Post ID unknown"
+				}
+
+				commentData := map[string]interface{}{
+					"PublicID":       comment.PublicID,
+					"AuthorUsername": authorUsername,
+					"Content":        comment.Content,
+					"PostPublicID":   comment.PublicPostID,
+					"PostTitle":      postTitle,
+					"CreatedAt":      comment.CreatedAt,
+					"UpdatedAt":      comment.UpdatedAt,
+					"Likes":          0,
+					"Dislikes":       0,
+				}
+				comments = append(comments, commentData)
+			}
+		}
+	}
+
+	data := map[string]interface{}{
+		"Title":    "My Comments",
+		"User":     currentUser,
+		"Comments": comments,
+	}
+
+	// Parse templates individually for this page
+	tmpl, err := template.ParseFiles("templates/base.html", "templates/comments.html")
+	if err != nil {
+		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
+		fmt.Printf("Template error: %v\n", err)
+		http.Error(w, fmt.Sprintf("Failed to render page: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if _, err := buf.WriteTo(w); err != nil {
+		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+	}
+}
