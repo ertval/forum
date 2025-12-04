@@ -23,9 +23,8 @@
                         <span class="welcome-text">Welcome, {{.User.Username}}</span>
                         {{/* User menu dropdown for narrow screens */}}
                         <div class="user-menu-container">
-                            <button class="user-menu-btn" id="user-menu-btn">
+                            <button class="user-menu-btn" id="user-menu-btn" aria-haspopup="true" aria-expanded="false">
                                 <span class="avatar-icon-small">👤</span>
-                                <span>▼</span>
                             </button>
                             <div class="user-menu-dropdown" id="user-menu-dropdown">
                                 <div class="user-info">

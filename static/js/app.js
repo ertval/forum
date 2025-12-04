@@ -8,16 +8,20 @@
     const userMenuContainer = document.querySelector('.user-menu-container');
 
     if (userMenuBtn && userMenuDropdown) {
-        // Toggle dropdown on button click
+        // Toggle dropdown on button click and set clicked state
         userMenuBtn.addEventListener('click', function(event) {
             event.stopPropagation();
-            userMenuDropdown.classList.toggle('show');
+            const opened = userMenuDropdown.classList.toggle('show');
+            userMenuBtn.classList.toggle('active', opened);
+            userMenuBtn.setAttribute('aria-expanded', opened ? 'true' : 'false');
         });
 
         // Close dropdown when clicking outside
         document.addEventListener('click', function(event) {
             if (userMenuContainer && !userMenuContainer.contains(event.target)) {
                 userMenuDropdown.classList.remove('show');
+                userMenuBtn.classList.remove('active');
+                userMenuBtn.setAttribute('aria-expanded', 'false');
             }
         });
 
@@ -25,6 +29,8 @@
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
                 userMenuDropdown.classList.remove('show');
+                userMenuBtn.classList.remove('active');
+                userMenuBtn.setAttribute('aria-expanded', 'false');
             }
         });
     }

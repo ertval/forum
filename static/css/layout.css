@@ -126,6 +126,14 @@
     background: linear-gradient(135deg, #e8f4fa 0%, #f0f8fc 100%);
 }
 
+/* Clicked / active state for user-menu button */
+.user-menu-btn.active {
+    background: linear-gradient(135deg, #e8f4fa 0%, #f0f8fc 100%);
+    transform: translateY(1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    color: #2b6b97;
+}
+
 .user-menu-btn .avatar-icon-small {
     font-size: 1.2rem;
 }
