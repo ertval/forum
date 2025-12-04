@@ -24,34 +24,10 @@ type CategoryService interface {
 	Delete(ctx context.Context, categoryID string) error
 }
 
-// PostFilter represents post filtering options.
-type PostFilter struct {
-	UserID        string
-	Categories    []string
-	LikedByUserID string
-	CommenterID   string
-	DateFilter    string // "today", "week", "month", "all" (default)
-	Offset        int
-	Limit         int
-}
-
 // FilterService defines post filtering use cases.
 type FilterService interface {
 	// BuildFilter creates a PostFilter from query parameters and context
 	BuildFilter(ctx context.Context, params domain.FilterParams) domain.PostFilter
 	// ApplyDateFilter applies date constraints to a filter
-	ApplyDateFilter(filter *PostFilter, dateFilter string)
-}
-
-// FilterParams represents query parameters for filtering.
-type FilterParams struct {
-	Category      string
-	UserID        string
-	MyPosts       bool
-	LikedPosts    bool
-	Commenter     string
-	DateFilter    string
-	Limit         int
-	Offset        int
-	CurrentUserID string
+	ApplyDateFilter(filter *domain.PostFilter, dateFilter string)
 }

@@ -6,6 +6,7 @@ package domain
 type PostFilter struct {
 	UserID        string   // Filter by user's public ID (UUID)
 	Categories    []string // Filter by category names
+	CommenterID   string   // Filter posts commented on by this user (public ID)
 	LikedByUserID string   // Filter posts liked by this user (public ID)
 	DateFilter    string   // "today", "week", "month", "all" (default)
 	Offset        int      // Pagination offset
@@ -24,4 +25,5 @@ type FilterParams struct {
 	Limit         int    // Maximum results
 	Offset        int    // Result offset
 	CurrentUserID string // Current authenticated user's public ID
+	Commenter     string // Filter by posts commented on by this user (public ID
 }
