@@ -760,6 +760,40 @@ Implement optional features after core requirements are complete.
 
 ---
 
+## Test Scripts
+
+The project includes comprehensive E2E test scripts in `scripts/tests/`:
+
+### Running Tests
+
+```bash
+# Seed the database first (only needed once or when resetting)
+./scripts/seed/seed.sh
+
+# Run all tests
+make test-script
+# Or directly: ./scripts/tests/run_all_tests.sh
+```
+
+### Test Script Files
+
+| Script | Purpose | Status |
+|--------|---------|--------|
+| `run_all_tests.sh` | Master runner - verifies DB then runs all tests | ✅ Working |
+| `test_api.sh` | JSON API endpoint tests (35 tests) | ✅ All Pass |
+| `test_audit.sh` | Audit requirements verification (46 tests) | ✅ All Pass |
+| `test_pages.sh` | HTML page rendering tests (33 tests) | ✅ All Pass |
+
+### Test Data
+
+Test scripts require seeded data:
+- **Primary user**: `testuser@example.com` / `password123`
+- **Secondary user**: `testuser2@example.com` / `password123`
+
+**Note**: `run_all_tests.sh` verifies the database has required data but does NOT seed/modify data. This ensures tests can be run safely in any environment.
+
+---
+
 ## Known TODO Items by Module
 
 ### Platform Layer (Phase 1)

@@ -4,26 +4,39 @@ This directory contains comprehensive test scripts for the Forum application, or
 
 ## Quick Start
 
+**Prerequisites:** Before running tests, ensure the database is seeded with test data:
+```bash
+# First, seed the database (only run once or when resetting)
+./scripts/seed/seed.sh
+```
+
 Run all tests with a single command:
 ```bash
-# Run both API and Page tests
-./scripts/run_all_tests.sh
+# Run all tests (verifies database, then runs test scripts)
+make test-script
 
-# Run with verbose output
-./scripts/run_all_tests.sh -v
+# Or directly:
+./scripts/tests/run_all_tests.sh
 ```
+
+**Test Credentials (from seed data):**
+- Primary: `testuser@example.com` / `password123`
+- Secondary: `testuser2@example.com` / `password123`
 
 ---
 
 ## Test Scripts Overview
 
 ### 0. `run_all_tests.sh` - Master Test Runner
-**Focus:** Runs both API and Page tests in sequence
+**Focus:** Verifies database and runs all test scripts in sequence
 
-Executes `test_api.sh` followed by `test_pages.sh` and provides a combined summary. Use this for comprehensive validation before commits.
+This script:
+1. **Verifies** the database exists and has required test data (does NOT seed/modify data)
+2. **Runs** `test_api.sh`, `test_audit.sh`, and `test_pages.sh` in sequence
+3. **Reports** a combined summary of all test results
 
 ```bash
-./scripts/run_all_tests.sh [-v|--verbose]
+./scripts/tests/run_all_tests.sh
 ```
 
 Exit codes:
