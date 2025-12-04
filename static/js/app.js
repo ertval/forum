@@ -1,8 +1,8 @@
 // Forum Application JavaScript
 
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', function() {
-    // User Menu Dropdown Toggle
+// User Menu Dropdown Toggle
+// The script is loaded at the end of body, so DOM is already ready
+(function() {
     const userMenuBtn = document.getElementById('user-menu-btn');
     const userMenuDropdown = document.getElementById('user-menu-dropdown');
     const userMenuContainer = document.querySelector('.user-menu-container');
@@ -28,4 +28,4 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-});
+})();
