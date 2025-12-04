@@ -22,6 +22,12 @@ document.addEventListener('DOMContentLoaded', function() {
         imageInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             const preview = document.getElementById('image-preview');
+            const fileNameDisplay = document.getElementById('file-name-display');
+
+            // Update file name display
+            if (fileNameDisplay) {
+                fileNameDisplay.textContent = file ? file.name : 'No file chosen';
+            }
 
             if (file) {
                 if (file.size > 20 * 1024 * 1024) {  // 20MB limit
@@ -29,6 +35,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (formErrors) formErrors.innerHTML = '<p class="error">Image must be less than 20MB</p>';
                     e.target.value = '';
                     if (preview) preview.innerHTML = '';
+                    if (fileNameDisplay) fileNameDisplay.textContent = 'No file chosen';
                     return;
                 }
 

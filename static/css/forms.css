@@ -143,10 +143,11 @@
 /* Current image display in edit form */
 .current-image {
     margin-bottom: 1rem;
-    padding: 1rem;
+    padding: 0.75rem;
     background-color: #f9f9f9;
     border-radius: 8px;
     border: 1px solid #e0e0e0;
+    text-align: center;
 }
 
 .current-image p {
@@ -156,8 +157,58 @@
 }
 
 .current-image img {
+    max-width: 100%;
+    max-height: 150px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Custom file input styling to match project buttons */
+.form-group input[type="file"] {
+    display: none;
+}
+
+.file-input-wrapper {
+    display: inline-block;
+    width: 100%;
+}
+
+.file-input-label {
+    display: inline-block;
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.95rem;
+    text-align: center;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #b5ead7 0%, #c2f2e9 100%);
+    color: #5a5a5a;
+    border: 1px solid #a3d9c5;
+    box-shadow: 0 2px 6px rgba(181, 234, 215, 0.4);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.file-input-label:hover {
+    background: linear-gradient(135deg, #a3d9c5 0%, #b0f0db 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(181, 234, 215, 0.4);
+}
+
+.file-input-label:active {
+    transform: translateY(0);
+}
+
+.file-name {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: #7a7a7a;
+    text-align: center;
+    word-break: break-all;
 }
 
 .image-actions {
