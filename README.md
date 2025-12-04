@@ -292,41 +292,46 @@ GITHUB_CLIENT_SECRET=your-github-client-secret
 
 ## API Endpoints
 
+All JSON API endpoints follow the pattern: `/api/{module}/{action}`
+
 ### Authentication ✅
 
-- `POST /auth/register` - Register new user
+- `POST /api/auth/register` - Register new user
   - Body: `{"email": "user@example.com", "username": "user", "password": "password123"}`
   - Returns: 201 Created with session cookie
   - Errors: 400 (validation), 409 (duplicate email/username), 500
-- `POST /auth/login` - Login
+- `POST /api/auth/login` - Login
   - Body: `{"email": "user@example.com", "password": "password123"}`
   - Returns: 200 OK with session cookie
   - Errors: 401 (invalid credentials), 500
-- `POST /auth/logout` - Logout (requires auth)
+- `POST /api/auth/logout` - Logout (requires auth)
   - Returns: 204 No Content
-- `GET /auth/session` - Get current session (requires auth)
+- `GET /api/auth/session` - Get current session (requires auth)
   - Returns: 200 OK with user info
   - Errors: 401 (not authenticated)
 
 ### Posts ✅
 
-- `POST /posts` - Create post (requires auth)
+- `POST /api/posts` - Create post (requires auth)
   - Body: `{"title": "Post Title", "content": "Post content...", "categories": ["Tests"]}`
   - Returns: 201 Created with post object
   - Errors: 400 (validation - empty title/content, no categories), 401 (not authenticated), 404 (category not found), 500
-- `GET /posts` - List posts (public)
+- `GET /api/posts` - List posts (public)
   - Query params: `?category=Tests` (filter by category)
   - Returns: 200 OK with array of posts (includes author, categories, reaction counts)
-- `GET /posts/{id}` - Get post by ID (public)
+- `GET /api/posts/{id}` - Get post by ID (public)
   - Returns: 200 OK with post object (includes author, categories, reaction counts)
   - Errors: 404 (post not found), 500
-- `PUT /posts/{id}` - Update post (requires auth + ownership)
+- `PUT /api/posts/{id}` - Update post (requires auth + ownership)
   - Body: `{"title": "Updated Title", "content": "Updated content...", "categories": ["Tests"]}`
   - Returns: 200 OK with updated post object
   - Errors: 400 (validation), 401 (not authenticated), 403 (not owner), 404 (post not found), 500
-- `DELETE /posts/{id}` - Delete post (requires auth + ownership)
+- `DELETE /api/posts/{id}` - Delete post (requires auth + ownership)
   - Returns: 204 No Content
   - Errors: 401 (not authenticated), 403 (not owner), 404 (post not found), 500
+- `GET /api/posts/load-more` - Load more posts with pagination (public)
+  - Query params: `?offset=20&limit=20&category=Tests`
+  - Returns: 200 OK with array of posts
 
 ### Categories ✅
 
@@ -334,19 +339,28 @@ GITHUB_CLIENT_SECRET=your-github-client-secret
 - Available categories are retrieved via post listing
 - Dedicated category management endpoints exist in the codebase but are minimal; further administrative APIs can be added if needed
 
-### Comments (Planned / Scaffolded)
+### Comments ✅
 
-- `POST /posts/:id/comments` - Add comment (adapter & repository scaffolding exists)
-- `GET /posts/:id/comments` - List comments
-- `PUT /comments/:id` - Update comment
-- `DELETE /comments/:id` - Delete comment
+- `POST /api/comments/posts/{post_id}` - Add comment (requires auth)
+  - Body: `{"content": "Comment text"}`
+  - Returns: 201 Created with comment object
+- `GET /api/comments/{id}` - Get comment (public)
+  - Returns: 200 OK with comment object
+- `PUT /api/comments/{id}` - Update comment (requires auth + ownership)
+  - Body: `{"content": "Updated comment"}`
+  - Returns: 200 OK with updated comment
+- `DELETE /api/comments/{id}` - Delete comment (requires auth + ownership)
+  - Returns: 204 No Content
+- `GET /api/comments/posts/{post_id}` - List comments for post (public)
+  - Returns: 200 OK with array of comments
 
-### Reactions (Planned / Scaffolded)
+### Reactions (Scaffolded)
 
-- `POST /reactions` - Add/toggle reaction (data model and migrations present)
-- `DELETE /reactions/:id` - Remove reaction
-- `GET /posts/:id/reactions` - Get reaction counts
-- `GET /comments/:id/reactions` - Get reaction counts
+- `POST /api/reactions` - Add/toggle reaction
+  - Body: `{"target_type": "post|comment", "target_id": "<uuid>", "type": "like|dislike"}`
+- `DELETE /api/reactions` - Remove reaction
+- `GET /api/reactions/{target_type}/{target_id}` - Get reactions for target
+- `GET /api/reactions/{target_type}/{target_id}/count` - Count reactions
 
 ### Users (Planned / Partially Implemented)
 
@@ -399,6 +413,50 @@ go test ./tests/integration/...
 # Image upload tests
 go test ./internal/platform/upload/... -v
 go test ./internal/modules/post/application/... -run Image -v
+```
+
+### Page Rendering Tests
+
+The `scripts/tests/test_pages.sh` script tests HTML page rendering, static assets, and JavaScript API URL correctness:
+
+```bash
+./scripts/tests/test_pages.sh
+```
+
+This tests:
+- HTML page structure and accessibility
+- Static assets (CSS, JS)
+- JavaScript API URL verification (ensures all JS files use correct `/api/` prefix)
+- Template file verification
+
+---
+
+## Utility Scripts
+
+### Password Verification Tool
+
+Verify bcrypt password hashes without running the server:
+
+```bash
+# Generate a hash
+go run ./scripts/verify_password -generate "mypassword"
+
+# Verify password against a hash
+go run ./scripts/verify_password "mypassword" '$2a$10$...'
+
+# Verify from database
+go run ./scripts/verify_password -db "user@example.com" "mypassword"
+
+# With custom database path
+go run ./scripts/verify_password -db -dbpath "./data/forum.db" "user@example.com" "mypassword"
+```
+
+### Schema Verification
+
+Verify database schema matches migrations:
+
+```bash
+go run ./scripts/check/check_schema.go
 ```
 
 ---

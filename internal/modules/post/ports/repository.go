@@ -13,7 +13,7 @@ type PostRepository interface {
 	GetByID(ctx context.Context, postID string) (*domain.Post, error)
 	Update(ctx context.Context, post *domain.Post) error
 	Delete(ctx context.Context, postID string) error
-	List(ctx context.Context, filter PostFilter) ([]*domain.Post, error)
+	List(ctx context.Context, filter domain.PostFilter) ([]*domain.Post, error)
 	// UpdateImagePath updates only the image_path field for a post.
 	UpdateImagePath(ctx context.Context, postID string, imagePath string) error
 	// GetImagePath retrieves the image_path for a post by its public ID.

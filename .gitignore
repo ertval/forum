@@ -20,7 +20,6 @@ Thumbs.db
 *.dll
 *.so
 *.dylib
-forum
 
 # Test binary, built with `go test -c`
 *.test

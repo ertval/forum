@@ -1,5 +1,6 @@
 {{define "content"}}
 <div class="home-grid">
+    <div id="page-errors" class="form-errors"></div>
     <h2 class="home-title">Latest Posts</h2>
 
     {{if .Posts}}
@@ -52,7 +53,8 @@
             data-offset="{{len .Posts}}"
             data-category="{{if .SelectedCategory}}{{.SelectedCategory}}{{end}}"
             data-my-posts="{{.MyPosts}}"
-            data-liked-posts="{{.LikedPosts}}">Show More</button>
+            data-liked-posts="{{.LikedPosts}}"
+            data-date-filter="{{if .DateFilter}}{{.DateFilter}}{{end}}">Show More</button>
         {{if .User}}
         <a href="/posts/new" class="btn btn-secondary">Create Post</a>
         {{end}}

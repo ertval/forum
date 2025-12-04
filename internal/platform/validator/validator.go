@@ -4,6 +4,7 @@ package validator
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -46,14 +47,14 @@ func (v *Validator) Required(field, value string) {
 // MinLength checks if a string has minimum length.
 func (v *Validator) MinLength(field, value string, min int) {
 	if len(value) < min {
-		v.AddError(field, "Must be at least "+string(rune(min))+" characters")
+		v.AddError(field, "Must be at least "+strconv.Itoa(min)+" characters")
 	}
 }
 
 // MaxLength checks if a string has maximum length.
 func (v *Validator) MaxLength(field, value string, max int) {
 	if len(value) > max {
-		v.AddError(field, "Must be at most "+string(rune(max))+" characters")
+		v.AddError(field, "Must be at most "+strconv.Itoa(max)+" characters")
 	}
 }
 
@@ -84,7 +85,7 @@ func (v *Validator) Username(field, value string) {
 // TODO: Implement password strength requirements.
 func (v *Validator) Password(field, value string, minLength int) {
 	if len(value) < minLength {
-		v.AddError(field, "Password must be at least "+string(rune(minLength))+" characters")
+		v.AddError(field, "Password must be at least "+strconv.Itoa(minLength)+" characters")
 	}
 	// Additional password requirements can be added here
 	// e.g., must contain uppercase, lowercase, numbers, special characters

@@ -95,3 +95,82 @@ Implement the Posts module following the established patterns from the auth modu
 Use `internal/modules/auth/` as the reference for patterns and structure.
 
 Start with domain entities, then work through each layer following the dependency rules.
+
+---
+
+You are an expert Senior Go Software Engineer and Software Architect specializing in Hexagonal Architecture (Ports and Adapters) and Domain-Driven Design.
+
+Your task is to audit the current Go project, which is a Forum application, and verify it adheres to the strict architectural and quality standards defined below.
+
+### 1. Architecture Verification (Hexagonal Architecture)
+For each module in `internal/modules/` (e.g., `auth`, `post`, `comment`, `user`, `reaction`), verify the following strict 4-directory structure:
+- **`domain/`**: Must contain ONLY pure business logic and entities.
+  - Allowed imports: Standard library ONLY.
+  - Forbidden imports: Any other project package (no `ports`, `application`, etc.).
+- **`ports/`**: Must contain interface definitions.
+  - `service.go`: INPUT PORT (Interface for the Use Case).
+  - `repository.go`: OUTPUT PORT (Interface for Data Access).
+  - Allowed imports: `domain` packages.
+- **`application/`**: Must contain the service implementation.
+  - `service.go`: Implements the `ports.Service` interface.
+  - Allowed imports: `domain`, `ports`.
+- **`adapters/`**: Must contain technical implementations.
+  - `http_handler.go`: INPUT ADAPTER (Handles HTTP requests).
+  - `sqlite_repository.go`: OUTPUT ADAPTER (Implements `ports.Repository`).
+  - Allowed imports: `domain`, `ports`.
+  - **CRITICAL**: Adapters must NEVER import `application`.
+
+### 2. Dependency Injection & Wiring
+Verify that the project uses the **Unified Service Container** pattern:
+- Check `cmd/forum/wire/` for `services.go`, `repositories.go`, and `handlers.go`.
+- Ensure `ServiceContainer` is defined in `cmd/forum/wire/services.go` and contains getters for all services.
+- Verify that HTTP Handlers in `adapters/` accept a `ServiceContainer` interface (or a specific subset interface) in their constructor, NOT concrete service structs.
+
+### 3. Idiomatic Go & Code Quality
+- **Error Handling**:
+  - Domain errors should be defined in `domain/errors.go` (e.g., `var ErrInvalidTitle = errors.New(...)`).
+  - Platform/HTTP errors should be wrapped or mapped in the adapter layer, not the domain layer.
+- **Concurrency**: Check for safe usage of goroutines if present (though likely minimal in this stage).
+- **Context**: Verify `context.Context` is passed as the first argument to all service and repository methods.
+- **Configuration**: Ensure no hardcoded values (secrets, ports) exist in the code; they should be loaded via `internal/platform/config`.
+
+### 4. Platform Packages
+Verify correct usage of ALL platform-level packages, check that all are needed and that they are used properly.Verify the usage of ALL platform-level packages in `internal/platform/`:
+- **Database**: Ensure `sqlite` is used correctly with the allowed driver.
+- **Logger**: Check if structured logging is used (e.g., `lgr.Info`, `lgr.Error`) instead of `fmt.Println`.
+- **Middleware**: Verify usage of middleware for Auth, CORS, and Logging.
+
+### 5. Requirements Verification
+Check `docs/requirements/requirements.md` and confirm the existence of structures/logic for:
+- **Authentication**: Registration, Login, Session management (Cookies + Expiration).
+- **Communication**: Posts, Comments, Categories.
+- **Interactions**: Likes/Dislikes (only for registered users).
+- **Filters**: Filter by Category, Created Posts, Liked Posts.
+- **Allowed Packages**: Confirm ONLY `sqlite3`, `bcrypt`, and `uuid` are used as external dependencies.
+
+### Output Format
+Provide your analysis in the following format:
+
+## 1. Architectural Compliance
+- **[Module Name]**: [Pass/Fail] - [Details on directory structure and dependency rules]
+- ...
+
+## 2. Dependency Injection
+- **Status**: [Pass/Fail]
+- **Observations**: [Comments on ServiceContainer and wiring]
+
+## 3. Code Quality & Idioms
+- **Idiomatic Go**: [Analysis of error handling, context usage, naming conventions]
+- **Platform Usage**: [Analysis of config, logger, database usage]
+
+## 4. Requirements Checklist
+- [ ] Authentication (Register/Login/Session)
+- [ ] Posts & Categories
+- [ ] Comments
+- [ ] Likes/Dislikes
+- [ ] Filters
+- [ ] Docker/Deployment readiness
+
+## 5. Critical Issues & Suggestions
+- **Critical**: [List any architecture violations or circular dependencies]
+- **Suggestion**: [Refactoring tips to align better with the Hexagonal pattern]

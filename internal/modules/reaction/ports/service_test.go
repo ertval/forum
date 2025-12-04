@@ -10,7 +10,7 @@ import (
 func TestReactionServiceInterface(t *testing.T) {
 	// This test ensures that the ReactionService interface is properly defined
 	// and that we can create a variable of the interface type
-	
+
 	var reactionService ReactionService
 	if reactionService != nil {
 		t.Error("ReactionService interface should be usable as a nil variable")
@@ -61,26 +61,26 @@ func (m *mockReactionRepository) Delete(ctx context.Context, userID, targetID in
 func TestReactionServiceInterfaceMethods(t *testing.T) {
 	// Create context for testing
 	ctx := context.Background()
-	
+
 	// Test that we can call interface methods on a variable of the interface type
 	service := &mockReactionService{}
-	
+
 	// Test each method signature
 	err := service.React(ctx, 1, 1, "post", domain.ReactionLike)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	err = service.RemoveReaction(ctx, 1, 1, "post")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	_, err = service.GetReactions(ctx, 1, "post")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	_, _, err = service.CountReactions(ctx, 1, "post")
 	if err != nil {
 		// Expected to be not implemented in mock
@@ -90,34 +90,34 @@ func TestReactionServiceInterfaceMethods(t *testing.T) {
 func TestReactionRepositoryInterfaceMethods(t *testing.T) {
 	// Create context for testing
 	ctx := context.Background()
-	
+
 	// Create mock repository
 	repo := &mockReactionRepository{}
-	
+
 	// Test that we can call interface methods on a variable of the interface type
 	var reactions []*domain.Reaction
 	var err error
 	var count int
-	
+
 	// Test Count method
 	count, err = repo.Count(ctx, 1, "post", domain.ReactionLike)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	_ = count // Use the variable to avoid unused variable warning
-	
+
 	// Test GetByTarget method
 	reactions, err = repo.GetByTarget(ctx, 1, "post")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	// Test Delete method
 	err = repo.Delete(ctx, 1, 1, "post")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
-	
+
 	_ = reactions // Use the variable to avoid unused variable warning
 }

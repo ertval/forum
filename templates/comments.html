@@ -1,0 +1,44 @@
+{{define "content"}}
+<div class="comments-page">
+    <h1>My Comments</h1>
+
+    {{if .Comments}}
+    <div class="comments-list">
+        {{range .Comments}}
+        <article class="comment" id="comment-{{.PublicID}}">
+            <div class="comment-context">
+                <p>On post: <a class="comment-post-link" href="/posts/{{.PostPublicID}}">{{.PostTitle}}</a> by <span class="comment-post-author">{{.PostAuthorUsername}}</span></p>
+            </div>
+            <div class="comment-header">
+                <span class="comment-author">{{.AuthorUsername}}</span>
+                <span class="comment-date">{{.CreatedAt.Format "Jan 02, 2006 at 3:04 PM"}}</span>
+            </div>
+            <div class="comment-content">
+                {{.Content}}
+            </div>
+            <div class="comment-actions">
+                <div class="comment-reactions">
+                    <button class="btn-like-comment" data-comment-id="{{.PublicID}}">
+                        👍 ({{.Likes}})
+                    </button>
+                    <button class="btn-dislike-comment" data-comment-id="{{.PublicID}}">
+                        👎 ({{.Dislikes}})
+                    </button>
+                </div>
+                <div class="comment-owner-actions">
+                    <button class="btn btn-secondary btn-edit-comment" data-comment-id="{{.PublicID}}">Edit</button>
+                    <button class="btn btn-danger btn-delete-comment" data-comment-id="{{.PublicID}}">Delete</button>
+                </div>
+            </div>
+        </article>
+        {{end}}
+    </div>
+    {{else}}
+    <p class="no-comments">You haven't made any comments yet.</p>
+    {{end}}
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script src="/static/js/post-detail.js"></script>
+{{end}}

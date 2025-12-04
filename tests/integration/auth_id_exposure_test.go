@@ -69,9 +69,9 @@ func TestAuthModule_NoInternalIDExposure(t *testing.T) {
 	// Setup repositories and services
 	sessionRepo := authAdapters.NewSQLiteSessionRepository(db)
 	userRepo := userAdapters.NewSQLiteUserRepository(db)
-
-	authService := authApp.NewService(sessionRepo, userRepo, 24*time.Hour)
 	userService := userApp.NewService(userRepo)
+
+	authService := authApp.NewService(sessionRepo, userService, 24*time.Hour)
 
 	// UUID regex pattern (standard UUID v4 format)
 	uuidRegex := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)

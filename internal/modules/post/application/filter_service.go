@@ -4,7 +4,7 @@ package application
 import (
 	"context"
 
-	"forum/internal/modules/post/ports"
+	"forum/internal/modules/post/domain"
 )
 
 // FilterService implements post filtering use cases.
@@ -16,8 +16,8 @@ func NewFilterService() *FilterService {
 }
 
 // BuildFilter creates a PostFilter from query parameters and context.
-func (s *FilterService) BuildFilter(ctx context.Context, params ports.FilterParams) ports.PostFilter {
-	filter := ports.PostFilter{
+func (s *FilterService) BuildFilter(ctx context.Context, params domain.FilterParams) domain.PostFilter {
+	filter := domain.PostFilter{
 		Offset: params.Offset,
 		Limit:  params.Limit,
 	}
@@ -39,6 +39,11 @@ func (s *FilterService) BuildFilter(ctx context.Context, params ports.FilterPara
 		filter.LikedByUserID = params.CurrentUserID
 	}
 
+	// Apply commenter filter
+	if params.Commenter != "" {
+		filter.CommenterID = params.Commenter
+	}
+
 	// Apply date filter
 	filter.DateFilter = params.DateFilter
 	if filter.DateFilter == "" {
@@ -49,7 +54,7 @@ func (s *FilterService) BuildFilter(ctx context.Context, params ports.FilterPara
 }
 
 // ApplyDateFilter applies date constraints to a filter.
-func (s *FilterService) ApplyDateFilter(filter *ports.PostFilter, dateFilter string) {
+func (s *FilterService) ApplyDateFilter(filter *domain.PostFilter, dateFilter string) {
 	filter.DateFilter = dateFilter
 	if filter.DateFilter == "" {
 		filter.DateFilter = "all"

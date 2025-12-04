@@ -51,12 +51,34 @@ go:
 # Test scripts directory
 TEST_SCRIPTS_DIR=./scripts/tests
 
-# Run all standard Go tests in the repository
+# Run all tests: standard Go tests + tests directory + e2e bash scripts
 test:
+	@echo "$(BLUE)=========================================$(NC)"
+	@echo "$(BLUE)Running Complete Test Suite$(NC)"
+	@echo "$(BLUE)=========================================$(NC)"
+	@echo ""
+	@echo "$(BLUE)Step 1/3: Running all standard Go tests...$(NC)"
+	$(GOTEST) ./...
+	@echo "$(GREEN)Go tests complete$(NC)"
+	@echo ""
+	@echo "$(BLUE)Step 2/3: Running tests in tests/ directory...$(NC)"
+	$(GOTEST) ./tests/...
+	@echo "$(GREEN)Tests directory complete$(NC)"
+	@echo ""
+	@echo "$(BLUE)Step 3/3: Running e2e test scripts...$(NC)"
+	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh
+	@echo "$(GREEN)E2E test scripts complete$(NC)"
+	@echo ""
+	@echo "$(GREEN)=========================================$(NC)"
+	@echo "$(GREEN)All tests passed!$(NC)"
+	@echo "$(GREEN)=========================================$(NC)"
+
+# Run only standard Go tests
+test-go:
 	@echo "$(BLUE)Running all standard Go tests...$(NC)"
 	$(GOTEST) ./...
 
-# Run all test scripts
+# Run all test scripts (e2e)
 test-script:
 	@echo "$(BLUE)Running all test scripts (scripts/tests/run_all_tests.sh)...$(NC)"
 	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh
@@ -192,11 +214,12 @@ help:
 	@echo "  $(GREEN)build$(NC)           - Build the binary"
 	@echo "  $(GREEN)run$(NC)             - Build and run the application"
 	@echo "  $(GREEN)run-go$(NC)          - Run the application with 'go run' (no build)"
-	@echo "  $(GREEN)test$(NC)            - Run All standard Go tests in the repository"
-	@echo "  $(GREEN)test-script$(NC)     - Run All test scripts"
+	@echo "  $(GREEN)test$(NC)            - Run all tests: Go tests + tests/ dir + e2e scripts"
+	@echo "  $(GREEN)test-go$(NC)         - Run only standard Go tests"
+	@echo "  $(GREEN)test-script$(NC)     - Run all e2e test scripts"
 	@echo "  $(GREEN)test-script-api$(NC) - Run API test script"
 	@echo "  $(GREEN)test-script-html$(NC) - Run HTML test script"
-	@echo "  $(GREEN)test-coverage$(NC)   - Run All tests with coverage report"
+	@echo "  $(GREEN)test-coverage$(NC)   - Run all tests with coverage report"
 	@echo "  $(GREEN)clean$(NC)           - Clean build artifacts"
 	@echo "  $(GREEN)fmt$(NC)             - Format code"
 	@echo "  $(GREEN)vet$(NC)             - Vet code"
