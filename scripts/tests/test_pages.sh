@@ -487,6 +487,50 @@ else
     print_test "GET /static/js/main.js - Accessible" "SKIP" "May not exist"
 fi
 
+# Auth.js file accessible
+RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/static/js/auth.js" 2>/dev/null || echo "404")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+if [ "$HTTP_CODE" = "200" ]; then
+    print_test "GET /static/js/auth.js - Accessible" "PASS"
+else
+    print_test "GET /static/js/auth.js - Accessible" "FAIL" "Auth JS not accessible"
+fi
+
+# =============================================================================
+# JAVASCRIPT API URL TESTS
+# =============================================================================
+print_section "JAVASCRIPT API URL VERIFICATION"
+
+# Verify auth.js uses correct API URLs
+AUTH_JS=$(curl -s "$BASE_URL/static/js/auth.js")
+
+# Check login URL uses /api prefix
+if echo "$AUTH_JS" | grep -q "fetch('/api/auth/login'"; then
+    print_test "auth.js uses /api/auth/login URL" "PASS"
+else
+    print_test "auth.js uses /api/auth/login URL" "FAIL" "Wrong login API URL in JavaScript"
+fi
+
+# Check register URL uses /api prefix
+if echo "$AUTH_JS" | grep -q "fetch('/api/auth/register'"; then
+    print_test "auth.js uses /api/auth/register URL" "PASS"
+else
+    print_test "auth.js uses /api/auth/register URL" "FAIL" "Wrong register API URL in JavaScript"
+fi
+
+# Verify no incorrect URLs exist (without /api prefix)
+if ! echo "$AUTH_JS" | grep -q "fetch('/auth/login'"; then
+    print_test "auth.js doesn't use wrong /auth/login URL" "PASS"
+else
+    print_test "auth.js doesn't use wrong /auth/login URL" "FAIL" "Found incorrect /auth/login URL"
+fi
+
+if ! echo "$AUTH_JS" | grep -q "fetch('/auth/register'"; then
+    print_test "auth.js doesn't use wrong /auth/register URL" "PASS"
+else
+    print_test "auth.js doesn't use wrong /auth/register URL" "FAIL" "Found incorrect /auth/register URL"
+fi
+
 # =============================================================================
 # SUMMARY
 # =============================================================================
