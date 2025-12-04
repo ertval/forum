@@ -146,6 +146,12 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 		case postDomain.ErrCategoryNotFound:
 			platformErrors.WriteErrorJSON(w, http.StatusNotFound, err.Error())
+		case upload.ErrInvalidImageType, postDomain.ErrInvalidImageType:
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid image type, must be JPEG, PNG, or GIF")
+		case upload.ErrImageTooLarge, postDomain.ErrImageTooLarge:
+			platformErrors.WriteErrorJSON(w, http.StatusRequestEntityTooLarge, "Image file too large (max 20MB)")
+		case upload.ErrEmptyImage, postDomain.ErrInvalidImage:
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid image file")
 		default:
 			platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to create post")
 		}

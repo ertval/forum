@@ -316,3 +316,81 @@ func TestValidateImage(t *testing.T) {
 		})
 	}
 }
+
+func TestImageHandler_FullPath(t *testing.T) {
+	handler := NewImageHandler("/var/uploads")
+
+	tests := []struct {
+		name     string
+		filename string
+		want     string
+	}{
+		{
+			name:     "simple filename",
+			filename: "image.png",
+			want:     "/var/uploads/image.png",
+		},
+		{
+			name:     "uuid filename",
+			filename: "550e8400-e29b-41d4-a716-446655440000.jpg",
+			want:     "/var/uploads/550e8400-e29b-41d4-a716-446655440000.jpg",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := handler.FullPath(tt.filename)
+			if got != tt.want {
+				t.Errorf("FullPath() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestValidateFilename(t *testing.T) {
+	tests := []struct {
+		name     string
+		filename string
+		wantErr  bool
+	}{
+		{
+			name:     "valid filename",
+			filename: "image.png",
+			wantErr:  false,
+		},
+		{
+			name:     "uuid filename",
+			filename: "550e8400-e29b-41d4-a716-446655440000.jpg",
+			wantErr:  false,
+		},
+		{
+			name:     "absolute path unix",
+			filename: "/etc/passwd",
+			wantErr:  true,
+		},
+		{
+			name:     "path traversal with double dots",
+			filename: "../../../etc/passwd",
+			wantErr:  true,
+		},
+		{
+			name:     "path with forward slash",
+			filename: "subdir/image.png",
+			wantErr:  true,
+		},
+		{
+			name:     "path with backslash",
+			filename: "subdir\\image.png",
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateFilename(tt.filename)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateFilename() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
