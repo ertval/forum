@@ -1,0 +1,69 @@
+/* ==========================================================================
+   BUTTON STYLES - All button variants and states
+   ========================================================================== */
+
+.btn {
+    display: inline-block;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 500;
+    text-align: center;
+    cursor: pointer;
+    border: none;
+    transition: all 0.3s ease;
+    font-size: 0.95rem;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #b5ead7 0%, #c2f2e9 100%); /* Soft Green */
+    color: #5a5a5a;
+    border: 1px solid #a3d9c5;
+    box-shadow: 0 2px 6px rgba(181, 234, 215, 0.4);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #a3d9c5 0%, #b0f0db 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(181, 234, 215, 0.5);
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #d3e0ea 0%, #e6eef5 100%); /* Soft Blue */
+    color: #5a5a5a;
+    border: 1px solid #c0d0e0;
+    box-shadow: 0 2px 6px rgba(211, 224, 234, 0.4);
+}
+
+.btn-secondary:hover {
+    background: linear-gradient(135deg, #c0d0e0 0%, #d8e4ee 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(211, 224, 234, 0.5);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #f1c28e 0%, #f5d9b6 100%); /* Pastel orange for danger */
+    color: #5a5a5a;
+    border: 1px solid #ecc198;
+    box-shadow: 0 2px 6px rgba(241, 194, 142, 0.4);
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #e9ae6d 0%, #f1c9a3 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(241, 194, 142, 0.5);
+}
+
+.btn-small {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.95rem;
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+}
+
+/* Make hover brighter (increase brightness) instead of darker */
+.btn-small:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+}

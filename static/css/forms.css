@@ -1,0 +1,176 @@
+/* ==========================================================================
+   FORM STYLES - Input fields, textareas, labels, and form layouts
+   ========================================================================== */
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #5a5a5a;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #c5d0b8;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background-color: #ffffff;
+    color: #5a5a5a;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #a3d9c5; /* Darker pastel green with blue tint */
+    box-shadow: 0 0 0 2px rgba(163, 217, 197, 0.3);
+}
+
+.form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #c5d0b8;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background-color: #ffffff;
+    color: #5a5a5a;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.form-group textarea:focus {
+    outline: none;
+    border-color: #a3d9c5;
+    box-shadow: 0 0 0 2px rgba(163, 217, 197, 0.3);
+}
+
+/* Checkbox labels */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    margin-right: 0.5rem;
+    width: 18px;
+    height: 18px;
+    accent-color: #a3d9c5;
+}
+
+/* Categories grid for post forms */
+.categories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.category-checkbox {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.category-checkbox:hover {
+    background-color: #e8f4f0;
+    border-color: #a3d9c5;
+}
+
+.category-checkbox input[type="checkbox"] {
+    margin-right: 0.5rem;
+    width: 16px;
+    height: 16px;
+    accent-color: #a3d9c5;
+}
+
+.category-checkbox input[type="checkbox"]:checked + span {
+    color: #2d7a5e;
+    font-weight: 500;
+}
+
+/* Form actions layout */
+.form-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.form-actions .btn {
+    width: 160px;
+    padding: 0.6rem 1rem;
+    text-align: center;
+}
+
+.form-actions .btn-secondary {
+    margin-left: auto;
+}
+
+@media (max-width: 480px) {
+    .form-actions {
+        flex-direction: column-reverse;
+        gap: 0.5rem;
+        align-items: stretch;
+    }
+    .form-actions .btn {
+        width: 100%;
+    }
+}
+
+/* Image preview */
+.image-preview {
+    margin-top: 0.75rem;
+}
+
+.image-preview img {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Current image display in edit form */
+.current-image {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.current-image p {
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #5a5a5a;
+}
+
+.current-image img {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.image-actions {
+    margin-top: 0.75rem;
+}
+
+.remove-image-checkbox {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    color: #d32f2f;
+}
+
+.remove-image-checkbox input {
+    margin-right: 0.5rem;
+}
