@@ -25,4 +25,7 @@ type CommentRepository interface {
 
 	// ListByPostPublicID retrieves all comments for a specific post by post's public UUID.
 	ListByPostPublicID(ctx context.Context, postPublicID string) ([]*domain.Comment, error)
+
+	// ListByUser retrieves all comments made by a specific user by internal user ID.
+	ListByUser(ctx context.Context, userID int) ([]*domain.Comment, error)
 }

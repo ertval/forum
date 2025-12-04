@@ -51,6 +51,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const commentId = e.target.getAttribute('data-comment-id');
             await deleteComment(commentId);
         }
+
+        // Handle comment editing
+        if (e.target.classList.contains('btn-edit-comment')) {
+            e.preventDefault();
+            const commentId = e.target.getAttribute('data-comment-id');
+            const commentElement = document.getElementById(`comment-${commentId}`);
+            if (commentElement) {
+                startEditingComment(commentElement, commentId);
+            }
+        }
     });
 
     // Handle comment form submission
@@ -193,4 +203,108 @@ document.addEventListener('DOMContentLoaded', function() {
             showPageError('An error occurred while deleting the comment');
         }
     }
+
+    // Function to start editing a comment
+    function startEditingComment(commentElement, commentId) {
+        const contentElement = commentElement.querySelector('.comment-content');
+        const currentContent = contentElement.textContent.trim();
+
+        // Create form structure similar to post edit form
+        const formGroup = document.createElement('div');
+        formGroup.className = 'form-group';
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'edit-comment-textarea';
+        textarea.value = currentContent;
+        textarea.rows = 4;
+        textarea.required = true;
+        textarea.placeholder = "Edit your comment...";
+
+        formGroup.appendChild(textarea);
+
+        // Save original content for reference
+        const originalContent = contentElement.innerHTML;
+        contentElement.setAttribute('data-original-content', originalContent);
+
+        // Replace content with form structure
+        contentElement.innerHTML = '';
+        contentElement.appendChild(formGroup);
+
+        // Create save and cancel buttons with consistent styling
+        const actionsDiv = commentElement.querySelector('.comment-actions');
+        const originalActions = actionsDiv.innerHTML;
+        // Store original actions in a data attribute for later restoration
+        actionsDiv.setAttribute('data-original-actions', originalActions);
+
+        // Use consistent button styling like in post edit form
+        actionsDiv.innerHTML = `
+            <button class="btn btn-primary btn-save-comment" data-comment-id="${commentId}">Save</button>
+            <button class="btn btn-secondary btn-cancel-edit">Cancel</button>
+        `;
+
+        // Focus on the textarea
+        textarea.focus();
+    }
+
+    // Function to update a comment
+    async function updateComment(commentId, newContent) {
+        try {
+            const response = await fetch(`/api/comments/${commentId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content: newContent })
+            });
+
+            if (response.ok) {
+                // Reload the page to reflect the updated comment
+                location.reload();
+            } else {
+                const error = await response.json();
+                alert(error.error || 'Failed to update comment');
+                return false;
+            }
+        } catch (error) {
+            console.error('Update comment error:', error);
+            alert('An error occurred while updating the comment');
+            return false;
+        }
+        return true;
+    }
+
+    // Add event listener for save and cancel buttons
+    document.body.addEventListener('click', async function(e) {
+        if (e.target.classList.contains('btn-save-comment')) {
+            e.preventDefault();
+            const commentId = e.target.getAttribute('data-comment-id');
+            const commentElement = document.getElementById(`comment-${commentId}`);
+            if (commentElement) {
+                const textarea = commentElement.querySelector('textarea');
+                if (textarea) {
+                    const newContent = textarea.value.trim();
+                    if (!newContent) {
+                        alert('Comment content cannot be empty');
+                        return;
+                    }
+                    await updateComment(commentId, newContent);
+                }
+            }
+        }
+
+        if (e.target.classList.contains('btn-cancel-edit')) {
+            e.preventDefault();
+            const commentElement = e.target.closest('.comment');
+            if (commentElement) {
+                const contentElement = commentElement.querySelector('.comment-content');
+                const actionsDiv = commentElement.querySelector('.comment-actions');
+
+                // Restore original content
+                contentElement.innerHTML = contentElement.getAttribute('data-original-content') || '';
+
+                // Restore original actions
+                actionsDiv.innerHTML = actionsDiv.getAttribute('data-original-actions') || '';
+            }
+        }
+    });
 });

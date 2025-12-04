@@ -39,6 +39,11 @@ func (s *FilterService) BuildFilter(ctx context.Context, params ports.FilterPara
 		filter.LikedByUserID = params.CurrentUserID
 	}
 
+	// Apply commenter filter
+	if params.Commenter != "" {
+		filter.CommenterID = params.Commenter
+	}
+
 	// Apply date filter
 	filter.DateFilter = params.DateFilter
 	if filter.DateFilter == "" {

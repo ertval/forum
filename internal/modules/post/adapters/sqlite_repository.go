@@ -293,11 +293,21 @@ func (r *SQLitePostRepository) List(ctx context.Context, filter ports.PostFilter
 	// Filter by liked posts
 	if filter.LikedByUserID != "" {
 		query += `
-		INNER JOIN reactions r ON p.id = r.target_id 
+		INNER JOIN reactions r ON p.id = r.target_id
 		INNER JOIN users liked_user ON r.user_id = liked_user.id
 		`
 		conditions = append(conditions, "liked_user.public_id = ? AND r.target_type = 'post' AND r.type = 'like'")
 		args = append(args, filter.LikedByUserID)
+	}
+
+	// Filter by posts where user has commented
+	if filter.CommenterID != "" {
+		query += `
+		INNER JOIN comments cmt ON p.id = cmt.post_id
+		INNER JOIN users cmt_user ON cmt.author_id = cmt_user.id
+		`
+		conditions = append(conditions, "cmt_user.public_id = ?")
+		args = append(args, filter.CommenterID)
 	}
 
 	// Filter by date

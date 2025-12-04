@@ -58,13 +58,16 @@ func initServices(repos *Repositories, sessionDuration time.Duration, lgr *logge
 	// Initialize user service first (no dependencies)
 	userService := userApp.NewService(repos.User)
 
+	// Initialize services in dependency order
+	postService := postApp.NewService(repos.Post, repos.Category, userService)
+
 	return &ServiceContainer{
 		auth:         authApp.NewService(repos.Session, repos.User, sessionDuration),
 		user:         userService,
-		post:         postApp.NewService(repos.Post, repos.Category, userService),
+		post:         postService,
 		category:     postApp.NewCategoryService(repos.Category),
 		filter:       postApp.NewFilterService(),
-		comment:      commentApp.NewService(repos.Comment, userService),
+		comment:      commentApp.NewService(repos.Comment, postService, userService),
 		reaction:     reactionApp.NewService(repos.Reaction),
 		moderation:   moderationApp.NewService(repos.Moderation),
 		notification: notificationApp.NewService(repos.Notification),
