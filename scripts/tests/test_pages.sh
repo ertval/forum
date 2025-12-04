@@ -532,6 +532,151 @@ else
 fi
 
 # =============================================================================
+# POST-FORMS.JS API URL TESTS
+# =============================================================================
+print_section "POST-FORMS.JS API URL VERIFICATION"
+
+POST_FORMS_JS=$(curl -s "$BASE_URL/static/js/post-forms.js")
+
+# Check post creation URL uses /api prefix
+if echo "$POST_FORMS_JS" | grep -q "fetch('/api/posts'"; then
+    print_test "post-forms.js uses /api/posts URL for creation" "PASS"
+else
+    print_test "post-forms.js uses /api/posts URL for creation" "FAIL" "Wrong post creation API URL"
+fi
+
+# Check post update URL uses /api prefix
+if echo "$POST_FORMS_JS" | grep -q "fetch(\`/api/posts/\${postId}\`"; then
+    print_test "post-forms.js uses /api/posts/{id} URL for update" "PASS"
+else
+    print_test "post-forms.js uses /api/posts/{id} URL for update" "FAIL" "Wrong post update API URL"
+fi
+
+# Check post delete URL uses /api prefix
+if echo "$POST_FORMS_JS" | grep -q "fetch(\`/api/posts/\${postId}\`" | head -1; then
+    print_test "post-forms.js uses /api/posts/{id} URL for delete" "PASS"
+else
+    print_test "post-forms.js uses /api/posts/{id} URL for delete" "FAIL" "Wrong post delete API URL"
+fi
+
+# Verify no old URLs exist (without /api prefix for posts)
+if ! echo "$POST_FORMS_JS" | grep -q "fetch('/posts'," && ! echo "$POST_FORMS_JS" | grep -q "fetch(\`/posts/\${"; then
+    print_test "post-forms.js doesn't use wrong /posts URLs" "PASS"
+else
+    print_test "post-forms.js doesn't use wrong /posts URLs" "FAIL" "Found incorrect /posts URL without /api prefix"
+fi
+
+# =============================================================================
+# POST-DETAIL.JS API URL TESTS
+# =============================================================================
+print_section "POST-DETAIL.JS API URL VERIFICATION"
+
+POST_DETAIL_JS=$(curl -s "$BASE_URL/static/js/post-detail.js")
+
+# Check comment creation URL uses /api prefix
+if echo "$POST_DETAIL_JS" | grep -q "fetch(\`/api/comments/posts/"; then
+    print_test "post-detail.js uses /api/comments/posts/{id} URL" "PASS"
+else
+    print_test "post-detail.js uses /api/comments/posts/{id} URL" "FAIL" "Wrong comment creation API URL"
+fi
+
+# Check reactions URL uses /api prefix
+if echo "$POST_DETAIL_JS" | grep -q "fetch(\`/api/reactions\`"; then
+    print_test "post-detail.js uses /api/reactions URL" "PASS"
+else
+    print_test "post-detail.js uses /api/reactions URL" "FAIL" "Wrong reactions API URL"
+fi
+
+# Check comment delete URL uses /api prefix
+if echo "$POST_DETAIL_JS" | grep -q "fetch(\`/api/comments/\${commentId}\`"; then
+    print_test "post-detail.js uses /api/comments/{id} URL for delete" "PASS"
+else
+    print_test "post-detail.js uses /api/comments/{id} URL for delete" "FAIL" "Wrong comment delete API URL"
+fi
+
+# Check post delete URL uses /api prefix in post-detail.js
+if echo "$POST_DETAIL_JS" | grep -q "fetch(\`/api/posts/\${postId}\`"; then
+    print_test "post-detail.js uses /api/posts/{id} URL for delete" "PASS"
+else
+    print_test "post-detail.js uses /api/posts/{id} URL for delete" "FAIL" "Wrong post delete API URL"
+fi
+
+# =============================================================================
+# LOAD-MORE-POSTS.JS API URL TESTS
+# =============================================================================
+print_section "LOAD-MORE-POSTS.JS API URL VERIFICATION"
+
+LOAD_MORE_JS=$(curl -s "$BASE_URL/static/js/load-more-posts.js")
+
+# Check load-more URL uses /api prefix
+if echo "$LOAD_MORE_JS" | grep -q "fetch(\`/api/posts/load-more"; then
+    print_test "load-more-posts.js uses /api/posts/load-more URL" "PASS"
+else
+    print_test "load-more-posts.js uses /api/posts/load-more URL" "FAIL" "Wrong load-more API URL"
+fi
+
+# =============================================================================
+# TEMPLATE FILE VERIFICATION (Static Analysis)
+# =============================================================================
+print_section "TEMPLATE FILE VERIFICATION"
+
+# Check templates exist
+TEMPLATES_DIR="${PROJECT_ROOT}/templates"
+REQUIRED_TEMPLATES=("base.html" "home.html" "login.html" "register.html" "board.html" "post_detail.html" "post_create.html" "post_edit.html")
+
+for tmpl in "${REQUIRED_TEMPLATES[@]}"; do
+    if [ -f "${TEMPLATES_DIR}/${tmpl}" ]; then
+        print_test "Template exists: ${tmpl}" "PASS"
+    else
+        print_test "Template exists: ${tmpl}" "FAIL" "Missing template file"
+    fi
+done
+
+# Check templates don't use hardcoded old URLs
+for tmpl in "${REQUIRED_TEMPLATES[@]}"; do
+    tmpl_path="${TEMPLATES_DIR}/${tmpl}"
+    if [ -f "$tmpl_path" ]; then
+        # Check for problematic hardcoded URLs (should use relative or /api/ prefix)
+        if grep -q 'action="/auth/register"' "$tmpl_path" 2>/dev/null; then
+            print_test "Template ${tmpl} doesn't use old /auth/register URL" "FAIL" "Found hardcoded /auth/register"
+        fi
+        if grep -q 'action="/auth/login"' "$tmpl_path" 2>/dev/null; then
+            print_test "Template ${tmpl} doesn't use old /auth/login URL" "FAIL" "Found hardcoded /auth/login"
+        fi
+    fi
+done
+print_test "Templates don't use old hardcoded URLs" "PASS"
+
+# =============================================================================
+# JS FILE SYNTAX VERIFICATION
+# =============================================================================
+print_section "JAVASCRIPT FILE SYNTAX VERIFICATION"
+
+JS_FILES=("auth.js" "post-forms.js" "post-detail.js" "load-more-posts.js" "app.js")
+JS_DIR="${PROJECT_ROOT}/static/js"
+
+for jsfile in "${JS_FILES[@]}"; do
+    js_path="${JS_DIR}/${jsfile}"
+    if [ -f "$js_path" ]; then
+        # Basic syntax check - look for common errors
+        if grep -q "fetch('/[^a]" "$js_path" 2>/dev/null; then
+            # Found fetch URL not starting with /a (likely missing /api/)
+            if grep -qE "fetch\('/posts[^']" "$js_path" 2>/dev/null || \
+               grep -qE "fetch\('/comments[^']" "$js_path" 2>/dev/null || \
+               grep -qE "fetch\('/auth[^']" "$js_path" 2>/dev/null; then
+                print_test "JS ${jsfile} API URLs have /api/ prefix" "FAIL" "Found API call without /api/ prefix"
+            else
+                print_test "JS ${jsfile} API URLs have /api/ prefix" "PASS"
+            fi
+        else
+            print_test "JS ${jsfile} API URLs have /api/ prefix" "PASS"
+        fi
+    else
+        print_test "JS file exists: ${jsfile}" "SKIP" "File not found"
+    fi
+done
+
+# =============================================================================
 # SUMMARY
 # =============================================================================
 echo ""

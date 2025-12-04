@@ -33,7 +33,7 @@ func TestPostCreationAndRetrieval(t *testing.T) {
 	postID := createPost(t, app, sessionToken, "Test Post", "Test Content", []string{"tests"})
 
 	// Get post (public access)
-	req := httptest.NewRequest("GET", "/posts/"+postID, nil)
+	req := httptest.NewRequest("GET", "/api/posts/"+postID, nil)
 	w := httptest.NewRecorder()
 	app.Server.Router().ServeHTTP(w, req)
 
@@ -55,7 +55,7 @@ func TestUnauthorizedPostCreation(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(postData)
-	req := httptest.NewRequest("POST", "/posts", bytes.NewBuffer(body))
+	req := httptest.NewRequest("POST", "/api/posts", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -82,7 +82,7 @@ func TestEmptyPostValidation(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(postData)
-	req := httptest.NewRequest("POST", "/posts", bytes.NewBuffer(body))
+	req := httptest.NewRequest("POST", "/api/posts", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: "session_token", Value: sessionToken})
 
@@ -121,7 +121,7 @@ func TestFormPostCreation(t *testing.T) {
 		t.Fatalf("failed to finalize multipart body: %v", err)
 	}
 
-	req := httptest.NewRequest("POST", "/posts", &body)
+	req := httptest.NewRequest("POST", "/api/posts", &body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	req.AddCookie(&http.Cookie{Name: "session_token", Value: sessionToken})
 
@@ -158,7 +158,7 @@ func setupTestApp(t *testing.T) *wire.App {
 func registerAndLogin(t *testing.T, app *wire.App, email, username, password string) string {
 	regData := map[string]string{"email": email, "username": username, "password": password}
 	body, _ := json.Marshal(regData)
-	req := httptest.NewRequest("POST", "/auth/register", bytes.NewBuffer(body))
+	req := httptest.NewRequest("POST", "/api/auth/register", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -191,7 +191,7 @@ func createCategory(t *testing.T, app *wire.App, name string) {
 func createPost(t *testing.T, app *wire.App, sessionToken, title, content string, categories []string) string {
 	postData := map[string]interface{}{"title": title, "content": content, "categories": categories}
 	body, _ := json.Marshal(postData)
-	req := httptest.NewRequest("POST", "/posts", bytes.NewBuffer(body))
+	req := httptest.NewRequest("POST", "/api/posts", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: "session_token", Value: sessionToken})
 

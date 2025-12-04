@@ -1494,12 +1494,13 @@ func TestHTTPHandler_GetPostAPI_InvalidID(t *testing.T) {
 	}
 	handler := NewHTTPHandler(container, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/posts/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/posts/", nil)
 	req.SetPathValue("id", "") // Empty ID
 
 	w := httptest.NewRecorder()
 	handler.GetPostAPI(w, req)
 
+	// When post ID is empty, the handler returns 400 Bad Request
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", w.Code)
 	}
@@ -1575,13 +1576,13 @@ func TestHTTPHandler_RegisterRoutes(t *testing.T) {
 	handler.RegisterRoutes(router)
 
 	// Test that routes are registered by making a simple request
-	req := httptest.NewRequest(http.MethodGet, "/posts", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/posts", nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	// Should not get 404 since route is registered
 	if w.Code == http.StatusNotFound {
-		t.Error("Expected route /posts to be registered")
+		t.Error("Expected route /api/posts to be registered")
 	}
 }
 
