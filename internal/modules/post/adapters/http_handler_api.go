@@ -256,7 +256,6 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case strings.HasPrefix(contentType, "multipart/form-data"):
-		const maxUploadSize = 20 << 20
 		if err := r.ParseMultipartForm(MaxImageUploadSize); err != nil {
 			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid form data")
 			return
