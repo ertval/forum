@@ -37,6 +37,11 @@ fi
 PASSED=0
 FAILED=0
 
+# Arrays to track created test data for cleanup
+CREATED_POSTS=()
+CREATED_COMMENTS=()
+CREATED_USERS=()
+
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
@@ -65,6 +70,10 @@ print_answer() {
 
 extract_session_cookie() {
     echo "$1" | grep -i "set-cookie" | grep "session_token" | sed 's/.*session_token=\([^;]*\).*/\1/' | head -n 1
+}
+
+extract_json_field() {
+    echo "$1" | grep -o "\"$2\":\"[^\"]*\"" | sed "s/\"$2\":\"\([^\"]*\)\"/\1/" | head -n 1
 }
 
 check_server_running() {
@@ -102,6 +111,46 @@ start_server() {
 }
 
 cleanup() {
+    echo ""
+    echo -e "${YELLOW}--- CLEANUP ---${NC}"
+    echo ""
+    
+    # Re-login to get a fresh session for cleanup
+    if [ -n "$SESSION_COOKIE" ] || [ ${#CREATED_POSTS[@]} -gt 0 ] || [ ${#CREATED_COMMENTS[@]} -gt 0 ]; then
+        RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}" 2>/dev/null)
+        CLEANUP_SESSION=$(extract_session_cookie "$RESPONSE")
+        
+        if [ -n "$CLEANUP_SESSION" ]; then
+            # Delete created posts (this will cascade delete comments and reactions)
+            for post_id in "${CREATED_POSTS[@]}"; do
+                if [ -n "$post_id" ]; then
+                    curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
+                        -H "Cookie: session_token=$CLEANUP_SESSION" > /dev/null 2>&1
+                fi
+            done
+            
+            # Delete created comments (if not already deleted via cascade)
+            for comment_id in "${CREATED_COMMENTS[@]}"; do
+                if [ -n "$comment_id" ]; then
+                    curl -s -X DELETE "$BASE_URL/api/comments/$comment_id" \
+                        -H "Cookie: session_token=$CLEANUP_SESSION" > /dev/null 2>&1
+                fi
+            done
+        fi
+    fi
+    
+    # Clean up test users from database directly
+    for username in "${CREATED_USERS[@]}"; do
+        if [ -n "$username" ]; then
+            sqlite3 "$DB_PATH" "DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE username='$username');" 2>/dev/null
+            sqlite3 "$DB_PATH" "DELETE FROM users WHERE username='$username';" 2>/dev/null
+        fi
+    done
+    
+    echo -e "${GREEN}✓ Test data cleaned up${NC}"
+    
     if [ -n "$SERVER_PID" ]; then
         kill $SERVER_PID 2>/dev/null || true
     fi
@@ -163,12 +212,14 @@ fi
 # Q: Is it possible to register?
 print_question "Try to register as a new user - Is it possible to register?"
 TIMESTAMP=$(date +%s)
+AUDIT_USERNAME="audit_${TIMESTAMP}"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"audit_${TIMESTAMP}@test.com\",\"username\":\"audit_${TIMESTAMP}\",\"password\":\"password123\"}")
+    -d "{\"email\":\"audit_${TIMESTAMP}@test.com\",\"username\":\"${AUDIT_USERNAME}\",\"password\":\"password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "201" ]; then
     print_answer "YES" "Successfully registered new user"
+    CREATED_USERS+=("$AUDIT_USERNAME")
 else
     print_answer "NO" "Registration failed (got $HTTP_CODE)"
 fi
@@ -254,6 +305,9 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
     -H "Cookie: session_token=$SESSION_COOKIE" \
     -d '{"title":"Audit Test Post","content":"Testing visibility","categories":["Tests"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | sed '$d')
+AUDIT_POST_ID=$(extract_json_field "$BODY" "id")
+[ -n "$AUDIT_POST_ID" ] && CREATED_POSTS+=("$AUDIT_POST_ID")
 
 # Check if visible without auth
 if [ "$HTTP_CODE" = "201" ]; then
@@ -420,6 +474,9 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/comments/posts/$PO
     -H "Cookie: session_token=$SESSION_COOKIE" \
     -d '{"content":"Audit test comment"}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | sed '$d')
+AUDIT_COMMENT_ID=$(extract_json_field "$BODY" "id")
+[ -n "$AUDIT_COMMENT_ID" ] && CREATED_COMMENTS+=("$AUDIT_COMMENT_ID")
 if [ "$HTTP_CODE" = "201" ]; then
     print_answer "YES" "Comments can be created by authenticated users"
 else
@@ -446,6 +503,9 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
     -H "Cookie: session_token=$SESSION_COOKIE" \
     -d '{"title":"Audit Functional Test","content":"Testing post creation","categories":["Tests"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | sed '$d')
+FUNC_POST_ID=$(extract_json_field "$BODY" "id")
+[ -n "$FUNC_POST_ID" ] && CREATED_POSTS+=("$FUNC_POST_ID")
 if [ "$HTTP_CODE" = "201" ]; then
     print_answer "YES" "Posts can be created by authenticated users"
 else
@@ -472,6 +532,9 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
     -H "Cookie: session_token=$SESSION_COOKIE" \
     -d '{"title":"Multi Category Test","content":"Testing multiple categories","categories":["Technology","General"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | sed '$d')
+MULTI_CAT_POST_ID=$(extract_json_field "$BODY" "id")
+[ -n "$MULTI_CAT_POST_ID" ] && CREATED_POSTS+=("$MULTI_CAT_POST_ID")
 if [ "$HTTP_CODE" = "201" ]; then
     print_answer "YES" "Multiple categories can be selected"
 else
@@ -485,6 +548,9 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
     -H "Cookie: session_token=$SESSION_COOKIE" \
     -d '{"title":"Single Category Test","content":"Testing single category","categories":["Tests"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | sed '$d')
+SINGLE_CAT_POST_ID=$(extract_json_field "$BODY" "id")
+[ -n "$SINGLE_CAT_POST_ID" ] && CREATED_POSTS+=("$SINGLE_CAT_POST_ID")
 if [ "$HTTP_CODE" = "201" ]; then
     print_answer "YES" "Single category can be selected"
 else

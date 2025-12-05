@@ -4,36 +4,90 @@
 package adapters
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"html/template"
+	"net/http"
 	"os"
 
 	authPorts "forum/internal/modules/auth/ports"
 	commentPorts "forum/internal/modules/comment/ports"
+	postPorts "forum/internal/modules/post/ports"
+	reactionPorts "forum/internal/modules/reaction/ports"
+	userPorts "forum/internal/modules/user/ports"
 	logger "forum/internal/platform/logger"
-	"html/template"
-	"net/http"
 )
 
 // HTTPHandler handles HTTP requests for comments.
 type HTTPHandler struct {
-	commentService commentPorts.CommentService
-	authService    authPorts.AuthService
-	templates      *template.Template
+	commentService     commentPorts.CommentService
+	authService        authPorts.AuthService
+	userService        userPorts.UserService
+	postService        postPorts.PostService
+	categoryService    postPorts.CategoryService
+	reactionService    reactionPorts.ReactionService
+	middlewareProvider authPorts.AuthMiddleware
+	templates          *template.Template
 }
 
 // ServiceContainer defines the minimal interface needed by this handler.
 type ServiceContainer interface {
 	Comment() commentPorts.CommentService
 	Auth() authPorts.AuthService
+	User() userPorts.UserService
+	Post() postPorts.PostService
+	Category() postPorts.CategoryService
+	Reaction() reactionPorts.ReactionService
+	AuthMiddleware() authPorts.AuthMiddleware
 }
 
 // NewHTTPHandler creates a new HTTP handler for comments with unified dependency injection.
 func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
 	return &HTTPHandler{
-		commentService: services.Comment(),
-		authService:    services.Auth(),
-		templates:      templates,
+		commentService:     services.Comment(),
+		authService:        services.Auth(),
+		userService:        services.User(),
+		postService:        services.Post(),
+		categoryService:    services.Category(),
+		reactionService:    services.Reaction(),
+		middlewareProvider: services.AuthMiddleware(),
+		templates:          templates,
+	}
+}
+
+// buildCurrentUser fetches full user info (including cached stats) and returns
+// a map suitable for templates. It always returns a map (never nil).
+func (h *HTTPHandler) buildCurrentUser(ctx context.Context, userID int) map[string]interface{} {
+	// Fetch user with all fields including cached stats
+	user, err := h.userService.GetByID(ctx, userID)
+	if err != nil || user == nil {
+		// Return empty map if user not found
+		return map[string]interface{}{
+			"PublicID":      "",
+			"Username":      "",
+			"Email":         "",
+			"PostCount":     0,
+			"CommentCount":  0,
+			"ReactionCount": 0,
+		}
+	}
+
+	// Get reaction count from reaction service
+	reactionCount := 0
+	if h.reactionService != nil {
+		if count, err := h.reactionService.GetUserReactionCount(ctx, userID); err == nil {
+			reactionCount = count
+		}
+	}
+
+	return map[string]interface{}{
+		"PublicID":      user.PublicID,
+		"Username":      user.Username,
+		"Email":         user.Email,
+		"PostCount":     user.PostCount,
+		"CommentCount":  user.CommentCount,
+		"ReactionCount": reactionCount,
 	}
 }
 
@@ -58,7 +112,10 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	// Register API routes
 	h.RegisterAPIRoutes(router)
 
-	// Register page/form routes
+	// Register page routes
+	h.RegisterPageRoutes(router)
+
+	// Register form routes
 	h.RegisterFormRoutes(router)
 }
 

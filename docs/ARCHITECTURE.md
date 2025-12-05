@@ -105,7 +105,7 @@ Reactions: POST/DELETE /api/reactions | GET /api/reactions/{targetType}/{targetI
 | **auth** | Registration, login, sessions (one per user), logout |
 | **user** | User profiles, cached stats (post/comment counts) |
 | **post** | Full CRUD, categories, filtering, image upload |
-| **comment** | Full CRUD with ownership validation |
+| **comment** | Full CRUD with ownership validation, my comments page |
 
 ### Scaffolded (Partial Implementation)
 | Module | Description |
@@ -113,6 +113,185 @@ Reactions: POST/DELETE /api/reactions | GET /api/reactions/{targetType}/{targetI
 | **reaction** | Like/dislike - routes defined, handlers return 501 |
 | **moderation** | Reports, roles - minimal implementation |
 | **notification** | User notifications - minimal implementation |
+
+---
+
+## Domain-Driven Design (DDD) Module Division
+
+This project follows **DDD tactical patterns** within a **modular monolith** architecture. Each module encapsulates a bounded context with clear responsibilities.
+
+### Core Concepts
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         MODULAR MONOLITH                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
+│  │    AUTH     │  │    USER     │  │    POST     │  │   COMMENT   │    │
+│  │  Bounded    │  │  Bounded    │  │  Bounded    │  │  Bounded    │    │
+│  │  Context    │  │  Context    │  │  Context    │  │  Context    │    │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘    │
+│         │                │                │                │           │
+│         └────────────────┼────────────────┼────────────────┘           │
+│                          │                │                             │
+│                    Service Interface Communication                      │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Bounded Contexts & Responsibilities
+
+| Bounded Context | Aggregate Root | Key Entities | Responsibilities |
+|-----------------|----------------|--------------|------------------|
+| **Auth** | Session | Session, Credentials | Authentication, session lifecycle, credential validation |
+| **User** | User | User, UserStats | User identity, profile, statistics aggregation |
+| **Post** | Post | Post, Category | Content creation, categorization, filtering, image handling |
+| **Comment** | Comment | Comment | Threaded discussions, comment CRUD, author context |
+| **Reaction** | Reaction | Reaction | Like/dislike tracking, reaction counts |
+| **Moderation** | Report | Report, Action | Content reporting, moderation actions |
+| **Notification** | Notification | Notification | User notifications, read/unread state |
+
+### DDD Layers Within Each Module
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        MODULE STRUCTURE                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │ DOMAIN LAYER (domain/)                                       │   │
+│   │ ┌─────────────┐  ┌─────────────────┐  ┌──────────────────┐  │   │
+│   │ │  Entities   │  │ Value Objects   │  │ Domain Errors    │  │   │
+│   │ │ • User      │  │ • Email         │  │ • ErrNotFound    │  │   │
+│   │ │ • Post      │  │ • Username      │  │ • ErrValidation  │  │   │
+│   │ │ • Comment   │  │ • Role          │  │ • ErrUnauthorized│  │   │
+│   │ └─────────────┘  └─────────────────┘  └──────────────────┘  │   │
+│   │ • Pure Go - NO external dependencies                         │   │
+│   │ • Business rules enforced via Validate() methods            │   │
+│   │ • Invariants protected within entity boundaries             │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                              │                                       │
+│                              ▼                                       │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │ PORTS LAYER (ports/)                                         │   │
+│   │ ┌────────────────────────┐  ┌────────────────────────────┐  │   │
+│   │ │ INPUT PORTS (service.go)│  │OUTPUT PORTS (repository.go)│  │   │
+│   │ │ • Service Interface    │  │ • Repository Interface     │  │   │
+│   │ │ • Use case definitions │  │ • Data access contracts    │  │   │
+│   │ └────────────────────────┘  └────────────────────────────┘  │   │
+│   │ • Defines contracts, not implementations                     │   │
+│   │ • Can only import from domain layer                          │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                              │                                       │
+│                              ▼                                       │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │ APPLICATION LAYER (application/)                             │   │
+│   │ ┌─────────────────────────────────────────────────────────┐ │   │
+│   │ │ Service Implementation (service.go)                      │ │   │
+│   │ │ • Implements INPUT PORT interface                        │ │   │
+│   │ │ • Orchestrates domain logic                              │ │   │
+│   │ │ • Coordinates repositories (OUTPUT PORTS)                │ │   │
+│   │ └─────────────────────────────────────────────────────────┘ │   │
+│   │ • Business logic orchestration                               │   │
+│   │ • Transaction coordination                                   │   │
+│   │ • Cross-entity workflows                                     │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                              │                                       │
+│                              ▼                                       │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │ ADAPTERS LAYER (adapters/)                                   │   │
+│   │ ┌────────────────────────┐  ┌────────────────────────────┐  │   │
+│   │ │ INPUT ADAPTERS         │  │ OUTPUT ADAPTERS            │  │   │
+│   │ │ • http_handler.go      │  │ • sqlite_repository.go     │  │   │
+│   │ │ • http_handler_api.go  │  │ • (future: cache, etc.)    │  │   │
+│   │ │ • http_handler_page.go │  │                            │  │   │
+│   │ └────────────────────────┘  └────────────────────────────┘  │   │
+│   │ • Technical implementations of ports                         │   │
+│   │ • HTTP request/response translation                          │   │
+│   │ • Database query execution                                   │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Module Communication Rules
+
+**Strict Boundaries**: Modules communicate ONLY through service interfaces, never by importing internal implementations.
+
+```go
+// ✅ CORRECT: Use service interface from other module
+type ServiceContainer interface {
+    Auth() authPorts.AuthService
+    User() userPorts.UserService
+}
+
+// ✅ CORRECT: Import port interface
+import authPorts "forum/internal/modules/auth/ports"
+
+// ❌ WRONG: Never import internal implementations
+import "forum/internal/modules/auth/application"  // FORBIDDEN
+import "forum/internal/modules/auth/adapters"     // FORBIDDEN
+```
+
+### Entity Design Principles
+
+Each entity follows these DDD principles:
+
+1. **Identity**: Each entity has a public UUID (`PublicID`) for external use and internal ID for database references
+2. **Validation**: Business rules enforced via `Validate()` method
+3. **Encapsulation**: State changes through defined methods, not direct field access
+4. **Invariants**: Entity ensures its own consistency
+
+```go
+// Example: Post entity with DDD principles
+type Post struct {
+    ID         int       // Internal identity
+    PublicID   string    // External identity (UUID)
+    AuthorID   int       // Reference to User aggregate
+    Title      string    // Value object candidate
+    Content    string    
+    ImagePath  string    // Optional
+    Categories []Category // Related aggregate
+    CreatedAt  time.Time
+    UpdatedAt  time.Time
+}
+
+func (p *Post) Validate() error {
+    // Enforces business invariants
+    if strings.TrimSpace(p.Title) == "" {
+        return ErrInvalidTitle
+    }
+    if len(p.Categories) == 0 {
+        return ErrCategoryRequired
+    }
+    return nil
+}
+```
+
+### Aggregate Boundaries
+
+Each module owns its aggregate root and is the sole authority over its data:
+
+| Module | Aggregate Root | Owned Data | References To |
+|--------|----------------|------------|---------------|
+| **auth** | Session | sessions table | users (FK) |
+| **user** | User | users table | - |
+| **post** | Post | posts, post_categories, categories | users (author_id) |
+| **comment** | Comment | comments table | posts (post_id), users (author_id) |
+| **reaction** | Reaction | reactions table | posts/comments (target_id), users (user_id) |
+
+### Cross-Cutting Concerns
+
+Infrastructure concerns that span all modules are handled in `internal/platform/`:
+
+| Platform Service | DDD Concept | Purpose |
+|------------------|-------------|---------|
+| **database** | Infrastructure | Persistence mechanism (SQLite) |
+| **logger** | Infrastructure | Structured logging across all layers |
+| **httpserver** | Infrastructure | HTTP transport, middleware |
+| **validator** | Domain Support | Input validation utilities |
+| **upload** | Infrastructure | File storage mechanism |
+| **cache** | Infrastructure | Performance optimization |
+| **errors** | Shared Kernel | Common error types |
 
 ---
 

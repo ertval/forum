@@ -24,7 +24,6 @@ func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
 	optionalAuth := h.middlewareProvider.OptionalAuth()
 	router.Handle("GET /api/posts", optionalAuth(http.HandlerFunc(h.ListPostsAPI)))
 	router.Handle("GET /api/posts/load-more", optionalAuth(http.HandlerFunc(h.LoadMorePostsAPI)))
-	router.Handle("GET /api/comments/load-more", optionalAuth(http.HandlerFunc(h.LoadMoreCommentsAPI)))
 
 	// Public API route without auth
 	router.HandleFunc("GET /api/posts/{id}", h.GetPostAPI)
@@ -567,98 +566,4 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.writeJSON(w, http.StatusOK, previewPosts)
-}
-
-// LoadMoreCommentsAPI handles loading additional comments for the My Comments page.
-func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	ctx := r.Context()
-
-	// Get user PUBLIC ID (UUID) from session cookie.
-	var userPublicID string
-	cookie, err := r.Cookie("session_token")
-	if err == nil && cookie.Value != "" {
-		if session, err := h.authService.ValidateSession(ctx, cookie.Value); err == nil && session != nil {
-			user, err := h.userService.GetByID(ctx, session.UserID)
-			if err == nil && user != nil {
-				userPublicID = user.PublicID
-			}
-		}
-	}
-
-	if userPublicID == "" {
-		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
-		return
-	}
-
-	// Parse pagination parameters
-	limit := 20
-	offset := 0
-
-	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
-		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
-			limit = l
-		}
-	}
-
-	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
-		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
-			offset = o
-		}
-	}
-
-	// Fetch comments using paginated method
-	comments, err := h.commentService.ListCommentsByUserPaginated(ctx, userPublicID, limit, offset)
-	if err != nil {
-		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve comments")
-		return
-	}
-
-	// Enrich comments with post and user information
-	commentsData := make([]map[string]interface{}, 0, len(comments))
-	for _, comment := range comments {
-		var authorUsername string
-		if comment.UserID != 0 {
-			user, err := h.userService.GetByID(ctx, comment.UserID)
-			if err == nil && user != nil {
-				authorUsername = user.Username
-			}
-		}
-
-		var postTitle string
-		var postAuthorUsername string
-		if comment.PublicPostID != "" {
-			post, err := h.postService.GetPost(ctx, comment.PublicPostID)
-			if err == nil && post != nil {
-				postTitle = post.Title
-				postAuthorUsername = post.AuthorUsername
-			} else {
-				postTitle = "Post not found"
-				postAuthorUsername = "Unknown"
-			}
-		} else {
-			postTitle = "Post ID unknown"
-			postAuthorUsername = "Unknown"
-		}
-
-		commentData := map[string]interface{}{
-			"PublicID":           comment.PublicID,
-			"AuthorUsername":     authorUsername,
-			"Content":            comment.Content,
-			"PostPublicID":       comment.PublicPostID,
-			"PostTitle":          postTitle,
-			"PostAuthorUsername": postAuthorUsername,
-			"CreatedAt":          comment.CreatedAt,
-			"UpdatedAt":          comment.UpdatedAt,
-			"Likes":              0,
-			"Dislikes":           0,
-		}
-		commentsData = append(commentsData, commentData)
-	}
-
-	h.writeJSON(w, http.StatusOK, commentsData)
 }

@@ -67,11 +67,16 @@ INSERT OR IGNORE INTO posts (public_id, title, content, author_id, image_path, c
 -- Posts by other users
 ('750e8400-e29b-41d4-a716-446655440001', 'Welcome to the Forum!', 'This is the first post on our new forum. Feel free to create your own posts and join discussions!', (SELECT id FROM users WHERE username = 'alice'), NULL, datetime('now', '-7 days'), datetime('now', '-7 days')),
 ('750e8400-e29b-41d4-a716-446655440002', 'Best Programming Languages in 2025', 'What do you think are the best programming languages to learn in 2025? I am currently learning Go and loving it!', (SELECT id FROM users WHERE username = 'bob'), NULL, datetime('now', '-5 days'), datetime('now', '-5 days')),
-('750e8400-e29b-41d4-a716-446655440003', 'Favorite Video Games', 'What are your favorite video games of all time? Mine has to be The Legend of Zelda: Breath of the Wild.', (SELECT id FROM users WHERE username = 'charlie'), NULL, datetime('now', '-3 days'), datetime('now', '-3 days')),
-('750e8400-e29b-41d4-a716-446655440004', 'AI and Machine Learning Trends', 'The field of AI is evolving rapidly. What trends are you most excited about?', (SELECT id FROM users WHERE username = 'alice'), NULL, datetime('now', '-2 days'), datetime('now', '-2 days')),
+('750e8400-e29b-41d4-a716-446655440003', 'Favorite Video Games', 'What are your favorite video games of all time? Mine has to be The Legend of Zelda: Breath of the Wild.', (SELECT id FROM users WHERE username = 'charlie'), 'uploads/003ee9e6-2bc4-476e-8f81-2345eb090599.jpg', datetime('now', '-3 days'), datetime('now', '-3 days')),
+('750e8400-e29b-41d4-a716-446655440004', 'AI and Machine Learning Trends', 'The field of AI is evolving rapidly. What trends are you most excited about?', (SELECT id FROM users WHERE username = 'alice'), 'uploads/00e71cfe-cfff-4107-8f9c-cd199468d6a0.png', datetime('now', '-2 days'), datetime('now', '-2 days')),
 ('750e8400-e29b-41d4-a716-446655440005', 'Latest Movie Recommendations', 'Just watched an amazing sci-fi movie. What have you been watching lately?', (SELECT id FROM users WHERE username = 'bob'), NULL, datetime('now', '-1 day'), datetime('now', '-1 day')),
-('750e8400-e29b-41d4-a716-446655440006', 'Healthy Eating Tips', 'Share your favorite healthy recipes and eating habits!', (SELECT id FROM users WHERE username = 'diana'), NULL, datetime('now', '-6 days'), datetime('now', '-6 days')),
-('750e8400-e29b-41d4-a716-446655440007', 'Online Learning Platforms', 'Which online learning platforms do you recommend for skill development?', (SELECT id FROM users WHERE username = 'eve'), NULL, datetime('now', '-4 days'), datetime('now', '-4 days'));
+('750e8400-e29b-41d4-a716-446655440006', 'Healthy Eating Tips', 'Share your favorite healthy recipes and eating habits!', (SELECT id FROM users WHERE username = 'diana'), 'uploads/0f2e4b54-66f8-414b-8615-2c80b2489f46.png', datetime('now', '-6 days'), datetime('now', '-6 days')),
+('750e8400-e29b-41d4-a716-446655440007', 'Online Learning Platforms', 'Which online learning platforms do you recommend for skill development?', (SELECT id FROM users WHERE username = 'eve'), NULL, datetime('now', '-4 days'), datetime('now', '-4 days')),
+-- Additional posts with images for image testing
+('750e8400-e29b-41d4-a716-446655440008', 'Amazing Nature Photography', 'Check out this beautiful landscape I captured during my hiking trip!', (SELECT id FROM users WHERE username = 'frank'), 'uploads/10462764-3698-4dba-aa8f-a7e51c48b7e5.png', datetime('now', '-3 days'), datetime('now', '-3 days')),
+('750e8400-e29b-41d4-a716-446655440009', 'My Coding Setup 2025', 'Finally got my dream development workspace together. What do you think?', (SELECT id FROM users WHERE username = 'grace'), 'uploads/13d40610-9ea0-4711-8378-40e6e479870c.jpg', datetime('now', '-2 days'), datetime('now', '-2 days')),
+('750e8400-e29b-41d4-a716-446655440010', 'Funny Meme of the Day', 'Found this hilarious meme, had to share!', (SELECT id FROM users WHERE username = 'testuser'), 'uploads/00cc6d7c-5a29-4cfd-8651-79ed4c8da555.gif', datetime('now', '-1 day'), datetime('now', '-1 day')),
+('750e8400-e29b-41d4-a716-446655440011', 'Sports Highlights', 'What an incredible game last night! Here are some highlights.', (SELECT id FROM users WHERE username = 'henry'), NULL, datetime('now'), datetime('now'));
 
 -- =============================================================================
 -- POST CATEGORIES - Link posts to categories (required for category filter tests)
@@ -85,19 +90,49 @@ INSERT OR IGNORE INTO post_categories (post_id, category_id) VALUES
 ((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440002'), (SELECT id FROM categories WHERE name = 'Technology')),
 ((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440003'), (SELECT id FROM categories WHERE name = 'Gaming')),
 ((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440004'), (SELECT id FROM categories WHERE name = 'Technology')),
+((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440004'), (SELECT id FROM categories WHERE name = 'Science')),
 ((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440005'), (SELECT id FROM categories WHERE name = 'Entertainment')),
 ((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440006'), (SELECT id FROM categories WHERE name = 'Health')),
-((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440007'), (SELECT id FROM categories WHERE name = 'Education'));
+((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440007'), (SELECT id FROM categories WHERE name = 'Education')),
+-- Categories for new posts with images
+((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440008'), (SELECT id FROM categories WHERE name = 'General')),
+((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440009'), (SELECT id FROM categories WHERE name = 'Technology')),
+((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440010'), (SELECT id FROM categories WHERE name = 'Entertainment')),
+((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440010'), (SELECT id FROM categories WHERE name = 'General')),
+((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440011'), (SELECT id FROM categories WHERE name = 'Sports'));
 
 -- =============================================================================
 -- COMMENTS - For comment display tests and reaction tests
 -- =============================================================================
 INSERT OR IGNORE INTO comments (public_id, post_id, author_id, content, created_at, updated_at) VALUES
+-- Comments on testuser's posts
 ('comment-0001-0001-0001-000000000001', (SELECT id FROM posts WHERE public_id = 'post-0001-0001-0001-000000000001'), (SELECT id FROM users WHERE username = 'alice'), 'Great post! This is really helpful.', datetime('now', '-6 days'), datetime('now', '-6 days')),
 ('comment-0002-0002-0002-000000000002', (SELECT id FROM posts WHERE public_id = 'post-0001-0001-0001-000000000001'), (SELECT id FROM users WHERE username = 'bob'), 'I agree with the above comment.', datetime('now', '-5 days'), datetime('now', '-5 days')),
+('comment-0010-0010-0010-000000000010', (SELECT id FROM posts WHERE public_id = 'post-0001-0001-0001-000000000001'), (SELECT id FROM users WHERE username = 'charlie'), 'Thanks for sharing this information!', datetime('now', '-4 days'), datetime('now', '-4 days')),
+('comment-0011-0011-0011-000000000011', (SELECT id FROM posts WHERE public_id = 'post-0001-0001-0001-000000000001'), (SELECT id FROM users WHERE username = 'diana'), 'Very insightful, learned something new today.', datetime('now', '-3 days'), datetime('now', '-3 days')),
+-- Comments on programming languages post
 ('comment-0003-0003-0003-000000000003', (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440002'), (SELECT id FROM users WHERE username = 'alice'), 'Great question — I think Go and Rust are top choices for systems work.', datetime('now', '-4 days'), datetime('now', '-4 days')),
+('comment-0012-0012-0012-000000000012', (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440002'), (SELECT id FROM users WHERE username = 'testuser'), 'Python is still king for AI/ML development.', datetime('now', '-3 days'), datetime('now', '-3 days')),
+('comment-0013-0013-0013-000000000013', (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440002'), (SELECT id FROM users WHERE username = 'charlie'), 'Don''t sleep on TypeScript - it has come a long way!', datetime('now', '-2 days'), datetime('now', '-2 days')),
+('comment-0014-0014-0014-000000000014', (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440002'), (SELECT id FROM users WHERE username = 'eve'), 'Rust is amazing but the learning curve is steep.', datetime('now', '-1 day'), datetime('now', '-1 day')),
+-- Comments on gaming post
 ('comment-0004-0004-0004-000000000004', (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440003'), (SELECT id FROM users WHERE username = 'bob'), 'I loved Breath of the Wild too! The world design is amazing.', datetime('now', '-2 days'), datetime('now', '-2 days')),
-('comment-0005-0005-0005-000000000005', (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440003'), (SELECT id FROM users WHERE username = 'diana'), 'You should try Hades if you like roguelikes.', datetime('now', '-1 day'), datetime('now', '-1 day'));
+('comment-0005-0005-0005-000000000005', (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440003'), (SELECT id FROM users WHERE username = 'diana'), 'You should try Hades if you like roguelikes.', datetime('now', '-1 day'), datetime('now', '-1 day')),
+('comment-0015-0015-0015-000000000015', (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440003'), (SELECT id FROM users WHERE username = 'alice'), 'Elden Ring is my GOTY for sure. Incredible open world!', datetime('now', '-1 day'), datetime('now', '-1 day')),
+('comment-0016-0016-0016-000000000016', (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440003'), (SELECT id FROM users WHERE username = 'frank'), 'Classic titles like Mario and Zelda never get old.', datetime('now'), datetime('now')),
+-- Comments on AI post
+('comment-0017-0017-0017-000000000017', (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440004'), (SELECT id FROM users WHERE username = 'bob'), 'LLMs are changing everything. Exciting but also concerning.', datetime('now', '-1 day'), datetime('now', '-1 day')),
+('comment-0018-0018-0018-000000000018', (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440004'), (SELECT id FROM users WHERE username = 'testuser'), 'I''m most excited about AI in healthcare and drug discovery.', datetime('now', '-1 day'), datetime('now', '-1 day')),
+('comment-0019-0019-0019-000000000019', (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440004'), (SELECT id FROM users WHERE username = 'eve'), 'We need better AI safety research alongside capability research.', datetime('now'), datetime('now')),
+-- Comments on movie post
+('comment-0020-0020-0020-000000000020', (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440005'), (SELECT id FROM users WHERE username = 'alice'), 'Just watched Dune Part 2 - absolutely stunning visuals!', datetime('now'), datetime('now')),
+('comment-0021-0021-0021-000000000021', (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440005'), (SELECT id FROM users WHERE username = 'charlie'), 'Try "Everything Everywhere All At Once" if you haven''t seen it.', datetime('now'), datetime('now')),
+-- Comments on healthy eating post
+('comment-0022-0022-0022-000000000022', (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440006'), (SELECT id FROM users WHERE username = 'testuser'), 'Meal prepping on Sundays changed my life!', datetime('now', '-5 days'), datetime('now', '-5 days')),
+('comment-0023-0023-0023-000000000023', (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440006'), (SELECT id FROM users WHERE username = 'grace'), 'Mediterranean diet is both delicious and healthy.', datetime('now', '-4 days'), datetime('now', '-4 days')),
+-- Comments on online learning post
+('comment-0024-0024-0024-000000000024', (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440007'), (SELECT id FROM users WHERE username = 'bob'), 'Coursera has amazing university courses for free!', datetime('now', '-3 days'), datetime('now', '-3 days')),
+('comment-0025-0025-0025-000000000025', (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440007'), (SELECT id FROM users WHERE username = 'testuser2'), 'freeCodeCamp is great for learning to code.', datetime('now', '-2 days'), datetime('now', '-2 days'));
 
 -- =============================================================================
 -- REACTIONS - For like/dislike count display tests
@@ -106,13 +141,31 @@ INSERT OR IGNORE INTO reactions (public_id, user_id, target_id, target_type, typ
 -- Reactions on testuser's posts (for "see liked posts" test)
 ('reaction-0001-0001-0001-000000000001', (SELECT id FROM users WHERE username = 'testuser'), (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440001'), 'post', 'like', datetime('now', '-6 days')),
 ('reaction-0002-0002-0002-000000000002', (SELECT id FROM users WHERE username = 'testuser'), (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440002'), 'post', 'like', datetime('now', '-4 days')),
--- Reactions from other users
+-- Reactions from other users on testuser's posts
 ('reaction-0003-0003-0003-000000000003', (SELECT id FROM users WHERE username = 'alice'), (SELECT id FROM posts WHERE public_id = 'post-0001-0001-0001-000000000001'), 'post', 'like', datetime('now', '-5 days')),
 ('reaction-0004-0004-0004-000000000004', (SELECT id FROM users WHERE username = 'bob'), (SELECT id FROM posts WHERE public_id = 'post-0001-0001-0001-000000000001'), 'post', 'like', datetime('now', '-4 days')),
 ('reaction-0005-0005-0005-000000000005', (SELECT id FROM users WHERE username = 'charlie'), (SELECT id FROM posts WHERE public_id = 'post-0001-0001-0001-000000000001'), 'post', 'dislike', datetime('now', '-3 days')),
 -- Comment reactions for comment like/dislike visibility tests
 ('reaction-0006-0006-0006-000000000006', (SELECT id FROM users WHERE username = 'alice'), (SELECT id FROM comments WHERE public_id = 'comment-0003-0003-0003-000000000003'), 'comment', 'like', datetime('now', '-3 days')),
-('reaction-0007-0007-0007-000000000007', (SELECT id FROM users WHERE username = 'bob'), (SELECT id FROM comments WHERE public_id = 'comment-0003-0003-0003-000000000003'), 'comment', 'dislike', datetime('now', '-2 days'));
+('reaction-0007-0007-0007-000000000007', (SELECT id FROM users WHERE username = 'bob'), (SELECT id FROM comments WHERE public_id = 'comment-0003-0003-0003-000000000003'), 'comment', 'dislike', datetime('now', '-2 days')),
+-- More reactions on posts for popularity testing
+('reaction-0008-0008-0008-000000000008', (SELECT id FROM users WHERE username = 'diana'), (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440002'), 'post', 'like', datetime('now', '-3 days')),
+('reaction-0009-0009-0009-000000000009', (SELECT id FROM users WHERE username = 'eve'), (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440002'), 'post', 'like', datetime('now', '-2 days')),
+('reaction-0010-0010-0010-000000000010', (SELECT id FROM users WHERE username = 'frank'), (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440002'), 'post', 'like', datetime('now', '-1 day')),
+('reaction-0011-0011-0011-000000000011', (SELECT id FROM users WHERE username = 'grace'), (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440002'), 'post', 'like', datetime('now')),
+-- Gaming post gets mixed reactions
+('reaction-0012-0012-0012-000000000012', (SELECT id FROM users WHERE username = 'testuser'), (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440003'), 'post', 'like', datetime('now', '-2 days')),
+('reaction-0013-0013-0013-000000000013', (SELECT id FROM users WHERE username = 'alice'), (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440003'), 'post', 'like', datetime('now', '-1 day')),
+('reaction-0014-0014-0014-000000000014', (SELECT id FROM users WHERE username = 'bob'), (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440003'), 'post', 'dislike', datetime('now')),
+-- AI post reactions
+('reaction-0015-0015-0015-000000000015', (SELECT id FROM users WHERE username = 'charlie'), (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440004'), 'post', 'like', datetime('now', '-1 day')),
+('reaction-0016-0016-0016-000000000016', (SELECT id FROM users WHERE username = 'testuser2'), (SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440004'), 'post', 'like', datetime('now')),
+-- Comment reactions
+('reaction-0017-0017-0017-000000000017', (SELECT id FROM users WHERE username = 'testuser'), (SELECT id FROM comments WHERE public_id = 'comment-0001-0001-0001-000000000001'), 'comment', 'like', datetime('now', '-5 days')),
+('reaction-0018-0018-0018-000000000018', (SELECT id FROM users WHERE username = 'charlie'), (SELECT id FROM comments WHERE public_id = 'comment-0001-0001-0001-000000000001'), 'comment', 'like', datetime('now', '-4 days')),
+('reaction-0019-0019-0019-000000000019', (SELECT id FROM users WHERE username = 'diana'), (SELECT id FROM comments WHERE public_id = 'comment-0004-0004-0004-000000000004'), 'comment', 'like', datetime('now', '-1 day')),
+('reaction-0020-0020-0020-000000000020', (SELECT id FROM users WHERE username = 'alice'), (SELECT id FROM comments WHERE public_id = 'comment-0012-0012-0012-000000000012'), 'comment', 'like', datetime('now', '-2 days')),
+('reaction-0021-0021-0021-000000000021', (SELECT id FROM users WHERE username = 'eve'), (SELECT id FROM comments WHERE public_id = 'comment-0017-0017-0017-000000000017'), 'comment', 'like', datetime('now'));
 
 -- =============================================================================
 -- NOTIFICATIONS - For notification tests
