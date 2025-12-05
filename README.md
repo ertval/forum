@@ -602,7 +602,12 @@ docker run -p 8080:8080 forum:latest
    TLS_KEY_FILE=/path/to/key.pem
    ```
 
-3. Run with TLS:
+3. **Obtain proper TLS certificates** (not self-signed):
+   - **Recommended**: Use [Let's Encrypt](https://letsencrypt.org/) with certbot for free, automated certificates
+   - **Alternative**: Purchase from a commercial CA (DigiCert, Sectigo) or use a reverse proxy (Caddy, nginx) for TLS termination
+   - See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md#production-tls-certificates) for detailed setup instructions
+
+4. Run with TLS:
 
    ```bash
    ./forum

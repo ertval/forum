@@ -198,6 +198,105 @@ Migrations auto-apply on startup via `database.Migrator`.
 - Certificate configuration via environment variables
 - Self-signed certificate generation script: `scripts/generate_certs.sh`
 
+### Production TLS Certificates
+
+**For production deployments, use proper TLS certificates from a trusted Certificate Authority (CA), not self-signed certificates.**
+
+#### Option 1: Let's Encrypt (Free, Automated)
+
+**Recommended for most deployments.** Let's Encrypt provides free, automated TLS certificates with 90-day validity.
+
+**Using Certbot:**
+```bash
+# Install certbot
+sudo apt-get install certbot  # Debian/Ubuntu
+sudo yum install certbot      # RHEL/CentOS
+
+# Obtain certificate (standalone mode - requires port 80/443 temporarily)
+sudo certbot certonly --standalone -d yourdomain.com -d www.yourdomain.com
+
+# Certificates will be saved to:
+# /etc/letsencrypt/live/yourdomain.com/fullchain.pem  (certificate)
+# /etc/letsencrypt/live/yourdomain.com/privkey.pem    (private key)
+
+# Update .env with certificate paths
+TLS_CERT_FILE=/etc/letsencrypt/live/yourdomain.com/fullchain.pem
+TLS_KEY_FILE=/etc/letsencrypt/live/yourdomain.com/privkey.pem
+
+# Set up auto-renewal (certbot installs a systemd timer automatically)
+sudo certbot renew --dry-run  # Test renewal
+```
+
+**Using ACME clients (alternative):**
+- [acme.sh](https://github.com/acmesh-official/acme.sh) - Lightweight, shell-based
+- [lego](https://github.com/go-acme/lego) - Go-based ACME client
+
+#### Option 2: Commercial Certificate Authority
+
+Purchase certificates from trusted CAs like DigiCert, Sectigo, or GlobalSign for extended validation or wildcard certificates.
+
+**Steps:**
+1. Generate a Certificate Signing Request (CSR):
+   ```bash
+   openssl req -new -newkey rsa:2048 -nodes \
+     -keyout yourdomain.key \
+     -out yourdomain.csr \
+     -subj "/C=US/ST=State/L=City/O=Organization/CN=yourdomain.com"
+   ```
+
+2. Submit CSR to your chosen CA and complete their validation process
+
+3. Download the issued certificate and intermediate certificates
+
+4. Configure the forum:
+   ```env
+   TLS_CERT_FILE=/path/to/yourdomain.crt
+   TLS_KEY_FILE=/path/to/yourdomain.key
+   ```
+
+#### Option 3: Reverse Proxy with TLS Termination
+
+Use a reverse proxy (nginx, Caddy, Traefik) to handle TLS, allowing the forum to run on HTTP internally.
+
+**Example with Caddy (automatic HTTPS):**
+```caddy
+yourdomain.com {
+    reverse_proxy localhost:8080
+}
+```
+
+**Example with nginx:**
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name yourdomain.com;
+    
+    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+    
+    location / {
+        proxy_pass http://localhost:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+#### Certificate Permissions
+
+Ensure the forum process has read access to certificate files:
+```bash
+# Option 1: Copy certificates to forum directory with proper permissions
+sudo cp /etc/letsencrypt/live/yourdomain.com/*.pem /path/to/forum/certs/
+sudo chown forum-user:forum-user /path/to/forum/certs/*.pem
+sudo chmod 600 /path/to/forum/certs/*.pem
+
+# Option 2: Add forum user to certificate group
+sudo usermod -aG ssl-cert forum-user
+sudo chgrp ssl-cert /etc/letsencrypt/live/yourdomain.com/*.pem
+sudo chmod 640 /etc/letsencrypt/live/yourdomain.com/*.pem
+```
+
 ### Security Headers
 Applied via middleware to all responses:
 - **Content-Security-Policy**: Restricts resource loading
