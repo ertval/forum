@@ -11,9 +11,10 @@ Fast path to functional forum MVP following core requirements, then complete rem
 - **Auth module**: Registration, login, sessions (one per user), logout, session validation
 - **User module**: Domain, repository, stats (post/comment counts cached in users table)
 - **Post module**: Full CRUD, categories, filtering (category, user, liked posts, date range)
-- **Comment module**: Full CRUD with ownership validation
+- **Comment module**: Full CRUD with ownership validation, pagination for "My Comments" page
 - **Image upload**: PNG/JPEG/GIF support, 20MB limit, validation, persistence
 - **Filtering**: By category, My Posts, Liked Posts, date range (today/week/month/all)
+- **UI Enhancements**: Hover effects on reaction buttons, "Show More" pagination for comments
 
 ### ⚠️ Scaffolded (Needs Implementation)
 - **Reaction module**: Routes defined, but handlers return 501 Not Implemented

@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"forum/internal/modules/comment/domain"
 	"forum/internal/modules/comment/ports"
+
 	"github.com/gofrs/uuid/v5"
 )
 
@@ -132,6 +133,47 @@ func (r *SQLiteCommentRepository) ListByUser(ctx context.Context, userID int) ([
 	`
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var comments []*domain.Comment
+	for rows.Next() {
+		var comment domain.Comment
+		var postPublicID string
+		err := rows.Scan(
+			&comment.ID,
+			&comment.PublicID,
+			&comment.PostID,
+			&comment.UserID,
+			&comment.Content,
+			&comment.CreatedAt,
+			&comment.UpdatedAt,
+			&postPublicID,
+		)
+		if err != nil {
+			return nil, err
+		}
+		comment.PublicPostID = postPublicID
+		comments = append(comments, &comment)
+	}
+
+	return comments, nil
+}
+
+// ListByUserPaginated retrieves comments made by a user with limit and offset.
+func (r *SQLiteCommentRepository) ListByUserPaginated(ctx context.Context, userID int, limit, offset int) ([]*domain.Comment, error) {
+	query := `
+		SELECT c.id, c.public_id, c.post_id, c.author_id, c.content, c.created_at, c.updated_at, p.public_id as post_public_id
+		FROM comments c
+		INNER JOIN posts p ON c.post_id = p.id
+		WHERE c.author_id = ?
+		ORDER BY c.created_at DESC
+		LIMIT ? OFFSET ?
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
 	if err != nil {
 		return nil, err
 	}

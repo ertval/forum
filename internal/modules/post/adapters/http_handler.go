@@ -98,6 +98,22 @@ func (h *HTTPHandler) buildCurrentUser(ctx context.Context, userID int) map[stri
 	}
 }
 
+// GetUserWithStats extracts user info with stats from session cookie (for external handlers).
+// Returns a map with full user data including stats, or nil if not authenticated.
+func (h *HTTPHandler) GetUserWithStats(r *http.Request) map[string]interface{} {
+	cookie, err := r.Cookie("session_token")
+	if err != nil || cookie.Value == "" {
+		return nil
+	}
+
+	session, err := h.authService.ValidateSession(r.Context(), cookie.Value)
+	if err != nil || session == nil {
+		return nil
+	}
+
+	return h.buildCurrentUser(r.Context(), session.UserID)
+}
+
 // getInternalUserID converts a PublicID (UUID) from context to internal INT ID.
 // This is used by handlers to convert the UUID stored in context by middleware
 // to the internal INT ID needed for service layer calls.

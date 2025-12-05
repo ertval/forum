@@ -14,6 +14,35 @@ function clearPageError() {
     if (pageErrors) pageErrors.innerHTML = '';
 }
 
+// Helper function to update user comment count in sidebar and dropdown
+function updateUserCommentCount(delta) {
+    // Update in sidebar user-card
+    const sidebarStats = document.querySelectorAll('.sidebar-right .user-card .stat-item');
+    sidebarStats.forEach(function(statItem) {
+        const label = statItem.querySelector('.stat-label');
+        if (label && label.textContent.trim() === 'Comments') {
+            const valueEl = statItem.querySelector('.stat-value');
+            if (valueEl) {
+                const currentValue = parseInt(valueEl.textContent) || 0;
+                valueEl.textContent = Math.max(0, currentValue + delta);
+            }
+        }
+    });
+
+    // Update in dropdown menu
+    const dropdownStats = document.querySelectorAll('.user-menu-dropdown .stat-item');
+    dropdownStats.forEach(function(statItem) {
+        const label = statItem.querySelector('.stat-label');
+        if (label && label.textContent.trim() === 'Comments') {
+            const valueEl = statItem.querySelector('.stat-value');
+            if (valueEl) {
+                const currentValue = parseInt(valueEl.textContent) || 0;
+                valueEl.textContent = Math.max(0, currentValue + delta);
+            }
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Handle post reactions
     document.body.addEventListener('click', async function(e) {
@@ -60,6 +89,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (commentElement) {
                 startEditingComment(commentElement, commentId);
             }
+        }
+
+        // Handle post deletion
+        if (e.target.classList.contains('btn-delete-post')) {
+            e.preventDefault();
+            const postId = e.target.getAttribute('data-post-id');
+            await deletePost(postId);
         }
     });
 
@@ -199,6 +235,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (commentElement) {
                     commentElement.remove();
                 }
+
+                // Update the comments count in the section header
+                const commentsHeader = document.querySelector('.comments-section h2');
+                if (commentsHeader) {
+                    const match = commentsHeader.textContent.match(/Comments \((\d+)\)/);
+                    if (match) {
+                        const newCount = Math.max(0, parseInt(match[1]) - 1);
+                        commentsHeader.textContent = `Comments (${newCount})`;
+                    }
+                }
+
+                // Update user stats in sidebar and dropdown (comment count)
+                updateUserCommentCount(-1);
             } else {
                 const error = await response.json();
                 showPageError(error.error || 'Failed to delete comment');

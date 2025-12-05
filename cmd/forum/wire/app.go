@@ -124,9 +124,10 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *
 
 	// Register health check routes with proper configuration
 	server.Router().Handle("GET /health", httpserver.HealthPage(httpserver.HealthPageConfig{
-		Checker:   healthChecker,
-		Templates: handlers.Post.Templates(), // Reuse shared templates
-		AuthFunc:  handlers.Auth.GetCurrentUser,
+		Checker:          healthChecker,
+		Templates:        handlers.Post.Templates(), // Reuse shared templates
+		AuthFunc:         handlers.Auth.GetCurrentUser,
+		GetUserWithStats: handlers.Post.GetUserWithStats,
 	}))
 	server.Router().Handle("GET /health-api", httpserver.HealthAPI(healthChecker))
 

@@ -482,6 +482,7 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 // MyCommentsPage handles the page that displays all comments made by the current user.
 func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	const initialLimit = 20
 
 	// Get current user if logged in
 	var currentUser interface{}
@@ -512,8 +513,9 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Error fetching categories: %v\n", err)
 	}
 
-	// Fetch comments made by this user
+	// Fetch comments made by this user (with pagination)
 	var comments []interface{}
+	var hasMoreComments bool
 	if h.commentService != nil {
 		currentUserInfo, ok := currentUser.(map[string]interface{})
 		if !ok {
@@ -527,10 +529,17 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		commentsFromService, err := h.commentService.ListCommentsByUser(ctx, userPublicID)
+		// Fetch one extra to check if there are more comments
+		commentsFromService, err := h.commentService.ListCommentsByUserPaginated(ctx, userPublicID, initialLimit+1, 0)
 		if err != nil {
 			fmt.Printf("Error fetching user comments: %v\n", err)
 		} else {
+			// Check if there are more comments than the initial limit
+			if len(commentsFromService) > initialLimit {
+				hasMoreComments = true
+				commentsFromService = commentsFromService[:initialLimit]
+			}
+
 			for _, comment := range commentsFromService {
 				var authorUsername string
 				if comment.UserID != 0 {
@@ -616,6 +625,8 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 		"Categories":       categories,
 		"SelectedCategory": selectedCategory,
 		"DateFilter":       dateFilter,
+		"HasMoreComments":  hasMoreComments,
+		"Offset":           initialLimit,
 	}
 
 	// Parse templates individually for this page

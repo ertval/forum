@@ -131,3 +131,15 @@ func (s *Service) ListCommentsByUser(ctx context.Context, userPublicID string) (
 	// Call the repository to get comments by user ID
 	return s.commentRepo.ListByUser(ctx, user.ID)
 }
+
+// ListCommentsByUserPaginated retrieves comments made by a user with pagination.
+func (s *Service) ListCommentsByUserPaginated(ctx context.Context, userPublicID string, limit, offset int) ([]*domain.Comment, error) {
+	// First get the internal user ID from the public ID
+	user, err := s.userService.GetByPublicID(ctx, userPublicID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+
+	// Call the repository to get comments by user ID with pagination
+	return s.commentRepo.ListByUserPaginated(ctx, user.ID, limit, offset)
+}

@@ -32,6 +32,18 @@
             </div>
         </article>
         {{end}}
+
+        {{if .HasMoreComments}}
+        <div class="load-more-container">
+            <button id="load-more-comments-btn" 
+                    class="btn btn-secondary"
+                    data-offset="{{.Offset}}"
+                    data-category="{{.SelectedCategory}}"
+                    data-date-filter="{{.DateFilter}}">
+                Show More
+            </button>
+        </div>
+        {{end}}
     </div>
     {{else}}
     <p class="no-comments">You haven't made any comments yet.</p>
@@ -41,4 +53,5 @@
 
 {{define "scripts"}}
 <script src="/static/js/post-detail.js"></script>
+<script src="/static/js/load-more-comments.js"></script>
 {{end}}

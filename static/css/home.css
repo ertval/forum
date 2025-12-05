@@ -137,6 +137,13 @@
     border-radius: 10px;
     flex: 1;
     text-align: center;
+    transition: all 0.2s ease;
+    cursor: default;
+}
+
+.post-actions-compact span:hover {
+    background-color: #c9edd9;
+    color: #5a5a5a;
 }
 
 .no-posts-home {
