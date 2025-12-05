@@ -10,7 +10,8 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
-<body>
+{{ $showUserSidebar := and .User (not (or (eq .Title "Home") (eq .Title "Health Status"))) }}
+<body{{if and .User (not $showUserSidebar)}} data-page="no-user-sidebar" {{end}}>
     <header>
         <nav>
             <div class="container header-flex">
@@ -153,9 +154,10 @@
         </div>
     </footer>
 
+    <script src="/static/js/modal.js"></script>
     <script src="/static/js/app.js"></script>
     {{block "scripts" .}}{{end}}
-</body>
+    </body>
 
 </html>
 {{end}}

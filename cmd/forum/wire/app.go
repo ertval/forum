@@ -100,9 +100,10 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *
 	// Create server with config as single source of truth
 	server := httpserver.New(cfg)
 
-	// Register global middleware in correct order: recovery -> logger -> others
+	// Register global middleware in correct order: recovery -> logger -> security headers -> rate limit -> cors
 	server.RegisterMiddleware(httpserver.Recovery(lgr))
 	server.RegisterMiddleware(httpserver.Logger(lgr))
+	server.RegisterMiddleware(httpserver.SecurityHeaders(httpserver.DefaultSecurityHeadersConfig()))
 	server.RegisterMiddleware(httpserver.CORS([]string{"*"}))
 	server.RegisterMiddleware(httpserver.RateLimit(
 		cfg.Security.RateLimitRequests,

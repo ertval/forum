@@ -168,7 +168,7 @@ Shared infrastructure in `internal/platform/`:
 | config | Environment variable loading |
 | database | SQLite connection, migrations |
 | logger | Structured logging (JSON) |
-| httpserver | HTTP server, middleware |
+| httpserver | HTTP server, middleware, TLS, security headers |
 | errors | Common errors, HTTP status mapping |
 | validator | Input validation |
 | upload | Image upload handling |
@@ -187,6 +187,29 @@ Shared infrastructure in `internal/platform/`:
 ```
 
 Migrations auto-apply on startup via `database.Migrator`.
+
+---
+
+## Security
+
+### TLS Configuration
+- TLS 1.2 minimum version
+- Strong cipher suites (AEAD only)
+- Certificate configuration via environment variables
+- Self-signed certificate generation script: `scripts/generate_certs.sh`
+
+### Security Headers
+Applied via middleware to all responses:
+- **Content-Security-Policy**: Restricts resource loading
+- **X-Frame-Options**: DENY (prevents clickjacking)
+- **X-Content-Type-Options**: nosniff
+- **X-XSS-Protection**: 1; mode=block
+- **Referrer-Policy**: strict-origin-when-cross-origin
+- **Strict-Transport-Security**: max-age=31536000 (HSTS)
+- **Permissions-Policy**: Restricts browser features
+
+### Rate Limiting
+Per-IP request throttling to prevent abuse.
 
 ---
 

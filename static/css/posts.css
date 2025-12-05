@@ -39,6 +39,17 @@
     word-wrap: break-word;
 }
 
+/* Clickable card styling */
+.post-card.clickable-card {
+    cursor: pointer;
+}
+
+.post-card.clickable-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+    border-color: #a0c0d0;
+}
+
 /* When no image, make content span full width */
 .post-card:not(:has(.post-image)) {
     grid-template-columns: 1fr;

@@ -108,6 +108,11 @@
     display: none; /* Hidden by default on wide screens */
 }
 
+/* Always show user menu dropdown on pages without user sidebar (Home, Health Status) */
+body[data-page="no-user-sidebar"] .user-menu-container {
+    display: block;
+}
+
 .user-menu-btn {
     display: flex;
     align-items: center;

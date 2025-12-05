@@ -179,7 +179,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Handle post deletion (for edit form)
     window.deletePost = async function(postId) {
-        if (!confirm('Are you sure you want to delete this post?')) {
+        const confirmed = await confirmDelete('Post');
+        if (!confirmed) {
             return;
         }
         

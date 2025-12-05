@@ -108,7 +108,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Handle the global deletePost function that is called from inline onclick
     window.deletePost = async function(postId) {
-        if (!confirm('Are you sure you want to delete this post?')) {
+        const confirmed = await confirmDelete('Post');
+        if (!confirmed) {
             return;
         }
 
@@ -181,7 +182,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to delete a comment
     async function deleteComment(commentId) {
-        if (!confirm('Are you sure you want to delete this comment?')) {
+        const confirmed = await confirmDelete('Comment');
+        if (!confirmed) {
             return;
         }
 
@@ -265,12 +267,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 location.reload();
             } else {
                 const error = await response.json();
-                alert(error.error || 'Failed to update comment');
+                showPageError(error.error || 'Failed to update comment');
                 return false;
             }
         } catch (error) {
             console.error('Update comment error:', error);
-            alert('An error occurred while updating the comment');
+            showPageError('An error occurred while updating the comment');
             return false;
         }
         return true;
@@ -287,7 +289,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (textarea) {
                     const newContent = textarea.value.trim();
                     if (!newContent) {
-                        alert('Comment content cannot be empty');
+                        showPageError('Comment content cannot be empty');
                         return;
                     }
                     await updateComment(commentId, newContent);

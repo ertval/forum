@@ -140,11 +140,12 @@ Fast path to functional forum MVP following core requirements, then complete rem
 - [ ] Mark as read functionality
 - [ ] Notification list endpoint
 
-### Phase 12: Security Hardening [OPTIONAL]
-- [ ] HTTPS/TLS configuration
-- [ ] Rate limiting middleware
-- [ ] CSRF protection
-- [ ] Security headers (CSP, HSTS, etc.)
+### Phase 12: Security Hardening ✅
+- [x] HTTPS/TLS configuration (TLS 1.2+, strong cipher suites)
+- [x] Rate limiting middleware (per-IP/per-user)
+- [x] Security headers (CSP, HSTS, X-Frame-Options, X-XSS-Protection, Referrer-Policy)
+- [x] Certificate generation script (`scripts/generate_certs.sh`)
+- [x] Security headers tests
 
 ---
 
@@ -165,8 +166,7 @@ Fast path to functional forum MVP following core requirements, then complete rem
 ## Technical Debt & Known Issues
 
 1. **Reaction module incomplete**: Handlers return 501, needs full implementation
-2. **No rate limiting**: Should add per-IP/per-user rate limits
-3. **No CSRF protection**: Should add CSRF tokens for state-changing operations
+2. **CSRF protection**: Should add CSRF tokens for state-changing operations (optional enhancement)
 
 ---
 

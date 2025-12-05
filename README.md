@@ -50,14 +50,14 @@ A modern web forum built with Go, following Hexagonal Architecture principles. C
   - Reaction counts visible to all
   - Filter posts by user's liked posts
 
-### Security
+### Security ✅
 
-- **HTTPS/TLS** - TLS 1.2+ with strong cipher suites
-- **Rate Limiting** - Per-IP and per-user request throttling
-- **CSRF Protection** - Token-based CSRF prevention
+- **HTTPS/TLS** - TLS 1.2+ with strong cipher suites (AEAD)
+- **Rate Limiting** - Per-IP request throttling middleware
 - **Input Validation** - Email format, password strength, data sanitization
 - **Secure Sessions** - UUID tokens, server-side storage, secure cookies
-- **Security Headers** - CSP, X-Frame-Options, HSTS
+- **Security Headers** - CSP, X-Frame-Options, HSTS, X-XSS-Protection, Referrer-Policy, Permissions-Policy
+- **Certificate Generation** - Script for self-signed certificates (`scripts/generate_certs.sh`)
 
 ### Optional Features
 
