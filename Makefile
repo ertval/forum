@@ -1,4 +1,4 @@
-.PHONY: build run go test clean fmt vet mod tidy migrate migration docker-build docker-run docker-up docker-down up down help
+.PHONY: build run go test testv clean fmt vet mod tidy migrate migration docker-build docker-run docker-up docker-down up down help
 
 # Go parameters
 GOCMD=go
@@ -51,10 +51,29 @@ go:
 # Test scripts directory
 TEST_SCRIPTS_DIR=./scripts/tests
 
-# Run all tests: standard Go tests + tests directory + e2e bash scripts
+# Run all tests (quiet mode - shows only summary)
 test:
 	@echo "$(BLUE)=========================================$(NC)"
-	@echo "$(BLUE)Running Complete Test Suite$(NC)"
+	@echo "$(BLUE)Running Complete Test Suite (Quiet Mode)$(NC)"
+	@echo "$(BLUE)=========================================$(NC)"
+	@echo ""
+	@echo "$(BLUE)Step 1/3: Running all standard Go tests...$(NC)"
+	@$(GOTEST) ./... > /dev/null 2>&1 && echo "$(GREEN)✓ Go tests passed$(NC)" || (echo "$(RED)✗ Go tests failed$(NC)" && $(GOTEST) ./... && exit 1)
+	@echo ""
+	@echo "$(BLUE)Step 2/3: Running tests in tests/ directory...$(NC)"
+	@$(GOTEST) ./tests/... > /dev/null 2>&1 && echo "$(GREEN)✓ Tests directory passed$(NC)" || (echo "$(RED)✗ Tests directory failed$(NC)" && $(GOTEST) ./tests/... && exit 1)
+	@echo ""
+	@echo "$(BLUE)Step 3/3: Running e2e test scripts...$(NC)"
+	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh --quiet
+	@echo ""
+	@echo "$(GREEN)=========================================$(NC)"
+	@echo "$(GREEN)All tests complete!$(NC)"
+	@echo "$(GREEN)=========================================$(NC)"
+
+# Run all tests (verbose mode - shows all test output)
+tests:
+	@echo "$(BLUE)=========================================$(NC)"
+	@echo "$(BLUE)Running Complete Test Suite (Verbose Mode)$(NC)"
 	@echo "$(BLUE)=========================================$(NC)"
 	@echo ""
 	@echo "$(BLUE)Step 1/3: Running all standard Go tests...$(NC)"
@@ -214,7 +233,8 @@ help:
 	@echo "  $(GREEN)build$(NC)           - Build the binary"
 	@echo "  $(GREEN)run$(NC)             - Build and run the application"
 	@echo "  $(GREEN)run-go$(NC)          - Run the application with 'go run' (no build)"
-	@echo "  $(GREEN)test$(NC)            - Run all tests: Go tests + tests/ dir + e2e scripts"
+	@echo "  $(GREEN)test$(NC)            - Run all tests (quiet mode - summary only)"
+	@echo "  $(GREEN)testv$(NC)           - Run all tests (verbose mode - full output)"
 	@echo "  $(GREEN)test-go$(NC)         - Run only standard Go tests"
 	@echo "  $(GREEN)test-script$(NC)     - Run all e2e test scripts"
 	@echo "  $(GREEN)test-script-api$(NC) - Run API test script"

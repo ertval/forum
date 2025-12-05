@@ -194,9 +194,10 @@ else
 fi
 
 # Registration - duplicate email
+# Use valid "Name Surname" format for username
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"Unique Username $(date +%s)\",\"password\":\"password123\"}")
+    -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"Unique Testname\",\"password\":\"password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | head -n -1)
 if [ "$HTTP_CODE" = "409" ]; then
