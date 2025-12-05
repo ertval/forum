@@ -224,13 +224,22 @@
 
 /* Responsive Design - Layout */
 @media (max-width: 1200px) {
-    /* On medium screens, collapse to two columns (hide right sidebar, show dropdown) */
+    /* On medium screens, collapse to two columns (hide user card on right, show dropdown) */
     .page-layout-three-col {
         grid-template-columns: 260px 1fr;
     }
     
+    .page-layout-right {
+        grid-template-columns: 1fr;
+    }
+    
     .sidebar-right {
         display: none;
+    }
+    
+    /* Left sidebar stays visible */
+    .sidebar-left {
+        display: flex;
     }
     
     .user-menu-container {
@@ -249,13 +258,22 @@
     }
     
     .page-layout,
-    .page-layout-three-col,
+    .page-layout-three-col {
+        grid-template-columns: 1fr;
+    }
+    
     .page-layout-right {
         grid-template-columns: 1fr;
     }
     
     .sidebar-right {
         display: none;
+    }
+    
+    /* Left sidebar stays visible on small screens too */
+    .sidebar-left {
+        display: flex;
+        width: 100%;
     }
     
     .user-menu-container {

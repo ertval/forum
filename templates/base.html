@@ -68,14 +68,34 @@
     <main>
         <div class="container">
             {{/* Determine layout based on page type and user status */}}
-            {{ $showUserSidebar := and .User (not (or (eq .Title "Home") (eq .Title "Health Status") (eq .Title "Create Post") (eq .Title "Edit Post"))) }}
+            {{ $showUserSidebar := and .User (not (or (eq .Title "Home") (eq .Title "Health Status"))) }}
             {{ $showLeftSidebar := .ShowFilter }}
+            {{ $isPostFormPage := or (eq .Title "Create Post") (eq .Title "Edit Post") }}
             
             {{/* Three-column layout: filter left, content center, user right */}}
             {{ if and $showLeftSidebar $showUserSidebar }}
                 <div class="page-layout-three-col">
                     <aside class="sidebar-left">
                         {{ template "filter-card" . }}
+                    </aside>
+                    <div class="main-content">
+                        {{ template "content" . }}
+                    </div>
+                    <aside class="sidebar-right">
+                        {{ template "user-card" . }}
+                    </aside>
+                </div>
+            {{/* Three-column layout for Create/Edit Post: post sidebar left, content center, user right */}}
+            {{ else if and $showUserSidebar $isPostFormPage .ShowSidebar }}
+                <div class="page-layout-three-col">
+                    <aside class="sidebar-left">
+                        {{ if .ShowPostSidebar }}
+                            {{ if eq .Title "Create Post" }}
+                                {{ template "post-create-sidebar-cards" . }}
+                            {{ else }}
+                                {{ template "post-sidebar-cards" . }}
+                            {{ end }}
+                        {{ end }}
                     </aside>
                     <div class="main-content">
                         {{ template "content" . }}
@@ -94,7 +114,7 @@
                         {{ template "user-card" . }}
                     </aside>
                 </div>
-            {{/* Two-column layout: filter/sidebar left, content right */}}
+            {{/* Two-column layout: filter/sidebar left, content right (guest user) */}}
             {{ else if .ShowSidebar }}
                 <div class="page-layout">
                     <aside class="sidebar">
