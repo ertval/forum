@@ -35,3 +35,30 @@
         });
     }
 })();
+
+// Clickable Card - Makes entire post card clickable (except links and buttons)
+// Using event delegation for reliability with dynamically loaded content
+(function() {
+    document.addEventListener('click', function(event) {
+        // Find the closest clickable-card ancestor
+        const card = event.target.closest('.clickable-card');
+        if (!card) return;
+        
+        // Don't navigate if clicking on a link, button, or category tag
+        const target = event.target;
+        if (target.tagName === 'A' || 
+            target.tagName === 'BUTTON' || 
+            target.closest('a') || 
+            target.closest('button') ||
+            target.classList.contains('category-tag') ||
+            target.classList.contains('category-tag-compact')) {
+            return;
+        }
+        
+        // Navigate to the post detail page
+        const href = card.getAttribute('data-href');
+        if (href) {
+            window.location.href = href;
+        }
+    });
+})();

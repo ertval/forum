@@ -179,6 +179,23 @@
     text-decoration: underline;
 }
 
+/* Clickable Card - Makes entire card surface clickable */
+.clickable-card {
+    cursor: pointer;
+    position: relative;
+}
+
+.clickable-card a,
+.clickable-card button {
+    position: relative;
+    z-index: 2;
+}
+
+/* Prevent text selection on card click */
+.clickable-card:active {
+    user-select: none;
+}
+
 /* Responsive - Post Cards */
 @media (max-width: 768px) {
     .post-card {

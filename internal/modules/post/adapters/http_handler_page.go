@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"time"
 
 	authPorts "forum/internal/modules/auth/ports"
 	postDomain "forum/internal/modules/post/domain"
@@ -498,6 +499,19 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 
 	currentUser = h.buildCurrentUser(ctx, session.UserID)
 
+	// Get filter parameters
+	selectedCategory := r.URL.Query().Get("category")
+	dateFilter := r.URL.Query().Get("date_filter")
+	if dateFilter == "" {
+		dateFilter = "all"
+	}
+
+	// Fetch all categories for filter dropdown
+	categories, err := h.categoryService.List(ctx)
+	if err != nil {
+		fmt.Printf("Error fetching categories: %v\n", err)
+	}
+
 	// Fetch comments made by this user
 	var comments []interface{}
 	if h.commentService != nil {
@@ -528,11 +542,13 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 
 				var postTitle string
 				var postAuthorUsername string
+				var postCategories []string
 				if comment.PublicPostID != "" {
 					post, err := h.postService.GetPost(ctx, comment.PublicPostID)
 					if err == nil && post != nil {
 						postTitle = post.Title
 						postAuthorUsername = post.AuthorUsername
+						postCategories = post.Categories
 					} else {
 						postTitle = "Post not found"
 						postAuthorUsername = "Unknown"
@@ -542,6 +558,37 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 					postAuthorUsername = "Unknown"
 				}
 
+				// Apply category filter - skip if doesn't match
+				if selectedCategory != "" && len(postCategories) > 0 {
+					categoryMatch := false
+					for _, cat := range postCategories {
+						if cat == selectedCategory {
+							categoryMatch = true
+							break
+						}
+					}
+					if !categoryMatch {
+						continue
+					}
+				}
+
+				// Apply date filter
+				if dateFilter != "all" {
+					now := time.Now()
+					var cutoff time.Time
+					switch dateFilter {
+					case "today":
+						cutoff = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+					case "week":
+						cutoff = now.AddDate(0, 0, -7)
+					case "month":
+						cutoff = now.AddDate(0, -1, 0)
+					}
+					if comment.CreatedAt.Before(cutoff) {
+						continue
+					}
+				}
+
 				commentData := map[string]interface{}{
 					"PublicID":           comment.PublicID,
 					"AuthorUsername":     authorUsername,
@@ -549,6 +596,7 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 					"PostPublicID":       comment.PublicPostID,
 					"PostTitle":          postTitle,
 					"PostAuthorUsername": postAuthorUsername,
+					"PostCategories":     postCategories,
 					"CreatedAt":          comment.CreatedAt,
 					"UpdatedAt":          comment.UpdatedAt,
 					"Likes":              0,
@@ -560,9 +608,14 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]interface{}{
-		"Title":    "My Comments",
-		"User":     currentUser,
-		"Comments": comments,
+		"Title":            "My Comments",
+		"User":             currentUser,
+		"Comments":         comments,
+		"ShowFilter":       true,
+		"FilterAction":     "/comments",
+		"Categories":       categories,
+		"SelectedCategory": selectedCategory,
+		"DateFilter":       dateFilter,
 	}
 
 	// Parse templates individually for this page

@@ -64,3 +64,14 @@ func (r *SQLiteReactionRepository) CountByTargetPublicID(ctx context.Context, ta
 	// WHERE target_id = (SELECT id FROM posts/comments WHERE public_id = ?) AND target_type = ? AND type = ?
 	return 0, nil
 }
+
+// CountByUserID returns the total number of reactions given by a user.
+func (r *SQLiteReactionRepository) CountByUserID(ctx context.Context, userID int) (int, error) {
+	query := `SELECT COUNT(*) FROM reactions WHERE user_id = ?`
+	var count int
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}

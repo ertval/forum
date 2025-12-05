@@ -10,10 +10,11 @@ import (
 
 // MockReactionRepository implements ReactionRepository for testing
 type MockReactionRepository struct {
-	reactions     map[string]*domain.Reaction // Key: userID:targetPublicID:targetType
-	countFn       func(ctx context.Context, targetPublicID string, targetType string, reactionType domain.ReactionType) (int, error)
-	getByTargetFn func(ctx context.Context, targetPublicID string, targetType string) ([]*domain.Reaction, error)
-	deleteFn      func(ctx context.Context, userID int, targetPublicID string, targetType string) error
+	reactions       map[string]*domain.Reaction // Key: userID:targetPublicID:targetType
+	countFn         func(ctx context.Context, targetPublicID string, targetType string, reactionType domain.ReactionType) (int, error)
+	getByTargetFn   func(ctx context.Context, targetPublicID string, targetType string) ([]*domain.Reaction, error)
+	deleteFn        func(ctx context.Context, userID int, targetPublicID string, targetType string) error
+	countByUserIDFn func(ctx context.Context, userID int) (int, error)
 }
 
 func (m *MockReactionRepository) CountByTargetPublicID(ctx context.Context, targetPublicID string, targetType string, reactionType domain.ReactionType) (int, error) {
@@ -74,6 +75,19 @@ func (m *MockReactionRepository) Create(ctx context.Context, reaction *domain.Re
 	key := fmt.Sprintf("%d:%s:%s", reaction.UserID, reaction.PublicTargetID, reaction.TargetType)
 	m.reactions[key] = reaction
 	return nil
+}
+
+func (m *MockReactionRepository) CountByUserID(ctx context.Context, userID int) (int, error) {
+	if m.countByUserIDFn != nil {
+		return m.countByUserIDFn(ctx, userID)
+	}
+	count := 0
+	for _, reaction := range m.reactions {
+		if reaction.UserID == userID {
+			count++
+		}
+	}
+	return count, nil
 }
 
 func TestService_React(t *testing.T) {
