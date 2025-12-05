@@ -34,6 +34,9 @@ fi
 PASSED=0
 FAILED=0
 
+# Arrays to track created test data for cleanup
+CREATED_USERS=()
+
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
@@ -95,6 +98,20 @@ start_server() {
 }
 
 cleanup() {
+    echo ""
+    echo -e "${YELLOW}--- CLEANUP ---${NC}"
+    echo ""
+    
+    # Clean up test users from database directly
+    for email in "${CREATED_USERS[@]}"; do
+        if [ -n "$email" ]; then
+            sqlite3 "$DB_PATH" "DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE email='$email');" 2>/dev/null
+            sqlite3 "$DB_PATH" "DELETE FROM users WHERE email='$email';" 2>/dev/null
+        fi
+    done
+    
+    echo -e "${GREEN}✓ Test data cleaned up${NC}"
+    
     if [ -n "$SERVER_PID" ]; then
         kill $SERVER_PID 2>/dev/null || true
     fi
@@ -171,9 +188,11 @@ print_section "PASSWORD & SESSION SECURITY"
 print_question "Try creating a user. Check database - Are the passwords encrypted?"
 # Register a test user
 TIMESTAMP=$(date +%s)
+SEC_TEST_EMAIL="sectest_${TIMESTAMP}@test.com"
 curl -s -X POST "$BASE_URL_HTTP/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"sectest_${TIMESTAMP}@test.com\",\"username\":\"Security Test\",\"password\":\"${TEST_PASSWORD}\"}" > /dev/null 2>&1
+    -d "{\"email\":\"$SEC_TEST_EMAIL\",\"username\":\"Security Test\",\"password\":\"${TEST_PASSWORD}\"}" > /dev/null 2>&1
+CREATED_USERS+=("$SEC_TEST_EMAIL")
 
 # Check if password is hashed (bcrypt starts with $2a$ or $2b$)
 HASH=$(sqlite3 "$DB_PATH" "SELECT password_hash FROM users ORDER BY id DESC LIMIT 1;" 2>/dev/null || echo "")

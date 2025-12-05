@@ -340,6 +340,17 @@ cleanup() {
     echo ""
     info_log "Cleaning up..."
     
+    # Delete created posts via API
+    if [ ${#CREATED_POST_IDS[@]} -gt 0 ] && [ -n "$SESSION_TOKEN" ]; then
+        for post_id in "${CREATED_POST_IDS[@]}"; do
+            if [ -n "$post_id" ]; then
+                curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
+                    -H "Cookie: session_token=$SESSION_TOKEN" > /dev/null 2>&1
+            fi
+        done
+        debug_log "Deleted ${#CREATED_POST_IDS[@]} test posts"
+    fi
+    
     # Stop server if we started it
     if [ -z "$NO_SERVER" ]; then
         stop_server
@@ -357,6 +368,8 @@ cleanup() {
     else
         [ -f "$SERVER_LOG" ] && info_log "Server log saved at: $SERVER_LOG"
     fi
+    
+    echo -e "${GREEN}✓ Test data cleaned up${NC}"
 }
 
 trap cleanup EXIT INT TERM

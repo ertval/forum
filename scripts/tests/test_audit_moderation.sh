@@ -39,6 +39,10 @@ fi
 PASSED=0
 FAILED=0
 
+# Arrays to track created test data for cleanup
+CREATED_POSTS=()
+CREATED_COMMENTS=()
+
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
@@ -113,6 +117,38 @@ start_server() {
 }
 
 cleanup() {
+    echo ""
+    echo -e "${YELLOW}--- CLEANUP ---${NC}"
+    echo ""
+    
+    # Re-login to get a fresh session for cleanup
+    if [ ${#CREATED_POSTS[@]} -gt 0 ] || [ ${#CREATED_COMMENTS[@]} -gt 0 ]; then
+        RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$USER_EMAIL\",\"password\":\"$USER_PASSWORD\"}" 2>/dev/null)
+        CLEANUP_SESSION=$(extract_session_cookie "$RESPONSE")
+        
+        if [ -n "$CLEANUP_SESSION" ]; then
+            # Delete created posts (this will cascade delete comments and reactions)
+            for post_id in "${CREATED_POSTS[@]}"; do
+                if [ -n "$post_id" ]; then
+                    curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
+                        -H "Cookie: session_token=$CLEANUP_SESSION" > /dev/null 2>&1
+                fi
+            done
+            
+            # Delete created comments (if not already deleted via cascade)
+            for comment_id in "${CREATED_COMMENTS[@]}"; do
+                if [ -n "$comment_id" ]; then
+                    curl -s -X DELETE "$BASE_URL/api/comments/$comment_id" \
+                        -H "Cookie: session_token=$CLEANUP_SESSION" > /dev/null 2>&1
+                fi
+            done
+        fi
+    fi
+    
+    echo -e "${GREEN}✓ Test data cleaned up${NC}"
+    
     if [ -n "$SERVER_PID" ]; then
         kill $SERVER_PID 2>/dev/null || true
     fi
@@ -196,8 +232,11 @@ if [ -n "$SESSION_COOKIE" ]; then
         -H "Cookie: session_token=$SESSION_COOKIE" \
         -d '{"title":"Moderation Test Post","content":"Testing user capabilities","categories":["General"]}')
     POST_CODE=$(echo "$POST_RESPONSE" | tail -n1)
+    POST_BODY=$(echo "$POST_RESPONSE" | sed '$d')
     
     if [ "$POST_CODE" = "201" ]; then
+        POST_ID=$(echo "$POST_BODY" | grep -o '"id":"[^"]*"' | sed 's/"id":"\([^"]*\)"/\1/' | head -n 1)
+        [ -n "$POST_ID" ] && CREATED_POSTS+=("$POST_ID")
         # Get post ID for comment
         POST_ID=$(sqlite3 "$DB_PATH" "SELECT public_id FROM posts ORDER BY id DESC LIMIT 1;" 2>/dev/null)
         
@@ -207,8 +246,11 @@ if [ -n "$SESSION_COOKIE" ]; then
             -H "Cookie: session_token=$SESSION_COOKIE" \
             -d '{"content":"Test comment from user"}')
         COMMENT_CODE=$(echo "$COMMENT_RESPONSE" | tail -n1)
+        COMMENT_BODY=$(echo "$COMMENT_RESPONSE" | sed '$d')
         
         if [ "$COMMENT_CODE" = "201" ]; then
+            COMMENT_ID=$(echo "$COMMENT_BODY" | grep -o '"id":"[^"]*"' | sed 's/"id":"\([^"]*\)"/\1/' | head -n 1)
+            [ -n "$COMMENT_ID" ] && CREATED_COMMENTS+=("$COMMENT_ID")
             print_answer "YES" "User can create posts and comments"
         else
             print_answer "NO" "User can create posts but not comments"

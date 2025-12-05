@@ -34,6 +34,9 @@ fi
 
 PASSED=0
 FAILED=0
+
+# Arrays to track created test data for cleanup
+CREATED_POSTS=()
 CREATED_POST_ID=""
 
 # =============================================================================
@@ -100,6 +103,22 @@ start_server() {
 }
 
 cleanup() {
+    echo ""
+    echo -e "${YELLOW}--- CLEANUP ---${NC}"
+    echo ""
+    
+    # Delete created posts via API
+    if [ ${#CREATED_POSTS[@]} -gt 0 ] && [ -n "$SESSION_COOKIE" ]; then
+        for post_id in "${CREATED_POSTS[@]}"; do
+            if [ -n "$post_id" ]; then
+                curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
+                    -H "Cookie: session_token=$SESSION_COOKIE" > /dev/null 2>&1
+            fi
+        done
+    fi
+    
+    echo -e "${GREEN}✓ Test data cleaned up${NC}"
+    
     if [ -n "$SERVER_PID" ]; then
         kill $SERVER_PID 2>/dev/null || true
     fi
@@ -249,7 +268,8 @@ CREATE_RESPONSE=$(curl -s -X POST "$BASE_URL/api/posts" \
     -H "Cookie: session_token=$SESSION_COOKIE" \
     -H "Content-Type: application/json" \
     -d '{"title":"Edit Test Post","content":"This post will be edited","categories":["General"]}')
-CREATED_POST_ID=$(echo "$CREATE_RESPONSE" | grep -o '"public_id":"[^"]*"' | head -1 | cut -d'"' -f4)
+CREATED_POST_ID=$(echo "$CREATE_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+[ -n "$CREATED_POST_ID" ] && CREATED_POSTS+=("$CREATED_POST_ID")
 
 # Q: Can users edit their own posts?
 print_question "Can users edit their own posts?"

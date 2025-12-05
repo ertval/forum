@@ -29,6 +29,10 @@ fi
 PASSED=0
 FAILED=0
 
+# Arrays to track created test data for cleanup
+CREATED_POSTS=()
+CREATED_USERS=()
+
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
@@ -89,6 +93,30 @@ start_server() {
 }
 
 cleanup() {
+    echo ""
+    echo -e "${YELLOW}--- CLEANUP ---${NC}"
+    echo ""
+    
+    # Delete created posts via API
+    if [ ${#CREATED_POSTS[@]} -gt 0 ] && [ -n "$SESSION_COOKIE" ]; then
+        for post_id in "${CREATED_POSTS[@]}"; do
+            if [ -n "$post_id" ]; then
+                curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
+                    -H "Cookie: session_token=$SESSION_COOKIE" > /dev/null 2>&1
+            fi
+        done
+    fi
+    
+    # Clean up test users from database directly
+    for username in "${CREATED_USERS[@]}"; do
+        if [ -n "$username" ]; then
+            sqlite3 "$DB_PATH" "DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE username='$username');" 2>/dev/null
+            sqlite3 "$DB_PATH" "DELETE FROM users WHERE username='$username';" 2>/dev/null
+        fi
+    done
+    
+    echo -e "${GREEN}✓ Test data cleaned up${NC}"
+    
     if [ -n "$SERVER_PID" ]; then
         kill $SERVER_PID 2>/dev/null || true
     fi
@@ -141,8 +169,11 @@ HTTP_CODE2=$(echo "$RESPONSE2" | tail -n1)
 
 if [ "$HTTP_CODE1" = "201" ] && [ "$HTTP_CODE2" = "409" ]; then
     print_answer "YES" "First registration succeeded (201), second failed with conflict (409)"
+    CREATED_USERS+=("$UNIQUE_USERNAME")
 elif [ "$HTTP_CODE2" = "409" ] || [ "$HTTP_CODE2" = "400" ]; then
     print_answer "YES" "Duplicate registration returns error ($HTTP_CODE2)"
+    # User might have been created from previous run
+    CREATED_USERS+=("$UNIQUE_USERNAME")
 else
     print_answer "NO" "Duplicate registration not properly detected (got $HTTP_CODE2)"
 fi
@@ -181,7 +212,10 @@ if [ "$HTTP_CODE" = "200" ] && [ -n "$SESSION_COOKIE" ]; then
         -H "Content-Type: application/json" \
         -d '{"title":"Auth Test Post","content":"Testing rights","categories":["General"]}')
     CREATE_CODE=$(echo "$CREATE_RESPONSE" | tail -n1)
+    CREATE_BODY=$(echo "$CREATE_RESPONSE" | sed '$d')
     if [ "$CREATE_CODE" = "201" ]; then
+        POST_ID=$(echo "$CREATE_BODY" | grep -o '"id":"[^"]*"' | sed 's/"id":"\([^"]*\)"/\1/' | head -n 1)
+        [ -n "$POST_ID" ] && CREATED_POSTS+=("$POST_ID")
         print_answer "YES" "Login successful and can create posts (registered user rights)"
     else
         print_answer "YES" "Login successful with session token"

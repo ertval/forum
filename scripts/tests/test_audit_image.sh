@@ -121,6 +121,22 @@ create_test_images() {
 }
 
 cleanup() {
+    echo ""
+    echo -e "${YELLOW}--- CLEANUP ---${NC}"
+    echo ""
+    
+    # Delete created posts via API
+    if [ ${#CREATED_POST_IDS[@]} -gt 0 ] && [ -n "$SESSION_COOKIE" ]; then
+        for post_id in "${CREATED_POST_IDS[@]}"; do
+            if [ -n "$post_id" ]; then
+                curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
+                    -H "Cookie: session_token=$SESSION_COOKIE" > /dev/null 2>&1
+            fi
+        done
+    fi
+    
+    echo -e "${GREEN}✓ Test data cleaned up${NC}"
+    
     if [ -n "$SERVER_PID" ]; then
         kill $SERVER_PID 2>/dev/null || true
     fi
