@@ -343,7 +343,7 @@ fi
 print_section "ACCESS CONTROL"
 
 # Get testuser's post ID
-TESTUSER_POST=$(sqlite3 "$DB_PATH" "SELECT p.public_id FROM posts p JOIN users u ON p.author_id = u.id WHERE u.username = 'testuser' LIMIT 1;" 2>/dev/null)
+TESTUSER_POST=$(sqlite3 "$DB_PATH" "SELECT p.public_id FROM posts p JOIN users u ON p.author_id = u.id WHERE u.username = 'Test User' LIMIT 1;" 2>/dev/null)
 
 # Edit own post - should work
 if [ -n "$TESTUSER_POST" ] && [ -n "$SESSION_COOKIE" ]; then

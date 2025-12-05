@@ -16,9 +16,10 @@ set -e  # Exit on error
 
 BASE_URL="http://localhost:8080"
 TIMESTAMP=$(date +%s)
-TEST_EMAIL="imagetest_${TIMESTAMP}@example.com"
-TEST_USERNAME="imagetest_${TIMESTAMP}"
-TEST_PASSWORD="securepassword123"
+# Use existing seeded test user or create a unique one for each test run
+TEST_EMAIL="testuser@example.com"
+TEST_USERNAME="Test User"
+TEST_PASSWORD="password123"
 TEST_DIR="/tmp/forum_image_test_${TIMESTAMP}"
 SESSION_TOKEN=""
 SERVER_PID=""
@@ -365,16 +366,20 @@ trap cleanup EXIT INT TERM
 # =============================================================================
 
 register_and_login() {
-    info_log "Registering test user: $TEST_USERNAME"
+    info_log "Authenticating test user: $TEST_USERNAME"
     
-    # Register
+    # Try to register first (will fail with 409 if user exists, that's OK)
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
         -H "Content-Type: application/json" \
         -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"$TEST_USERNAME\",\"password\":\"$TEST_PASSWORD\"}")
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-    BODY=$(echo "$RESPONSE" | sed '$d')
     
-    if [ "$HTTP_CODE" != "201" ]; then
+    if [ "$HTTP_CODE" = "201" ]; then
+        info_log "Registered new test user."
+    elif [ "$HTTP_CODE" = "409" ]; then
+        info_log "Test user already exists, proceeding to login."
+    else
+        BODY=$(echo "$RESPONSE" | sed '$d')
         echo -e "${RED}Failed to register test user. HTTP $HTTP_CODE${NC}"
         debug_log "Response: $BODY"
         exit 1

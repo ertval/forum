@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             if (response.ok) {
-                window.location.href = '/';
+                window.location.href = '/board?my_posts=true';
             } else {
                 const error = await response.json();
                 const formErrors = document.getElementById('form-errors');

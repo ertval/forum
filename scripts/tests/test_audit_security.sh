@@ -173,7 +173,7 @@ print_question "Try creating a user. Check database - Are the passwords encrypte
 TIMESTAMP=$(date +%s)
 curl -s -X POST "$BASE_URL_HTTP/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"sectest_${TIMESTAMP}@test.com\",\"username\":\"sectest_${TIMESTAMP}\",\"password\":\"${TEST_PASSWORD}\"}" > /dev/null 2>&1
+    -d "{\"email\":\"sectest_${TIMESTAMP}@test.com\",\"username\":\"Security Test\",\"password\":\"${TEST_PASSWORD}\"}" > /dev/null 2>&1
 
 # Check if password is hashed (bcrypt starts with $2a$ or $2b$)
 HASH=$(sqlite3 "$DB_PATH" "SELECT password_hash FROM users ORDER BY id DESC LIMIT 1;" 2>/dev/null || echo "")

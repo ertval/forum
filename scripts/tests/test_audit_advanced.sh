@@ -130,7 +130,7 @@ if [ -z "$SESSION_COOKIE" ]; then
     echo -e "${RED}Failed to login. Creating test user...${NC}"
     curl -s -X POST "$BASE_URL/api/auth/register" \
         -H "Content-Type: application/json" \
-        -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"advancedtest\",\"password\":\"$TEST_PASSWORD\"}" > /dev/null
+        -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"Advanced Test\",\"password\":\"$TEST_PASSWORD\"}" > /dev/null
     RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
         -H "Content-Type: application/json" \
         -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}")

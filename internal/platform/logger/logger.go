@@ -99,7 +99,7 @@ func New(level Level, output io.Writer) *Logger {
 		TimePrecision: TimePrecisionSeconds,
 		OmitFields:    []string{"user_agent"},
 		// default to show HTTP request info and other essential fields
-		AllowedFields: []string{"method", "path", "query", "status", "size", "duration_ms", "remote", "url", "response", "error", "errors"},
+		AllowedFields: []string{"method", "path", "query", "status", "size", "duration_ms", "remote", "url", "response", "error", "errors", "proto"},
 		MaxLineWidth:  200,
 		Colorize:      true,
 	}
@@ -250,8 +250,8 @@ func colorForMessage(msg string, lvl Level) string {
 }
 
 // formatHTTPRequest creates a compact, colorful one-line log for HTTP requests.
-// Format: TS STATUS METHOD PATH?QUERY (SIZEb, DURms) [IP]
-// Example: 18:33:58 ✓ 200 GET /board?my_posts=true (6.4kb, 1ms) [127.0.0.1]
+// Format: TS PROTO STATUS METHOD PATH?QUERY (SIZEb, DURms) [IP]
+// Example: 18:33:58 🔒 ✓ 200 GET /board?my_posts=true (6.4kb, 1ms) [127.0.0.1]
 func (l *Logger) formatHTTPRequest(ts string, level Level, data map[string]any) string {
 	// Extract fields
 	method := getStringField(data, "method", "???")
@@ -261,6 +261,7 @@ func (l *Logger) formatHTTPRequest(ts string, level Level, data map[string]any) 
 	size := getIntField(data, "size", 0)
 	durationMs := getIntField(data, "duration_ms", 0)
 	remote := getStringField(data, "remote", "")
+	proto := getStringField(data, "proto", "http")
 
 	// Build the full path with query
 	fullPath := path
@@ -296,7 +297,19 @@ func (l *Logger) formatHTTPRequest(ts string, level Level, data map[string]any) 
 	}
 
 	// Build compact output
-	// Format: TS INDICATOR STATUS METHOD PATH (SIZE, DUR) [IP]
+	// Format: TS PROTO INDICATOR STATUS METHOD PATH (SIZE, DUR) [IP]
+	// Protocol indicator: 🔒 for HTTPS, 🔓 for HTTP
+	var protoIndicator string
+	var protoColor string
+	if proto == "https" {
+		protoIndicator = "🔒"
+		protoColor = colorGreen
+	} else {
+		protoIndicator = "🔓"
+		protoColor = colorYellow
+	}
+	protoPart := l.applyColor(protoIndicator, protoColor)
+
 	statusPart := l.applyColor(fmt.Sprintf("%s %d", statusIndicator, status), statusColor)
 	methodPart := l.applyColor(fmt.Sprintf("%-4s", method), methodColor)
 
@@ -304,7 +317,7 @@ func (l *Logger) formatHTTPRequest(ts string, level Level, data map[string]any) 
 	metaPart := l.applyColor(fmt.Sprintf("(%s, %dms)", sizeStr, durationMs), colorWhite)
 	ipPart := l.applyColor(fmt.Sprintf("[%s]", ip), colorWhite)
 
-	return fmt.Sprintf("%s %s %s %s %s %s", ts, statusPart, methodPart, fullPath, metaPart, ipPart)
+	return fmt.Sprintf("%s %s %s %s %s %s %s", ts, protoPart, statusPart, methodPart, fullPath, metaPart, ipPart)
 }
 
 // colorForMethod returns a color based on HTTP method.

@@ -79,7 +79,7 @@ func TestAuthModule_NoInternalIDExposure(t *testing.T) {
 	t.Run("Register creates user with PublicID", func(t *testing.T) {
 		ctx := context.Background()
 		email := fmt.Sprintf("test%d@example.com", time.Now().UnixNano())
-		username := fmt.Sprintf("user%d", time.Now().UnixNano()%1000000)
+		username := "John Smith"
 		password := "password123"
 
 		// Register user
@@ -121,7 +121,7 @@ func TestAuthModule_NoInternalIDExposure(t *testing.T) {
 	t.Run("Login and ValidateSession work correctly", func(t *testing.T) {
 		ctx := context.Background()
 		email := fmt.Sprintf("login%d@example.com", time.Now().UnixNano())
-		username := fmt.Sprintf("loginuser%d", time.Now().UnixNano()%1000000)
+		username := "Jane Doe"
 		password := "password123"
 
 		// Register user first
@@ -171,7 +171,7 @@ func TestAuthModule_NoInternalIDExposure(t *testing.T) {
 
 		ctx := context.Background()
 		email := fmt.Sprintf("api%d@example.com", time.Now().UnixNano())
-		username := fmt.Sprintf("apiuser%d", time.Now().UnixNano()%1000000)
+		username := "Api User"
 		password := "password123"
 
 		userID, _, err := authService.Register(ctx, email, username, password)

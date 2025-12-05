@@ -226,35 +226,35 @@ func TestService_Register(t *testing.T) {
 		{
 			name:          "successful registration",
 			email:         "test@example.com",
-			username:      "testuser",
+			username:      "Test User",
 			password:      "password123",
 			expectedError: nil,
 		},
 		{
 			name:          "invalid email format",
 			email:         "invalid-email",
-			username:      "testuser",
+			username:      "Test User",
 			password:      "password123",
 			expectedError: domain.ErrInvalidEmail,
 		},
 		{
 			name:          "empty email",
 			email:         "",
-			username:      "testuser",
+			username:      "Test User",
 			password:      "password123",
 			expectedError: domain.ErrInvalidEmail,
 		},
 		{
 			name:          "empty password",
 			email:         "test@example.com",
-			username:      "testuser",
+			username:      "Test User",
 			password:      "",
 			expectedError: domain.ErrWeakPassword,
 		},
 		{
 			name:          "weak password",
 			email:         "test@example.com",
-			username:      "testuser",
+			username:      "Test User",
 			password:      "123", // Too short
 			expectedError: domain.ErrWeakPassword,
 		},
@@ -268,7 +268,7 @@ func TestService_Register(t *testing.T) {
 		{
 			name:          "email already exists",
 			email:         "existing@example.com",
-			username:      "testuser",
+			username:      "Test User",
 			password:      "password123",
 			expectedError: domain.ErrUserAlreadyExists,
 			setup: func() {
@@ -331,7 +331,7 @@ func TestService_Login(t *testing.T) {
 	testUser := &userDomain.User{
 		ID:           1,
 		Email:        "test@example.com",
-		Username:     "testuser",
+		Username:     "Test User",
 		PasswordHash: string(passwordHash),
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
