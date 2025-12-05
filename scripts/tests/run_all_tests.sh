@@ -34,18 +34,14 @@ echo ""
 # Get script name to exclude itself
 THIS_SCRIPT=$(basename "${BASH_SOURCE[0]}")
 
-# Find all test scripts
+# Find all test scripts and sort them alphabetically by filename
 echo -e "${YELLOW}Discovering test scripts...${NC}"
 TEST_SCRIPTS=()
 while IFS= read -r script; do
+    TEST_SCRIPTS+=("$script")
     script_name=$(basename "$script")
-    # Exclude this script and non-test scripts
-    if [ "$script_name" != "$THIS_SCRIPT" ] && \
-       [[ "$script_name" == test_*.sh ]]; then
-        TEST_SCRIPTS+=("$script")
-        echo -e "  ${GREEN}✓${NC} Found: $script_name"
-    fi
-done < <(find "$SCRIPT_DIR" -maxdepth 1 -name "*.sh" -type f | sort)
+    echo -e "  ${GREEN}✓${NC} Found: $script_name"
+done < <(find "$SCRIPT_DIR" -maxdepth 1 -name "test_*.sh" -type f -exec basename {} \; | sort | while read name; do echo "$SCRIPT_DIR/$name"; done)
 
 echo ""
 echo -e "${YELLOW}Found ${#TEST_SCRIPTS[@]} test script(s)${NC}"
@@ -176,7 +172,8 @@ echo -e "${BLUE}║                    FINAL SUMMARY                           �
 echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
-for script_name in "${!RESULTS[@]}"; do
+# Display results in alphabetical order
+for script_name in $(echo "${!RESULTS[@]}" | tr ' ' '\n' | sort); do
     result="${RESULTS[$script_name]}"
     if [ "$result" = "PASS" ]; then
         echo -e "  ${GREEN}✓${NC} $script_name - ${GREEN}PASSED${NC}"

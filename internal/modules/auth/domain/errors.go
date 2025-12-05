@@ -17,8 +17,11 @@ var (
 	// ErrInvalidSession is returned when a session is invalid.
 	ErrInvalidSession = errors.New("invalid session")
 
-	// ErrUserAlreadyExists is returned when trying to register with an existing email.
-	ErrUserAlreadyExists = errors.New("user with this email already exists")
+	// ErrEmailAlreadyExists is returned when trying to register with an existing email.
+	ErrEmailAlreadyExists = errors.New("user with this email already exists")
+
+	// ErrUsernameAlreadyExists is returned when trying to register with an existing username.
+	ErrUsernameAlreadyExists = errors.New("user with this username already exists")
 
 	// ErrInvalidEmail is returned when email format is invalid.
 	ErrInvalidEmail = errors.New("invalid email format")

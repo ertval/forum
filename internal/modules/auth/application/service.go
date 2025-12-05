@@ -65,7 +65,7 @@ func (s *Service) Register(ctx context.Context, email, username, password string
 		return 0, nil, err
 	}
 	if emailExists {
-		return 0, nil, domain.ErrUserAlreadyExists
+		return 0, nil, domain.ErrEmailAlreadyExists
 	}
 
 	usernameExists, err := s.userService.ExistsByUsername(ctx, username)
@@ -73,7 +73,7 @@ func (s *Service) Register(ctx context.Context, email, username, password string
 		return 0, nil, err
 	}
 	if usernameExists {
-		return 0, nil, domain.ErrUserAlreadyExists
+		return 0, nil, domain.ErrUsernameAlreadyExists
 	}
 
 	// 3. Hash the password

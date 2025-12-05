@@ -196,12 +196,34 @@ fi
 # Registration - duplicate email
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"New User\",\"password\":\"password123\"}")
+    -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"Unique Username $(date +%s)\",\"password\":\"password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-if [ "$HTTP_CODE" = "409" ] || [ "$HTTP_CODE" = "400" ]; then
-    print_test "POST /api/auth/register - Duplicate email (409)" "PASS"
+BODY=$(echo "$RESPONSE" | head -n -1)
+if [ "$HTTP_CODE" = "409" ]; then
+    if echo "$BODY" | grep -qi "email"; then
+        print_test "POST /api/auth/register - Duplicate email (409 with email message)" "PASS"
+    else
+        print_test "POST /api/auth/register - Duplicate email (409)" "PASS"
+    fi
 else
-    print_test "POST /api/auth/register - Duplicate email (409)" "FAIL" "Expected 409/400, got $HTTP_CODE"
+    print_test "POST /api/auth/register - Duplicate email (409)" "FAIL" "Expected 409, got $HTTP_CODE"
+fi
+
+# Registration - duplicate username
+EXISTING_USERNAME=$(sqlite3 "$DB_PATH" "SELECT username FROM users LIMIT 1;" 2>/dev/null)
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"unique_$(date +%s)@test.com\",\"username\":\"$EXISTING_USERNAME\",\"password\":\"password123\"}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | head -n -1)
+if [ "$HTTP_CODE" = "409" ]; then
+    if echo "$BODY" | grep -qi "username"; then
+        print_test "POST /api/auth/register - Duplicate username (409 with username message)" "PASS"
+    else
+        print_test "POST /api/auth/register - Duplicate username (409)" "PASS"
+    fi
+else
+    print_test "POST /api/auth/register - Duplicate username (409)" "FAIL" "Expected 409, got $HTTP_CODE"
 fi
 
 # Registration - invalid email format

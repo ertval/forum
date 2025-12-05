@@ -198,15 +198,46 @@ fi
 
 # Q: Does the project detect if the email or username is already taken?
 print_question "Does the project detect if the email or user name is already taken in the registration?"
-# Try registering with existing email
+
+# Test 1: Try registering with existing email (should fail with 409)
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"New User\",\"password\":\"password123\"}")
+    -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"Unique Username $(date +%s)\",\"password\":\"password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-if [ "$HTTP_CODE" = "409" ] || [ "$HTTP_CODE" = "400" ]; then
-    print_answer "YES" "Returns error for duplicate email/username"
+BODY=$(echo "$RESPONSE" | head -n -1)
+EMAIL_CHECK_PASSED=false
+if [ "$HTTP_CODE" = "409" ]; then
+    if echo "$BODY" | grep -qi "email"; then
+        EMAIL_CHECK_PASSED=true
+    else
+        EMAIL_CHECK_PASSED=true  # 409 is correct even without specific message
+    fi
+fi
+
+# Test 2: Try registering with existing username (should fail with 409)
+EXISTING_USERNAME=$(sqlite3 "$DB_PATH" "SELECT username FROM users LIMIT 1;" 2>/dev/null)
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"unique_$(date +%s)@test.com\",\"username\":\"$EXISTING_USERNAME\",\"password\":\"password123\"}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | head -n -1)
+USERNAME_CHECK_PASSED=false
+if [ "$HTTP_CODE" = "409" ]; then
+    if echo "$BODY" | grep -qi "username"; then
+        USERNAME_CHECK_PASSED=true
+    else
+        USERNAME_CHECK_PASSED=true  # 409 is correct even without specific message
+    fi
+fi
+
+if [ "$EMAIL_CHECK_PASSED" = true ] && [ "$USERNAME_CHECK_PASSED" = true ]; then
+    print_answer "YES" "Returns 409 for both duplicate email AND duplicate username"
+elif [ "$EMAIL_CHECK_PASSED" = true ]; then
+    print_answer "NO" "Only detects duplicate email, not username"
+elif [ "$USERNAME_CHECK_PASSED" = true ]; then
+    print_answer "NO" "Only detects duplicate username, not email"
 else
-    print_answer "NO" "Does not detect duplicates (got $HTTP_CODE)"
+    print_answer "NO" "Does not detect duplicates"
 fi
 
 # Q: Is it possible to register?

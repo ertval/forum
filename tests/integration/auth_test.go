@@ -167,8 +167,8 @@ func TestAuthIntegration(t *testing.T) {
 		if err == nil {
 			t.Fatal("Expected error for duplicate email registration")
 		}
-		if err != authDomain.ErrUserAlreadyExists {
-			t.Fatalf("Expected ErrUserAlreadyExists for duplicate email, got: %v", err)
+		if err != authDomain.ErrEmailAlreadyExists {
+			t.Fatalf("Expected ErrEmailAlreadyExists for duplicate email, got: %v", err)
 		}
 
 		// Test duplicate username
@@ -177,8 +177,8 @@ func TestAuthIntegration(t *testing.T) {
 		if err == nil {
 			t.Fatal("Expected error for duplicate username registration")
 		}
-		if err != authDomain.ErrUserAlreadyExists {
-			t.Fatalf("Expected ErrUserAlreadyExists for duplicate username, got: %v", err)
+		if err != authDomain.ErrUsernameAlreadyExists {
+			t.Fatalf("Expected ErrUsernameAlreadyExists for duplicate username, got: %v", err)
 		}
 	})
 

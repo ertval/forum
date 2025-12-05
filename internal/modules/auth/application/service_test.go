@@ -270,10 +270,22 @@ func TestService_Register(t *testing.T) {
 			email:         "existing@example.com",
 			username:      "Test User",
 			password:      "password123",
-			expectedError: domain.ErrUserAlreadyExists,
+			expectedError: domain.ErrEmailAlreadyExists,
 			setup: func() {
 				mockUserService.emailExists = map[string]bool{
 					"existing@example.com": true,
+				}
+			},
+		},
+		{
+			name:          "username already exists",
+			email:         "new@example.com",
+			username:      "Existing User",
+			password:      "password123",
+			expectedError: domain.ErrUsernameAlreadyExists,
+			setup: func() {
+				mockUserService.usernameExists = map[string]bool{
+					"Existing User": true,
 				}
 			},
 		},
