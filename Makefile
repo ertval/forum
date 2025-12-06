@@ -60,13 +60,13 @@ test:
 	@echo "$(BLUE)Running Complete Test Suite (Quiet Mode)$(NC)"
 	@echo "$(BLUE)=========================================$(NC)"
 	@echo ""
-	@echo "$(BLUE)Step 1/3: Running all standard Go tests...$(NC)"
+	@echo "$(BLUE)Step 1/3: Running Standard Go Tests...$(NC)"
 	@$(GOTEST) ./... > /dev/null 2>&1 && echo "$(GREEN)✓ Go standard tests passed$(NC)" || (echo "$(RED)✗ Go tests failed$(NC)" && $(GOTEST) ./... && exit 1)
 	@echo ""
-	@echo "$(BLUE)Step 2/3: Running tests in tests directory...$(NC)"
+	@echo "$(BLUE)Step 2/3: Running Integration Go Tests in tests directory...$(NC)"
 	@$(GOTEST) ./tests/... > /dev/null 2>&1 && echo "$(GREEN)✓ All Integration Tests directory passed$(NC)" || (echo "$(RED)✗ Tests directory failed$(NC)" && $(GOTEST) ./tests/... && exit 1)
 	@echo ""
-	@echo "$(BLUE)Step 3/3: Running e2e test scripts...$(NC)"
+	@echo "$(BLUE)Step 3/3: Running E2E Audit Test scripts...$(NC)"
 	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh --quiet
 	@echo ""
 	@echo "$(GREEN)=========================================$(NC)"
@@ -80,17 +80,17 @@ tests:
 	@echo "$(BLUE)Running Complete Test Suite (Verbose Mode)$(NC)"
 	@echo "$(BLUE)=========================================$(NC)"
 	@echo ""
-	@echo "$(BLUE)Step 1/3: Running all standard Go tests...$(NC)"
+	@echo "$(BLUE)Step 1/3: Running Standard Go Tests...$(NC)"
 	$(GOTEST) ./...
 	@echo "$(GREEN)Go tests complete$(NC)"
 	@echo ""
-	@echo "$(BLUE)Step 2/3: Running tests in tests/ directory...$(NC)"
+	@echo "$(BLUE)Step 2/3: Running Integration Go Tests in tests directory...$(NC)"
 	$(GOTEST) ./tests/...
 	@echo "$(GREEN)Tests directory complete$(NC)"
 	@echo ""
-	@echo "$(BLUE)Step 3/3: Running e2e test scripts...$(NC)"
+	@echo "$(BLUE)Step 3/3: Running E2E Audit Test scripts...$(NC)"
 	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh
-	@echo "$(GREEN)E2E test scripts complete$(NC)"
+	@echo "$(GREEN)E2E Audit Integration test scripts complete$(NC)"
 	@echo ""
 	@echo "$(GREEN)=========================================$(NC)"
 	@echo "$(GREEN)All tests passed!$(NC)"
