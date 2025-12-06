@@ -183,7 +183,7 @@ forum/
 │   ├── css/
 │   │   └── style.css
 │   ├── js/
-│   │   └── app.js
+│   │   └── main.js
 │   └── uploads/           # User uploaded files
 ├── templates/             # HTML templates
 │   ├── base.html

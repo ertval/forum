@@ -60,7 +60,7 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 	services := initServices(repos, cfg, lgr)
 
 	// 4. Initialize HTTP Handlers (Input Adapters)
-	handlers := initHandlers(services, cfg)
+	handlers := initHandlers(services)
 
 	// 5. Initialize HTTP Server
 	server := initServer(cfg, lgr, handlers, db.DB())

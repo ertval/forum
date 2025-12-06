@@ -37,7 +37,7 @@ forum/
 ├── migrations/                 # ✅ 7 SQL migration files - Complete
 ├── static/                     # ❌ Minimal content
 │   ├── css/style.css          # Almost empty
-│   ├── js/app.js              # Almost empty
+│   ├── js/main.js              # Almost empty
 │   └── uploads/
 ├── templates/                  # ❌ Minimal content
 │   ├── base.html              # Almost empty

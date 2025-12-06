@@ -652,7 +652,7 @@ print_test "Templates don't use old hardcoded URLs" "PASS"
 # =============================================================================
 print_section "JAVASCRIPT FILE SYNTAX VERIFICATION"
 
-JS_FILES=("auth.js" "post-forms.js" "post-detail.js" "load-more-posts.js" "app.js")
+JS_FILES=("auth.js" "post-forms.js" "post-detail.js" "load-more-posts.js" "main.js")
 JS_DIR="${PROJECT_ROOT}/static/js"
 
 for jsfile in "${JS_FILES[@]}"; do

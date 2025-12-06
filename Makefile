@@ -58,10 +58,10 @@ test:
 	@echo "$(BLUE)=========================================$(NC)"
 	@echo ""
 	@echo "$(BLUE)Step 1/3: Running all standard Go tests...$(NC)"
-	@$(GOTEST) ./... > /dev/null 2>&1 && echo "$(GREEN)✓ Go tests passed$(NC)" || (echo "$(RED)✗ Go tests failed$(NC)" && $(GOTEST) ./... && exit 1)
+	@$(GOTEST) ./... > /dev/null 2>&1 && echo "$(GREEN)✓ Go standard tests passed$(NC)" || (echo "$(RED)✗ Go tests failed$(NC)" && $(GOTEST) ./... && exit 1)
 	@echo ""
-	@echo "$(BLUE)Step 2/3: Running tests in tests/ directory...$(NC)"
-	@$(GOTEST) ./tests/... > /dev/null 2>&1 && echo "$(GREEN)✓ Tests directory passed$(NC)" || (echo "$(RED)✗ Tests directory failed$(NC)" && $(GOTEST) ./tests/... && exit 1)
+	@echo "$(BLUE)Step 2/3: Running tests in tests directory...$(NC)"
+	@$(GOTEST) ./tests/... > /dev/null 2>&1 && echo "$(GREEN)✓ All Integration Tests directory passed$(NC)" || (echo "$(RED)✗ Tests directory failed$(NC)" && $(GOTEST) ./tests/... && exit 1)
 	@echo ""
 	@echo "$(BLUE)Step 3/3: Running e2e test scripts...$(NC)"
 	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh --quiet

@@ -137,7 +137,7 @@ print_section "FUNCTIONAL - HTTPS & Security"
 
 # Q: Does the URL contain HTTPS?
 print_question "Try opening the forum - Does the URL contain HTTPS?"
-HTTPS_RESPONSE=$(curl -sk "$BASE_URL/" 2>/dev/null)
+HTTPS_RESPONSE=$(curl -sk "$BASE_URL/" 2>/dev/null || true)
 if [ -n "$HTTPS_RESPONSE" ]; then
     print_answer "YES" "Forum accessible via HTTPS at $BASE_URL"
 else

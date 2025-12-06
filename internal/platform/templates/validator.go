@@ -1,5 +1,5 @@
 // Template Validation Utilities
-package wire
+package templates
 
 import (
 	"fmt"
