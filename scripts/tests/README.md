@@ -8,14 +8,23 @@ This directory contains comprehensive test scripts for the Forum application, or
 
 **Prerequisites:** Before running tests, ensure the database is seeded with test data:
 ```bash
-# First, seed the database (only run once or when resetting)
+# Seed the database (auto-runs migrations if DB doesn't exist)
 ./scripts/seed/seed.sh
+
+# Or using make:
+make seed
 ```
 
 Run all tests with a single command:
 ```bash
-# Run all tests (verifies database, then runs test scripts in alphabetical order)
-make test-script
+# Run all tests (quiet mode - shows only summary)
+make test
+
+# Run all tests (verbose mode - shows all output)
+make tests
+
+# Run only failed tests with detailed output
+make test-fail
 
 # Or directly:
 ./scripts/tests/run_all_tests.sh
@@ -37,14 +46,21 @@ This script:
 2. **Discovers** all `test_*.sh` scripts in this directory
 3. **Runs** them in **alphabetical order** for reproducible results
 4. **Reports** a combined summary of all test results (also in alphabetical order)
+5. **Handles timeouts** - each test has 5-minute timeout to prevent hangs
 
 ```bash
+# Quiet mode (default) - shows spinner and summary only
+./scripts/tests/run_all_tests.sh --quiet
+
+# Verbose mode - shows all test output
 ./scripts/tests/run_all_tests.sh
 ```
 
 Exit codes:
 - `0` - All tests passed
 - `1` - One or more test suites failed
+
+**Note:** Fixed in December 2024 - Now properly captures exit codes from background test processes and implements timeout protection.
 
 ---
 

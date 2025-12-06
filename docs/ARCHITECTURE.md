@@ -365,7 +365,12 @@ Shared infrastructure in `internal/platform/`:
 005_reaction_create_reactions.sql
 ```
 
-Migrations auto-apply on startup via `database.Migrator`.
+**Running Migrations:**
+- Automatic: Migrations auto-apply on application startup via `database.Migrator`
+- Manual: Run `make migrate` or `bash scripts/run_migrations.sh`
+- The migrator creates a `schema_migrations` table to track applied migrations
+- Already-applied migrations are automatically skipped
+- See `migrations/MIGRATIONS_GUIDE.md` for detailed migration authoring guidelines
 
 ---
 

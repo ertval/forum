@@ -4,6 +4,7 @@ package application
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"forum/internal/modules/auth/domain"
@@ -58,6 +59,10 @@ func (s *Service) Register(ctx context.Context, email, username, password string
 			}
 		}
 	}
+
+	// Sanitize inputs for storage/lookup
+	email = strings.ToLower(strings.TrimSpace(validator.Sanitize(email)))
+	username = strings.TrimSpace(validator.Sanitize(username))
 
 	// 2. Check if email or username already exists
 	emailExists, err := s.userService.ExistsByEmail(ctx, email)
@@ -121,6 +126,9 @@ func (s *Service) Login(ctx context.Context, email, password string) (*domain.Se
 	if err != nil {
 		return nil, domain.ErrInvalidCredentials
 	}
+
+	// Sanitize email for lookup
+	email = strings.ToLower(strings.TrimSpace(validator.Sanitize(email)))
 
 	// 2. Retrieve user by email
 	user, err := s.userService.GetByEmail(ctx, email)

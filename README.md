@@ -459,6 +459,45 @@ Verify database schema matches migrations:
 go run ./scripts/check/check_schema.go
 ```
 
+### Database Migrations
+
+The forum uses SQL migrations tracked in `migrations/` directory. Migrations are automatically applied on application startup.
+
+**Manual Migration:**
+
+```bash
+# Run all pending migrations
+make migrate
+
+# Or run directly
+bash scripts/run_migrations.sh
+```
+
+**Create New Migration:**
+
+```bash
+# Generate a new migration file
+make migration NAME=add_user_bio
+
+# Creates: migrations/<timestamp>_add_user_bio.sql
+```
+
+**Migration Structure:**
+
+Each migration file follows this format:
+
+```sql
+-- +migrate Up
+-- SQL to apply changes
+CREATE TABLE example (id INTEGER PRIMARY KEY);
+
+-- +migrate Down  
+-- SQL to rollback (if feasible)
+DROP TABLE example;
+```
+
+See `migrations/MIGRATIONS_GUIDE.md` for detailed authoring guidelines.
+
 ---
 
 ## Image Uploads

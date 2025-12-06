@@ -94,68 +94,113 @@ kill_existing_server() {
 
 start_server() {
     echo "Starting forum server..."
+    
+    # Check if binary exists, build if needed
     if [ ! -f "${PROJECT_ROOT}/bin/forum" ]; then
         echo "Building forum binary..."
-        cd "$PROJECT_ROOT" && go build -o bin/forum cmd/forum/main.go
+        cd "$PROJECT_ROOT" || exit 1
+        if ! go build -o bin/forum cmd/forum/main.go; then
+            echo -e "${RED}ERROR: Failed to build forum binary${NC}"
+            exit 1
+        fi
+        echo -e "${GREEN}✓ Binary built successfully${NC}"
     fi
+    
+    # Start server
     "${PROJECT_ROOT}/bin/forum" > "$SERVER_LOG" 2>&1 &
     SERVER_PID=$!
     
+    # Wait for server to be ready
+    echo "Waiting for server to start (PID: $SERVER_PID)..."
     for i in {1..30}; do
+        if ! kill -0 $SERVER_PID 2>/dev/null; then
+            echo -e "${RED}ERROR: Server process died${NC}"
+            echo -e "${YELLOW}Server log:${NC}"
+            tail -20 "$SERVER_LOG"
+            exit 1
+        fi
+        
         if curl -s "$BASE_URL/" > /dev/null 2>&1; then
-            echo "Server ready!"
+            echo -e "${GREEN}✓ Server ready (PID: $SERVER_PID)${NC}"
             return 0
         fi
         sleep 1
     done
-    echo -e "${RED}Server failed to start${NC}"
+    
+    echo -e "${RED}ERROR: Server failed to respond within 30 seconds${NC}"
+    echo -e "${YELLOW}Server log:${NC}"
+    tail -20 "$SERVER_LOG"
+    kill $SERVER_PID 2>/dev/null || true
     exit 1
 }
 
 cleanup() {
+    set +e  # Disable exit on error for cleanup
     echo ""
     echo -e "${YELLOW}--- CLEANUP ---${NC}"
     echo ""
     
     # Re-login to get a fresh session for cleanup
-    if [ -n "$SESSION_COOKIE" ] || [ ${#CREATED_POSTS[@]} -gt 0 ] || [ ${#CREATED_COMMENTS[@]} -gt 0 ]; then
-        RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
-            -H "Content-Type: application/json" \
-            -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}" 2>/dev/null)
-        CLEANUP_SESSION=$(extract_session_cookie "$RESPONSE")
-        
-        if [ -n "$CLEANUP_SESSION" ]; then
-            # Delete created posts (this will cascade delete comments and reactions)
-            for post_id in "${CREATED_POSTS[@]}"; do
-                if [ -n "$post_id" ]; then
-                    curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
-                        -H "Cookie: session_token=$CLEANUP_SESSION" > /dev/null 2>&1
-                fi
-            done
+    if [ ${#CREATED_POSTS[@]} -gt 0 ] || [ ${#CREATED_COMMENTS[@]} -gt 0 ] || [ ${#CREATED_USERS[@]} -gt 0 ]; then
+        if check_server_running; then
+            RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+                -H "Content-Type: application/json" \
+                -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}" 2>/dev/null)
+            CLEANUP_SESSION=$(extract_session_cookie "$RESPONSE")
             
-            # Delete created comments (if not already deleted via cascade)
-            for comment_id in "${CREATED_COMMENTS[@]}"; do
-                if [ -n "$comment_id" ]; then
-                    curl -s -X DELETE "$BASE_URL/api/comments/$comment_id" \
-                        -H "Cookie: session_token=$CLEANUP_SESSION" > /dev/null 2>&1
+            if [ -n "$CLEANUP_SESSION" ]; then
+                # Delete created posts (this will cascade delete comments and reactions)
+                if [ ${#CREATED_POSTS[@]} -gt 0 ]; then
+                    echo "Cleaning up ${#CREATED_POSTS[@]} test post(s)..."
+                    for post_id in "${CREATED_POSTS[@]}"; do
+                        if [ -n "$post_id" ]; then
+                            curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
+                                -H "Cookie: session_token=$CLEANUP_SESSION" > /dev/null 2>&1 || true
+                        fi
+                    done
                 fi
-            done
+                
+                # Delete created comments (if not already deleted via cascade)
+                if [ ${#CREATED_COMMENTS[@]} -gt 0 ]; then
+                    echo "Cleaning up ${#CREATED_COMMENTS[@]} test comment(s)..."
+                    for comment_id in "${CREATED_COMMENTS[@]}"; do
+                        if [ -n "$comment_id" ]; then
+                            curl -s -X DELETE "$BASE_URL/api/comments/$comment_id" \
+                                -H "Cookie: session_token=$CLEANUP_SESSION" > /dev/null 2>&1 || true
+                        fi
+                    done
+                fi
+            else
+                echo -e "${YELLOW}Warning: Could not get cleanup session, using direct DB cleanup${NC}"
+            fi
         fi
     fi
     
-    # Clean up test users from database directly
-    for username in "${CREATED_USERS[@]}"; do
-        if [ -n "$username" ]; then
-            sqlite3 "$DB_PATH" "DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE username='$username');" 2>/dev/null
-            sqlite3 "$DB_PATH" "DELETE FROM users WHERE username='$username';" 2>/dev/null
-        fi
-    done
+    # Stop server BEFORE database cleanup to avoid locks
+    if [ -n "$SERVER_PID" ] && kill -0 $SERVER_PID 2>/dev/null; then
+        echo "Stopping server (PID: $SERVER_PID)..."
+        kill $SERVER_PID 2>/dev/null || true
+        wait $SERVER_PID 2>/dev/null || true
+        echo -e "${GREEN}✓ Server stopped${NC}"
+        sleep 1  # Give DB time to release locks
+    fi
+    
+    # Clean up test users from database directly (after server is stopped)
+    if [ ${#CREATED_USERS[@]} -gt 0 ]; then
+        echo "Cleaning up ${#CREATED_USERS[@]} test user(s) from database..."
+        for username in "${CREATED_USERS[@]}"; do
+            if [ -n "$username" ]; then
+                echo "  Deleting user: $username"
+                # Clean up posts by this user first
+                sqlite3 "$DB_PATH" "DELETE FROM posts WHERE author_id IN (SELECT id FROM users WHERE username='$username');" 2>/dev/null || true
+                sqlite3 "$DB_PATH" "DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE username='$username');" 2>/dev/null || true
+                sqlite3 "$DB_PATH" "DELETE FROM users WHERE username='$username';" 2>/dev/null || true
+            fi
+        done
+    fi
     
     echo -e "${GREEN}✓ Test data cleaned up${NC}"
-    
-    if [ -n "$SERVER_PID" ]; then
-        kill $SERVER_PID 2>/dev/null || true
-    fi
+    echo ""
 }
 trap cleanup EXIT
 
@@ -167,7 +212,30 @@ echo -e "${YELLOW}FORUM API FUNCTIONAL TESTS${NC}"
 echo -e "${YELLOW}Testing JSON API endpoints${NC}"
 echo -e "${YELLOW}========================================${NC}"
 
-# Setup
+# Setup - Verify prerequisites
+if [ ! -f "$DB_PATH" ]; then
+    echo -e "${RED}ERROR: Database file not found at $DB_PATH${NC}"
+    echo -e "${YELLOW}Please run: make seed${NC}"
+    exit 1
+fi
+
+# Verify database has required data
+USER_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM users;" 2>&1)
+if [ $? -ne 0 ]; then
+    echo -e "${RED}ERROR: Cannot query database. Database may be corrupted.${NC}"
+    echo -e "${YELLOW}Please run: make seed${NC}"
+    exit 1
+fi
+
+if [ "$USER_COUNT" -lt 1 ]; then
+    echo -e "${RED}ERROR: Database is empty. No users found.${NC}"
+    echo -e "${YELLOW}Please run: make seed${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Database verified (${USER_COUNT} users)${NC}"
+echo ""
+
 kill_existing_server
 start_server
 
@@ -177,8 +245,10 @@ start_server
 print_section "AUTH API - /api/auth/*"
 
 # Registration - valid
-TIMESTAMP=$(date +%s)
-TEST_USERNAME="Api User"
+TIMESTAMP=$(date +%s%N)  # Use nanoseconds for uniqueness
+# Generate unique but valid username (letters only, proper caps)
+RANDOM_SUFFIX=$(cat /dev/urandom | tr -dc 'a-z' | fold -w 6 | head -n 1)
+TEST_USERNAME="Apitest ${RANDOM_SUFFIX^}"  # First letter uppercase, rest lowercase
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
     -d "{\"email\":\"api_${TIMESTAMP}@test.com\",\"username\":\"${TEST_USERNAME}\",\"password\":\"password123\"}")
@@ -187,8 +257,9 @@ if [ "$HTTP_CODE" = "201" ]; then
     print_test "POST /api/auth/register - Valid registration" "PASS"
     CREATED_USERS+=("$TEST_USERNAME")
 elif [ "$HTTP_CODE" = "409" ]; then
-    # User already exists from previous run, still valid behavior
+    # User already exists - this shouldn't happen with random suffixes, but handle gracefully
     print_test "POST /api/auth/register - Valid registration (user exists)" "PASS"
+    CREATED_USERS+=("$TEST_USERNAME")  # Add to cleanup list anyway
 else
     print_test "POST /api/auth/register - Valid registration" "FAIL" "Expected 201, got $HTTP_CODE"
 fi
@@ -446,8 +517,18 @@ fi
 # =============================================================================
 print_section "COMMENT API - /api/comments/*"
 
-# Get post ID for comments
-SEED_POST_ID=$(sqlite3 "$DB_PATH" "SELECT public_id FROM posts LIMIT 1;" 2>/dev/null)
+# Get post ID for comments - use API instead of direct DB query to avoid lock issues
+POSTS_RESPONSE=$(curl -s "$BASE_URL/api/posts")
+SEED_POST_ID=$(echo "$POSTS_RESPONSE" | grep -o '"id":"[^"]*"' | head -n1 | sed 's/"id":"\([^"]*\)"/\1/')
+
+if [ -z "$SEED_POST_ID" ]; then
+    echo -e "${RED}ERROR: No posts found via API for comment testing${NC}"
+    echo -e "${YELLOW}Please ensure database is properly seeded: make seed${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Using seed post $SEED_POST_ID for comment tests${NC}"
+echo ""
 
 # Create comment - without auth
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/comments/posts/$SEED_POST_ID" \

@@ -3,9 +3,12 @@
 package validator
 
 import (
+	"html"
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Validator provides validation methods for common data types.
@@ -39,21 +42,23 @@ func (v *Validator) Errors() map[string]string {
 
 // Required checks if a value is not empty.
 func (v *Validator) Required(field, value string) {
-	if strings.TrimSpace(value) == "" {
+	if strings.TrimSpace(Sanitize(value)) == "" {
 		v.AddError(field, "This field is required")
 	}
 }
 
 // MinLength checks if a string has minimum length.
 func (v *Validator) MinLength(field, value string, min int) {
-	if len(value) < min {
+	value = Sanitize(value)
+	if utf8.RuneCountInString(value) < min {
 		v.AddError(field, "Must be at least "+strconv.Itoa(min)+" characters")
 	}
 }
 
 // MaxLength checks if a string has maximum length.
 func (v *Validator) MaxLength(field, value string, max int) {
-	if len(value) > max {
+	value = Sanitize(value)
+	if utf8.RuneCountInString(value) > max {
 		v.AddError(field, "Must be at most "+strconv.Itoa(max)+" characters")
 	}
 }
@@ -61,35 +66,40 @@ func (v *Validator) MaxLength(field, value string, max int) {
 // Email validates an email address format.
 // TODO: Implement proper email validation.
 func (v *Validator) Email(field, value string) {
-	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	// Normalize and sanitize before validation
+	value = strings.ToLower(strings.TrimSpace(Sanitize(value)))
+	emailRegex := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$`)
 	if !emailRegex.MatchString(value) {
 		v.AddError(field, "Must be a valid email address")
 	}
 }
 
 // Username validates a username format.
-// Username must be a proper name in "Name Surname" format.
-// Each part must be capitalized (first letter uppercase, rest lowercase).
-// Only letters and spaces allowed, no numbers or special symbols.
+// Username must be a proper name (e.g., "John" or "John Smith").
+// Each part must start with a capital letter and contain only letters.
+// Single names (e.g., "Alice") or full names (e.g., "Alice Smith") are accepted.
+// No numbers or special symbols allowed.
 func (v *Validator) Username(field, value string) {
-	value = strings.TrimSpace(value)
-	if len(value) < 3 || len(value) > 50 {
-		v.AddError(field, "Name must be between 3 and 50 characters")
+	// Sanitize and trim first
+	value = strings.TrimSpace(Sanitize(value))
+	if utf8.RuneCountInString(value) < 2 || utf8.RuneCountInString(value) > 50 {
+		v.AddError(field, "Name must be between 2 and 50 characters")
 		return
 	}
 
-	// Split by space to validate "Name Surname" format
+	// Split by space to validate each part
 	parts := strings.Fields(value)
-	if len(parts) < 2 {
-		v.AddError(field, "Please enter your full name (e.g., John Smith)")
+	if len(parts) == 0 {
+		v.AddError(field, "Please enter your name (e.g., Alice or Alice Smith)")
 		return
 	}
 
-	// Each part must contain only letters and be properly capitalized
-	namePartRegex := regexp.MustCompile(`^[A-Z][a-z]+$`)
+	// Each part must contain only letters and start with capital letter
+	// Allows both "Alice" and "alice" patterns, but must start with capital
+	namePartRegex := regexp.MustCompile(`^[A-Z][a-zA-Z]*$`)
 	for _, part := range parts {
 		if !namePartRegex.MatchString(part) {
-			v.AddError(field, "Each name part must start with uppercase and contain only letters (e.g., John Smith)")
+			v.AddError(field, "Name must start with a capital letter and contain only letters (e.g., Alice or Alice Smith)")
 			return
 		}
 	}
@@ -98,7 +108,7 @@ func (v *Validator) Username(field, value string) {
 // Password validates password strength.
 // TODO: Implement password strength requirements.
 func (v *Validator) Password(field, value string, minLength int) {
-	if len(value) < minLength {
+	if utf8.RuneCountInString(value) < minLength {
 		v.AddError(field, "Password must be at least "+strconv.Itoa(minLength)+" characters")
 	}
 	// Additional password requirements can be added here
@@ -107,6 +117,7 @@ func (v *Validator) Password(field, value string, minLength int) {
 
 // In checks if a value is in a list of allowed values.
 func (v *Validator) In(field, value string, allowed []string) {
+	value = Sanitize(value)
 	for _, a := range allowed {
 		if value == a {
 			return
@@ -117,23 +128,66 @@ func (v *Validator) In(field, value string, allowed []string) {
 
 // Matches checks if a value matches a regular expression.
 func (v *Validator) Matches(field, value string, pattern *regexp.Regexp) {
+	value = Sanitize(value)
 	if !pattern.MatchString(value) {
 		v.AddError(field, "Invalid format")
 	}
 }
 
 // Sanitize removes potentially dangerous characters from input.
-// TODO: Implement sanitization logic.
+// Sanitize performs lightweight, safe sanitization of user-supplied text.
+// It is intentionally conservative: it trims, collapses whitespace, removes
+// control characters (including NUL), strips HTML tags and script/style
+// blocks, and unescapes HTML entities. This keeps the implementation
+// dependency free and easy to audit.
 func Sanitize(input string) string {
-	// Implementation placeholder
-	// Remove HTML tags, scripts, etc.
-	return strings.TrimSpace(input)
+	if input == "" {
+		return ""
+	}
+
+	// Unescape any HTML entities first (e.g., &lt;script&gt;)
+	s := html.UnescapeString(input)
+
+	// Remove script blocks and style blocks (case-insensitive)
+	reScript := regexp.MustCompile(`(?i)<script[^>]*>[\s\S]*?</script>`)
+	s = reScript.ReplaceAllString(s, "")
+	reStyle := regexp.MustCompile(`(?i)<style[^>]*>[\s\S]*?</style>`)
+	s = reStyle.ReplaceAllString(s, "")
+
+	// Strip remaining tags
+	reTags := regexp.MustCompile(`<[^>]+>`)
+	s = reTags.ReplaceAllString(s, "")
+
+	// Remove control characters (except common whitespace)
+	var b strings.Builder
+	for _, r := range s {
+		if unicode.IsControl(r) {
+			// allow tab, newline and carriage return
+			if r == '\t' || r == '\n' || r == '\r' {
+				b.WriteRune(r)
+			}
+			continue
+		}
+		b.WriteRune(r)
+	}
+	s = b.String()
+
+	// Collapse all whitespace sequences to a single space
+	reSpace := regexp.MustCompile(`\s+`)
+	s = reSpace.ReplaceAllString(s, " ")
+
+	// Trim edges
+	s = strings.TrimSpace(s)
+
+	return s
 }
 
 // SanitizeHTML sanitizes HTML input to prevent XSS attacks.
-// TODO: Implement HTML sanitization.
+// SanitizeHTML removes dangerous elements from HTML while leaving
+// plain text and minimal markup. This implementation strips script/style
+// blocks and removes all tags — it intentionally does not attempt to
+// preserve safe tags to keep behavior predictable and dependency-free.
 func SanitizeHTML(input string) string {
-	// Implementation placeholder
-	// Use an HTML sanitization library or implement custom logic
-	return input
+	// Reuse Sanitize which already strips tags and script/style blocks.
+	return Sanitize(input)
 }

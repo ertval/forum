@@ -49,11 +49,16 @@ else
 fi
 
 
-# Check if database file exists
+# Check if database file exists - if not, run migrations first
 if [ ! -f "$DB_PATH" ]; then
-    echo -e "${RED}Database file does not exist: $DB_PATH${NC}"
-    echo "Please run the application first to create the database and apply migrations."
-    exit 1
+    echo -e "${YELLOW}Database file does not exist. Running migrations...${NC}"
+    # Run migrations from project root, not from seed directory
+    if ! bash "${PROJECT_ROOT}/scripts/seed/run_migrations.sh"; then
+        echo -e "${RED}Failed to run migrations.${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Migrations completed${NC}"
+    echo ""
 fi
 
 # Check if seed file exists

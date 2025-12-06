@@ -13,6 +13,14 @@
     color: #5a5a5a;
 }
 
+.form-group small.form-hint {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: #7a7a7a;
+    font-style: italic;
+}
+
 .form-group input {
     width: 100%;
     padding: 0.75rem;
