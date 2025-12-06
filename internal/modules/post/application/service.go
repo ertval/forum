@@ -16,16 +16,23 @@ type Service struct {
 	categoryRepo ports.CategoryRepository
 	userService  userPorts.UserService
 	imageHandler ports.ImageHandler
+	maxImageSize int64
 }
 
 // NewService creates a new post service.
-func NewService(postRepo ports.PostRepository, categoryRepo ports.CategoryRepository, userService userPorts.UserService, imageHandler ports.ImageHandler) *Service {
+func NewService(postRepo ports.PostRepository, categoryRepo ports.CategoryRepository, userService userPorts.UserService, imageHandler ports.ImageHandler, maxImageSize int64) *Service {
 	return &Service{
 		postRepo:     postRepo,
 		categoryRepo: categoryRepo,
 		userService:  userService,
 		imageHandler: imageHandler,
+		maxImageSize: maxImageSize,
 	}
+}
+
+// MaxImageSize returns the maximum allowed image size in bytes.
+func (s *Service) MaxImageSize() int64 {
+	return s.maxImageSize
 }
 
 // CategoryService implements the CategoryService interface.

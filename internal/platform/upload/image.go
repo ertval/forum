@@ -3,6 +3,7 @@ package upload
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,16 +12,18 @@ import (
 	"github.com/gofrs/uuid/v5"
 )
 
-// MaxImageSize is the maximum allowed image size (20MB).
-const MaxImageSize = 20 * 1024 * 1024
-
 // Errors for image handling.
 var (
 	ErrInvalidImageType = errors.New("invalid image type, must be JPEG, PNG, or GIF")
-	ErrImageTooLarge    = errors.New("image file too large (max 20MB)")
 	ErrEmptyImage       = errors.New("image data is empty")
 	ErrPathTraversal    = errors.New("invalid filename: path traversal detected")
+	ErrImageTooLarge    = errors.New("image file too large")
 )
+
+// FormatImageSizeError returns a formatted error message for image size violations.
+func FormatImageSizeError(maxSize int64) string {
+	return fmt.Sprintf("image file too large (max %d MB)", maxSize/(1024*1024))
+}
 
 // allowedMIMETypes maps allowed MIME types to file extensions.
 var allowedMIMETypes = map[string]string{
@@ -57,23 +60,23 @@ func MIMEToExtension(mimeType string) (string, error) {
 }
 
 // ValidateImageSize checks if the image size is within the allowed limit.
-func ValidateImageSize(size int64) error {
+func ValidateImageSize(size int64, maxSize int64) error {
 	if size <= 0 {
 		return ErrEmptyImage
 	}
-	if size > MaxImageSize {
+	if size > maxSize {
 		return ErrImageTooLarge
 	}
 	return nil
 }
 
-// ValidateImage validates image data for type and returns the MIME type.
-func ValidateImage(data []byte) error {
+// ValidateImage validates image data for type and size.
+func ValidateImage(data []byte, maxSize int64) error {
 	if len(data) == 0 {
 		return ErrEmptyImage
 	}
 
-	if err := ValidateImageSize(int64(len(data))); err != nil {
+	if err := ValidateImageSize(int64(len(data)), maxSize); err != nil {
 		return err
 	}
 
@@ -84,12 +87,14 @@ func ValidateImage(data []byte) error {
 // ImageHandler handles image file operations.
 type ImageHandler struct {
 	uploadDir string
+	maxSize   int64
 }
 
-// NewImageHandler creates a new ImageHandler with the specified upload directory.
-func NewImageHandler(uploadDir string) *ImageHandler {
+// NewImageHandler creates a new ImageHandler with the specified upload directory and max size.
+func NewImageHandler(uploadDir string, maxSize int64) *ImageHandler {
 	return &ImageHandler{
 		uploadDir: uploadDir,
+		maxSize:   maxSize,
 	}
 }
 
@@ -97,7 +102,7 @@ func NewImageHandler(uploadDir string) *ImageHandler {
 // The filename is a UUID with the appropriate extension based on the image type.
 func (h *ImageHandler) Save(data []byte) (string, error) {
 	// Validate image
-	if err := ValidateImage(data); err != nil {
+	if err := ValidateImage(data, h.maxSize); err != nil {
 		return "", err
 	}
 

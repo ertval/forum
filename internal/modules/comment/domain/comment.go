@@ -26,16 +26,16 @@ func (c *Comment) Validate() error {
 	if c.Content == "" {
 		return ErrEmptyContent
 	}
-	
+
 	// Check content is not just whitespace
 	if len(c.Content) == 0 || len([]rune(c.Content)) == 0 || len(strings.TrimSpace(c.Content)) == 0 {
 		return ErrEmptyContent
 	}
-	
+
 	// Check content length limits (max 5000 characters)
 	if len([]rune(c.Content)) > 5000 {
 		return ErrContentTooLong
 	}
-	
+
 	return nil
 }

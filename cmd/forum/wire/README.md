@@ -1,73 +1,56 @@
-# Wire Package - Dependency Injection Structure
+# Wire Package - Dependency Injection
 
 ## Overview
 
-The `wire` package centralizes all dependency injection and application wiring, keeping `main.go` clean and focused on lifecycle management.
+The `wire` package centralizes all dependency injection, keeping `main.go` clean and focused on lifecycle management.
 
-## Directory Structure
+## Structure
 
 ```text
 cmd/forum/
-├── main.go              # Minimal entry point (40 lines)
+├── main.go              # Entry point (~40 lines)
 │                        # - Load config
-│                        # - Initialize logger
+│                        # - Initialize logger  
 │                        # - Call wire.InitializeApp()
 │                        # - Start/shutdown server
 │
-└── wire/                # Dependency injection package
+└── wire/                # Dependency injection
     ├── app.go           # Main orchestration
-    │                    # - App struct (Server, DB, Logger)
-    │                    # - InitializeApp() - coordinates all initialization
-    │                    # - initDatabase() - DB connection & migrations
-    │                    # - initServer() - HTTP server setup
-    │                    # - Start(), Shutdown(), Cleanup() methods
-    │
-    ├── repos.go         # Repository initialization (OUTPUT ADAPTERS)
-    │                    # - Repositories struct
-    │                    # - initRepositories() - creates all SQLite repos
-    │
-    ├── services.go      # Service initialization (APPLICATION LAYER)
-    │                    # - Services struct
-    │                    # - initServices() - wires all domain services
-    │
-    ├── handlers.go      # Handler initialization (INPUT ADAPTERS)
-    │                    # - Handlers struct
-    │                    # - initHandlers() - creates all HTTP handlers
-    │
-    └── README.md        # This documentation
+    ├── repos.go         # Repository initialization
+    ├── services.go      # Service initialization + config injection
+    ├── handlers.go      # Handler initialization
+    └── README.md        # This file
 ```
 
-## Dependency Flow
+## Key Principle: Config Injection at Service Level
 
-```text
-main.go
-   │
-   ├─► wire.InitializeApp()
-   │      │
-   │      ├─► initDatabase() ──────► Database Connection + Migrations
-   │      │
-   │      ├─► initRepositories() ──► All Repository Instances
-   │      │                          (Auth, User, Post, Comment, etc.)
-   │      │
-   │      ├─► initServices() ──────► ServiceContainer with all services
-   │      │                          (Returns unified DI container)
-   │      │
-   │      ├─► initHandlers() ──────► All HTTP Handler Instances
-   │      │                          (All handlers receive ServiceContainer + templates)
-   │      │
-   │      └─► initServer() ────────► HTTP Server with:
-   │                                  - Middleware (Recovery, Logger, CORS, RateLimit)
-   │                                  - All routes registered
-   │                                  - Static file serving
-   │
-   └─► Returns *App with Start() and Shutdown() methods
+**ALL configuration values are injected at the SERVICE layer, NOT at handlers.**
+
+### Why Services, Not Handlers?
+
+- **Single Responsibility**: Handlers route HTTP requests; services implement business logic
+- **Type Safety**: Services enforce constraints through their interface contracts
+- **Testability**: Mock services with different configs without touching handlers
+- **Consistency**: All handlers follow the same constructor signature
+
+### Example: Image Upload Config
+
+```go
+// ❌ WRONG: Config in handler constructor
+func NewHTTPHandler(services ServiceContainer, templates *template.Template, maxImageSize int64)
+
+// ✅ CORRECT: Config in service constructor  
+func NewService(repo Repository, imageHandler ImageHandler, maxImageSize int64) *Service
+
+// Handler gets config from service when needed
+maxSize := h.postService.MaxImageSize()
 ```
 
 ## Unified Dependency Injection Pattern
 
 ### ServiceContainer
 
-All HTTP handlers now receive dependencies through a **unified ServiceContainer**:
+All HTTP handlers receive dependencies through a **unified ServiceContainer**:
 
 ```go
 // In wire/services.go
@@ -75,42 +58,23 @@ type ServiceContainer struct {
     auth         authPorts.AuthService
     user         userPorts.UserService
     post         postPorts.PostService
-    category     postPorts.CategoryService
-    comment      commentPorts.CommentService
-    reaction     reactionPorts.ReactionService
-    moderation   moderationPorts.ModerationService
-    notification notificationPorts.NotificationService
+    // ... other services
 }
 
-// Accessor methods for each service
+// Accessor methods
 func (sc *ServiceContainer) Auth() authPorts.AuthService { return sc.auth }
-func (sc *ServiceContainer) User() userPorts.UserService { return sc.user }
-// ... etc
+func (sc *ServiceContainer) Post() postPorts.PostService { return sc.post }
 ```
 
-### Handler Constructors
+### Universal Handler Constructor Signature
 
-**ALL handlers now have the SAME constructor signature**:
+**ALL handlers use the SAME signature:**
 
 ```go
 func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler
 ```
 
-Each handler defines a **local interface** with only the services it needs:
-
-```go
-// In auth/adapters/http_handler.go
-type ServiceContainer interface {
-    Auth() authPorts.AuthService
-}
-
-func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
-    return &HTTPHandler{
-        authService: services.Auth(),
-        templates:   templates,
-    }
-}
-```
+Each handler defines a **local interface** declaring its dependencies:
 
 ```go
 // In post/adapters/http_handler.go
@@ -118,268 +82,178 @@ type ServiceContainer interface {
     Post() postPorts.PostService
     Category() postPorts.CategoryService
     Auth() authPorts.AuthService
-    User() userPorts.UserService
-}
-
-func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
-    return &HTTPHandler{
-        postService:     services.Post(),
-        categoryService: services.Category(),
-        authService:     services.Auth(),
-        userService:     services.User(),
-        templates:       templates,
-    }
+    // ... only what this handler needs
 }
 ```
 
-### Benefits of This Pattern
+### Benefits
 
 1. **Uniform Interface**: All handlers have identical constructor signature
-2. **Explicit Dependencies**: Each handler declares exactly what it needs via local interface
-3. **Type Safety**: Compile-time verification of dependencies
-4. **Easy Testing**: Mock only the services a handler actually uses
-5. **No Circular Dependencies**: Container holds interfaces, not implementations
-6. **Scalability**: Adding new services requires minimal changes
-7. **Clean Separation**: Handlers remain independent while sharing common DI mechanism
+2. **Config at Right Layer**: Business rules enforced in services, not handlers
+3. **Explicit Dependencies**: Each handler declares exactly what it needs
+4. **Type Safety**: Compile-time verification
+5. **Easy Testing**: Mock only required services
+6. **No Config Import in Handlers**: Handlers never import `config` package
 
-## Key Benefits
+## Dependency Flow
 
-### 1. **Separation of Concerns**
+```text
+main.go
+   │
+   ├─► Load Config
+   ├─► Initialize Logger
+   │
+   └─► wire.InitializeApp(cfg, logger)
+          │
+          ├─► Database + Migrations
+          │
+          ├─► initRepositories(db)
+          │      └─► Create all repository instances
+          │
+          ├─► initServices(repos, cfg, logger)
+          │      └─► ✨ CONFIG INJECTED HERE ✨
+          │          • Session duration → AuthService
+          │          • Max image size → PostService
+          │          • Upload directory → ImageHandler
+          │
+          ├─► initHandlers(services, cfg)
+          │      └─► Create handlers with ServiceContainer ONLY
+          │          • NO config parameters
+          │          • Get config from services when needed
+          │
+          └─► initServer(cfg, logger, handlers, db)
+                 └─► Configure routes + middleware
+```
 
-- `main.go` - Lifecycle management only (config, start, shutdown)
-- `wire/` - All dependency construction and wiring
-- Clean, focused responsibilities
+## Adding a New Module
 
-### 2. **Testability**
+### 1. Create Module Structure
 
-- Can test initialization logic independently
-- Can create test apps with different configurations
-- Mock dependencies easily in tests
+```text
+internal/modules/yourmodule/
+├── domain/         # Business entities + validation
+├── ports/          # Interface contracts
+├── application/    # Service implementation
+└── adapters/       # HTTP handlers + DB repos
+```
 
-### 3. **Explicitness**
-
-- All dependencies visible in one place
-- Clear initialization order
-- No hidden magic or reflection
-
-### 4. **Maintainability**
-
-- Adding a new module? Update 4 files in `wire/`:
-  - `repos.go` - Add repository
-  - `services.go` - Add service
-  - `handlers.go` - Add handler
-  - `app.go` - Register routes (in initServer function)
-- `main.go` never changes
-
-### 5. **Idiomatic Go**
-
-- Manual dependency injection (no frameworks)
-- Explicit over implicit
-- Simple, readable code
-
-## Usage Example
-
-### main.go (Simplified)
+### 2. Update wire/repos.go
 
 ```go
-func main() {
-    cfg := config.MustLoad()
-    lgr := logger.New(logger.InfoLevel, os.Stdout)
+type Repositories struct {
+    // ... existing
+    YourModule yourPorts.YourRepository
+}
+
+repos.YourModule = yourAdapters.NewRepository(db)
+```
+
+### 3. Update wire/services.go
+
+**Inject config at service initialization:**
+
+```go
+type ServiceContainer struct {
+    // ... existing
+    yourModule yourPorts.YourService
+}
+
+func (sc *ServiceContainer) YourModule() yourPorts.YourService { 
+    return sc.yourModule 
+}
+
+func initServices(repos *Repositories, cfg *config.Config, lgr *logger.Logger) *ServiceContainer {
+    // Inject config values from cfg.YourModule.*
+    yourService := yourApp.NewService(
+        repos.YourModule,
+        cfg.YourModule.SomeSetting,  // ✅ Config injected here
+        cfg.YourModule.AnotherSetting,
+    )
     
-    // All wiring happens here
-    app, err := wire.InitializeApp(cfg, lgr)
-    if err != nil {
-        lgr.Fatal("Failed to initialize", logger.Error(err))
+    return &ServiceContainer{
+        // ... existing
+        yourModule: yourService,
     }
-    defer app.Cleanup()
-    
-    // Simple lifecycle management
-    app.Start()
-    // ... graceful shutdown logic
 }
 ```
 
-### Handler Initialization Example
+### 4. Create Handler (adapters/http_handler.go)
+
+**NO config imports, use unified signature:**
 
 ```go
-// In wire/handlers.go
-func initHandlers(services *ServiceContainer) *Handlers {
-    templates, err := template.ParseGlob("templates/*.html")
-    if err != nil {
-        panic(err)
-    }
+package adapters
 
-    // All handlers have the same constructor signature!
+// Local interface - declare only what you need
+type ServiceContainer interface {
+    YourModule() yourPorts.YourService
+    Auth() authPorts.AuthService  // if needed
+}
+
+type HTTPHandler struct {
+    yourService yourPorts.YourService
+    authService authPorts.AuthService
+    templates   *template.Template
+}
+
+// ✅ UNIVERSAL SIGNATURE - no config parameter
+func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
+    return &HTTPHandler{
+        yourService: services.YourModule(),
+        authService: services.Auth(),
+        templates:   templates,
+    }
+}
+
+// Get config from service when needed
+func (h *HTTPHandler) SomeHandler(w http.ResponseWriter, r *http.Request) {
+    maxSize := h.yourService.GetConfigValue()  // ✅ From service
+    // ... use it
+}
+```
+
+### 5. Update wire/handlers.go
+
+```go
+type Handlers struct {
+    // ... existing
+    YourModule *yourAdapters.HTTPHandler
+}
+
+func initHandlers(services *ServiceContainer, cfg *config.Config) *Handlers {
+    templates, _ := template.ParseGlob("templates/*.html")
+    
     return &Handlers{
-        Auth:         authAdapters.NewHTTPHandler(services, templates),
-        User:         userAdapters.NewHTTPHandler(services, templates),
-        Post:         postAdapters.NewHTTPHandler(services, templates),
-        Comment:      commentAdapters.NewHTTPHandler(services, templates),
-        Reaction:     reactionAdapters.NewHTTPHandler(services, templates),
-        Moderation:   moderationAdapters.NewHTTPHandler(services, templates),
-        Notification: notificationAdapters.NewHTTPHandler(services, templates),
+        // ... existing
+        YourModule: yourAdapters.NewHTTPHandler(services, templates),  // ✅ No config
     }
 }
 ```
 
-### Adding a New Module
+### 6. Update wire/app.go
 
-1. **Create module** with hexagonal structure:
+```go
+func initServer(...) *httpserver.Server {
+    // ... middleware setup
+    
+    handlers.YourModule.RegisterRoutes(server.Router())
+    
+    // ... rest of setup
+}
+```
 
-   ```text
-   internal/modules/newmodule/
-   ├── domain/
-   ├── ports/
-   ├── application/
-   └── adapters/
-   ```
-
-2. **Update wire/repos.go**:
-
-   ```go
-   type Repositories struct {
-       // ... existing
-       NewModule newmodulePorts.Repository
-   }
-   
-   func initRepositories(db *sql.DB) *Repositories {
-       return &Repositories{
-           // ... existing
-           NewModule: newmoduleAdapters.NewSQLiteRepository(db),
-       }
-   }
-   ```
-
-3. **Update wire/services.go** (add to ServiceContainer):
-
-   ```go
-   // Add to ServiceContainer struct
-   type ServiceContainer struct {
-       // ... existing (lowercase fields)
-       newmodule newmodulePorts.Service
-   }
-   
-   // Add accessor method
-   func (sc *ServiceContainer) NewModule() newmodulePorts.Service {
-       return sc.newmodule
-   }
-   
-   // Update initServices
-   func initServices(repos *Repositories, sessionDuration time.Duration) *ServiceContainer {
-       return &ServiceContainer{
-           // ... existing
-           newmodule: newmoduleApp.NewService(repos.NewModule),
-       }
-   }
-   ```
-
-4. **Create handler with unified constructor** (adapters/http_handler.go):
-
-   ```go
-   type HTTPHandler struct {
-       newmoduleService ports.Service
-       templates        *template.Template
-   }
-   
-   // Define local interface with only needed services
-   type ServiceContainer interface {
-       NewModule() ports.Service
-       Auth() authPorts.AuthService // If auth is needed
-   }
-   
-   // SAME signature as all other handlers!
-   func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
-       return &HTTPHandler{
-           newmoduleService: services.NewModule(),
-           templates:        templates,
-       }
-   }
-   ```
-
-5. **Update wire/handlers.go**:
-
-   ```go
-   type Handlers struct {
-       // ... existing
-       NewModule *newmoduleAdapters.HTTPHandler
-   }
-   
-   func initHandlers(services *ServiceContainer) *Handlers {
-       templates, _ := template.ParseGlob("templates/*.html")
-       
-       return &Handlers{
-           // ... existing
-           NewModule: newmoduleAdapters.NewHTTPHandler(services, templates),
-       }
-   }
-   ```
-
-6. **Update wire/app.go** (initServer function):
-
-   ```go
-   handlers.NewModule.RegisterRoutes(server.Router())
-   ```
-
-Done! The new module follows the same unified pattern as all existing modules.
+Done! The module follows the unified pattern with config at service level.
 
 ## Architecture Alignment
 
-This wire package perfectly aligns with the hexagonal architecture:
+- **Domain Layer**: Pure business logic (no changes)
+- **Ports Layer**: Interface contracts (add MaxSomething() methods if needed)
+- **Application Layer**: Services receive config in constructor
+- **Adapters Layer**: Handlers get config from services via interface methods
+- **Wire Package**: Orchestrates everything, injects config at service initialization
 
-- **Domain Layer**: Remains pure (no changes)
-- **Ports Layer**: Defines contracts (no changes)
-- **Application Layer**: Service implementations (no changes)
-- **Adapters Layer**: Technical implementations (no changes)
-- **Wire Package**: Orchestrates everything together
+## Key Takeaway
 
-The wire package sits **outside** the hexagon, connecting all the pieces together while keeping the core business logic clean and dependency-free.
+**Config flows: main.go → wire/services.go → Service constructors → Service methods**
 
-## Comparison with Original main.go
-
-### Before (154 lines in main.go)
-
-- All imports in main.go
-- All repository initialization in main.go
-- All service initialization in main.go
-- All handler initialization in main.go
-- All middleware configuration in main.go
-- All route registration in main.go
-
-### After (47 lines in main.go + organized wire package)
-
-- `main.go`: Config, logger, app lifecycle only
-- `wire/`: All dependency injection logic, organized by concern
-- Clear separation, better testing, easier maintenance
-
-## Future Enhancements
-
-### Optional: Google Wire Integration
-
-For even more automation, you could use [google/wire](https://github.com/google/wire):
-
-```go
-// wire_gen.go (auto-generated by wire tool)
-//go:build wireinject
-
-func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
-    wire.Build(
-        provideDatabase,
-        provideRepositories,
-        provideServices,
-        provideHandlers,
-        provideServer,
-    )
-    return &App{}, nil
-}
-```
-
-However, **manual wiring is recommended** for this project because:
-
-- More explicit and easier to understand
-- No build-time code generation
-- Follows Go's simplicity principle
-- Easier for learning and education
-
----
-
-**Result**: Clean, maintainable, testable, and idiomatic Go dependency injection.
+Handlers are config-agnostic and depend only on service interfaces.

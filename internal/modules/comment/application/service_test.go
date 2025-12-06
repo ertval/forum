@@ -209,6 +209,10 @@ func (m *MockPostService) ListPosts(ctx context.Context, filter postDomain.PostF
 	return nil, nil
 }
 
+func (m *MockPostService) MaxImageSize() int64 {
+	return 20 * 1024 * 1024 // 20MB for tests
+}
+
 func TestService_GetComment(t *testing.T) {
 	ctx := context.Background()
 	mockRepo := &MockCommentRepository{}

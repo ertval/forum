@@ -71,7 +71,7 @@ test:
 	@echo "$(GREEN)=========================================$(NC)"
 
 # Run all tests (verbose mode - shows all test output)
-tests:
+test-verbose:
 	@echo "$(BLUE)=========================================$(NC)"
 	@echo "$(BLUE)Running Complete Test Suite (Verbose Mode)$(NC)"
 	@echo "$(BLUE)=========================================$(NC)"

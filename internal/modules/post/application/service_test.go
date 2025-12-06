@@ -284,7 +284,7 @@ func TestService_CreatePost(t *testing.T) {
 				tt.setupMocks(mockPostRepo, mockCategoryRepo)
 			}
 
-			service := NewService(mockPostRepo, mockCategoryRepo, mockUserSvc, nil)
+			service := NewService(mockPostRepo, mockCategoryRepo, mockUserSvc, nil, 20*1024*1024)
 
 			post, err := service.CreatePost(ctx, tt.userID, tt.title, tt.content, tt.categories, tt.image)
 
@@ -406,7 +406,7 @@ func TestService_UpdatePost(t *testing.T) {
 				tt.setupMocks(mockPostRepo)
 			}
 
-			service := NewService(mockPostRepo, mockCategoryRepo, mockUserSvc, nil)
+			service := NewService(mockPostRepo, mockCategoryRepo, mockUserSvc, nil, 20*1024*1024)
 
 			err := service.UpdatePost(ctx, tt.postID, tt.title, tt.content, tt.categories)
 
@@ -471,7 +471,7 @@ func TestService_GetPost(t *testing.T) {
 				tt.setupMocks(mockPostRepo)
 			}
 
-			service := NewService(mockPostRepo, nil, mockUserSvc, nil)
+			service := NewService(mockPostRepo, nil, mockUserSvc, nil, 20*1024*1024)
 
 			post, err := service.GetPost(ctx, tt.postID)
 
@@ -561,7 +561,7 @@ func TestService_DeletePost(t *testing.T) {
 				tt.setupMocks(mockPostRepo)
 			}
 
-			service := NewService(mockPostRepo, nil, mockUserSvc, nil)
+			service := NewService(mockPostRepo, nil, mockUserSvc, nil, 20*1024*1024)
 
 			err := service.DeletePost(ctx, tt.postID)
 
@@ -625,7 +625,7 @@ func TestService_ListPosts(t *testing.T) {
 				tt.setupMocks(mockPostRepo)
 			}
 
-			service := NewService(mockPostRepo, nil, mockUserSvc, nil)
+			service := NewService(mockPostRepo, nil, mockUserSvc, nil, 20*1024*1024)
 
 			posts, err := service.ListPosts(ctx, tt.filter)
 

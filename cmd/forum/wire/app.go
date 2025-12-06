@@ -57,10 +57,10 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 	repos := initRepositories(db.DB())
 
 	// 3. Initialize Services (Application Layer)
-	services := initServices(repos, cfg.Session.Duration, lgr)
+	services := initServices(repos, cfg, lgr)
 
 	// 4. Initialize HTTP Handlers (Input Adapters)
-	handlers := initHandlers(services)
+	handlers := initHandlers(services, cfg)
 
 	// 5. Initialize HTTP Server
 	server := initServer(cfg, lgr, handlers, db.DB())

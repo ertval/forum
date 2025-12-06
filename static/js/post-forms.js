@@ -30,9 +30,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             if (file) {
-                if (file.size > 20 * 1024 * 1024) {  // 20MB limit
+                // Read maxImageSize from form data attribute (bytes)
+                const form = document.getElementById('post-create-form') || document.getElementById('post-edit-form');
+                const maxImageSize = form ? parseInt(form.getAttribute('data-max-image-size'), 10) : 20971520;
+                const maxImageSizeMB = maxImageSize / (1024 * 1024);
+                
+                if (file.size > maxImageSize) {
                     const formErrors = document.getElementById('form-errors');
-                    if (formErrors) formErrors.innerHTML = '<p class="error">Image must be less than 20MB</p>';
+                    if (formErrors) formErrors.innerHTML = `<p class="error">Image must be less than ${maxImageSizeMB}MB</p>`;
                     e.target.value = '';
                     if (preview) preview.innerHTML = '';
                     if (fileNameDisplay) fileNameDisplay.textContent = 'No file chosen';

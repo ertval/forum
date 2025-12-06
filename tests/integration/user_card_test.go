@@ -119,7 +119,7 @@ func TestUserCard_PostAndCommentCountsDisplay(t *testing.T) {
 	// Initialize services
 	userService := userApp.NewService(userRepo)
 	authService := authApp.NewService(sessionRepo, userService, 24*time.Hour)
-	postService := postApp.NewService(postRepo, categoryRepo, userService, nil) // nil image handler for tests
+	postService := postApp.NewService(postRepo, categoryRepo, userService, nil, 20*1024*1024) // nil image handler for tests, 20MB max
 
 	// Create test user via auth service (which hashes password)
 	_, _, err = authService.Register(ctx, "testuser@example.com", "testuser", "password123")

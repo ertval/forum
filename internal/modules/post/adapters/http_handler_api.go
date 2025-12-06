@@ -57,7 +57,7 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse request body (JSON or multipart form submissions from browser)
-	const maxUploadSize = 20 << 20 // 20MB limit
+	maxUploadSize := h.postService.MaxImageSize()
 	var (
 		req struct {
 			Title      string   `json:"title"`
@@ -94,7 +94,7 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			defer file.Close()
 			if header.Size > maxUploadSize {
-				platformErrors.WriteErrorJSON(w, http.StatusRequestEntityTooLarge, "Image exceeds 20MB limit")
+				platformErrors.WriteErrorJSON(w, http.StatusRequestEntityTooLarge, upload.FormatImageSizeError(maxUploadSize))
 				return
 			}
 			imageData, err = io.ReadAll(io.LimitReader(file, maxUploadSize))
@@ -151,10 +151,10 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 			platformErrors.WriteErrorJSON(w, http.StatusNotFound, err.Error())
 		case upload.ErrInvalidImageType, postDomain.ErrInvalidImageType:
 			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid image type, must be JPEG, PNG, or GIF")
-		case upload.ErrImageTooLarge, postDomain.ErrImageTooLarge:
-			platformErrors.WriteErrorJSON(w, http.StatusRequestEntityTooLarge, "Image file too large (max 20MB)")
-		case upload.ErrEmptyImage, postDomain.ErrInvalidImage:
+		case postDomain.ErrInvalidImage:
 			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid image file")
+		case upload.ErrImageTooLarge, postDomain.ErrImageTooLarge:
+			platformErrors.WriteErrorJSON(w, http.StatusRequestEntityTooLarge, upload.FormatImageSizeError(h.postService.MaxImageSize()))
 		default:
 			platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to create post")
 		}
@@ -265,7 +265,7 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case strings.HasPrefix(contentType, "multipart/form-data"):
-		if err := r.ParseMultipartForm(MaxImageUploadSize); err != nil {
+		if err := r.ParseMultipartForm(h.postService.MaxImageSize()); err != nil {
 			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid form data")
 			return
 		}
@@ -285,12 +285,12 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		// Parse image upload using the dedicated helper
-		imageResult, err := ParseImageUpload(r, "image")
+		imageResult, err := ParseImageUpload(r, "image", h.postService.MaxImageSize())
 		if err != nil {
 			if err == upload.ErrImageTooLarge {
-				platformErrors.WriteErrorJSON(w, http.StatusRequestEntityTooLarge, "Image exceeds 20MB limit")
+				platformErrors.WriteErrorJSON(w, http.StatusRequestEntityTooLarge, FormatImageError(err, h.postService.MaxImageSize()))
 			} else {
-				platformErrors.WriteErrorJSON(w, http.StatusBadRequest, FormatImageError(err))
+				platformErrors.WriteErrorJSON(w, http.StatusBadRequest, FormatImageError(err, h.postService.MaxImageSize()))
 			}
 			return
 		}

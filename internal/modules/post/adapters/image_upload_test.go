@@ -6,11 +6,12 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"forum/internal/platform/upload"
 )
+
+const testMaxImageSize = 20 * 1024 * 1024 // 20MB for tests
 
 // Helper to create a multipart request with a file
 func createMultipartRequest(t *testing.T, fieldName string, fileName string, fileContent []byte, extraFields map[string]string) *http.Request {
@@ -97,7 +98,7 @@ func TestParseImageUpload(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := tt.setupRequest(t)
-			result, err := ParseImageUpload(req, "image")
+			result, err := ParseImageUpload(req, "image", testMaxImageSize)
 
 			if tt.wantErr != nil {
 				if err == nil || err != tt.wantErr {
@@ -167,7 +168,7 @@ func TestParseMultipartImageUpload(t *testing.T) {
 			setupForm: func(t *testing.T) *multipart.Form {
 				// Create a request with file to get proper FileHeader
 				req := createMultipartRequest(t, "image", "test.png", validPNG, nil)
-				if err := req.ParseMultipartForm(MaxImageUploadSize); err != nil {
+				if err := req.ParseMultipartForm(testMaxImageSize); err != nil {
 					t.Fatalf("Failed to parse multipart form: %v", err)
 				}
 				return req.MultipartForm
@@ -181,7 +182,7 @@ func TestParseMultipartImageUpload(t *testing.T) {
 			name: "file with remove flag",
 			setupForm: func(t *testing.T) *multipart.Form {
 				req := createMultipartRequest(t, "image", "test.png", validPNG, map[string]string{"remove_image": "true"})
-				if err := req.ParseMultipartForm(MaxImageUploadSize); err != nil {
+				if err := req.ParseMultipartForm(testMaxImageSize); err != nil {
 					t.Fatalf("Failed to parse multipart form: %v", err)
 				}
 				return req.MultipartForm
@@ -196,7 +197,7 @@ func TestParseMultipartImageUpload(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			form := tt.setupForm(t)
-			result, err := ParseMultipartImageUpload(form, tt.fieldName)
+			result, err := ParseMultipartImageUpload(form, tt.fieldName, testMaxImageSize)
 
 			if tt.wantErr != nil {
 				if err == nil || err != tt.wantErr {
@@ -287,6 +288,7 @@ func TestValidateImageType(t *testing.T) {
 }
 
 func TestFormatImageError(t *testing.T) {
+	const testMaxSize = 20 * 1024 * 1024
 	tests := []struct {
 		name    string
 		err     error
@@ -300,7 +302,7 @@ func TestFormatImageError(t *testing.T) {
 		{
 			name:    "image too large error",
 			err:     upload.ErrImageTooLarge,
-			wantMsg: "Image file too large (max 20MB)",
+			wantMsg: "image file too large (max 20 MB)",
 		},
 		{
 			name:    "empty image error",
@@ -316,9 +318,9 @@ func TestFormatImageError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			msg := FormatImageError(tt.err)
-			if !strings.Contains(msg, tt.wantMsg) && msg != tt.wantMsg {
-				t.Errorf("FormatImageError() = %q, want %q", msg, tt.wantMsg)
+			gotMsg := FormatImageError(tt.err, testMaxSize)
+			if gotMsg != tt.wantMsg {
+				t.Errorf("FormatImageError() = %q, want %q", gotMsg, tt.wantMsg)
 			}
 		})
 	}

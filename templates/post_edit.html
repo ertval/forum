@@ -2,7 +2,7 @@
 <div class="post-edit">
     <h1>Edit Post</h1>
 
-    <form id="post-edit-form" enctype="multipart/form-data" data-post-id="{{.Post.PublicID}}">
+    <form id="post-edit-form" enctype="multipart/form-data" data-post-id="{{.Post.PublicID}}" data-max-image-size="{{.MaxImageSize}}">
         <div class="form-group">
             <label for="title">Title *</label>
             <input 

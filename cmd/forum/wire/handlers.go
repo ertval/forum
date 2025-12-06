@@ -11,6 +11,7 @@ import (
 	postAdapters "forum/internal/modules/post/adapters"
 	reactionAdapters "forum/internal/modules/reaction/adapters"
 	userAdapters "forum/internal/modules/user/adapters"
+	"forum/internal/platform/config"
 )
 
 // Handlers holds all HTTP handler instances.
@@ -25,7 +26,7 @@ type Handlers struct {
 }
 
 // initHandlers creates all HTTP handler instances with unified dependency injection.
-func initHandlers(services *ServiceContainer) *Handlers {
+func initHandlers(services *ServiceContainer, cfg *config.Config) *Handlers {
 
 	// Parse templates once and share between handlers that need them
 	// Skip if templates directory doesn't exist (for tests)
