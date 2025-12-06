@@ -14,6 +14,7 @@ import (
 	commentPorts "forum/internal/modules/comment/ports"
 	postDomain "forum/internal/modules/post/domain"
 	postPorts "forum/internal/modules/post/ports"
+	reactionPorts "forum/internal/modules/reaction/ports"
 	userPorts "forum/internal/modules/user/ports"
 )
 
@@ -26,6 +27,7 @@ type HTTPHandler struct {
 	userService        userPorts.UserService
 	middlewareProvider authPorts.AuthMiddleware
 	commentService     commentPorts.CommentService
+	reactionService    reactionPorts.ReactionService
 	templates          *template.Template
 }
 
@@ -38,6 +40,7 @@ type ServiceContainer interface {
 	User() userPorts.UserService
 	AuthMiddleware() authPorts.AuthMiddleware
 	Comment() commentPorts.CommentService
+	Reaction() reactionPorts.ReactionService
 }
 
 // NewHTTPHandler creates a new HTTP handler for posts with unified dependency injection.
@@ -50,6 +53,7 @@ func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HT
 		userService:        services.User(),
 		middlewareProvider: services.AuthMiddleware(),
 		commentService:     services.Comment(),
+		reactionService:    services.Reaction(),
 		templates:          templates,
 	}
 }
@@ -67,21 +71,47 @@ func (h *HTTPHandler) buildCurrentUser(ctx context.Context, userID int) map[stri
 	if err != nil || user == nil {
 		// Return empty map if user not found
 		return map[string]interface{}{
-			"PublicID":     "",
-			"Username":     "",
-			"Email":        "",
-			"PostCount":    0,
-			"CommentCount": 0,
+			"PublicID":      "",
+			"Username":      "",
+			"Email":         "",
+			"PostCount":     0,
+			"CommentCount":  0,
+			"ReactionCount": 0,
+		}
+	}
+
+	// Get reaction count from reaction service
+	reactionCount := 0
+	if h.reactionService != nil {
+		if count, err := h.reactionService.GetUserReactionCount(ctx, userID); err == nil {
+			reactionCount = count
 		}
 	}
 
 	return map[string]interface{}{
-		"PublicID":     user.PublicID,
-		"Username":     user.Username,
-		"Email":        user.Email,
-		"PostCount":    user.PostCount,
-		"CommentCount": user.CommentCount,
+		"PublicID":      user.PublicID,
+		"Username":      user.Username,
+		"Email":         user.Email,
+		"PostCount":     user.PostCount,
+		"CommentCount":  user.CommentCount,
+		"ReactionCount": reactionCount,
 	}
+}
+
+// GetUserWithStats extracts user info with stats from session cookie (for external handlers).
+// Returns a map with full user data including stats, or nil if not authenticated.
+func (h *HTTPHandler) GetUserWithStats(r *http.Request) map[string]interface{} {
+	cookie, err := r.Cookie("session_token")
+	if err != nil || cookie.Value == "" {
+		return nil
+	}
+
+	session, err := h.authService.ValidateSession(r.Context(), cookie.Value)
+	if err != nil || session == nil {
+		return nil
+	}
+
+	return h.buildCurrentUser(r.Context(), session.UserID)
 }
 
 // getInternalUserID converts a PublicID (UUID) from context to internal INT ID.

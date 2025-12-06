@@ -105,7 +105,7 @@ Reactions: POST/DELETE /api/reactions | GET /api/reactions/{targetType}/{targetI
 | **auth** | Registration, login, sessions (one per user), logout |
 | **user** | User profiles, cached stats (post/comment counts) |
 | **post** | Full CRUD, categories, filtering, image upload |
-| **comment** | Full CRUD with ownership validation |
+| **comment** | Full CRUD with ownership validation, my comments page |
 
 ### Scaffolded (Partial Implementation)
 | Module | Description |
@@ -113,6 +113,185 @@ Reactions: POST/DELETE /api/reactions | GET /api/reactions/{targetType}/{targetI
 | **reaction** | Like/dislike - routes defined, handlers return 501 |
 | **moderation** | Reports, roles - minimal implementation |
 | **notification** | User notifications - minimal implementation |
+
+---
+
+## Domain-Driven Design (DDD) Module Division
+
+This project follows **DDD tactical patterns** within a **modular monolith** architecture. Each module encapsulates a bounded context with clear responsibilities.
+
+### Core Concepts
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         MODULAR MONOLITH                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
+│  │    AUTH     │  │    USER     │  │    POST     │  │   COMMENT   │    │
+│  │  Bounded    │  │  Bounded    │  │  Bounded    │  │  Bounded    │    │
+│  │  Context    │  │  Context    │  │  Context    │  │  Context    │    │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘    │
+│         │                │                │                │           │
+│         └────────────────┼────────────────┼────────────────┘           │
+│                          │                │                             │
+│                    Service Interface Communication                      │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Bounded Contexts & Responsibilities
+
+| Bounded Context | Aggregate Root | Key Entities | Responsibilities |
+|-----------------|----------------|--------------|------------------|
+| **Auth** | Session | Session, Credentials | Authentication, session lifecycle, credential validation |
+| **User** | User | User, UserStats | User identity, profile, statistics aggregation |
+| **Post** | Post | Post, Category | Content creation, categorization, filtering, image handling |
+| **Comment** | Comment | Comment | Threaded discussions, comment CRUD, author context |
+| **Reaction** | Reaction | Reaction | Like/dislike tracking, reaction counts |
+| **Moderation** | Report | Report, Action | Content reporting, moderation actions |
+| **Notification** | Notification | Notification | User notifications, read/unread state |
+
+### DDD Layers Within Each Module
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        MODULE STRUCTURE                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │ DOMAIN LAYER (domain/)                                       │   │
+│   │ ┌─────────────┐  ┌─────────────────┐  ┌──────────────────┐  │   │
+│   │ │  Entities   │  │ Value Objects   │  │ Domain Errors    │  │   │
+│   │ │ • User      │  │ • Email         │  │ • ErrNotFound    │  │   │
+│   │ │ • Post      │  │ • Username      │  │ • ErrValidation  │  │   │
+│   │ │ • Comment   │  │ • Role          │  │ • ErrUnauthorized│  │   │
+│   │ └─────────────┘  └─────────────────┘  └──────────────────┘  │   │
+│   │ • Pure Go - NO external dependencies                         │   │
+│   │ • Business rules enforced via Validate() methods            │   │
+│   │ • Invariants protected within entity boundaries             │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                              │                                       │
+│                              ▼                                       │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │ PORTS LAYER (ports/)                                         │   │
+│   │ ┌────────────────────────┐  ┌────────────────────────────┐  │   │
+│   │ │ INPUT PORTS (service.go)│  │OUTPUT PORTS (repository.go)│  │   │
+│   │ │ • Service Interface    │  │ • Repository Interface     │  │   │
+│   │ │ • Use case definitions │  │ • Data access contracts    │  │   │
+│   │ └────────────────────────┘  └────────────────────────────┘  │   │
+│   │ • Defines contracts, not implementations                     │   │
+│   │ • Can only import from domain layer                          │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                              │                                       │
+│                              ▼                                       │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │ APPLICATION LAYER (application/)                             │   │
+│   │ ┌─────────────────────────────────────────────────────────┐ │   │
+│   │ │ Service Implementation (service.go)                      │ │   │
+│   │ │ • Implements INPUT PORT interface                        │ │   │
+│   │ │ • Orchestrates domain logic                              │ │   │
+│   │ │ • Coordinates repositories (OUTPUT PORTS)                │ │   │
+│   │ └─────────────────────────────────────────────────────────┘ │   │
+│   │ • Business logic orchestration                               │   │
+│   │ • Transaction coordination                                   │   │
+│   │ • Cross-entity workflows                                     │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                              │                                       │
+│                              ▼                                       │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │ ADAPTERS LAYER (adapters/)                                   │   │
+│   │ ┌────────────────────────┐  ┌────────────────────────────┐  │   │
+│   │ │ INPUT ADAPTERS         │  │ OUTPUT ADAPTERS            │  │   │
+│   │ │ • http_handler.go      │  │ • sqlite_repository.go     │  │   │
+│   │ │ • http_handler_api.go  │  │ • (future: cache, etc.)    │  │   │
+│   │ │ • http_handler_page.go │  │                            │  │   │
+│   │ └────────────────────────┘  └────────────────────────────┘  │   │
+│   │ • Technical implementations of ports                         │   │
+│   │ • HTTP request/response translation                          │   │
+│   │ • Database query execution                                   │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Module Communication Rules
+
+**Strict Boundaries**: Modules communicate ONLY through service interfaces, never by importing internal implementations.
+
+```go
+// ✅ CORRECT: Use service interface from other module
+type ServiceContainer interface {
+    Auth() authPorts.AuthService
+    User() userPorts.UserService
+}
+
+// ✅ CORRECT: Import port interface
+import authPorts "forum/internal/modules/auth/ports"
+
+// ❌ WRONG: Never import internal implementations
+import "forum/internal/modules/auth/application"  // FORBIDDEN
+import "forum/internal/modules/auth/adapters"     // FORBIDDEN
+```
+
+### Entity Design Principles
+
+Each entity follows these DDD principles:
+
+1. **Identity**: Each entity has a public UUID (`PublicID`) for external use and internal ID for database references
+2. **Validation**: Business rules enforced via `Validate()` method
+3. **Encapsulation**: State changes through defined methods, not direct field access
+4. **Invariants**: Entity ensures its own consistency
+
+```go
+// Example: Post entity with DDD principles
+type Post struct {
+    ID         int       // Internal identity
+    PublicID   string    // External identity (UUID)
+    AuthorID   int       // Reference to User aggregate
+    Title      string    // Value object candidate
+    Content    string    
+    ImagePath  string    // Optional
+    Categories []Category // Related aggregate
+    CreatedAt  time.Time
+    UpdatedAt  time.Time
+}
+
+func (p *Post) Validate() error {
+    // Enforces business invariants
+    if strings.TrimSpace(p.Title) == "" {
+        return ErrInvalidTitle
+    }
+    if len(p.Categories) == 0 {
+        return ErrCategoryRequired
+    }
+    return nil
+}
+```
+
+### Aggregate Boundaries
+
+Each module owns its aggregate root and is the sole authority over its data:
+
+| Module | Aggregate Root | Owned Data | References To |
+|--------|----------------|------------|---------------|
+| **auth** | Session | sessions table | users (FK) |
+| **user** | User | users table | - |
+| **post** | Post | posts, post_categories, categories | users (author_id) |
+| **comment** | Comment | comments table | posts (post_id), users (author_id) |
+| **reaction** | Reaction | reactions table | posts/comments (target_id), users (user_id) |
+
+### Cross-Cutting Concerns
+
+Infrastructure concerns that span all modules are handled in `internal/platform/`:
+
+| Platform Service | DDD Concept | Purpose |
+|------------------|-------------|---------|
+| **database** | Infrastructure | Persistence mechanism (SQLite) |
+| **logger** | Infrastructure | Structured logging across all layers |
+| **httpserver** | Infrastructure | HTTP transport, middleware |
+| **validator** | Domain Support | Input validation utilities |
+| **upload** | Infrastructure | File storage mechanism |
+| **cache** | Infrastructure | Performance optimization |
+| **errors** | Shared Kernel | Common error types |
 
 ---
 
@@ -168,7 +347,7 @@ Shared infrastructure in `internal/platform/`:
 | config | Environment variable loading |
 | database | SQLite connection, migrations |
 | logger | Structured logging (JSON) |
-| httpserver | HTTP server, middleware |
+| httpserver | HTTP server, middleware, TLS, security headers |
 | errors | Common errors, HTTP status mapping |
 | validator | Input validation |
 | upload | Image upload handling |
@@ -187,6 +366,128 @@ Shared infrastructure in `internal/platform/`:
 ```
 
 Migrations auto-apply on startup via `database.Migrator`.
+
+---
+
+## Security
+
+### TLS Configuration
+- TLS 1.2 minimum version
+- Strong cipher suites (AEAD only)
+- Certificate configuration via environment variables
+- Self-signed certificate generation script: `scripts/generate_certs.sh`
+
+### Production TLS Certificates
+
+**For production deployments, use proper TLS certificates from a trusted Certificate Authority (CA), not self-signed certificates.**
+
+#### Option 1: Let's Encrypt (Free, Automated)
+
+**Recommended for most deployments.** Let's Encrypt provides free, automated TLS certificates with 90-day validity.
+
+**Using Certbot:**
+```bash
+# Install certbot
+sudo apt-get install certbot  # Debian/Ubuntu
+sudo yum install certbot      # RHEL/CentOS
+
+# Obtain certificate (standalone mode - requires port 80/443 temporarily)
+sudo certbot certonly --standalone -d yourdomain.com -d www.yourdomain.com
+
+# Certificates will be saved to:
+# /etc/letsencrypt/live/yourdomain.com/fullchain.pem  (certificate)
+# /etc/letsencrypt/live/yourdomain.com/privkey.pem    (private key)
+
+# Update .env with certificate paths
+TLS_CERT_FILE=/etc/letsencrypt/live/yourdomain.com/fullchain.pem
+TLS_KEY_FILE=/etc/letsencrypt/live/yourdomain.com/privkey.pem
+
+# Set up auto-renewal (certbot installs a systemd timer automatically)
+sudo certbot renew --dry-run  # Test renewal
+```
+
+**Using ACME clients (alternative):**
+- [acme.sh](https://github.com/acmesh-official/acme.sh) - Lightweight, shell-based
+- [lego](https://github.com/go-acme/lego) - Go-based ACME client
+
+#### Option 2: Commercial Certificate Authority
+
+Purchase certificates from trusted CAs like DigiCert, Sectigo, or GlobalSign for extended validation or wildcard certificates.
+
+**Steps:**
+1. Generate a Certificate Signing Request (CSR):
+   ```bash
+   openssl req -new -newkey rsa:2048 -nodes \
+     -keyout yourdomain.key \
+     -out yourdomain.csr \
+     -subj "/C=US/ST=State/L=City/O=Organization/CN=yourdomain.com"
+   ```
+
+2. Submit CSR to your chosen CA and complete their validation process
+
+3. Download the issued certificate and intermediate certificates
+
+4. Configure the forum:
+   ```env
+   TLS_CERT_FILE=/path/to/yourdomain.crt
+   TLS_KEY_FILE=/path/to/yourdomain.key
+   ```
+
+#### Option 3: Reverse Proxy with TLS Termination
+
+Use a reverse proxy (nginx, Caddy, Traefik) to handle TLS, allowing the forum to run on HTTP internally.
+
+**Example with Caddy (automatic HTTPS):**
+```caddy
+yourdomain.com {
+    reverse_proxy localhost:8080
+}
+```
+
+**Example with nginx:**
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name yourdomain.com;
+    
+    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+    
+    location / {
+        proxy_pass http://localhost:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+#### Certificate Permissions
+
+Ensure the forum process has read access to certificate files:
+```bash
+# Option 1: Copy certificates to forum directory with proper permissions
+sudo cp /etc/letsencrypt/live/yourdomain.com/*.pem /path/to/forum/certs/
+sudo chown forum-user:forum-user /path/to/forum/certs/*.pem
+sudo chmod 600 /path/to/forum/certs/*.pem
+
+# Option 2: Add forum user to certificate group
+sudo usermod -aG ssl-cert forum-user
+sudo chgrp ssl-cert /etc/letsencrypt/live/yourdomain.com/*.pem
+sudo chmod 640 /etc/letsencrypt/live/yourdomain.com/*.pem
+```
+
+### Security Headers
+Applied via middleware to all responses:
+- **Content-Security-Policy**: Restricts resource loading
+- **X-Frame-Options**: DENY (prevents clickjacking)
+- **X-Content-Type-Options**: nosniff
+- **X-XSS-Protection**: 1; mode=block
+- **Referrer-Policy**: strict-origin-when-cross-origin
+- **Strict-Transport-Security**: max-age=31536000 (HSTS)
+- **Permissions-Policy**: Restricts browser features
+
+### Rate Limiting
+Per-IP request throttling to prevent abuse.
 
 ---
 

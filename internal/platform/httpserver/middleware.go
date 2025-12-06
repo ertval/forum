@@ -94,6 +94,12 @@ func Logger(lgr *logger.Logger) Middleware {
 				rw.status = http.StatusOK
 			}
 
+			// Determine protocol (http or https)
+			proto := "http"
+			if r.TLS != nil {
+				proto = "https"
+			}
+
 			lgr.Info("http.request",
 				logger.String("method", r.Method),
 				logger.String("path", r.URL.Path),
@@ -103,6 +109,7 @@ func Logger(lgr *logger.Logger) Middleware {
 				logger.Duration("duration_ms", time.Since(start)),
 				logger.String("remote", r.RemoteAddr),
 				logger.String("user_agent", r.UserAgent()),
+				logger.String("proto", proto),
 			)
 		})
 	}

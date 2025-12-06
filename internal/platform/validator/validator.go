@@ -68,16 +68,30 @@ func (v *Validator) Email(field, value string) {
 }
 
 // Username validates a username format.
-// Usernames should contain only letters, numbers, and underscores.
+// Username must be a proper name in "Name Surname" format.
+// Each part must be capitalized (first letter uppercase, rest lowercase).
+// Only letters and spaces allowed, no numbers or special symbols.
 func (v *Validator) Username(field, value string) {
-	if len(value) < 3 || len(value) > 20 {
-		v.AddError(field, "Username must be between 3 and 20 characters")
+	value = strings.TrimSpace(value)
+	if len(value) < 3 || len(value) > 50 {
+		v.AddError(field, "Name must be between 3 and 50 characters")
 		return
 	}
 
-	usernameRegex := regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
-	if !usernameRegex.MatchString(value) {
-		v.AddError(field, "Username can only contain letters, numbers, and underscores")
+	// Split by space to validate "Name Surname" format
+	parts := strings.Fields(value)
+	if len(parts) < 2 {
+		v.AddError(field, "Please enter your full name (e.g., John Smith)")
+		return
+	}
+
+	// Each part must contain only letters and be properly capitalized
+	namePartRegex := regexp.MustCompile(`^[A-Z][a-z]+$`)
+	for _, part := range parts {
+		if !namePartRegex.MatchString(part) {
+			v.AddError(field, "Each name part must start with uppercase and contain only letters (e.g., John Smith)")
+			return
+		}
 	}
 }
 

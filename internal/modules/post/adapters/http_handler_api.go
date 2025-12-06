@@ -20,10 +20,13 @@ import (
 
 // RegisterAPIRoutes registers all post API routes with the router.
 func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
-	// Public API routes (no auth required)
-	router.HandleFunc("GET /api/posts", h.ListPostsAPI)
+	// Public API routes with optional auth (needed for my_posts/liked_posts filters)
+	optionalAuth := h.middlewareProvider.OptionalAuth()
+	router.Handle("GET /api/posts", optionalAuth(http.HandlerFunc(h.ListPostsAPI)))
+	router.Handle("GET /api/posts/load-more", optionalAuth(http.HandlerFunc(h.LoadMorePostsAPI)))
+
+	// Public API route without auth
 	router.HandleFunc("GET /api/posts/{id}", h.GetPostAPI)
-	router.HandleFunc("GET /api/posts/load-more", h.LoadMorePostsAPI)
 
 	// Protected API routes (require authentication)
 	authMiddleware := h.middlewareProvider.RequireAuth()

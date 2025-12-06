@@ -91,6 +91,24 @@ func (m *MockCommentRepository) ListByUser(ctx context.Context, userID int) ([]*
 	return result, nil
 }
 
+func (m *MockCommentRepository) ListByUserPaginated(ctx context.Context, userID int, limit, offset int) ([]*domain.Comment, error) {
+	var result []*domain.Comment
+	for _, comment := range m.comments {
+		if comment.UserID == userID {
+			result = append(result, comment)
+		}
+	}
+	// Apply pagination
+	if offset >= len(result) {
+		return []*domain.Comment{}, nil
+	}
+	end := offset + limit
+	if end > len(result) {
+		end = len(result)
+	}
+	return result[offset:end], nil
+}
+
 // MockUserService implements a minimal UserService for testing
 type MockUserService struct {
 	getByPublicIDFn func(ctx context.Context, publicID string) (*userDomain.User, error)

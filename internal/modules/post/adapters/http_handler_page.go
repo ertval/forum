@@ -24,7 +24,6 @@ func (h *HTTPHandler) RegisterPageRoutes(router *http.ServeMux) {
 	authMiddleware := h.middlewareProvider.RequireAuth()
 	router.Handle("GET /posts/new", authMiddleware(http.HandlerFunc(h.CreatePostPage)))
 	router.Handle("GET /posts/{id}/edit", authMiddleware(http.HandlerFunc(h.EditPostPage)))
-	router.Handle("GET /comments", authMiddleware(http.HandlerFunc(h.MyCommentsPage)))
 }
 
 // HomePage handles the homepage rendering with post list.
@@ -475,111 +474,5 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
 		http.Error(w, "Failed to render page", http.StatusInternalServerError)
-	}
-}
-
-// MyCommentsPage handles the page that displays all comments made by the current user.
-func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	// Get current user if logged in
-	var currentUser interface{}
-	cookie, err := r.Cookie("session_token")
-	if err != nil || cookie.Value == "" {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
-		return
-	}
-
-	session, err := h.authService.ValidateSession(ctx, cookie.Value)
-	if err != nil || session == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
-		return
-	}
-
-	currentUser = h.buildCurrentUser(ctx, session.UserID)
-
-	// Fetch comments made by this user
-	var comments []interface{}
-	if h.commentService != nil {
-		currentUserInfo, ok := currentUser.(map[string]interface{})
-		if !ok {
-			http.Error(w, "Failed to get user info", http.StatusInternalServerError)
-			return
-		}
-
-		userPublicID, ok := currentUserInfo["PublicID"].(string)
-		if !ok || userPublicID == "" {
-			http.Error(w, "User not authenticated properly", http.StatusUnauthorized)
-			return
-		}
-
-		commentsFromService, err := h.commentService.ListCommentsByUser(ctx, userPublicID)
-		if err != nil {
-			fmt.Printf("Error fetching user comments: %v\n", err)
-		} else {
-			for _, comment := range commentsFromService {
-				var authorUsername string
-				if comment.UserID != 0 {
-					user, err := h.userService.GetByID(ctx, comment.UserID)
-					if err == nil && user != nil {
-						authorUsername = user.Username
-					}
-				}
-
-				var postTitle string
-				var postAuthorUsername string
-				if comment.PublicPostID != "" {
-					post, err := h.postService.GetPost(ctx, comment.PublicPostID)
-					if err == nil && post != nil {
-						postTitle = post.Title
-						postAuthorUsername = post.AuthorUsername
-					} else {
-						postTitle = "Post not found"
-						postAuthorUsername = "Unknown"
-					}
-				} else {
-					postTitle = "Post ID unknown"
-					postAuthorUsername = "Unknown"
-				}
-
-				commentData := map[string]interface{}{
-					"PublicID":           comment.PublicID,
-					"AuthorUsername":     authorUsername,
-					"Content":            comment.Content,
-					"PostPublicID":       comment.PublicPostID,
-					"PostTitle":          postTitle,
-					"PostAuthorUsername": postAuthorUsername,
-					"CreatedAt":          comment.CreatedAt,
-					"UpdatedAt":          comment.UpdatedAt,
-					"Likes":              0,
-					"Dislikes":           0,
-				}
-				comments = append(comments, commentData)
-			}
-		}
-	}
-
-	data := map[string]interface{}{
-		"Title":    "My Comments",
-		"User":     currentUser,
-		"Comments": comments,
-	}
-
-	// Parse templates individually for this page
-	tmpl, err := template.ParseFiles("templates/base.html", "templates/comments.html")
-	if err != nil {
-		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
-		fmt.Printf("Template error: %v\n", err)
-		http.Error(w, fmt.Sprintf("Failed to render page: %v", err), http.StatusInternalServerError)
-		return
-	}
-	if _, err := buf.WriteTo(w); err != nil {
-		http.Error(w, "Failed to write response", http.StatusInternalServerError)
 	}
 }

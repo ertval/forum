@@ -141,8 +141,8 @@ func Load() (*Config, error) {
 	cfg.Session.Secure = getEnvBool("SESSION_SECURE", false)
 	cfg.Session.HttpOnly = getEnvBool("SESSION_HTTP_ONLY", true)
 
-	cfg.Security.TLSCertFile = getEnvString("TLS_CERT_FILE", "cert.pem")
-	cfg.Security.TLSKeyFile = getEnvString("TLS_KEY_FILE", "key.pem")
+	cfg.Security.TLSCertFile = getEnvString("TLS_CERT_FILE", "./certs/cert.pem")
+	cfg.Security.TLSKeyFile = getEnvString("TLS_KEY_FILE", "./certs/key.pem")
 	cfg.Security.RateLimitRequests = getEnvInt("RATE_LIMIT_REQUESTS", 100)
 	cfg.Security.RateLimitWindow = getEnvDuration("RATE_LIMIT_WINDOW", time.Minute)
 	cfg.Security.MinPasswordLength = getEnvInt("MIN_PASSWORD_LENGTH", 8)

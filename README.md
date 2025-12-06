@@ -2,7 +2,7 @@
 
 A modern web forum built with Go, following Hexagonal Architecture principles. Clean, testable, idiomatic Go code organized as a Modular Monolith.
 
-**Current status**: MVP Core Features - 90% Complete. Authentication, Posts, Categories, and platform infrastructure (config, database migrations, logging, HTTP server, and validator) are implemented with unit and integration tests. Remaining items: Comments and Reactions modules (mostly scaffolded), some HTTP handlers for `user` and optional modules (moderation, notification). See `docs/IMPLEMENTATION_ROADMAP.md` for detailed progress and next steps.
+**Current status**: MVP Core Features - 100% Complete. All core modules (Authentication, User Management, Posts, Categories, Comments, and Reactions) are fully implemented with unit and integration tests. Platform infrastructure (config, database migrations, logging, HTTP server, health checks, upload handling, caching, and validator) is complete. Optional modules (moderation, notification) remain scaffolded. See `docs/IMPLEMENTATION_ROADMAP.md` for detailed progress.
 
 ## Features
 
@@ -17,6 +17,13 @@ A modern web forum built with Go, following Hexagonal Architecture principles. C
   - Only ONE active session per user
   - Middleware for protected routes (RequireAuth, OptionalAuth)
 
+- **User Management** ✅
+  - User CRUD operations (get, list, update)
+  - Role management (Guest, User, Moderator, Administrator)
+  - User activation/deactivation
+  - View user profiles with activity stats
+  - Filter by created posts or liked posts
+
 - **Posts & Categories** ✅
   - Create, read, update, delete posts
   - Multiple categories per post (minimum 1 required)
@@ -28,36 +35,29 @@ A modern web forum built with Go, following Hexagonal Architecture principles. C
   - Filter posts by category, user, liked posts, and date range
   - Date filtering (Today, This Week, This Month, All Time)
   - Dedicated FilterService in application layer for centralized filtering logic
-  - Image upload support (implemented as upload handling + validation; storage and CDN integration remain optional - JPEG, PNG, GIF, max 20MB)
+  - Image upload support (JPEG, PNG, GIF, max 20MB)
 
-### Core Features (Planned / Near Complete)
-
-- **Comments**
+- **Comments** ✅
   - Comment on posts
   - Edit/delete own comments
   - Comments visible to all
   - Empty comments rejected
+  - Threaded comment display
 
-- **Reactions**
+- **Reactions** ✅
   - Like/dislike posts and comments
   - Toggle reactions (can't like and dislike simultaneously)
   - Reaction counts visible to all
   - Filter posts by user's liked posts
 
-- **User Profiles**
-  - View user profiles
-  - Activity tracking (created posts, comments, reactions)
-  - Filter by created posts
-  - Filter by liked posts
+### Security ✅
 
-### Security
-
-- **HTTPS/TLS** - TLS 1.2+ with strong cipher suites
-- **Rate Limiting** - Per-IP and per-user request throttling
-- **CSRF Protection** - Token-based CSRF prevention
+- **HTTPS/TLS** - TLS 1.2+ with strong cipher suites (AEAD)
+- **Rate Limiting** - Per-IP request throttling middleware
 - **Input Validation** - Email format, password strength, data sanitization
 - **Secure Sessions** - UUID tokens, server-side storage, secure cookies
-- **Security Headers** - CSP, X-Frame-Options, HSTS
+- **Security Headers** - CSP, X-Frame-Options, HSTS, X-XSS-Protection, Referrer-Policy, Permissions-Policy
+- **Certificate Generation** - Script for self-signed certificates (`scripts/generate_certs.sh`)
 
 ### Optional Features
 
@@ -602,7 +602,12 @@ docker run -p 8080:8080 forum:latest
    TLS_KEY_FILE=/path/to/key.pem
    ```
 
-3. Run with TLS:
+3. **Obtain proper TLS certificates** (not self-signed):
+   - **Recommended**: Use [Let's Encrypt](https://letsencrypt.org/) with certbot for free, automated certificates
+   - **Alternative**: Purchase from a commercial CA (DigiCert, Sectigo) or use a reverse proxy (Caddy, nginx) for TLS termination
+   - See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md#production-tls-certificates) for detailed setup instructions
+
+4. Run with TLS:
 
    ```bash
    ./forum

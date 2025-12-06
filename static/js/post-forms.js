@@ -179,7 +179,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Handle post deletion (for edit form)
     window.deletePost = async function(postId) {
-        if (!confirm('Are you sure you want to delete this post?')) {
+        const confirmed = await confirmDelete('Post');
+        if (!confirmed) {
             return;
         }
         
@@ -189,7 +190,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             if (response.ok) {
-                window.location.href = '/';
+                window.location.href = '/board?my_posts=true';
             } else {
                 const error = await response.json();
                 const formErrors = document.getElementById('form-errors');

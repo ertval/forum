@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"forum/internal/platform/config"
@@ -36,12 +37,18 @@ func New(cfg *config.Config) *Server {
 
 	var tlsServer *http.Server
 	if cfg.Security.TLSCertFile != "" && cfg.Security.TLSKeyFile != "" {
-		tlsServer = &http.Server{
-			Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.TLSPort),
-			Handler:      router,
-			ReadTimeout:  cfg.Server.ReadTimeout,
-			WriteTimeout: cfg.Server.WriteTimeout,
-			IdleTimeout:  cfg.Server.IdleTimeout,
+		// Check if certificate files exist before configuring TLS
+		if _, err := os.Stat(cfg.Security.TLSCertFile); err == nil {
+			if _, err := os.Stat(cfg.Security.TLSKeyFile); err == nil {
+				tlsServer = &http.Server{
+					Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.TLSPort),
+					Handler:      router,
+					ReadTimeout:  cfg.Server.ReadTimeout,
+					WriteTimeout: cfg.Server.WriteTimeout,
+					IdleTimeout:  cfg.Server.IdleTimeout,
+					TLSConfig:    TLSConfig(), // Use secure TLS configuration with cipher suites
+				}
+			}
 		}
 	}
 
@@ -93,8 +100,8 @@ func (s *Server) Start() error {
 		}
 	}()
 
-	// Start HTTPS server if TLS is configured
-	if s.tlsServer != nil && s.config.Security.TLSCertFile != "" && s.config.Security.TLSKeyFile != "" && false {
+	// Start HTTPS server if TLS is configured and certificates exist
+	if s.tlsServer != nil && s.config.Security.TLSCertFile != "" && s.config.Security.TLSKeyFile != "" {
 		go func() {
 			if err := s.tlsServer.ListenAndServeTLS(s.config.Security.TLSCertFile, s.config.Security.TLSKeyFile); err != nil && err != http.ErrServerClosed {
 				errChan <- fmt.Errorf("HTTPS server error: %w", err)

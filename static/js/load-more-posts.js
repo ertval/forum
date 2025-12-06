@@ -25,7 +25,8 @@
         function createPostElement(post, compact) {
             const el = document.createElement('article');
             if (compact) {
-                el.className = 'post-card-compact';
+                el.className = 'post-card-compact clickable-card';
+                el.setAttribute('data-href', `/posts/${post.PublicID}`);
                 const postDate = new Date(post.CreatedAt);
                 const formattedDate = postDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
                 el.innerHTML = `
@@ -60,7 +61,8 @@
                     </div>
                 `;
             } else {
-                el.className = 'post-card';
+                el.className = 'post-card clickable-card';
+                el.setAttribute('data-href', `/posts/${post.PublicID}`);
                 const postDate = new Date(post.CreatedAt);
                 const formattedDate = postDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
                 el.innerHTML = `

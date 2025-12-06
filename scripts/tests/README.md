@@ -2,6 +2,8 @@
 
 This directory contains comprehensive test scripts for the Forum application, organized by testing focus.
 
+**These test scripts are the single source of truth for requirements verification.**
+
 ## Quick Start
 
 **Prerequisites:** Before running tests, ensure the database is seeded with test data:
@@ -12,7 +14,7 @@ This directory contains comprehensive test scripts for the Forum application, or
 
 Run all tests with a single command:
 ```bash
-# Run all tests (verifies database, then runs test scripts)
+# Run all tests (verifies database, then runs test scripts in alphabetical order)
 make test-script
 
 # Or directly:
@@ -28,12 +30,13 @@ make test-script
 ## Test Scripts Overview
 
 ### 0. `run_all_tests.sh` - Master Test Runner
-**Focus:** Verifies database and runs all test scripts in sequence
+**Focus:** Verifies database and runs all test scripts in **alphabetical order**
 
 This script:
 1. **Verifies** the database exists and has required test data (does NOT seed/modify data)
-2. **Runs** `test_api.sh`, `test_audit.sh`, and `test_pages.sh` in sequence
-3. **Reports** a combined summary of all test results
+2. **Discovers** all `test_*.sh` scripts in this directory
+3. **Runs** them in **alphabetical order** for reproducible results
+4. **Reports** a combined summary of all test results (also in alphabetical order)
 
 ```bash
 ./scripts/tests/run_all_tests.sh
@@ -45,12 +48,27 @@ Exit codes:
 
 ---
 
+## Audit Requirement Test Scripts
+
+These scripts directly map to the audit requirement documents in `docs/requirements/`:
+
+| Script | Audit Document | Purpose |
+|--------|----------------|---------|
+| `test_audit.sh` | `audit.md` | Core forum functionality (auth, SQLite, Docker, posts, comments, reactions) |
+| `test_audit_advanced.sh` | `audit-advanced.md` | Activity page, notifications, edit/delete posts |
+| `test_audit_authentication.sh` | `audit-authentication.md` | OAuth (GitHub/Google), duplicate credentials |
+| `test_audit_image.sh` | `audit-image.md` | Image uploads (PNG, JPEG, GIF), size limits |
+| `test_audit_moderation.sh` | `audit-moderation.md` | User roles (guest, user, moderator, admin), reports |
+| `test_audit_security.sh` | `audit-security.md` | HTTPS, TLS, rate limiting, password encryption |
+
+---
+
 ### 1. `test_api.sh` - API Endpoints Test Suite
 **Focus:** Tests all JSON API endpoints with detailed edge cases
 
 **Coverage:**
 - ✅ **Authentication API** (Tests 1-16)
-  - Registration (valid, duplicate email/username, validation errors)
+  - Registration (valid, duplicate email, duplicate username, validation errors)
   - Login (valid credentials, wrong password, non-existent user)
   - Logout and session invalidation
   - Malformed JSON handling

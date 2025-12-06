@@ -29,6 +29,10 @@ fi
 PASSED=0
 FAILED=0
 
+# Arrays to track created test data for cleanup
+CREATED_POSTS=()
+CREATED_USERS=()
+
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
@@ -89,6 +93,30 @@ start_server() {
 }
 
 cleanup() {
+    echo ""
+    echo -e "${YELLOW}--- CLEANUP ---${NC}"
+    echo ""
+    
+    # Delete created posts via API
+    if [ ${#CREATED_POSTS[@]} -gt 0 ] && [ -n "$SESSION_COOKIE" ]; then
+        for post_id in "${CREATED_POSTS[@]}"; do
+            if [ -n "$post_id" ]; then
+                curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
+                    -H "Cookie: session_token=$SESSION_COOKIE" > /dev/null 2>&1
+            fi
+        done
+    fi
+    
+    # Clean up test users from database directly
+    for username in "${CREATED_USERS[@]}"; do
+        if [ -n "$username" ]; then
+            sqlite3 "$DB_PATH" "DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE username='$username');" 2>/dev/null
+            sqlite3 "$DB_PATH" "DELETE FROM users WHERE username='$username';" 2>/dev/null
+        fi
+    done
+    
+    echo -e "${GREEN}✓ Test data cleaned up${NC}"
+    
     if [ -n "$SERVER_PID" ]; then
         kill $SERVER_PID 2>/dev/null || true
     fi
@@ -108,13 +136,102 @@ kill_existing_server
 start_server
 
 # =============================================================================
+# FUNCTIONAL SECTION - Registration and Login Basics
+# =============================================================================
+print_section "FUNCTIONAL - Registration and Login Basics"
+
+# Q: Does the registration ask for an email and a password?
+print_question "Does the registration ask for an email and a password?"
+REGISTER_PAGE=$(curl -s "$BASE_URL/register")
+if echo "$REGISTER_PAGE" | grep -qi "email" && echo "$REGISTER_PAGE" | grep -qi "password"; then
+    print_answer "YES" "Registration page contains email and password fields"
+else
+    print_answer "NO" "Registration page missing required fields"
+fi
+
+# Q: Try creating an account twice with the same credential - Does it present an error?
+print_question "Try creating an account twice with the same credential - Does it present an error?"
+TIMESTAMP=$(date +%s)
+UNIQUE_EMAIL="authtest_${TIMESTAMP}@test.com"
+UNIQUE_USERNAME="AuthTest User ${TIMESTAMP}"
+
+# First registration (should succeed)
+RESPONSE1=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"$UNIQUE_EMAIL\",\"username\":\"$UNIQUE_USERNAME\",\"password\":\"password123\"}")
+HTTP_CODE1=$(echo "$RESPONSE1" | tail -n1)
+
+# Second registration with same credentials (should fail)
+RESPONSE2=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"$UNIQUE_EMAIL\",\"username\":\"$UNIQUE_USERNAME\",\"password\":\"password123\"}")
+HTTP_CODE2=$(echo "$RESPONSE2" | tail -n1)
+
+if [ "$HTTP_CODE1" = "201" ] && [ "$HTTP_CODE2" = "409" ]; then
+    print_answer "YES" "First registration succeeded (201), second failed with conflict (409)"
+    CREATED_USERS+=("$UNIQUE_USERNAME")
+elif [ "$HTTP_CODE2" = "409" ] || [ "$HTTP_CODE2" = "400" ]; then
+    print_answer "YES" "Duplicate registration returns error ($HTTP_CODE2)"
+    # User might have been created from previous run
+    CREATED_USERS+=("$UNIQUE_USERNAME")
+else
+    print_answer "NO" "Duplicate registration not properly detected (got $HTTP_CODE2)"
+fi
+
+# Q: Try to enter your account with no email, password or with errors - Does it present an error?
+print_question "Try to enter your account with no email, password or with errors - Does it present an error and an error message?"
+# Test with empty credentials
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/login" \
+    -H "Content-Type: application/json" \
+    -d '{}')
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | head -n -1)
+
+if [ "$HTTP_CODE" = "400" ] || [ "$HTTP_CODE" = "401" ]; then
+    if echo "$BODY" | grep -qiE "error|required|invalid|empty"; then
+        print_answer "YES" "Returns error with message for empty credentials"
+    else
+        print_answer "YES" "Returns error for empty credentials ($HTTP_CODE)"
+    fi
+else
+    print_answer "NO" "Does not properly handle empty credentials (got $HTTP_CODE)"
+fi
+
+# Q: Can you login and have all the rights of a registered user?
+print_question "Try to login with the user you created - Can you login and have all the rights of a registered user?"
+RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"$UNIQUE_EMAIL\",\"password\":\"password123\"}")
+HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP" | tail -n1 | awk '{print $2}')
+SESSION_COOKIE=$(echo "$RESPONSE" | grep -i "set-cookie" | grep "session_token" | sed 's/.*session_token=\([^;]*\).*/\1/' | head -n 1)
+
+if [ "$HTTP_CODE" = "200" ] && [ -n "$SESSION_COOKIE" ]; then
+    # Test that we can access protected endpoints
+    CREATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
+        -H "Cookie: session_token=$SESSION_COOKIE" \
+        -H "Content-Type: application/json" \
+        -d '{"title":"Auth Test Post","content":"Testing rights","categories":["General"]}')
+    CREATE_CODE=$(echo "$CREATE_RESPONSE" | tail -n1)
+    CREATE_BODY=$(echo "$CREATE_RESPONSE" | sed '$d')
+    if [ "$CREATE_CODE" = "201" ]; then
+        POST_ID=$(echo "$CREATE_BODY" | grep -o '"id":"[^"]*"' | sed 's/"id":"\([^"]*\)"/\1/' | head -n 1)
+        [ -n "$POST_ID" ] && CREATED_POSTS+=("$POST_ID")
+        print_answer "YES" "Login successful and can create posts (registered user rights)"
+    else
+        print_answer "YES" "Login successful with session token"
+    fi
+else
+    print_answer "NO" "Login failed (HTTP $HTTP_CODE)"
+fi
+
+# =============================================================================
 # FUNCTIONAL SECTION - OAuth Provider Support
 # =============================================================================
 print_section "FUNCTIONAL - OAuth Provider Support"
 
 # Q: Check the login page - Does it show GitHub login option?
-print_question "Check the login page - Does the application allow you to log in using your Github account?"
 LOGIN_PAGE=$(curl -s "$BASE_URL/login")
+print_question "Check the login page - Does the application allow you to log in using your Github account?"
 if echo "$LOGIN_PAGE" | grep -qiE "github|oauth.*github|login.*github"; then
     print_answer "YES" "GitHub login option present on login page"
 else

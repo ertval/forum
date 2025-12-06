@@ -28,15 +28,26 @@
     transition: all 0.3s ease;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr 130px;
     grid-template-rows: auto 1fr auto;
     grid-template-areas:
         "header image"
         "content image"
         "footer footer";
-    gap: 0.75rem 1.5rem;
+    gap: 0.75rem 1rem;
     max-width: 100%;
     word-wrap: break-word;
+}
+
+/* Clickable card styling */
+.post-card.clickable-card {
+    cursor: pointer;
+}
+
+.post-card.clickable-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+    border-color: #a0c0d0;
 }
 
 /* When no image, make content span full width */
@@ -92,8 +103,8 @@
 /* Post Image - Positioned on right side */
 .post-card .post-image {
     grid-area: image;
-    width: 150px;
-    height: 120px;
+    width: 130px;
+    height: 100px;
     overflow: hidden;
     border-radius: 8px;
     flex-shrink: 0;
@@ -136,18 +147,22 @@
     align-items: center;
     padding-top: 0.75rem;
     border-top: 1px solid #e8e8e8;
+    gap: 1rem;
 }
 
 .categories {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.15rem;
     flex-wrap: wrap;
+    justify-content: flex-start;
 }
 
 .post-actions {
     display: flex;
-    gap: 1rem;
+    gap: 0.25rem;
     font-size: 0.95rem;
+    justify-content: flex-end;
+    margin-left: auto;
 }
 
 .post-actions span {
@@ -155,6 +170,13 @@
     background-color: #e0f7e9;
     padding: 0.25rem 0.75rem;
     border-radius: 16px;
+    transition: all 0.2s ease;
+    cursor: default;
+}
+
+.post-actions span:hover {
+    background-color: #c9edd9;
+    color: #5a5a5a;
 }
 
 .no-posts {
@@ -173,6 +195,23 @@
 .no-posts a:hover {
     color: #7fb8a5;
     text-decoration: underline;
+}
+
+/* Clickable Card - Makes entire card surface clickable */
+.clickable-card {
+    cursor: pointer;
+    position: relative;
+}
+
+.clickable-card a,
+.clickable-card button {
+    position: relative;
+    z-index: 2;
+}
+
+/* Prevent text selection on card click */
+.clickable-card:active {
+    user-select: none;
 }
 
 /* Responsive - Post Cards */

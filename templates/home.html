@@ -6,7 +6,7 @@
     {{if .Posts}}
     <div class="home-posts-grid">
         {{range .Posts}}
-            <article class="post-card-compact">
+            <article class="post-card-compact clickable-card" data-href="/posts/{{.PublicID}}">
                 <div class="post-header-compact">
                     <h3><a href="/posts/{{.PublicID}}">{{.Title}}</a></h3>
                     <div class="post-meta-compact">

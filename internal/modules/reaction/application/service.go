@@ -49,3 +49,8 @@ func (s *Service) CountReactions(ctx context.Context, targetPublicID string, tar
 	// 3. Return both counts
 	return 0, 0, nil
 }
+
+// GetUserReactionCount returns the total number of reactions given by a user.
+func (s *Service) GetUserReactionCount(ctx context.Context, userID int) (int, error) {
+	return s.reactionRepo.CountByUserID(ctx, userID)
+}

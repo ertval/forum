@@ -1,6 +1,7 @@
 {{define "content"}}
-<div class="comments-page">
-    <h1>My Comments</h1>
+<div class="posts">
+    <div id="page-errors" class="form-errors"></div>
+    <h2>{{.Title}}</h2>
 
     {{if .Comments}}
     <div class="comments-list">
@@ -32,13 +33,26 @@
             </div>
         </article>
         {{end}}
+
+        {{if .HasMoreComments}}
+        <div class="load-more-container">
+            <button id="load-more-comments-btn" 
+                    class="btn btn-primary"
+                    data-offset="{{.Offset}}"
+                    data-category="{{.SelectedCategory}}"
+                    data-date-filter="{{.DateFilter}}">
+                Show More
+            </button>
+        </div>
+        {{end}}
     </div>
     {{else}}
-    <p class="no-comments">You haven't made any comments yet.</p>
+    <p class="no-posts">You haven't made any comments yet.</p>
     {{end}}
 </div>
 {{end}}
 
 {{define "scripts"}}
 <script src="/static/js/post-detail.js"></script>
+<script src="/static/js/load-more-comments.js"></script>
 {{end}}

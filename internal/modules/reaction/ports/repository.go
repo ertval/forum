@@ -24,4 +24,7 @@ type ReactionRepository interface {
 
 	// CountByTargetPublicID returns the number of reactions of a specific type for a target by its public UUID.
 	CountByTargetPublicID(ctx context.Context, targetPublicID string, targetType string, reactionType domain.ReactionType) (int, error)
+
+	// CountByUserID returns the total number of reactions given by a user.
+	CountByUserID(ctx context.Context, userID int) (int, error)
 }

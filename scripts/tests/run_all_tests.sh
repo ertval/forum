@@ -2,6 +2,8 @@
 # =============================================================================
 # RUN ALL TESTS SCRIPT
 # Discovers and runs all test scripts in the scripts/tests directory
+# Usage: ./run_all_tests.sh [--quiet|-q]
+#   --quiet/-q: Show only summary, hide individual test output
 # =============================================================================
 
 set -e
@@ -9,6 +11,17 @@ set -e
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Parse arguments
+QUIET_MODE=false
+for arg in "$@"; do
+    case $arg in
+        --quiet|-q)
+            QUIET_MODE=true
+            shift
+            ;;
+    esac
+done
 
 # Colors
 if [ -t 1 ]; then
@@ -34,22 +47,24 @@ echo ""
 # Get script name to exclude itself
 THIS_SCRIPT=$(basename "${BASH_SOURCE[0]}")
 
-# Find all test scripts
-echo -e "${YELLOW}Discovering test scripts...${NC}"
+# Find all test scripts and sort them alphabetically by filename
+if [ "$QUIET_MODE" = false ]; then
+    echo -e "${YELLOW}Discovering test scripts...${NC}"
+fi
 TEST_SCRIPTS=()
 while IFS= read -r script; do
+    TEST_SCRIPTS+=("$script")
     script_name=$(basename "$script")
-    # Exclude this script and non-test scripts
-    if [ "$script_name" != "$THIS_SCRIPT" ] && \
-       [[ "$script_name" == test_*.sh ]]; then
-        TEST_SCRIPTS+=("$script")
+    if [ "$QUIET_MODE" = false ]; then
         echo -e "  ${GREEN}✓${NC} Found: $script_name"
     fi
-done < <(find "$SCRIPT_DIR" -maxdepth 1 -name "*.sh" -type f | sort)
+done < <(find "$SCRIPT_DIR" -maxdepth 1 -name "test_*.sh" -type f -exec basename {} \; | sort | while read name; do echo "$SCRIPT_DIR/$name"; done)
 
-echo ""
-echo -e "${YELLOW}Found ${#TEST_SCRIPTS[@]} test script(s)${NC}"
-echo ""
+if [ "$QUIET_MODE" = false ]; then
+    echo ""
+    echo -e "${YELLOW}Found ${#TEST_SCRIPTS[@]} test script(s)${NC}"
+    echo ""
+fi
 
 if [ ${#TEST_SCRIPTS[@]} -eq 0 ]; then
     echo -e "${RED}No test scripts found!${NC}"
@@ -57,10 +72,12 @@ if [ ${#TEST_SCRIPTS[@]} -eq 0 ]; then
 fi
 
 # Verify database exists and has data (DO NOT seed - this is a test runner)
-echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
-echo -e "${BLUE}STEP 1: Verifying database${NC}"
-echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
-echo ""
+if [ "$QUIET_MODE" = false ]; then
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}STEP 1: Verifying database${NC}"
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+fi
 
 DB_PATH="${PROJECT_ROOT}/data/forum.db"
 
@@ -71,11 +88,15 @@ if [ ! -f "$DB_PATH" ]; then
     echo "Then run scripts/seed/seed.sh to populate test data."
     exit 1
 fi
-echo -e "${GREEN}✓${NC} Database file exists"
+if [ "$QUIET_MODE" = false ]; then
+    echo -e "${GREEN}✓${NC} Database file exists"
+fi
 
 # Required tables
 REQUIRED_TABLES=("users" "categories" "posts" "post_categories" "reactions" "comments" "sessions")
-echo "Checking database tables..."
+if [ "$QUIET_MODE" = false ]; then
+    echo "Checking database tables..."
+fi
 
 for table in "${REQUIRED_TABLES[@]}"; do
     count=$(sqlite3 "$DB_PATH" "SELECT COUNT(name) FROM sqlite_master WHERE type='table' AND name='$table';")
@@ -84,17 +105,21 @@ for table in "${REQUIRED_TABLES[@]}"; do
         exit 1
     fi
 done
-echo -e "${GREEN}✓${NC} All required tables exist"
+if [ "$QUIET_MODE" = false ]; then
+    echo -e "${GREEN}✓${NC} All required tables exist"
+fi
 
 # Verify each table has data
-echo "Verifying test data..."
+if [ "$QUIET_MODE" = false ]; then
+    echo "Verifying test data..."
+fi
 MISSING_DATA=0
 
 USER_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM users;")
 if [ "$USER_COUNT" -eq 0 ]; then
     echo -e "${RED}✗ No users in database${NC}"
     MISSING_DATA=1
-else
+elif [ "$QUIET_MODE" = false ]; then
     echo -e "${GREEN}✓${NC} Users: $USER_COUNT"
 fi
 
@@ -102,7 +127,7 @@ CATEGORY_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM categories;")
 if [ "$CATEGORY_COUNT" -eq 0 ]; then
     echo -e "${RED}✗ No categories in database${NC}"
     MISSING_DATA=1
-else
+elif [ "$QUIET_MODE" = false ]; then
     echo -e "${GREEN}✓${NC} Categories: $CATEGORY_COUNT"
 fi
 
@@ -110,21 +135,25 @@ POST_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM posts;")
 if [ "$POST_COUNT" -eq 0 ]; then
     echo -e "${RED}✗ No posts in database${NC}"
     MISSING_DATA=1
-else
+elif [ "$QUIET_MODE" = false ]; then
     echo -e "${GREEN}✓${NC} Posts: $POST_COUNT"
 fi
 
 COMMENT_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM comments;")
 if [ "$COMMENT_COUNT" -eq 0 ]; then
-    echo -e "${YELLOW}⚠${NC} No comments in database (optional)"
-else
+    if [ "$QUIET_MODE" = false ]; then
+        echo -e "${YELLOW}⚠${NC} No comments in database (optional)"
+    fi
+elif [ "$QUIET_MODE" = false ]; then
     echo -e "${GREEN}✓${NC} Comments: $COMMENT_COUNT"
 fi
 
 REACTION_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM reactions;")
 if [ "$REACTION_COUNT" -eq 0 ]; then
-    echo -e "${YELLOW}⚠${NC} No reactions in database (optional)"
-else
+    if [ "$QUIET_MODE" = false ]; then
+        echo -e "${YELLOW}⚠${NC} No reactions in database (optional)"
+    fi
+elif [ "$QUIET_MODE" = false ]; then
     echo -e "${GREEN}✓${NC} Reactions: $REACTION_COUNT"
 fi
 
@@ -135,38 +164,51 @@ if [ $MISSING_DATA -eq 1 ]; then
     exit 1
 fi
 
-echo ""
-echo -e "${GREEN}✓ Database verification passed${NC}"
-
-echo ""
+if [ "$QUIET_MODE" = false ]; then
+    echo ""
+    echo -e "${GREEN}✓ Database verification passed${NC}"
+    echo ""
+fi
 
 # Run each test script
 SCRIPT_NUM=2
 for script in "${TEST_SCRIPTS[@]}"; do
     script_name=$(basename "$script")
     
-    echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
-    echo -e "${BLUE}STEP $SCRIPT_NUM: Running $script_name${NC}"
-    echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
-    echo ""
+    if [ "$QUIET_MODE" = false ]; then
+        echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
+        echo -e "${BLUE}STEP $SCRIPT_NUM: Running $script_name${NC}"
+        echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
+        echo ""
+    fi
     
     # Make sure script is executable
     chmod +x "$script"
     
-    # Run the script
-    if bash "$script"; then
-        RESULTS["$script_name"]="PASS"
-        TOTAL_PASSED=$((TOTAL_PASSED + 1))
-        echo ""
-        echo -e "${GREEN}✓ $script_name PASSED${NC}"
+    # Run the script (suppress output in quiet mode)
+    if [ "$QUIET_MODE" = true ]; then
+        if bash "$script" > /dev/null 2>&1; then
+            RESULTS["$script_name"]="PASS"
+            TOTAL_PASSED=$((TOTAL_PASSED + 1))
+        else
+            RESULTS["$script_name"]="FAIL"
+            TOTAL_FAILED=$((TOTAL_FAILED + 1))
+        fi
     else
-        RESULTS["$script_name"]="FAIL"
-        TOTAL_FAILED=$((TOTAL_FAILED + 1))
+        if bash "$script"; then
+            RESULTS["$script_name"]="PASS"
+            TOTAL_PASSED=$((TOTAL_PASSED + 1))
+            echo ""
+            echo -e "${GREEN}✓ $script_name PASSED${NC}"
+        else
+            RESULTS["$script_name"]="FAIL"
+            TOTAL_FAILED=$((TOTAL_FAILED + 1))
+            echo ""
+            echo -e "${RED}✗ $script_name FAILED${NC}"
+        fi
         echo ""
-        echo -e "${RED}✗ $script_name FAILED${NC}"
     fi
     
-    echo ""
     SCRIPT_NUM=$((SCRIPT_NUM + 1))
 done
 
@@ -176,7 +218,8 @@ echo -e "${BLUE}║                    FINAL SUMMARY                           �
 echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
-for script_name in "${!RESULTS[@]}"; do
+# Display results in alphabetical order
+for script_name in $(echo "${!RESULTS[@]}" | tr ' ' '\n' | sort); do
     result="${RESULTS[$script_name]}"
     if [ "$result" = "PASS" ]; then
         echo -e "  ${GREEN}✓${NC} $script_name - ${GREEN}PASSED${NC}"

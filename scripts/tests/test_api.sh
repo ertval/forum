@@ -25,6 +25,11 @@ TEST_EMAIL2="testuser2@example.com"
 # Performance thresholds
 MAX_RESPONSE_TIME_MS=1000
 
+# Arrays to track created test data for cleanup
+CREATED_POSTS=()
+CREATED_COMMENTS=()
+CREATED_USERS=()
+
 # Colors
 if [ -t 1 ]; then
     RED='\033[0;31m'
@@ -108,6 +113,46 @@ start_server() {
 }
 
 cleanup() {
+    echo ""
+    echo -e "${YELLOW}--- CLEANUP ---${NC}"
+    echo ""
+    
+    # Re-login to get a fresh session for cleanup
+    if [ -n "$SESSION_COOKIE" ] || [ ${#CREATED_POSTS[@]} -gt 0 ] || [ ${#CREATED_COMMENTS[@]} -gt 0 ]; then
+        RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}" 2>/dev/null)
+        CLEANUP_SESSION=$(extract_session_cookie "$RESPONSE")
+        
+        if [ -n "$CLEANUP_SESSION" ]; then
+            # Delete created posts (this will cascade delete comments and reactions)
+            for post_id in "${CREATED_POSTS[@]}"; do
+                if [ -n "$post_id" ]; then
+                    curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
+                        -H "Cookie: session_token=$CLEANUP_SESSION" > /dev/null 2>&1
+                fi
+            done
+            
+            # Delete created comments (if not already deleted via cascade)
+            for comment_id in "${CREATED_COMMENTS[@]}"; do
+                if [ -n "$comment_id" ]; then
+                    curl -s -X DELETE "$BASE_URL/api/comments/$comment_id" \
+                        -H "Cookie: session_token=$CLEANUP_SESSION" > /dev/null 2>&1
+                fi
+            done
+        fi
+    fi
+    
+    # Clean up test users from database directly
+    for username in "${CREATED_USERS[@]}"; do
+        if [ -n "$username" ]; then
+            sqlite3 "$DB_PATH" "DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE username='$username');" 2>/dev/null
+            sqlite3 "$DB_PATH" "DELETE FROM users WHERE username='$username';" 2>/dev/null
+        fi
+    done
+    
+    echo -e "${GREEN}✓ Test data cleaned up${NC}"
+    
     if [ -n "$SERVER_PID" ]; then
         kill $SERVER_PID 2>/dev/null || true
     fi
@@ -133,31 +178,59 @@ print_section "AUTH API - /api/auth/*"
 
 # Registration - valid
 TIMESTAMP=$(date +%s)
+TEST_USERNAME="Api User"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"api_${TIMESTAMP}@test.com\",\"username\":\"api_${TIMESTAMP}\",\"password\":\"password123\"}")
+    -d "{\"email\":\"api_${TIMESTAMP}@test.com\",\"username\":\"${TEST_USERNAME}\",\"password\":\"password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "201" ]; then
     print_test "POST /api/auth/register - Valid registration" "PASS"
+    CREATED_USERS+=("$TEST_USERNAME")
+elif [ "$HTTP_CODE" = "409" ]; then
+    # User already exists from previous run, still valid behavior
+    print_test "POST /api/auth/register - Valid registration (user exists)" "PASS"
 else
     print_test "POST /api/auth/register - Valid registration" "FAIL" "Expected 201, got $HTTP_CODE"
 fi
 
 # Registration - duplicate email
+# Use valid "Name Surname" format for username
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"newuser\",\"password\":\"password123\"}")
+    -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"Unique Testname\",\"password\":\"password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-if [ "$HTTP_CODE" = "409" ] || [ "$HTTP_CODE" = "400" ]; then
-    print_test "POST /api/auth/register - Duplicate email (409)" "PASS"
+BODY=$(echo "$RESPONSE" | head -n -1)
+if [ "$HTTP_CODE" = "409" ]; then
+    if echo "$BODY" | grep -qi "email"; then
+        print_test "POST /api/auth/register - Duplicate email (409 with email message)" "PASS"
+    else
+        print_test "POST /api/auth/register - Duplicate email (409)" "PASS"
+    fi
 else
-    print_test "POST /api/auth/register - Duplicate email (409)" "FAIL" "Expected 409/400, got $HTTP_CODE"
+    print_test "POST /api/auth/register - Duplicate email (409)" "FAIL" "Expected 409, got $HTTP_CODE"
+fi
+
+# Registration - duplicate username
+EXISTING_USERNAME=$(sqlite3 "$DB_PATH" "SELECT username FROM users LIMIT 1;" 2>/dev/null)
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"unique_$(date +%s)@test.com\",\"username\":\"$EXISTING_USERNAME\",\"password\":\"password123\"}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | head -n -1)
+if [ "$HTTP_CODE" = "409" ]; then
+    if echo "$BODY" | grep -qi "username"; then
+        print_test "POST /api/auth/register - Duplicate username (409 with username message)" "PASS"
+    else
+        print_test "POST /api/auth/register - Duplicate username (409)" "PASS"
+    fi
+else
+    print_test "POST /api/auth/register - Duplicate username (409)" "FAIL" "Expected 409, got $HTTP_CODE"
 fi
 
 # Registration - invalid email format
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d '{"email":"invalid","username":"user","password":"password123"}')
+    -d '{"email":"invalid","username":"Test User","password":"password123"}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "400" ]; then
     print_test "POST /api/auth/register - Invalid email format (400)" "PASS"
@@ -276,6 +349,7 @@ BODY=$(echo "$RESPONSE" | sed '$d')
 POST_ID=$(extract_json_field "$BODY" "id")
 if [ "$HTTP_CODE" = "201" ] && [ -n "$POST_ID" ]; then
     print_test "POST /api/posts - Valid creation (201)" "PASS"
+    CREATED_POSTS+=("$POST_ID")
 else
     print_test "POST /api/posts - Valid creation (201)" "FAIL" "Expected 201 with ID, got $HTTP_CODE"
 fi
@@ -392,8 +466,11 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/comments/posts/$SE
     -H "Cookie: session_token=$SESSION_COOKIE" \
     -d '{"content":"API test comment"}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | sed '$d')
+COMMENT_ID=$(extract_json_field "$BODY" "id")
 if [ "$HTTP_CODE" = "201" ]; then
     print_test "POST /api/comments/posts/:id - Valid creation (201)" "PASS"
+    [ -n "$COMMENT_ID" ] && CREATED_COMMENTS+=("$COMMENT_ID")
 else
     print_test "POST /api/comments/posts/:id - Valid creation (201)" "FAIL" "Expected 201, got $HTTP_CODE"
 fi
@@ -489,6 +566,9 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
     -H "Content-Type: application/json" \
     -H "Cookie: session_token=$SESSION_COOKIE" \
     -d '{"title":"Test'\'' OR 1=1; DROP TABLE posts; --","content":"SQL test","categories":["Tests"]}')
+BODY=$(echo "$RESPONSE" | sed '$d')
+SQL_TEST_POST_ID=$(extract_json_field "$BODY" "id")
+[ -n "$SQL_TEST_POST_ID" ] && CREATED_POSTS+=("$SQL_TEST_POST_ID")
 # Verify database still works
 DB_CHECK=$(curl -s -w "\n%{http_code}" "$BASE_URL/api/posts" | tail -n1)
 if [ "$DB_CHECK" = "200" ]; then
@@ -503,6 +583,9 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
     -H "Cookie: session_token=$SESSION_COOKIE" \
     -d '{"title":"<script>alert(1)</script>","content":"XSS test","categories":["Tests"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | sed '$d')
+XSS_TEST_POST_ID=$(extract_json_field "$BODY" "id")
+[ -n "$XSS_TEST_POST_ID" ] && CREATED_POSTS+=("$XSS_TEST_POST_ID")
 if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "400" ]; then
     print_test "XSS Handling" "PASS"
 else

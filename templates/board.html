@@ -5,7 +5,7 @@
 
     {{if .Posts}}
         {{range .Posts}}
-        <article class="post-card">
+        <article class="post-card clickable-card" data-href="/posts/{{.PublicID}}">
             <div class="post-header">
                 <h3><a href="/posts/{{.PublicID}}">{{.Title}}</a></h3>
                 <div class="post-meta">

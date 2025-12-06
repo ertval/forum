@@ -45,7 +45,8 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 			errors.Is(err, authDomain.ErrWeakPassword),
 			errors.Is(err, authDomain.ErrInvalidUsername):
 			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
-		case errors.Is(err, authDomain.ErrUserAlreadyExists):
+		case errors.Is(err, authDomain.ErrEmailAlreadyExists),
+			errors.Is(err, authDomain.ErrUsernameAlreadyExists):
 			platformErrors.WriteErrorJSON(w, http.StatusConflict, err.Error())
 		default:
 			// Check if error message contains validation keywords

@@ -10,7 +10,6 @@ import (
 // CommentService defines comment management use cases.
 type CommentService interface {
 	// CreateComment creates a new comment on a post.
-	// postPublicID: public UUID of the post, userID: internal user ID from session
 	CreateComment(ctx context.Context, postPublicID string, userID int, content string) (*domain.Comment, error)
 
 	// GetComment retrieves a comment by its public UUID.
@@ -19,7 +18,7 @@ type CommentService interface {
 	// UpdateComment updates a comment's content.
 	UpdateComment(ctx context.Context, commentPublicID string, content string) error
 
-	// DeleteComment deletes a comment.
+	// DeleteComment deletes a comment by its public UUID.
 	DeleteComment(ctx context.Context, commentPublicID string) error
 
 	// ListCommentsByPost retrieves all comments for a post.
@@ -27,4 +26,7 @@ type CommentService interface {
 
 	// ListCommentsByUser retrieves all comments made by a specific user.
 	ListCommentsByUser(ctx context.Context, userPublicID string) ([]*domain.Comment, error)
+
+	// ListCommentsByUserPaginated retrieves comments made by a user with pagination.
+	ListCommentsByUserPaginated(ctx context.Context, userPublicID string, limit, offset int) ([]*domain.Comment, error)
 }

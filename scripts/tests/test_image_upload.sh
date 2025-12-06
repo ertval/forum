@@ -16,9 +16,10 @@ set -e  # Exit on error
 
 BASE_URL="http://localhost:8080"
 TIMESTAMP=$(date +%s)
-TEST_EMAIL="imagetest_${TIMESTAMP}@example.com"
-TEST_USERNAME="imagetest_${TIMESTAMP}"
-TEST_PASSWORD="securepassword123"
+# Use existing seeded test user or create a unique one for each test run
+TEST_EMAIL="testuser@example.com"
+TEST_USERNAME="Test User"
+TEST_PASSWORD="password123"
 TEST_DIR="/tmp/forum_image_test_${TIMESTAMP}"
 SESSION_TOKEN=""
 SERVER_PID=""
@@ -339,6 +340,17 @@ cleanup() {
     echo ""
     info_log "Cleaning up..."
     
+    # Delete created posts via API
+    if [ ${#CREATED_POST_IDS[@]} -gt 0 ] && [ -n "$SESSION_TOKEN" ]; then
+        for post_id in "${CREATED_POST_IDS[@]}"; do
+            if [ -n "$post_id" ]; then
+                curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
+                    -H "Cookie: session_token=$SESSION_TOKEN" > /dev/null 2>&1
+            fi
+        done
+        debug_log "Deleted ${#CREATED_POST_IDS[@]} test posts"
+    fi
+    
     # Stop server if we started it
     if [ -z "$NO_SERVER" ]; then
         stop_server
@@ -356,6 +368,8 @@ cleanup() {
     else
         [ -f "$SERVER_LOG" ] && info_log "Server log saved at: $SERVER_LOG"
     fi
+    
+    echo -e "${GREEN}✓ Test data cleaned up${NC}"
 }
 
 trap cleanup EXIT INT TERM
@@ -365,16 +379,20 @@ trap cleanup EXIT INT TERM
 # =============================================================================
 
 register_and_login() {
-    info_log "Registering test user: $TEST_USERNAME"
+    info_log "Authenticating test user: $TEST_USERNAME"
     
-    # Register
+    # Try to register first (will fail with 409 if user exists, that's OK)
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
         -H "Content-Type: application/json" \
         -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"$TEST_USERNAME\",\"password\":\"$TEST_PASSWORD\"}")
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-    BODY=$(echo "$RESPONSE" | sed '$d')
     
-    if [ "$HTTP_CODE" != "201" ]; then
+    if [ "$HTTP_CODE" = "201" ]; then
+        info_log "Registered new test user."
+    elif [ "$HTTP_CODE" = "409" ]; then
+        info_log "Test user already exists, proceeding to login."
+    else
+        BODY=$(echo "$RESPONSE" | sed '$d')
         echo -e "${RED}Failed to register test user. HTTP $HTTP_CODE${NC}"
         debug_log "Response: $BODY"
         exit 1
