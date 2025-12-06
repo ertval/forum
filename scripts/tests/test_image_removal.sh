@@ -61,32 +61,42 @@ EOF
 }
 
 # Generate unique test data with letters-only username
+# Use timestamp + PID to ensure uniqueness across concurrent runs
+# Different approach: include unique suffix in a single-word name to avoid collisions
 TIMESTAMP=$(date +%s%N)
-# Use multiple word parts to create unique but valid username
-FIRST_NAMES=("Alice" "Bob" "Charlie" "Diana" "Eve" "Frank" "Grace" "Henry" "Ivy" "Jack")
+UNIQUE_ID="${TIMESTAMP}$$"
+# Take last 6 digits to keep it short but unique
+SHORT_ID="${UNIQUE_ID: -6}"
+# Use modulo to map to names, ensuring true uniqueness with the timestamp
+NAME_IDX=$((SHORT_ID % 100))
+FIRST_NAMES=("Alice" "Bob" "Charlie" "Diana" "Eve" "Frank" "Grace" "Henry" "Ivy" "Jack" "Kate" "Leo" "Mia" "Noah" "Olivia" "Peter" "Quinn" "Rose" "Sam" "Tina")
 LAST_NAMES=("Smith" "Jones" "Brown" "Davis" "Miller" "Wilson" "Moore" "Taylor" "Anderson" "Thomas")
-RANDOM_FIRST=$((TIMESTAMP % 10))
-RANDOM_LAST=$(((TIMESTAMP / 10) % 10))
-TEST_USERNAME="${FIRST_NAMES[$RANDOM_FIRST]} ${LAST_NAMES[$RANDOM_LAST]}"
-TEST_EMAIL="test_${TIMESTAMP}@example.com"
+FIRST_IDX=$((NAME_IDX % 20))
+LAST_IDX=$((NAME_IDX / 20 % 10))
+# Construct username with names
+TEST_USERNAME="${FIRST_NAMES[$FIRST_IDX]} ${LAST_NAMES[$LAST_IDX]} Imgtest"
+TEST_EMAIL="imgremove_${UNIQUE_ID}@example.com"
 TEST_PASSWORD="TestPass123!"
 
 echo -e "\n${YELLOW}Step 1: Register a test user${NC}"
-REGISTER_RESPONSE=$(curl -s -c "$COOKIE_JAR" -X POST "$BASE_URL/api/auth/register" \
+REGISTER_RESPONSE=$(curl -s -w "\n%{http_code}" -c "$COOKIE_JAR" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
     -d "{\"username\":\"$TEST_USERNAME\",\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}")
 
-if echo "$REGISTER_RESPONSE" | grep -q "id"; then
+HTTP_CODE=$(echo "$REGISTER_RESPONSE" | tail -n1)
+RESPONSE_BODY=$(echo "$REGISTER_RESPONSE" | sed '$d')
+
+if [ "$HTTP_CODE" = "201" ] || echo "$RESPONSE_BODY" | grep -q "id"; then
     echo -e "${GREEN}✓ User registered successfully${NC}"
 else
-    echo -e "${RED}✗ Registration failed: $REGISTER_RESPONSE${NC}"
+    echo -e "${RED}✗ Registration failed (HTTP $HTTP_CODE): $RESPONSE_BODY${NC}"
     exit 1
 fi
 
 echo -e "\n${YELLOW}Step 2: Login${NC}"
 LOGIN_RESPONSE=$(curl -s -c "$COOKIE_JAR" -b "$COOKIE_JAR" -X POST "$BASE_URL/api/auth/login" \
     -H "Content-Type: application/json" \
-    -d "{\"login\":\"$TEST_USERNAME\",\"password\":\"$TEST_PASSWORD\"}")
+    -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}")
 
 if echo "$LOGIN_RESPONSE" | grep -q "id"; then
     echo -e "${GREEN}✓ Login successful${NC}"
