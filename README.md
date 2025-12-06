@@ -409,6 +409,10 @@ go test ./internal/modules/auth/...
 
 # Integration tests
 go test ./tests/integration/...
+
+# Image upload tests
+go test ./internal/platform/upload/... -v
+go test ./internal/modules/post/application/... -run Image -v
 ```
 
 ### Page Rendering Tests
@@ -454,6 +458,80 @@ Verify database schema matches migrations:
 ```bash
 go run ./scripts/check/check_schema.go
 ```
+
+---
+
+## Image Uploads
+
+The forum supports image uploads for posts with the following specifications:
+
+### Configuration
+
+| Environment Variable | Default | Description |
+|---------------------|---------|-------------|
+| `STATIC_UPLOADS_DIR` | `./static/uploads` | Directory for uploaded images |
+| `MAX_UPLOAD_SIZE` | `20971520` (20MB) | Maximum file size in bytes |
+
+### Supported Formats
+
+- **JPEG** (`.jpg`, `.jpeg`) - `image/jpeg`
+- **PNG** (`.png`) - `image/png`  
+- **GIF** (`.gif`) - `image/gif`
+
+### Security Features
+
+- **Magic bytes validation** - Files are validated by their actual content (magic bytes), not just MIME type or extension
+- **File size limits** - Configurable maximum upload size (default 20MB)
+- **UUID filenames** - Uploaded files are renamed to UUIDs to prevent path traversal and filename conflicts
+- **Automatic cleanup** - Images are deleted when their associated post is deleted
+- **Rollback on failure** - If post creation fails after image upload, the orphaned image is automatically deleted
+
+### Usage
+
+**Creating a post with image:**
+```html
+<form method="POST" action="/posts" enctype="multipart/form-data">
+    <input type="file" name="image" accept="image/jpeg,image/png,image/gif">
+    <!-- other fields -->
+</form>
+```
+
+**Updating/removing image:**
+```html
+<form method="POST" action="/posts/{id}" enctype="multipart/form-data">
+    <input type="file" name="image">
+    <input type="checkbox" name="remove_image" value="true"> Remove current image
+</form>
+```
+
+### Testing Image Uploads
+
+```bash
+# Run all upload package tests
+go test ./internal/platform/upload/... -v -cover
+
+# Run service-level image tests
+go test ./internal/modules/post/application/... -run Image -v
+
+# Run HTTP handler image tests
+go test ./internal/modules/post/adapters/... -run Image -v
+
+# Test with coverage
+go test ./internal/platform/upload/... -coverprofile=upload_coverage.out
+go tool cover -func=upload_coverage.out
+
+# Run E2E image upload tests (requires server)
+chmod +x scripts/tests/test_image_upload.sh
+./scripts/tests/test_image_upload.sh           # Starts server automatically
+./scripts/tests/test_image_upload.sh --no-server  # Use existing server
+./scripts/tests/test_image_upload.sh -v        # Verbose output
+```
+
+The E2E test script (`scripts/tests/test_image_upload.sh`) validates all audit requirements:
+- PNG, JPEG, GIF image uploads
+- Oversized image (>20MB) rejection
+- Image persistence verification
+- Unsupported format rejection (BMP, WebP, SVG, TIFF)
 
 ---
 

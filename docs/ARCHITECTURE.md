@@ -4,37 +4,17 @@
 
 A modular monolith web forum built with Go, following **Hexagonal Architecture** (Ports and Adapters). Clean boundaries, testable components, idiomatic Go.
 
-**Current status**: Active development — core features implemented; additional modules scaffolded. The repository contains a complete `auth` module (registration, login, sessions) and a mature `post`/`category` implementation with unit and integration tests (see `tests/unit` and `tests/integration`). Several optional modules (`comment`, `reaction`, `moderation`, `notification`, and parts of `user`) are scaffolded and include domain/ports/application/adapters directories, but many contain `// TODO:` markers in `application` packages indicating remaining business logic to implement. See `docs/IMPLEMENTATION_ROADMAP.md` for priorities and remaining work.
+**Status**: Production-ready MVP with auth, posts, categories, comments, filtering, and image upload. All tests pass.
 
-**Migrations**: The project includes SQL migrations in the `migrations/` directory. Migrations run automatically on startup via `database.Migrator` in `cmd/forum/wire/app.go`. Migration files use `-- +migrate Up`/`-- +migrate Down` markers for forward/backward migrations.
-
-## Core Principles
-
-### Go Philosophy
-
-- **Simplicity**: Straightforward solutions over clever tricks
-- **Readability**: Code clarity over brevity
-- **Explicitness**: No hidden magic or implicit behavior
-- **Minimalism**: Minimal dependencies and abstractions
-- **Composition**: Build complexity through composition
-
-### SOLID + KISS
-
-- Single Responsibility: One reason to change per component
-- Interface Segregation: Small, focused interfaces
-- Dependency Inversion: Depend on abstractions
-- **Keep It Simple**: Simplest solution that works
+**Stack**: Go 1.24+ | SQLite (CGO required) | Minimal deps (uuid, bcrypt, sqlite3)
 
 ---
 
-## Architecture Pattern: Hexagonal (Ports & Adapters)
-
-### The Hexagon
+## Architecture: Hexagonal (Ports & Adapters)
 
 ```
                     ┌─────────────────────────┐
                     │   HTTP Handlers (IN)    │
-                    │   CLI Commands (IN)     │
                     └───────────┬─────────────┘
                                 │
                     ┌───────────▼─────────────┐
@@ -44,9 +24,7 @@ A modular monolith web forum built with Go, following **Hexagonal Architecture**
                                 │
             ┌───────────────────▼───────────────────┐
             │          DOMAIN CORE                  │
-            │   • Entities                          │
-            │   • Business Rules                    │
-            │   • Domain Logic                      │
+            │   • Entities + Business Rules         │
             │   • NO external dependencies          │
             └───────────────────┬───────────────────┘
                                 │
@@ -57,17 +35,10 @@ A modular monolith web forum built with Go, following **Hexagonal Architecture**
                                 │
                     ┌───────────▼─────────────┐
                     │  SQLite Repos (OUT)     │
-                    │  External APIs (OUT)    │
                     └─────────────────────────┘
 ```
 
-### What This Means
-
-**Domain Core** = Business logic with zero external dependencies
-**Ports** = Interfaces (contracts) that define how to interact with the core
-**Adapters** = Concrete implementations that plug into ports
-
-**Data Flow**: HTTP Request → Input Adapter (Handler) → Input Port (Service Interface) → Application Service → Domain Logic → Output Port (Repository Interface) → Output Adapter (SQLite) → Database
+**Data Flow**: HTTP Request → Handler → Service Interface → Application Service → Domain → Repository Interface → SQLite
 
 ---
 
@@ -76,84 +47,34 @@ A modular monolith web forum built with Go, following **Hexagonal Architecture**
 Every module follows this **exact 4-directory layout**:
 
 ```
-module/
-├── domain/          # Pure business logic (no imports except stdlib)
-│   ├── entity.go    # Domain entities with validation
-│   └── errors.go    # Domain-specific errors
+internal/modules/{module}/
+├── domain/           # Pure business logic (stdlib only)
+│   ├── entity.go     # Domain entities with Validate()
+│   └── errors.go     # Domain-specific errors
 │
-├── ports/           # Interface definitions
-│   ├── service.go   # INPUT PORT - Use case definitions
+├── ports/            # Interface definitions
+│   ├── service.go    # INPUT PORT - Use case interface
 │   └── repository.go # OUTPUT PORT - Data access contract
 │
-├── application/     # Orchestration layer
-│   └── service.go   # Implements ports/service.go
-│   └── filter_service.go # Specialized filtering logic (post module)
-│                    # Uses ports/repository.go
+├── application/      # Business logic implementation
+│   └── service.go    # Implements ports/service.go
 │
-└── adapters/        # Technical implementations (flat, no subdirs)
-    ├── http_handler.go       # INPUT - Base handler struct & route registration
-    ├── http_handler_api.go   # INPUT - JSON API endpoints (/api/...)
-    ├── http_handler_page.go  # INPUT - HTML page endpoints (/, /posts/...)
-    └── sqlite_repository.go  # OUTPUT - Database access
+└── adapters/         # Technical implementations (FLAT)
+    ├── http_handler.go       # Base handler, ServiceContainer, routes
+    ├── http_handler_api.go   # JSON API handlers (/api/...)
+    ├── http_handler_page.go  # HTML page handlers
+    └── sqlite_repository.go  # Database access
 ```
 
 ### Handler File Organization
 
-Each module's HTTP handlers are split into 3 files:
+1. **http_handler.go** - Base handler struct, `ServiceContainer` interface, `NewHTTPHandler()`, `RegisterRoutes()`
+2. **http_handler_api.go** - JSON API handlers with `API` suffix (e.g., `CreatePostAPI`)
+3. **http_handler_page.go** - HTML page handlers with `Page` suffix (e.g., `LoginPage`)
 
-1. **http_handler.go** - Base handler with:
-   - `HTTPHandler` struct definition
-   - `ServiceContainer` interface (declares needed dependencies)
-   - `NewHTTPHandler()` constructor
-   - `RegisterRoutes()` dispatcher that calls API and page route registration
-   - Helper methods (e.g., `GetCurrentUser`, `parseJSON`)
+### File Header Markers
 
-2. **http_handler_api.go** - JSON API handlers:
-   - `RegisterAPIRoutes()` - Registers all `/api/...` routes
-   - Handler methods with suffix `API` (e.g., `RegisterAPI`, `CreatePostAPI`)
-   - Returns JSON responses, uses proper HTTP status codes
-   - Routes follow pattern: `/api/{module}/{action}`
-
-3. **http_handler_page.go** - HTML page handlers:
-   - `RegisterPageRoutes()` - Registers page routes (e.g., `/`, `/login`, `/posts/{id}`)
-   - Handler methods with suffix `Page` (e.g., `LoginPage`, `CreatePostPage`)
-   - Returns rendered HTML templates
-
-### API URL Pattern
-
-All JSON API endpoints follow the pattern: `/api/{module}/{action}`
-
-```
-Authentication:
-  POST /api/auth/register    - Register new user
-  POST /api/auth/login       - Login user
-  POST /api/auth/logout      - Logout user
-  GET  /api/auth/session     - Get current session
-
-Posts:
-  GET    /api/posts          - List posts (with filtering)
-  POST   /api/posts          - Create post
-  GET    /api/posts/{id}     - Get post
-  PUT    /api/posts/{id}     - Update post
-  DELETE /api/posts/{id}     - Delete post
-
-Comments:
-  GET    /api/comments/posts/{post_id}  - List comments for post
-  POST   /api/comments/posts/{post_id}  - Create comment
-  GET    /api/comments/{id}             - Get comment
-  PUT    /api/comments/{id}             - Update comment
-  DELETE /api/comments/{id}             - Delete comment
-
-Reactions:
-  POST   /api/reactions                             - Add reaction
-  DELETE /api/reactions                             - Remove reaction
-  GET    /api/reactions/{targetType}/{targetId}     - Get reactions
-```
-
-### Port/Adapter Markers
-
-Every file in `ports/` and `adapters/` has a header comment:
-
+Every ports/adapters file has a header comment:
 ```go
 // INPUT PORT - Service Interface
 // OUTPUT PORT - Repository Interface
@@ -161,64 +82,59 @@ Every file in `ports/` and `adapters/` has a header comment:
 // OUTPUT ADAPTER - SQLite Repository
 ```
 
-This makes navigation and understanding instant.
+---
+
+## API URL Pattern
+
+All JSON API endpoints: `/api/{module}/{action}`
+
+```
+Auth:     POST /api/auth/register, /login, /logout | GET /api/auth/session
+Posts:    GET/POST /api/posts | GET/PUT/DELETE /api/posts/{id}
+Comments: GET/POST /api/comments/posts/{post_id} | GET/PUT/DELETE /api/comments/{id}
+Reactions: POST/DELETE /api/reactions | GET /api/reactions/{targetType}/{targetId}
+```
 
 ---
 
 ## Modules
 
-### Core Modules (Required)
-1. **auth** - Registration, login, sessions
-2. **user** - User profiles, roles
-3. **post** - Create/read/update/delete posts, categories, filtering
-   - **FilterService**: Dedicated application service for post filtering logic
-   - Supports filtering by category, user, liked posts, and date range
-   - Date filters: Today, This Week, This Month, All Time
-   - Uses `FilterParams` for query parameter parsing and `PostFilter` for repository queries
-4. **comment** - Comments on posts
-5. **reaction** - Like/dislike posts and comments
+### Complete
+| Module | Description |
+|--------|-------------|
+| **auth** | Registration, login, sessions (one per user), logout |
+| **user** | User profiles, cached stats (post/comment counts) |
+| **post** | Full CRUD, categories, filtering, image upload |
+| **comment** | Full CRUD with ownership validation |
 
-### Optional Modules
-6. **moderation** - Reports, content moderation, role management
-7. **notification** - User notifications for interactions
+### Scaffolded (Partial Implementation)
+| Module | Description |
+|--------|-------------|
+| **reaction** | Like/dislike - routes defined, handlers return 501 |
+| **moderation** | Reports, roles - minimal implementation |
+| **notification** | User notifications - minimal implementation |
 
 ---
 
 ## Dependency Rules
 
-### Layer Dependencies (Strict)
-
 ```
-┌──────────────┐
-│  adapters    │  ─┐
-└──────────────┘   │
-                   ├─► Can import: domain, ports
-┌──────────────┐   │
-│ application  │  ─┘
-└──────────────┘
+adapters    ─┐
+             ├─► Can import: domain, ports
+application ─┘
 
-┌──────────────┐
-│    ports     │  ───► Can import: domain only
-└──────────────┘
+ports       ───► Can import: domain only
 
-┌──────────────┐
-│   domain     │  ───► Can import: NOTHING (only stdlib)
-└──────────────┘
+domain      ───► Can import: NOTHING (stdlib only)
 ```
 
-### Module Communication
-
-Modules talk via **service interfaces** only:
+**Module Communication**: Via service interfaces only
 
 ```go
-// ✅ GOOD: Import service interface
+// ✅ Import service interface
 import "forum/internal/modules/user/ports"
 
-type PostService struct {
-    userService ports.UserService
-}
-
-// ❌ BAD: Import internal implementation
+// ❌ Never import internal implementation
 import "forum/internal/modules/user/adapters"
 ```
 
@@ -226,65 +142,20 @@ import "forum/internal/modules/user/adapters"
 
 ## Dependency Injection
 
-All wiring happens in the `cmd/forum/wire/` package, called from `main.go`:
+All wiring in `cmd/forum/wire/`:
 
-```go
-func main() {
-    // 1. Platform services
-    cfg := config.Load()
-    lgr := logger.New(cfg.Log)
-    
-    // 2. All dependency injection happens here
-    app, err := wire.InitializeApp(cfg, lgr)
-    if err != nil {
-        lgr.Fatal("Failed to initialize app", logger.Error(err))
-    }
-    defer app.Cleanup()
-    
-    // 3. Start server
-    app.Start()
-}
+```
+wire/
+├── app.go          # Main app lifecycle
+├── repos.go        # Repository initialization
+├── services.go     # ServiceContainer with all services
+└── handlers.go     # HTTP handler initialization
 ```
 
-The wire package organizes DI into focused files:
-- `app.go` - Main orchestration and app lifecycle
-- `repositories.go` - Repository initialization
-- `services.go` - Service initialization  
-- `handlers.go` - HTTP handler initialization
-
-No magic frameworks. Everything explicit and organized.
-
-### Unified Dependency Injection Pattern (Implemented)
-
-This project now uses a unified DI pattern for all HTTP handlers. The implementation lives in `cmd/forum/wire/` and is applied across module adapters.
-
-Key points:
-- A single concrete `ServiceContainer` (defined in `cmd/forum/wire/services.go`) holds all application service implementations as private fields.
-- `ServiceContainer` exposes accessor methods for each service (for example: `Auth()`, `User()`, `Post()`, `Category()`).
-- Every HTTP handler uses the same constructor signature:
-  ```go
-  func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler
-  ```
-- Each handler declares a small local `ServiceContainer` interface that lists only the accessor methods it needs (for example:
-  ```go
-  type ServiceContainer interface {
-      Post() postPorts.PostService
-      Auth() authPorts.AuthService
-  }
-  ```
-  The concrete `wire.ServiceContainer` satisfies these local interfaces.
-- Handlers call accessor methods to obtain the service interfaces they depend on and remain decoupled from concrete implementations.
-
-Why this was added:
-- **Consistency**: all handlers use identical constructor signatures, simplifying wiring and tests.
-- **Explicit dependencies**: handlers declare precisely what they require via a minimal interface.
-- **Testability**: unit tests can provide small mocks implementing the handler-local `ServiceContainer` without constructing the full application container.
-- **Avoid circular imports**: handlers depend only on service port interfaces and the small accessor interface, not concrete implementations or the `wire` package internals.
-
-Where to look:
-- Implementation & examples: `docs/UNIFIED_DI_PATTERN.md`
-- Wire code: `cmd/forum/wire/services.go`, `cmd/forum/wire/handlers.go`
-- Handler examples: `internal/modules/*/adapters/http_handler.go` (each handler shows a local `ServiceContainer` interface)
+**ServiceContainer Pattern**:
+- Single concrete `ServiceContainer` holds all services
+- Each handler declares a local interface with only needed accessors
+- Constructors: `NewHTTPHandler(services ServiceContainer, templates *template.Template)`
 
 ---
 
@@ -292,25 +163,21 @@ Where to look:
 
 Shared infrastructure in `internal/platform/`:
 
-- **config** - Environment variable loading
-- **database** - SQLite connection, migrations, transactions
-- **logger** - Structured logging (JSON output)
-- **httpserver** - HTTP server wrapper with middleware
-- **errors** - Common error types with HTTP status mapping
-- **validator** - Input validation and sanitization
+| Package | Purpose |
+|---------|---------|
+| config | Environment variable loading |
+| database | SQLite connection, migrations |
+| logger | Structured logging (JSON) |
+| httpserver | HTTP server, middleware |
+| errors | Common errors, HTTP status mapping |
+| validator | Input validation |
+| upload | Image upload handling |
 
 ---
 
-## Database Design
+## Database
 
-### Technology: SQLite
-
-Simple, embedded, single-file database. Perfect for this use case.
-
-### Migrations
-
-Sequential numbered SQL files in `migrations/`:
-
+**SQLite** with migrations in `migrations/`:
 ```
 001_auth_create_sessions.sql
 002_user_create_users.sql
@@ -319,163 +186,73 @@ Sequential numbered SQL files in `migrations/`:
 005_reaction_create_reactions.sql
 ```
 
-Each migration has `-- +migrate Up` and `-- +migrate Down` sections.
-
-### Key Patterns
-
-- Foreign keys with `ON DELETE CASCADE`
-- Indexes on frequently queried columns (user_id, post_id, session_token)
-- Timestamps (created_at, updated_at) on all entities
-- Soft deletes where appropriate
+Migrations auto-apply on startup via `database.Migrator`.
 
 ---
 
-## Error Handling
+## ID Security
 
-### Two-Layer System
+**INT internally, UUID publicly** - Never expose sequential IDs.
 
-**Domain Errors** (simple):
 ```go
-// internal/modules/auth/domain/errors.go
-var ErrSessionExpired = errors.New("session has expired")
+// ✅ Context stores UUID
+ctx.Value(UserIDKey) // user.PublicID (UUID)
+
+// ✅ Templates use PublicID
+<a href="/board?user={{.User.PublicID}}">
+
+// ✅ JSON uses UUID
+{"id": "uuid-here", "user_id": "uuid-here"}
 ```
 
-**Platform Errors** (structured):
-```go
-// internal/platform/errors/errors.go
-return errors.Wrap(err, errors.ErrCodeInternal, "failed to create session")
-```
+---
 
-HTTP handlers map errors to status codes:
-- Domain `ErrNotFound` → 404
-- Domain `ErrUnauthorized` → 401
-- Platform `ErrCodeValidation` → 400
-- Platform `ErrCodeInternal` → 500
+## HTTP Status Codes
+
+| Code | Usage |
+|------|-------|
+| 200 | Successful GET |
+| 201 | Successful POST (create) |
+| 204 | Successful DELETE |
+| 400 | Invalid input |
+| 401 | Missing/invalid session |
+| 403 | Insufficient permissions |
+| 404 | Resource not found |
+| 409 | Duplicate email/username |
+| 413 | File too large |
+| 500 | Internal error |
 
 ---
 
-## Testing Strategy
+## Testing
 
-### Unit Tests
-- Domain logic (pure functions, business rules)
-- Application services with mocked repositories
-- Location: Each module's directory (`*_test.go`)
+| Type | Location | Coverage |
+|------|----------|----------|
+| Unit | `internal/modules/*/` | Domain, services, repos |
+| Integration | `tests/integration/` | Full request/response |
+| E2E | `scripts/tests/` | API, audit, pages, images |
 
-### Integration Tests
-- HTTP handlers with real database
-- End-to-end workflows
-- Location: `tests/integration/`
-
-### Repository Tests
-- Test against in-memory SQLite (`:memory:`)
-- Verify SQL queries work correctly
+Run all: `make test`
 
 ---
 
-## Configuration
+## Commands
 
-All config in `internal/platform/config/config.go`. Loaded from environment variables with sane defaults.
-
-```env
-# Server
-PORT=8080
-ENVIRONMENT=development
-
-# Database
-DB_PATH=./forum.db
-
-# Session
-SESSION_DURATION=24h
-
-# Security
-RATE_LIMIT_REQUESTS=100
-RATE_LIMIT_WINDOW=1m
-```
-
-No config files, no external config libraries. Simple env vars.
-
----
-
-## HTTP Server & Middleware
-
-Standard library `http.ServeMux` wrapped for convenience.
-
-### Middleware Chain (Global)
-
-1. **Recovery** - Panic handling
-2. **Logger** - Request/response logging
-3. **CORS** - Cross-origin headers
-4. **RateLimit** - Request throttling
-
-### HTTP Status Code Conventions
-
-- `200 OK` - Successful GET
-- `201 Created` - Successful POST (create resource)
-- `204 No Content` - Successful DELETE
-- `400 Bad Request` - Invalid input
-- `401 Unauthorized` - Missing/invalid session
-- `403 Forbidden` - Insufficient permissions
-- `404 Not Found` - Resource doesn't exist
-- `409 Conflict` - Duplicate email/username
-- `413 Payload Too Large` - File too large
-- `429 Too Many Requests` - Rate limit exceeded
-- `500 Internal Server Error` - Unexpected error
-
----
-
-## Security Features
-
-- **HTTPS/TLS** - TLS 1.2+, strong ciphers
-- **Password Hashing** - bcrypt with cost factor 12
-- **Session Management** - UUID tokens, HttpOnly cookies, server-side storage
-- **Rate Limiting** - Per-IP and per-user limits
-- **Input Validation** - Email format, password strength, data sanitization
-- **CSRF Protection** - CSRF tokens on state-changing operations
-- **Security Headers** - CSP, X-Frame-Options, HSTS
-
----
-
-## Build & Deployment
-
-### Local Development
 ```bash
-go run cmd/forum/main.go
+make go           # Run locally
+make test         # Full test suite
+make test-go      # Go tests only
+make test-script  # E2E scripts only
 ```
-
-### Docker
-```bash
-docker-compose up --build
-```
-
-Multi-stage Dockerfile:
-1. Build stage (compile binary)
-2. Runtime stage (minimal alpine image)
-
-**Important**: Requires `CGO_ENABLED=1` for SQLite.
 
 ---
 
 ## Key Design Decisions
 
-### Why SQLite?
-Simple, embedded, zero-config. Perfect for learning and small-medium forums. Can migrate to Postgres later without changing much code (thanks to repository pattern).
-
-### Why No ORM?
-ORMs hide SQL and add complexity. Raw SQL with `database/sql` is explicit, performant, and idiomatic Go.
-
-### Why Flat Adapters?
-Prevents over-engineering. One handler file, one repository file per module. Easy to find, easy to understand.
-
-### Why Manual DI?
-No magic. Every dependency is visible in `main.go`. Easy to trace, easy to debug.
-
-### Why Hexagonal Architecture?
-Testability + flexibility. Swap SQLite for Postgres? Change only the repository adapter. Add gRPC API? Add a new input adapter. Core logic untouched.
-
----
-
-## References
-
-- [Go Project Layout](https://github.com/golang-standards/project-layout)
-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
-- [Effective Go](https://go.dev/doc/effective_go)
+| Choice | Reason |
+|--------|--------|
+| SQLite | Simple, embedded, zero-config |
+| No ORM | Raw SQL is explicit and performant |
+| Flat adapters | Prevents over-engineering |
+| Manual DI | No magic, every dependency visible |
+| Hexagonal | Testability + flexibility |

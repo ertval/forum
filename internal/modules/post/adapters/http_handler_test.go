@@ -26,11 +26,12 @@ import (
 // Mock implementations
 
 type mockPostService struct {
-	createFunc func(ctx context.Context, userID int, title, content string, categories []string, image []byte) (*postDomain.Post, error)
-	getFunc    func(ctx context.Context, postID string) (*postDomain.Post, error)
-	updateFunc func(ctx context.Context, postID string, title, content string, categories []string) error
-	deleteFunc func(ctx context.Context, postID string) error
-	listFunc   func(ctx context.Context, filter postDomain.PostFilter) ([]*postDomain.Post, error)
+	createFunc          func(ctx context.Context, userID int, title, content string, categories []string, image []byte) (*postDomain.Post, error)
+	getFunc             func(ctx context.Context, postID string) (*postDomain.Post, error)
+	updateFunc          func(ctx context.Context, postID string, title, content string, categories []string) error
+	updatePostImageFunc func(ctx context.Context, postID string, image []byte, removeImage bool) error
+	deleteFunc          func(ctx context.Context, postID string) error
+	listFunc            func(ctx context.Context, filter postDomain.PostFilter) ([]*postDomain.Post, error)
 }
 
 func (m *mockPostService) CreatePost(ctx context.Context, userID int, title, content string, categories []string, image []byte) (*postDomain.Post, error) {
@@ -50,6 +51,13 @@ func (m *mockPostService) GetPost(ctx context.Context, postID string) (*postDoma
 func (m *mockPostService) UpdatePost(ctx context.Context, postID string, title, content string, categories []string) error {
 	if m.updateFunc != nil {
 		return m.updateFunc(ctx, postID, title, content, categories)
+	}
+	return nil
+}
+
+func (m *mockPostService) UpdatePostImage(ctx context.Context, postID string, image []byte, removeImage bool) error {
+	if m.updatePostImageFunc != nil {
+		return m.updatePostImageFunc(ctx, postID, image, removeImage)
 	}
 	return nil
 }

@@ -1,3 +1,15 @@
+Create me and excellent prompt for an ai coding agent to implement me the #file:forum-image-upload.md.md functionality in this project.
+
+The agent should:
+It shoudl follow idiomatic Go best practices, TDD, coverage 90%.
+In the end update the roadmap
+Update the readme
+
+Save the prompt as a markdown file in the prmpts directory.
+
+---
+
+
 # You are implementing the Posts module for a Go forum application using Hexagonal Architecture.
 
 ## Context

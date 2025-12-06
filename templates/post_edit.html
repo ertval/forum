@@ -31,6 +31,8 @@
             <div id="content-preview" class="post-detail-content" style="border: 1px solid #e0e0e0; padding: 1rem; min-height: 100px; background-color: #fafafa;"></div>
         </div>
 
+        {{/* Image upload and category selection are in the sidebar cards (base.html) */}}
+
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Update Post</button>
             <a href="/posts/{{.Post.PublicID}}" class="btn btn-secondary">Cancel</a>
@@ -44,4 +46,3 @@
 {{define "scripts"}}
 <script src="/static/js/post-forms.js"></script>
 {{end}}
-

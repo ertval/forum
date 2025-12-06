@@ -1,0 +1,21 @@
+/* ==========================================================================
+   FOOTER STYLES - Footer component and related elements
+   ========================================================================== */
+
+footer {
+    background: linear-gradient(135deg, #d3e0ea 0%, #e0f0f7 100%); /* Soft Blue gradient */
+    color: #5a5a5a;
+    padding: 0.5rem 0; /* Narrower padding */
+    border-top: 1px solid #c0d0e0;
+}
+
+footer .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+footer p {
+    margin: 0;
+    font-size: 0.9rem;
+}

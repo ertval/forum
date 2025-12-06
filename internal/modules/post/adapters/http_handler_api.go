@@ -15,6 +15,7 @@ import (
 	postDomain "forum/internal/modules/post/domain"
 	platformErrors "forum/internal/platform/errors"
 	logger "forum/internal/platform/logger"
+	"forum/internal/platform/upload"
 )
 
 // RegisterAPIRoutes registers all post API routes with the router.
@@ -145,6 +146,12 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 		case postDomain.ErrCategoryNotFound:
 			platformErrors.WriteErrorJSON(w, http.StatusNotFound, err.Error())
+		case upload.ErrInvalidImageType, postDomain.ErrInvalidImageType:
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid image type, must be JPEG, PNG, or GIF")
+		case upload.ErrImageTooLarge, postDomain.ErrImageTooLarge:
+			platformErrors.WriteErrorJSON(w, http.StatusRequestEntityTooLarge, "Image file too large (max 20MB)")
+		case upload.ErrEmptyImage, postDomain.ErrInvalidImage:
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid image file")
 		default:
 			platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to create post")
 		}
@@ -229,13 +236,16 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse request body
+	// Parse request body. The edit form sends a PUT with multipart/form-data (FormData),
+	// so support multipart parsing as well as JSON bodies.
 	var req struct {
-		Title      string   `json:"title"`
-		Content    string   `json:"content"`
-		Categories []string `json:"categories"`
+		Title       string   `json:"title"`
+		Content     string   `json:"content"`
+		Categories  []string `json:"categories"`
+		RemoveImage bool     `json:"remove_image"`
 	}
 
+	var imageData []byte
 	contentType := r.Header.Get("Content-Type")
 
 	// Log incoming request for debugging
@@ -252,13 +262,13 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case strings.HasPrefix(contentType, "multipart/form-data"):
-		const maxUploadSize = 20 << 20
-		if err := r.ParseMultipartForm(maxUploadSize); err != nil {
+		if err := r.ParseMultipartForm(MaxImageUploadSize); err != nil {
 			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid form data")
 			return
 		}
 		req.Title = strings.TrimSpace(r.FormValue("title"))
 		req.Content = strings.TrimSpace(r.FormValue("content"))
+		req.RemoveImage = r.FormValue("remove_image") == "true"
 		req.Categories = r.Form["categories[]"]
 		if len(req.Categories) == 0 {
 			req.Categories = r.Form["categories"]
@@ -270,6 +280,20 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 					req.Categories[i] = strings.TrimSpace(req.Categories[i])
 				}
 			}
+		}
+		// Parse image upload using the dedicated helper
+		imageResult, err := ParseImageUpload(r, "image")
+		if err != nil {
+			if err == upload.ErrImageTooLarge {
+				platformErrors.WriteErrorJSON(w, http.StatusRequestEntityTooLarge, "Image exceeds 20MB limit")
+			} else {
+				platformErrors.WriteErrorJSON(w, http.StatusBadRequest, FormatImageError(err))
+			}
+			return
+		}
+		imageData = imageResult.Data
+		if imageResult.RemoveImage {
+			req.RemoveImage = true
 		}
 
 	case strings.HasPrefix(contentType, "application/json"), strings.HasPrefix(contentType, "text/json"), contentType == "":
@@ -318,6 +342,17 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 			platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to update post")
 		}
 		return
+	}
+
+	// Handle image update if there's new image data or removal request
+	if len(imageData) > 0 || req.RemoveImage {
+		if err := h.postService.UpdatePostImage(r.Context(), postID, imageData, req.RemoveImage); err != nil {
+			l.Error("http.post.update.image_error",
+				logger.String("error", err.Error()),
+				logger.String("post_id", postID))
+			// Don't fail the whole request, post content was already updated
+			// Just log the error
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)

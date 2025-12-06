@@ -12,17 +12,13 @@ func TestPostServiceInterface(t *testing.T) {
 	// and that we can create a variable of the interface type
 
 	var postService PostService
-	if postService != nil {
-		t.Error("PostService interface should be usable as a nil variable")
-	}
+	_ = postService // Interface can hold nil without compile error
 }
 
 func TestPostRepositoryInterface(t *testing.T) {
 	// This test ensures that the PostRepository interface is properly defined
 	var postRepo PostRepository
-	if postRepo != nil {
-		t.Error("PostRepository interface should be usable as a nil variable")
-	}
+	_ = postRepo // Interface can hold nil without compile error
 }
 
 // Mock implementations for interface compatibility testing
@@ -46,6 +42,10 @@ func (m *mockPostService) DeletePost(ctx context.Context, id string) error {
 
 func (m *mockPostService) ListPosts(ctx context.Context, filter domain.PostFilter) ([]*domain.Post, error) {
 	return nil, nil
+}
+
+func (m *mockPostService) UpdatePostImage(ctx context.Context, postID string, image []byte, removeImage bool) error {
+	return nil
 }
 
 type mockPostRepository struct{}

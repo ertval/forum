@@ -92,7 +92,9 @@ func (m *MockCommentRepository) ListByUser(ctx context.Context, userID int) ([]*
 }
 
 // MockUserService implements a minimal UserService for testing
-type MockUserService struct{}
+type MockUserService struct {
+	getByPublicIDFn func(ctx context.Context, publicID string) (*userDomain.User, error)
+}
 
 func (m *MockUserService) CreateUser(ctx context.Context, email, username, passwordHash string) (userID int, err error) {
 	return 1, nil
@@ -111,6 +113,9 @@ func (m *MockUserService) GetByID(ctx context.Context, userID int) (*userDomain.
 }
 
 func (m *MockUserService) GetByPublicID(ctx context.Context, publicID string) (*userDomain.User, error) {
+	if m.getByPublicIDFn != nil {
+		return m.getByPublicIDFn(ctx, publicID)
+	}
 	return nil, nil
 }
 
@@ -171,6 +176,10 @@ func (m *MockPostService) CreatePost(ctx context.Context, userID int, title, con
 }
 
 func (m *MockPostService) UpdatePost(ctx context.Context, publicID, title, content string, categories []string) error {
+	return nil
+}
+
+func (m *MockPostService) UpdatePostImage(ctx context.Context, postID string, image []byte, removeImage bool) error {
 	return nil
 }
 
@@ -411,4 +420,98 @@ func TestService_UpdateComment(t *testing.T) {
 			t.Error("Expected error for empty content, got nil")
 		}
 	})
+}
+
+func TestService_ListCommentsByUser(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("successful list comments by user", func(t *testing.T) {
+		testTime := time.Now()
+		mockRepo := &MockCommentRepository{
+			comments: map[string]*domain.Comment{
+				"comment-1": {
+					ID:        1,
+					PublicID:  "comment-1",
+					UserID:    42,
+					Content:   "First comment",
+					CreatedAt: testTime,
+					UpdatedAt: testTime,
+				},
+				"comment-2": {
+					ID:        2,
+					PublicID:  "comment-2",
+					UserID:    42,
+					Content:   "Second comment",
+					CreatedAt: testTime,
+					UpdatedAt: testTime,
+				},
+			},
+		}
+		mockPostService := &MockPostService{}
+		mockUserService := &MockUserService{
+			getByPublicIDFn: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+				return &userDomain.User{
+					ID:       42,
+					PublicID: publicID,
+					Username: "testuser",
+				}, nil
+			},
+		}
+		service := NewService(mockRepo, mockPostService, mockUserService)
+
+		comments, err := service.ListCommentsByUser(ctx, "user-public-id")
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+		if len(comments) != 2 {
+			t.Errorf("Expected 2 comments, got %d", len(comments))
+		}
+	})
+
+	t.Run("user not found", func(t *testing.T) {
+		mockRepo := &MockCommentRepository{}
+		mockPostService := &MockPostService{}
+		mockUserService := &MockUserService{
+			getByPublicIDFn: func(ctx context.Context, publicID string) (*userDomain.User, error) {
+				return nil, userDomain.ErrUserNotFound
+			},
+		}
+		service := NewService(mockRepo, mockPostService, mockUserService)
+
+		_, err := service.ListCommentsByUser(ctx, "non-existent-user")
+		if err == nil {
+			t.Error("Expected error for non-existent user, got nil")
+		}
+	})
+}
+
+func TestService_CreateComment_ValidationError(t *testing.T) {
+	ctx := context.Background()
+	mockRepo := &MockCommentRepository{}
+	mockPostService := &MockPostService{}
+	mockUserService := &MockUserService{}
+	service := NewService(mockRepo, mockPostService, mockUserService)
+
+	// Test with empty content (validation error)
+	_, err := service.CreateComment(ctx, "post-uuid-1", 1, "")
+	if err == nil {
+		t.Error("Expected validation error for empty content, got nil")
+	}
+}
+
+func TestService_DeleteComment_NotFound(t *testing.T) {
+	ctx := context.Background()
+	mockRepo := &MockCommentRepository{
+		getByPublicIDFn: func(ctx context.Context, commentPublicID string) (*domain.Comment, error) {
+			return nil, domain.ErrCommentNotFound
+		},
+	}
+	mockPostService := &MockPostService{}
+	mockUserService := &MockUserService{}
+	service := NewService(mockRepo, mockPostService, mockUserService)
+
+	err := service.DeleteComment(ctx, "non-existent-comment")
+	if err == nil {
+		t.Error("Expected error for non-existent comment, got nil")
+	}
 }

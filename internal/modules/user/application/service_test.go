@@ -524,3 +524,138 @@ func TestService_DecrementCommentCount(t *testing.T) {
 		t.Errorf("Expected CommentCount 2, got %d", user.CommentCount)
 	}
 }
+
+func TestService_CreateUser(t *testing.T) {
+	mockRepo := &MockUserRepository{}
+	service := NewService(mockRepo)
+	ctx := context.Background()
+
+	// Test successful user creation
+	userID, err := service.CreateUser(ctx, "test@example.com", "testuser", "hashedpassword")
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	// User ID is set by the mock implementation to 0 (default), which is fine
+	_ = userID
+}
+
+func TestService_CreateUser_WithError(t *testing.T) {
+	mockRepo := &MockUserRepository{
+		createFn: func(ctx context.Context, user *domain.User) error {
+			return domain.ErrUserNotFound
+		},
+	}
+	service := NewService(mockRepo)
+	ctx := context.Background()
+
+	_, err := service.CreateUser(ctx, "test@example.com", "testuser", "hashedpassword")
+	if err == nil {
+		t.Error("Expected error, got nil")
+	}
+	if err != domain.ErrUserNotFound {
+		t.Errorf("Expected ErrUserNotFound, got %v", err)
+	}
+}
+
+func TestService_GetByID(t *testing.T) {
+	now := time.Now()
+	mockRepo := &MockUserRepository{
+		users: map[int]*domain.User{
+			1: {
+				ID:        1,
+				PublicID:  "test-public-id",
+				Email:     "test@example.com",
+				Username:  "testuser",
+				Role:      domain.RoleUser,
+				CreatedAt: now,
+				UpdatedAt: now,
+				IsActive:  true,
+			},
+		},
+	}
+	service := NewService(mockRepo)
+	ctx := context.Background()
+
+	user, err := service.GetByID(ctx, 1)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if user == nil {
+		t.Error("Expected user, got nil")
+	}
+	if user != nil && user.ID != 1 {
+		t.Errorf("Expected user ID 1, got %d", user.ID)
+	}
+}
+
+func TestService_GetByID_NotFound(t *testing.T) {
+	mockRepo := &MockUserRepository{
+		users: map[int]*domain.User{},
+	}
+	service := NewService(mockRepo)
+	ctx := context.Background()
+
+	user, err := service.GetByID(ctx, 999)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if user != nil {
+		t.Errorf("Expected nil user, got %+v", user)
+	}
+}
+
+func TestService_ExistsByEmail(t *testing.T) {
+	mockRepo := &MockUserRepository{
+		existsByEmailFn: func(ctx context.Context, email string) (bool, error) {
+			return email == "exists@example.com", nil
+		},
+	}
+	service := NewService(mockRepo)
+	ctx := context.Background()
+
+	// Test existing email
+	exists, err := service.ExistsByEmail(ctx, "exists@example.com")
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if !exists {
+		t.Error("Expected email to exist")
+	}
+
+	// Test non-existing email
+	exists, err = service.ExistsByEmail(ctx, "notexists@example.com")
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if exists {
+		t.Error("Expected email to not exist")
+	}
+}
+
+func TestService_ExistsByUsername(t *testing.T) {
+	mockRepo := &MockUserRepository{
+		existsByUsernameFn: func(ctx context.Context, username string) (bool, error) {
+			return username == "existinguser", nil
+		},
+	}
+	service := NewService(mockRepo)
+	ctx := context.Background()
+
+	// Test existing username
+	exists, err := service.ExistsByUsername(ctx, "existinguser")
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if !exists {
+		t.Error("Expected username to exist")
+	}
+
+	// Test non-existing username
+	exists, err = service.ExistsByUsername(ctx, "nonexistinguser")
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if exists {
+		t.Error("Expected username to not exist")
+	}
+}

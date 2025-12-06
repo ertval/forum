@@ -1,0 +1,178 @@
+/* ==========================================================================
+   CARD STYLES - User card, filter card, and sidebar components
+   ========================================================================== */
+
+/* User Card */
+.user-card {
+    background: #ffffff;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    height: fit-content;
+    border: 1px solid #c0d0e0;
+}
+
+.user-card h2 {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    color: #5a5a5a;
+    text-align: center;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.user-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #d3e0ea 0%, #e0f0f7 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.avatar-icon {
+    font-size: 1.8rem;
+}
+
+.user-details {
+    flex: 1;
+}
+
+.user-details .username {
+    font-weight: 600;
+    color: #5a5a5a;
+    margin-bottom: 0.25rem;
+    font-size: 1rem;
+}
+
+.user-details .user-email {
+    font-size: 0.85rem;
+    color: #7a7a7a;
+}
+
+.user-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 1rem;
+    padding: 0.75rem 0;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.stat-value {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #5a5a5a;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #7a7a7a;
+}
+
+.user-actions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    justify-content: flex-start;
+}
+
+/* Filters Card */
+.filters {
+    background: #ffffff;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    height: fit-content;
+    border: 1px solid #c0d0e0;
+}
+
+.filters h2 {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    color: #5a5a5a;
+    text-align: center;
+}
+
+.filter-group {
+    margin-bottom: 1rem;
+}
+
+.filter-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #5a5a5a;
+}
+
+.filter-group select,
+.filter-group input[type="text"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #c5d0b8;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    background-color: #f0f4e8;
+    color: #5a5a5a;
+    transition: all 0.3s ease;
+}
+
+.filter-group select:focus,
+.filter-group input[type="text"]:focus {
+    outline: none;
+    border-color: #a3d9c5;
+    box-shadow: 0 0 0 2px rgba(163, 217, 197, 0.2);
+}
+
+.filter-group input[type="checkbox"] {
+    margin-right: 0.5rem;
+    width: 18px;
+    height: 18px;
+    accent-color: #a3d9c5;
+}
+
+.filters button {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.95rem;
+    display: inline-block;
+    text-align: center;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #b5ead7 0%, #c2f2e9 100%);
+    color: #5a5a5a;
+    border: 1px solid #a3d9c5;
+    box-shadow: 0 2px 6px rgba(181, 234, 215, 0.4);
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.filters button:hover {
+    background: linear-gradient(135deg, #a3d9c5 0%, #b0f0db 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(181, 234, 215, 0.4);
+}
+
+.filters button:active {
+    transform: translateY(0);
+}
+
+/* Responsive - Sidebar Cards */
+@media (max-width: 768px) {
+    .filters, .user-card {
+        position: static;
+    }
+}
