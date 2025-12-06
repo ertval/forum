@@ -1,0 +1,1222 @@
+# Forum Test Scripts
+
+This directory contains comprehensive test scripts for the Forum application, organized by testing focus.
+
+**These test scripts are the single source of truth for requirements verification.**
+
+## Quick Start
+
+**Prerequisites:** Before running tests, ensure the database is seeded with test data:
+```bash
+# Seed the database (auto-runs migrations if DB doesn't exist)
+./scripts/seed/seed.sh
+
+# Or using make:
+make seed
+```
+
+Run all tests with a single command:
+```bash
+# Run all tests (quiet mode - shows only summary)
+make test
+
+# Run all tests (verbose mode - shows all output)
+make tests
+
+# Run only failed tests with detailed output
+make test-fail
+
+# Or directly:
+./scripts/tests/run_all_tests.sh
+```
+
+**Test Credentials (from seed data):**
+- **Primary Test User**: `testuser@example.com` / `password123`
+- **Secondary Test User**: `testuser2@example.com` / `password123`
+- **Admin User**: `admin@example.com` / `adminpass123`
+- **Moderator User**: `moderator@example.com` / `modpass123`
+
+These users are automatically created by the seed script and are available for all tests.
+
+---
+
+## Test Scripts Overview
+
+### 0. `run_all_tests.sh` - Master Test Runner
+**Focus:** Verifies database and runs all test scripts in **alphabetical order**
+
+This script:
+1. **Verifies** the database exists and has required test data (does NOT seed/modify data)
+2. **Discovers** all `test_*.sh` scripts in this directory
+3. **Runs** them in **alphabetical order** for reproducible results
+4. **Reports** a combined summary of all test results (also in alphabetical order)
+5. **Handles timeouts** - each test has 5-minute timeout to prevent hangs
+
+```bash
+# Quiet mode (default) - shows spinner and summary only
+./scripts/tests/run_all_tests.sh --quiet
+
+# Verbose mode - shows all test output
+./scripts/tests/run_all_tests.sh
+```
+
+Exit codes:
+- `0` - All tests passed
+- `1` - One or more test suites failed
+
+**Note:** Fixed in December 2024 - Now properly captures exit codes from background test processes and implements timeout protection.
+
+---
+
+## Audit Requirement Test Scripts
+
+These scripts directly map to the audit requirement documents in `docs/requirements/`:
+
+| Script | Audit Document | Test Scenarios | Status |
+|--------|----------------|----------------|--------|
+| `test_audit.sh` | `audit.md` | 46 core tests | ✅ All Pass |
+| `test_audit_advanced.sh` | `audit-advanced.md` | 18 advanced tests | ⚠️ 13/18 Pass (5 optional features) |
+| `test_audit_authentication.sh` | `audit-authentication.md` | 18 OAuth tests | ⚠️ 4/18 Pass (OAuth not implemented) |
+| `test_audit_image.sh` | `audit-image.md` | 8 image tests | ✅ All Pass |
+| `test_audit_moderation.sh` | `audit-moderation.md` | 13 moderation tests | ⚠️ 11/13 Pass (2 optional features) |
+| `test_audit_security.sh` | `audit-security.md` | 14 security tests | ✅ All Pass |
+
+**Total Coverage**: 117 automated test scenarios across 6 audit documents
+
+### Detailed Audit Coverage
+
+<details>
+<summary><b>📋 test_audit.sh - Core Forum Functionality (46 tests)</b></summary>
+
+**Covers**: `docs/requirements/audit.md`
+
+#### Authentication Section (13 tests)
+- ✅ Email and password required for registration
+- ✅ Email/password validation on login
+- ✅ Duplicate email detection
+- ✅ Duplicate username detection
+- ✅ User registration workflow
+- ✅ Login with created user
+- ✅ Login without credentials error handling
+- ✅ Session presence verification
+- ✅ Multi-browser session isolation
+- ✅ Single active session per user
+- ✅ Post/comment visibility across browsers
+
+#### SQLite Section (6 tests)
+- ✅ CREATE query presence in code
+- ✅ INSERT query presence in code
+- ✅ SELECT query presence in code
+- ✅ User registration persists to database
+- ✅ Post creation persists to database
+- ✅ Comment creation persists to database
+
+#### Docker Section (4 tests)
+- ✅ Dockerfile presence
+- ✅ Docker image build capability
+- ✅ Docker container run capability
+- ✅ No unused Docker objects
+
+#### Functional Tests (19 tests)
+- ✅ Guest users forbidden from creating posts
+- ✅ Guest users forbidden from creating comments
+- ✅ Guest users forbidden from liking posts
+- ✅ Guest users forbidden from disliking posts
+- ✅ Registered users can create comments
+- ✅ Empty comments rejected
+- ✅ Registered users can create posts
+- ✅ Empty posts rejected
+- ✅ Multiple categories selectable
+- ✅ Single category selectable
+- ✅ Like/dislike posts as registered user
+- ✅ Like/dislike comments as registered user
+- ✅ Like/dislike persistence after refresh
+- ✅ Cannot like AND dislike simultaneously
+- ✅ View own created posts
+- ✅ View own liked posts
+- ✅ Comment visibility for all users
+- ✅ Filter posts by category
+- ✅ HTTP methods correct
+
+#### General/Bonus (4 tests)
+- ✅ Build scripts present (Makefile/docker-compose)
+- ✅ Passwords encrypted in database (bcrypt)
+- ✅ Fast API responses (< 1000ms)
+- ✅ Test files present
+
+</details>
+
+<details>
+<summary><b>📋 test_audit_advanced.sh - Advanced Features (18 tests)</b></summary>
+
+**Covers**: `docs/requirements/audit-advanced.md`
+
+#### Activity Page & Notifications (8 tests)
+- ⚠️ Liked posts appear on activity page (NOT IMPLEMENTED)
+- ⚠️ Disliked posts appear on activity page (NOT IMPLEMENTED)
+- ⚠️ Commented posts appear on activity page (NOT IMPLEMENTED)
+- ⚠️ New posts appear on activity page (NOT IMPLEMENTED)
+- ⚠️ Comment notification received (NOT IMPLEMENTED)
+- ✅ Like notification received
+- ✅ Dislike notification received
+- ✅ Notification system architecture
+
+#### Edit/Delete Features (5 tests)
+- ✅ Users can edit own posts
+- ✅ Users can delete own posts
+- ✅ Users can edit own comments
+- ✅ Users can delete own comments
+- ✅ Ownership verification for edit/delete
+
+#### Filtering & Search (2 tests)
+- ✅ Filter posts by category
+- ✅ Search posts by keyword
+
+#### General/Bonus (3 tests)
+- ✅ Code follows good practices
+- ✅ Clear website instructions
+- ✅ Pagination implemented
+
+**Note**: Activity page tests fail because this feature is marked [OPTIONAL] in roadmap.
+
+</details>
+
+<details>
+<summary><b>📋 test_audit_authentication.sh - OAuth Authentication (18 tests)</b></summary>
+
+**Covers**: `docs/requirements/audit-authentication.md`
+
+#### OAuth Login (6 tests)
+- ⚠️ GitHub OAuth login (NOT IMPLEMENTED)
+- ⚠️ Google OAuth login (NOT IMPLEMENTED)
+- ⚠️ OAuth user post creation (NOT IMPLEMENTED)
+- ⚠️ OAuth user persistence after logout (NOT IMPLEMENTED)
+- ⚠️ OAuth login instructions (NOT IMPLEMENTED)
+- ⚠️ OAuth account linking (NOT IMPLEMENTED)
+
+#### Basic Authentication (6 tests)
+- ✅ Email required for registration
+- ✅ Password required for registration
+- ✅ Duplicate credential detection
+- ✅ Missing credential error handling
+- ✅ Standard registration workflow
+- ✅ Standard login workflow
+
+#### Environment & Setup (6 tests)
+- ✅ OAuth setup documentation exists
+- ⚠️ OAuth environment variables (NOT CONFIGURED)
+- ⚠️ GitHub OAuth configuration (NOT CONFIGURED)
+- ⚠️ Google OAuth configuration (NOT CONFIGURED)
+- ⚠️ OAuth callback URLs configured (NOT CONFIGURED)
+- ⚠️ OAuth scope configuration (NOT CONFIGURED)
+
+**Note**: OAuth features are marked [OPTIONAL] and require additional setup.
+
+</details>
+
+<details>
+<summary><b>📋 test_audit_image.sh - Image Upload (8 tests)</b></summary>
+
+**Covers**: `docs/requirements/audit-image.md`
+
+#### Image Format Support (3 tests)
+- ✅ PNG image upload in posts
+- ✅ JPEG image upload in posts
+- ✅ GIF image upload in posts
+
+#### Image Validation (2 tests)
+- ✅ File size limit enforced (20MB)
+- ✅ Size limit warning displayed
+
+#### Image Persistence (1 test)
+- ✅ Images persist after navigation
+
+#### General/Bonus (2 tests)
+- ✅ Only required formats supported (correct behavior)
+- ✅ Clear upload instructions
+
+</details>
+
+<details>
+<summary><b>📋 test_audit_moderation.sh - Moderation System (13 tests)</b></summary>
+
+**Covers**: `docs/requirements/audit-moderation.md`
+
+#### User Roles (4 tests)
+- ✅ Four user types present (guest, user, moderator, admin)
+- ✅ Guest users have view-only access
+- ✅ Regular users can create posts/comments
+- ✅ Regular users can like/dislike
+
+#### Moderator Workflow (5 tests)
+- ✅ Moderator registration request system
+- ✅ Admin receives moderator requests
+- ✅ Admin can promote to moderator
+- ✅ Moderator can delete posts
+- ✅ Moderator can report posts
+
+#### Admin Features (2 tests)
+- ⚠️ Admin receives reports (PARTIALLY IMPLEMENTED)
+- ⚠️ Admin can respond to reports (NOT IMPLEMENTED)
+- ✅ Admin can demote moderators
+
+#### General/Bonus (2 tests)
+- ✅ More than 4 user types supported
+- ✅ Clear website instructions
+
+**Note**: Report response system is marked [OPTIONAL].
+
+</details>
+
+<details>
+<summary><b>📋 test_audit_security.sh - Security Features (14 tests)</b></summary>
+
+**Covers**: `docs/requirements/audit-security.md`
+
+#### HTTPS & TLS (4 tests)
+- ✅ HTTPS URL support
+- ✅ Cipher suites implemented
+- ✅ TLS configuration present
+- ✅ Server timeouts configured
+
+#### Security Measures (4 tests)
+- ✅ Rate limiting implemented
+- ✅ Password encryption (bcrypt)
+- ✅ Session tokens are UUIDs
+- ✅ Certificate configuration support
+
+#### Code Quality (2 tests)
+- ✅ Only allowed packages used
+- ✅ Test files present
+
+#### General/Bonus (4 tests)
+- ✅ Custom certificates supported
+- ✅ Database password protection
+- ✅ Fast API responses
+- ✅ Code follows good practices
+
+</details>
+
+---
+
+### 1. `test_api.sh` - API Endpoints Test Suite
+**Focus:** Tests all JSON API endpoints with detailed edge cases
+
+**Coverage:**
+- ✅ **Authentication API** (Tests 1-16)
+  - Registration (valid, duplicate email, duplicate username, validation errors)
+  - Login (valid credentials, wrong password, non-existent user)
+  - Logout and session invalidation
+  - Malformed JSON handling
+  
+- ✅ **Posts API** (Tests 17-28)
+  - CRUD operations (Create, Read, Update, Delete)
+  - Authorization checks (own posts only)
+  - Validation (empty title/content, missing categories)
+  - Filtering by category
+  - Data integrity after deletion
+  
+- ✅ **Comments API** (Tests 29-32)
+  - Create comments on posts
+  - Empty content validation
+  - List comments for posts
+  - Authentication requirements
+  
+- ✅ **Reactions API** (Tests 33-36)
+  - Like/dislike posts
+  - Toggle behavior (can't like AND dislike)
+  - Remove reactions
+  - Authentication requirements
+  
+- ✅ **Session Management** (Tests 37-44)
+  - Multiple user sessions
+  - Session uniqueness per user
+  - Authorization enforcement (can't modify others' content)
+  - Old session invalidation on re-login
+  
+- ✅ **Security** (Tests 45-48)
+  - SQL injection prevention
+  - XSS attempt handling
+  - Invalid/missing session tokens
+  
+- ✅ **Performance** (Tests 49-51)
+  - Response time thresholds (< 1000ms)
+  - Bulk operations (10 posts)
+  - Database operation efficiency (< 500ms)
+  
+- ✅ **Data Integrity** (Tests 52-54)
+  - Database consistency after operations
+  - Deleted content verification
+  - Unicode and special character support
+
+**Usage:**
+```bash
+# Run with default output
+./scripts/test_api.sh
+
+# Run with verbose debugging output
+./scripts/test_api.sh -v
+# or
+./scripts/test_api.sh --verbose
+```
+
+**Requirements:**
+- Forum server binary in `bin/forum` (auto-builds if missing)
+- Port 8080 available (auto-kills existing processes)
+- Standard Unix tools: `curl`, `lsof`, `grep`, `sed`
+
+---
+
+### 2. `test_pages.sh` - HTML Page Endpoints Test Suite
+**Focus:** Tests all HTML page endpoints for proper rendering and functionality
+
+**Coverage:**
+- ✅ **Home Page** (Tests 1-3)
+  - HTML rendering (200 status)
+  - Posts list/section display
+  - Navigation links present
+  
+- ✅ **Auth Pages** (Tests 4-8)
+  - Register page rendering
+  - Register form fields (email, username, password)
+  - Login page rendering
+  - Login form fields
+  - Functional registration and login flow
+  
+- ✅ **Post Pages** (Tests 9-14)
+  - Create post page (authenticated users only)
+  - Post detail page rendering
+  - Edit post page (owner only)
+  - 404 handling for non-existent posts
+  - Authorization enforcement (403 for non-owners)
+  
+- ✅ **Navigation** (Tests 15-18)
+  - Logout flow and redirects
+  - Protected page redirects when not authenticated
+  - Public pages accessible without authentication
+  - Post details visible to all users
+  
+- ✅ **HTML Rendering** (Tests 19-25)
+  - Valid HTML structure (DOCTYPE, html tags)
+  - CSS styling inclusion
+  - Proper meta tags
+  - Like/dislike counts visible to all
+  
+- ✅ **Form Functionality** (Tests 26-30)
+  - Form method and action attributes
+  - Required fields in forms
+  - Error message display
+  - Category filtering
+
+**Usage:**
+```bash
+# Run with default output
+./scripts/test_pages.sh
+
+# Run with verbose debugging output
+./scripts/test_pages.sh -v
+# or
+./scripts/test_pages.sh --verbose
+```
+
+**Requirements:**
+- Forum server binary in `bin/forum` (auto-builds if missing)
+- Port 8080 available (auto-kills existing processes)
+- Standard Unix tools: `curl`, `lsof`, `grep`, `sed`
+
+---
+
+### 3. `e2e_test.sh` - Comprehensive E2E Test Suite (Original)
+**Focus:** Complete end-to-end testing including middleware, concurrency, and edge cases
+
+**Coverage:**
+- All tests from `test_api.sh`
+- All tests from `test_pages.sh`
+- Additional specialized tests:
+  - Middleware and CORS headers
+  - Concurrency and race conditions
+  - Rate limiting (optional)
+  - Performance and load testing
+  - SQL injection and XSS prevention
+  - NULL bytes and boundary conditions
+
+**Usage:**
+```bash
+./scripts/e2e_test.sh -v
+```
+
+---
+
+## Test Compliance
+
+All test scripts validate compliance with:
+- **`docs/requirements/requirements.md`** - Core feature requirements
+- **`docs/requirements/audit.md`** - Audit specifications and acceptance criteria
+
+### Key Audit Requirements Covered:
+
+1. ✅ **Authentication**
+   - Email and password required for registration
+   - Duplicate email/username detection
+   - Login with valid/invalid credentials
+   - Session management (only one active session per user)
+
+2. ✅ **Posts & Comments**
+   - Registered users can create posts with categories
+   - Non-registered users can view posts/comments
+   - Empty posts/comments rejected
+   - Authorization checks (edit/delete own content only)
+
+3. ✅ **Reactions**
+   - Registered users can like/dislike
+   - Toggle behavior (can't like AND dislike)
+   - Reaction counts visible to all
+
+4. ✅ **Filtering**
+   - Filter by category
+   - Filter own posts (registered users)
+   - Filter liked posts (registered users)
+
+5. ✅ **Database**
+   - SQLite with CREATE, INSERT, SELECT queries
+   - Data persistence and integrity
+   - Proper foreign key relationships
+
+6. ✅ **Security**
+   - SQL injection prevention
+   - XSS attempt handling
+   - Session validation
+   - Authorization enforcement
+
+---
+
+## Test Output
+
+### Success Example:
+```
+========================================
+Forum API Test Suite
+Testing JSON API Endpoints
+========================================
+
+--- AUTH API TESTS ---
+✓ Test 1: PASSED
+✓ Test 2: PASSED
+...
+
+Passed: 54
+Failed: 0
+Skipped: 0
+Total: 54
+
+✓ All API tests passed! (100% success rate)
+```
+
+### Failure Example:
+```
+✗ Test 15: FAILED
+   Reason: Expected 200 with session cookie, got 401
+
+Failed: 3
+Passed: 51
+...
+
+✗ 3 API test(s) failed (5% failure rate)
+Please review the failed tests above and fix the issues.
+```
+
+---
+
+## Test Architecture
+
+### Server Management
+- Auto-kills existing servers on port 8080
+- Builds forum binary if not present
+- Starts server in background with logs
+- Waits for server readiness (max 30 seconds)
+- Graceful cleanup on exit/interrupt
+
+### Session Management
+- Unique test users per script run (timestamped)
+- Session tokens stored in temporary files
+- Automatic cleanup after tests
+
+### Performance Monitoring
+- Response time measurement (nanosecond precision)
+- Thresholds: < 1000ms for requests, < 500ms for DB operations
+- Warnings displayed when thresholds exceeded
+
+### Debugging
+- Verbose mode (`-v` flag) for detailed output
+- Server logs preserved in verbose mode
+- Color-coded test results (green/red/yellow)
+- Failed test categorization for quick diagnosis
+
+---
+
+## Integration with CI/CD
+
+These scripts can be integrated into CI/CD pipelines:
+
+```bash
+# Example GitHub Actions workflow
+- name: Run API Tests
+  run: ./scripts/test_api.sh
+
+- name: Run Page Tests
+  run: ./scripts/test_pages.sh
+
+- name: Run Full E2E Suite
+  run: ./scripts/e2e_test.sh -v
+```
+
+Exit codes:
+- `0` - All tests passed
+- `1` - One or more tests failed
+
+---
+
+## Development Workflow
+
+### During Development
+1. Make code changes
+2. Run relevant test suite:
+   ```bash
+   # API changes
+   ./scripts/test_api.sh -v
+   
+   # Template/HTML changes
+   ./scripts/test_pages.sh -v
+   ```
+
+### Before Commit
+```bash
+# Run full suite
+./scripts/e2e_test.sh -v
+```
+
+### Quick Iteration
+```bash
+# Run specific test by commenting out others
+# Edit test script to focus on failing test
+./scripts/test_api.sh -v
+```
+
+---
+
+## Troubleshooting
+
+### Server Won't Start
+```bash
+# Check logs
+cat /tmp/forum_*_server_*.log
+
+# Manually check port
+lsof -i :8080
+
+# Build manually
+go build -o bin/forum cmd/forum/main.go
+./bin/forum
+```
+
+### Tests Timing Out
+- Increase `max_attempts` in `wait_for_server()` function
+- Check database migrations are completing
+- Verify sufficient system resources
+
+### Permission Errors
+```bash
+# Make scripts executable
+chmod +x scripts/*.sh
+```
+
+### Database Lock Issues
+- Tests use isolated timestamps for unique data
+- Each script creates fresh test users
+- If issues persist, check SQLite busy timeout settings
+
+---
+
+## Creating New Test Scripts
+
+### Overview
+
+All test scripts in this directory follow a strict pattern to ensure:
+- **Idempotency**: Can be run multiple times without side effects
+- **Independence**: Each script manages its own server and data
+- **Isolation**: Tests clean up ALL data they create
+- **Consistency**: Follow the same structure and conventions
+
+### Test Script Structure Template
+
+Use this template when creating new audit test scripts:
+
+```bash
+#!/bin/bash
+# =============================================================================
+# [FEATURE NAME] AUDIT TEST SCRIPT
+# Tests per docs/requirements/audit-[feature].md
+# =============================================================================
+
+set -e
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+BASE_URL="http://localhost:8080"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+DB_PATH="${PROJECT_ROOT}/data/forum.db"
+SESSION_COOKIE=""
+SESSION_COOKIE_FILE="/tmp/forum_[feature]_audit_session.txt"
+SERVER_PID=""
+SERVER_LOG="/tmp/forum_[feature]_audit_server.log"
+
+# Test credentials (from seed data)
+TEST_EMAIL="testuser@example.com"
+TEST_PASSWORD="password123"
+TEST_EMAIL2="testuser2@example.com"
+
+# Colors for output
+if [ -t 1 ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    NC='\033[0m'
+else
+    RED='' GREEN='' YELLOW='' BLUE='' NC=''
+fi
+
+PASSED=0
+FAILED=0
+
+# Arrays to track created test data for cleanup
+CREATED_POSTS=()
+CREATED_COMMENTS=()
+CREATED_USERS=()
+
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
+print_section() {
+    echo ""
+    echo -e "${YELLOW}=== $1 ===${NC}"
+    echo ""
+}
+
+print_question() {
+    echo -e "${BLUE}Q:${NC} $1"
+}
+
+print_answer() {
+    local status="$1"
+    local answer="$2"
+    if [ "$status" = "YES" ]; then
+        echo -e "${GREEN}A: YES${NC} - $answer"
+        PASSED=$((PASSED + 1))
+    else
+        echo -e "${RED}A: NO${NC} - $answer"
+        FAILED=$((FAILED + 1))
+    fi
+    echo ""
+}
+
+extract_session_cookie() {
+    echo "$1" | grep -i "set-cookie" | grep "session_token" | sed 's/.*session_token=\([^;]*\).*/\1/' | head -n 1
+}
+
+extract_json_field() {
+    echo "$1" | grep -o "\"$2\":\"[^\"]*\"" | sed "s/\"$2\":\"\([^\"]*\)\"/\1/" | head -n 1
+}
+
+check_server_running() {
+    lsof -Pi :8080 -sTCP:LISTEN -t >/dev/null 2>&1
+}
+
+kill_existing_server() {
+    if check_server_running; then
+        echo "Stopping existing server..."
+        pkill -f "forum" 2>/dev/null || true
+        sleep 2
+    fi
+}
+
+start_server() {
+    echo "Starting forum server..."
+    if [ ! -f "${PROJECT_ROOT}/bin/forum" ]; then
+        echo "Building forum binary..."
+        cd "$PROJECT_ROOT" && go build -o bin/forum cmd/forum/main.go
+    fi
+    "${PROJECT_ROOT}/bin/forum" > "$SERVER_LOG" 2>&1 &
+    SERVER_PID=$!
+    
+    # Wait for server to be ready (max 30 seconds)
+    for i in {1..30}; do
+        if curl -s "$BASE_URL/health-api" > /dev/null 2>&1 || curl -s "$BASE_URL/" > /dev/null 2>&1; then
+            echo "Server ready!"
+            return 0
+        fi
+        sleep 1
+    done
+    echo -e "${RED}Server failed to start${NC}"
+    cat "$SERVER_LOG"
+    exit 1
+}
+
+cleanup() {
+    echo ""
+    echo -e "${YELLOW}--- CLEANUP ---${NC}"
+    echo ""
+    
+    # Re-login to get a fresh session for cleanup
+    if [ -n "$SESSION_COOKIE" ] || [ ${#CREATED_POSTS[@]} -gt 0 ] || [ ${#CREATED_COMMENTS[@]} -gt 0 ]; then
+        RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}" 2>/dev/null)
+        CLEANUP_SESSION=$(extract_session_cookie "$RESPONSE")
+        
+        if [ -n "$CLEANUP_SESSION" ]; then
+            # Delete created posts (cascades to comments and reactions)
+            for post_id in "${CREATED_POSTS[@]}"; do
+                if [ -n "$post_id" ]; then
+                    curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
+                        -H "Cookie: session_token=$CLEANUP_SESSION" > /dev/null 2>&1
+                fi
+            done
+            
+            # Delete created comments (if not already deleted via cascade)
+            for comment_id in "${CREATED_COMMENTS[@]}"; do
+                if [ -n "$comment_id" ]; then
+                    curl -s -X DELETE "$BASE_URL/api/comments/$comment_id" \
+                        -H "Cookie: session_token=$CLEANUP_SESSION" > /dev/null 2>&1
+                fi
+            done
+        fi
+    fi
+    
+    # Clean up test users from database directly
+    if [ ${#CREATED_USERS[@]} -gt 0 ]; then
+        echo "Cleaning up ${#CREATED_USERS[@]} test user(s)..."
+    fi
+    for username in "${CREATED_USERS[@]}"; do
+        if [ -n "$username" ]; then
+            sqlite3 "$DB_PATH" "DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE username='$username');" 2>/dev/null
+            sqlite3 "$DB_PATH" "DELETE FROM users WHERE username='$username';" 2>/dev/null
+        fi
+    done
+    
+    echo -e "${GREEN}✓ Test data cleaned up${NC}"
+    
+    # Stop server
+    if [ -n "$SERVER_PID" ]; then
+        kill $SERVER_PID 2>/dev/null || true
+    fi
+    rm -f "$SESSION_COOKIE_FILE"
+}
+
+trap cleanup EXIT
+
+# =============================================================================
+# MAIN SCRIPT
+# =============================================================================
+echo -e "${YELLOW}========================================${NC}"
+echo -e "${YELLOW}[FEATURE NAME] AUDIT VERIFICATION${NC}"
+echo -e "${YELLOW}Tests per docs/requirements/audit-[feature].md${NC}"
+echo -e "${YELLOW}========================================${NC}"
+
+# Verify prerequisites
+if [ ! -f "$DB_PATH" ]; then
+    echo -e "${RED}ERROR: Database file not found at $DB_PATH${NC}"
+    echo -e "${YELLOW}Please run: make seed${NC}"
+    exit 1
+fi
+
+# Verify database has required data
+USER_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM users;" 2>&1)
+if [ $? -ne 0 ]; then
+    echo -e "${RED}ERROR: Cannot query database. Database may be corrupted.${NC}"
+    echo -e "${YELLOW}Please run: make seed${NC}"
+    exit 1
+fi
+
+if [ "$USER_COUNT" -lt 1 ]; then
+    echo -e "${RED}ERROR: Database is empty. No users found.${NC}"
+    echo -e "${YELLOW}Please run: make seed${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Database verified (${USER_COUNT} users)${NC}"
+echo ""
+
+kill_existing_server
+start_server
+
+# =============================================================================
+# TEST SECTIONS - Map directly to audit requirements
+# =============================================================================
+
+# For each question in audit-[feature].md, create a test:
+# 1. print_section "Section Name"  # Major section from audit doc
+# 2. print_question "Exact question from audit doc"
+# 3. Perform the test
+# 4. print_answer "YES" "Brief explanation" OR print_answer "NO" "Why it failed"
+
+print_section "Example Section"
+
+print_question "Does feature X work correctly?"
+# Perform test logic here
+RESPONSE=$(curl -s "$BASE_URL/api/endpoint")
+if echo "$RESPONSE" | grep -q "expected"; then
+    print_answer "YES" "Feature X works as expected"
+else
+    print_answer "NO" "Feature X response incorrect"
+fi
+
+# =============================================================================
+# SUMMARY
+# =============================================================================
+echo ""
+echo -e "${YELLOW}========================================${NC}"
+echo -e "${YELLOW}[FEATURE] AUDIT SUMMARY${NC}"
+echo -e "${YELLOW}========================================${NC}"
+echo -e "${GREEN}Passed: $PASSED${NC}"
+echo -e "${RED}Failed: $FAILED${NC}"
+echo -e "Total: $((PASSED + FAILED))"
+echo -e "${YELLOW}========================================${NC}"
+
+if [ $FAILED -eq 0 ]; then
+    echo -e "${GREEN}✓ All [feature] audit requirements verified!${NC}"
+    exit 0
+else
+    echo -e "${YELLOW}⚠ Some [feature] requirements need attention${NC}"
+    exit 1
+fi
+```
+
+### Step-by-Step Guide to Create a New Test Script
+
+#### 1. Choose Your Audit Document
+
+Identify which audit requirement file you're testing:
+- `docs/requirements/audit.md` - Core functionality
+- `docs/requirements/audit-advanced.md` - Advanced features
+- `docs/requirements/audit-authentication.md` - OAuth features
+- `docs/requirements/audit-image.md` - Image uploads
+- `docs/requirements/audit-moderation.md` - User roles and moderation
+- `docs/requirements/audit-security.md` - HTTPS, TLS, security
+
+#### 2. Name Your Script
+
+Follow the naming convention: `test_audit_[feature].sh`
+
+Examples:
+- `test_audit.sh` - Core audit
+- `test_audit_advanced.sh` - Advanced features
+- `test_audit_image.sh` - Image uploads
+
+#### 3. Copy the Template
+
+```bash
+cp scripts/tests/test_audit.sh scripts/tests/test_audit_[feature].sh
+```
+
+#### 4. Update Configuration Section
+
+Modify these values for your feature:
+- `SESSION_COOKIE_FILE` - Use unique temp file path
+- `SERVER_LOG` - Use unique log file path
+- Add any feature-specific credentials or URLs
+
+#### 5. Map Audit Questions to Tests
+
+**CRITICAL**: Each question in the audit document must have a corresponding test.
+
+Open your audit document and for each question:
+
+```bash
+# From audit doc: "##### Try to login with Github."
+# "###### Is it possible to enter the forum?"
+
+print_section "OAuth Authentication"
+
+print_question "Try to login with Github - Is it possible to enter the forum?"
+# Test implementation
+RESPONSE=$(curl -s "$BASE_URL/api/auth/oauth/github/callback?code=test")
+if echo "$RESPONSE" | grep -q "session_token"; then
+    print_answer "YES" "GitHub OAuth login works"
+else
+    print_answer "NO" "GitHub OAuth login failed"
+fi
+```
+
+#### 6. Track Created Data
+
+**IMPORTANT**: Track all data you create for cleanup:
+
+```bash
+# When creating a post
+CREATED_POST_ID=$(extract_json_field "$RESPONSE" "id")
+if [ -n "$CREATED_POST_ID" ]; then
+    CREATED_POSTS+=("$CREATED_POST_ID")
+fi
+
+# When creating a user
+CREATED_USERS+=("$TEST_USERNAME")
+
+# When creating a comment
+CREATED_COMMENTS+=("$COMMENT_ID")
+```
+
+#### 7. Implement Cleanup Function
+
+The cleanup function is automatically called on script exit. Make sure it:
+1. Deletes all created posts
+2. Deletes all created comments
+3. Deletes all created users from database
+4. Stops the server
+5. Removes temporary files
+
+The template includes a complete cleanup function - just ensure you're tracking data correctly.
+
+#### 8. Test Your Script
+
+```bash
+# Make executable
+chmod +x scripts/tests/test_audit_[feature].sh
+
+# Run it
+./scripts/tests/test_audit_[feature].sh
+
+# Verify cleanup - run it again, should work identically
+./scripts/tests/test_audit_[feature].sh
+```
+
+#### 9. Verify Idempotency
+
+Run the test multiple times in succession:
+
+```bash
+./scripts/tests/test_audit_[feature].sh && \
+./scripts/tests/test_audit_[feature].sh && \
+./scripts/tests/test_audit_[feature].sh
+```
+
+All runs should pass with identical results.
+
+#### 10. Add to Master Test Runner
+
+The `run_all_tests.sh` script automatically discovers and runs all `test_*.sh` scripts in alphabetical order. No changes needed!
+
+### Best Practices
+
+#### ✅ DO:
+- **Map 1:1 with audit questions**: Every question in the audit document must have a test
+- **Use seeded test credentials**: `testuser@example.com` / `password123`
+- **Track ALL created data**: Add to `CREATED_POSTS`, `CREATED_COMMENTS`, `CREATED_USERS` arrays
+- **Clean up in reverse order**: Delete posts (cascade deletes comments), then users
+- **Use unique temporary files**: Include feature name in temp file paths
+- **Start your own server**: Each script manages its own server instance
+- **Verify prerequisites**: Check database exists and has data before starting
+- **Print clear output**: Use `print_section`, `print_question`, `print_answer` consistently
+- **Handle errors gracefully**: Use `set -e` and trap EXIT for cleanup
+- **Test both positive and negative cases**: Verify success AND failure scenarios
+
+#### ❌ DON'T:
+- **Don't rely on external state**: Don't assume data from other tests exists
+- **Don't skip cleanup**: Always clean up, even if test fails
+- **Don't hardcode IDs**: Use UUIDs from API responses
+- **Don't modify seed data**: Use seed data read-only, create your own test data
+- **Don't leave data in database**: Clean up everything you create
+- **Don't share server instances**: Each script starts and stops its own server
+- **Don't skip prerequisite checks**: Always verify database before testing
+- **Don't guess audit questions**: Copy questions exactly from audit documents
+
+### Common Patterns
+
+#### Login and Get Session
+
+```bash
+RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}")
+SESSION_COOKIE=$(extract_session_cookie "$RESPONSE")
+```
+
+#### Create a Post
+
+```bash
+RESPONSE=$(curl -s -X POST "$BASE_URL/api/posts" \
+    -H "Content-Type: application/json" \
+    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -d "{\"title\":\"Test Post\",\"content\":\"Content\",\"categories\":[\"general\"]}")
+POST_ID=$(extract_json_field "$RESPONSE" "id")
+CREATED_POSTS+=("$POST_ID")
+```
+
+#### Check API Response
+
+```bash
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/endpoint")
+if [ "$HTTP_CODE" = "200" ]; then
+    print_answer "YES" "Endpoint returns 200"
+else
+    print_answer "NO" "Endpoint returned $HTTP_CODE"
+fi
+```
+
+#### Check Database State
+
+```bash
+COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM posts WHERE title='Test';")
+if [ "$COUNT" -gt 0 ]; then
+    print_answer "YES" "Post exists in database"
+else
+    print_answer "NO" "Post not found in database"
+fi
+```
+
+#### Verify File Exists
+
+```bash
+if [ -f "$PROJECT_ROOT/path/to/file" ]; then
+    print_answer "YES" "File exists"
+else
+    print_answer "NO" "File not found"
+fi
+```
+
+### Testing Checklist
+
+Before submitting your test script, verify:
+
+- [ ] Script is executable (`chmod +x`)
+- [ ] Follows naming convention `test_audit_[feature].sh` OR `test_[feature].sh`
+- [ ] Maps to specific audit document in `docs/requirements/`
+- [ ] Every audit question has a corresponding test
+- [ ] Uses seeded test credentials from `testuser@example.com`
+- [ ] Tracks all created data in arrays
+- [ ] Implements complete cleanup function
+- [ ] Cleanup is registered with `trap cleanup EXIT`
+- [ ] Starts its own server instance
+- [ ] Stops server in cleanup
+- [ ] Verifies database prerequisites before running
+- [ ] Uses unique temporary file paths
+- [ ] Prints clear, colored output
+- [ ] Returns proper exit codes (0 = pass, 1 = fail)
+- [ ] Can be run multiple times (idempotent)
+- [ ] Can run independently (no dependencies on other tests)
+- [ ] Cleans up all data (verified by running twice)
+- [ ] Includes summary section with pass/fail counts
+- [ ] Handles server startup failures gracefully
+- [ ] Has timeout protection (via trap)
+
+### Example: Mapping Audit Document to Tests
+
+Given this audit document section:
+
+```markdown
+#### Image Upload
+
+##### Try creating a post with a PNG image.
+###### Was the post created successfully?
+
+##### Try creating a post with a JPEG image.
+###### Was the post created successfully?
+
+##### Try creating a post with an image larger than 20mb.
+###### Were you warned that this was not possible?
+```
+
+Your test script should have:
+
+```bash
+print_section "Image Upload"
+
+# Question 1
+print_question "Try creating a post with a PNG image - Was it created successfully?"
+PNG_FILE="/tmp/test.png"
+# Create test PNG
+convert -size 100x100 xc:blue "$PNG_FILE"
+RESPONSE=$(curl -s -X POST "$BASE_URL/api/posts" \
+    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -F "title=PNG Test" \
+    -F "content=Testing PNG" \
+    -F "image=@$PNG_FILE")
+POST_ID=$(extract_json_field "$RESPONSE" "id")
+if [ -n "$POST_ID" ]; then
+    CREATED_POSTS+=("$POST_ID")
+    print_answer "YES" "PNG post created successfully"
+else
+    print_answer "NO" "Failed to create PNG post"
+fi
+rm -f "$PNG_FILE"
+
+# Question 2
+print_question "Try creating a post with a JPEG image - Was it created successfully?"
+JPEG_FILE="/tmp/test.jpg"
+# Create test JPEG
+convert -size 100x100 xc:red "$JPEG_FILE"
+RESPONSE=$(curl -s -X POST "$BASE_URL/api/posts" \
+    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -F "title=JPEG Test" \
+    -F "content=Testing JPEG" \
+    -F "image=@$JPEG_FILE")
+POST_ID=$(extract_json_field "$RESPONSE" "id")
+if [ -n "$POST_ID" ]; then
+    CREATED_POSTS+=("$POST_ID")
+    print_answer "YES" "JPEG post created successfully"
+else
+    print_answer "NO" "Failed to create JPEG post"
+fi
+rm -f "$JPEG_FILE"
+
+# Question 3
+print_question "Try creating a post with >20MB image - Were you warned?"
+# Create large file (21MB)
+dd if=/dev/zero of=/tmp/large.png bs=1M count=21 2>/dev/null
+RESPONSE=$(curl -s -X POST "$BASE_URL/api/posts" \
+    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -F "title=Large Test" \
+    -F "content=Testing large file" \
+    -F "image=@/tmp/large.png")
+if echo "$RESPONSE" | grep -qi "file.*too.*large\|size.*limit\|exceeded"; then
+    print_answer "YES" "Size limit validation works"
+else
+    print_answer "NO" "No size limit warning"
+fi
+rm -f /tmp/large.png
+```
+
+---
+
+## Contributing
+
+When adding new features:
+1. Create a test script following this guide
+2. Add corresponding API tests to `test_api.sh` if needed
+3. Add corresponding page tests to `test_pages.sh` if needed
+4. Ensure tests align with audit requirements
+5. Update this README with new test coverage
+6. Verify tests are idempotent and independent
+
+---
+
+## Test Statistics
+
+### `test_api.sh`
+- Total Tests: 54
+- Categories: 8
+- Average Runtime: ~10-15 seconds
+- Coverage: All JSON API endpoints
+
+### `test_pages.sh`
+- Total Tests: 30
+- Categories: 6
+- Average Runtime: ~8-12 seconds
+- Coverage: All HTML page endpoints
+
+### `e2e_test.sh`
+- Total Tests: 78+
+- Categories: 11
+- Average Runtime: ~20-30 seconds
+- Coverage: Complete application
