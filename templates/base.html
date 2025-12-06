@@ -290,13 +290,12 @@
     {{if .Post}}
     {{if .Post.ImageURL}}
     <div class="form-group">
-        <div class="current-image">
-            <img src="{{.Post.ImageURL}}" alt="Current image">
+        <div class="current-image" id="current-image-container">
+            <img src="{{.Post.ImageURL}}" alt="Current image" id="current-image">
+            <button type="button" class="btn-remove-image" id="remove-current-image" title="Remove image">
+                <span class="remove-icon">×</span> Remove Image
+            </button>
         </div>
-        <label class="checkbox-label">
-            <input type="checkbox" id="remove-image" name="remove_image" form="post-edit-form">
-            Remove current image
-        </label>
     </div>
     {{end}}
 

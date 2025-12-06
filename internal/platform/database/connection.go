@@ -56,6 +56,16 @@ func NewConnection(dsn string) (*Connection, error) {
 		return nil, fmt.Errorf("failed to ping sqlite database: %w", err)
 	}
 
+	// Prefer MEMORY journal for tests and local runs to avoid creating
+	// transient on-disk rollback journal files. This keeps the journal in
+	// memory and avoids visible `-journal` files during short-lived runs.
+	// Note: MEMORY journal sacrifices some durability on crashes; do not
+	// use for production-critical persistence without considering tradeoffs.
+	if _, err := db.Exec("PRAGMA journal_mode = MEMORY;"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to set journal_mode=MEMORY: %w", err)
+	}
+
 	return &Connection{db: db}, nil
 }
 

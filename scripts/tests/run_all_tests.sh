@@ -18,11 +18,7 @@ RED='\033[0;31m' GREEN='\033[0;32m' YELLOW='\033[1;33m' BLUE='\033[0;34m' NC='\0
 declare -A RESULTS
 PASSED=0 FAILED=0
 
-# Header
-echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
-echo -e "${BLUE}           FORUM TEST SUITE - ALL TESTS                     ${NC}"
-echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
-echo ""
+# Brief header removed to avoid duplicating the summary at the end
 
 # Find all test scripts (exclude this script)
 TEST_SCRIPTS=($(find "$SCRIPT_DIR" -maxdepth 1 -name "test_*.sh" -type f | sort))
@@ -71,15 +67,13 @@ for script in "${TEST_SCRIPTS[@]}"; do
         echo ""
     fi
     
-    # Track result
+    # Track result (records only; skip per-test immediate printing to avoid duplicate summaries)
     if [ $exit_code -eq 0 ]; then
         RESULTS["$script_name"]="PASS"
         PASSED=$((PASSED + 1))
-        echo -e "${GREEN}✓${NC} $script_name"
     else
         RESULTS["$script_name"]="FAIL"
         FAILED=$((FAILED + 1))
-        echo -e "${RED}✗${NC} $script_name"
     fi
 done
 
@@ -106,8 +100,10 @@ echo ""
 
 if [ $FAILED -eq 0 ]; then
     echo -e "${GREEN}✓ ALL TESTS PASSED!${NC}"
+    echo ""
     exit 0
 else
     echo -e "${RED}✗ SOME TESTS FAILED${NC}"
+    echo ""
     exit 1
 fi
