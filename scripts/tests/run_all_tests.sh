@@ -6,6 +6,9 @@
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+DB_PATH="${FORUM_DB_PATH:-$PROJECT_ROOT/data/forum.db}"
+SEED_SCRIPT="$PROJECT_ROOT/scripts/seed/seed.sh"
 
 # Parse quiet mode
 QUIET=false
@@ -17,6 +20,30 @@ RED='\033[0;31m' GREEN='\033[0;32m' YELLOW='\033[1;33m' BLUE='\033[0;34m' NC='\0
 # Results tracking
 declare -A RESULTS
 PASSED=0 FAILED=0
+
+ensure_db_ready() {
+    if [ ! -f "$DB_PATH" ]; then
+        echo -e "${YELLOW}Database not found at $DB_PATH${NC}"
+        echo -e "Run ${GREEN}$SEED_SCRIPT${NC} to create the database and seed the required data."
+        exit 1
+    fi
+
+    REQUIRED_TABLES=(users categories posts comments reactions notifications reports)
+    for table in "${REQUIRED_TABLES[@]}"; do
+        count=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM $table;" 2>/dev/null)
+        if [ $? -ne 0 ]; then
+            echo -e "${YELLOW}Unable to query '$table'. Run ${GREEN}$SEED_SCRIPT${NC} before running the tests.${NC}"
+            exit 1
+        fi
+        if [ -z "$count" ] || [ "$count" -eq 0 ]; then
+            echo -e "${YELLOW}Table '$table' exists but has no rows.${NC}"
+            echo -e "Run ${GREEN}$SEED_SCRIPT${NC} to ensure necessary data is available for the tests."
+            exit 1
+        fi
+    done
+}
+
+ensure_db_ready
 
 # Brief header removed to avoid duplicating the summary at the end
 

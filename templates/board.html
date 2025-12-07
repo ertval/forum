@@ -40,7 +40,11 @@
         </article>
         {{end}}
     {{else}}
-        <p class="no-posts">No posts found. {{if .User}}<a href="/posts/new">Create the first post!</a>{{else}}<a href="/register">Register</a> to create posts.{{end}}</p>
+        {{if .LikedPosts}}
+            <p class="no-posts">You have not interacted with any posts. Like or Dislike some post to create interactions.</p>
+        {{else}}
+            <p class="no-posts">No posts found. {{if .User}}<a href="/posts/new">Create the first post!</a>{{else}}<a href="/register">Register</a> to create posts.{{end}}</p>
+        {{end}}
     {{end}}
 
     {{if .Posts}}
