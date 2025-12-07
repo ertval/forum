@@ -41,6 +41,7 @@ fi
 
 PASSED=0
 FAILED=0
+PENDING=0
 
 # Arrays to track created test data for cleanup
 CREATED_POSTS=()
@@ -68,7 +69,8 @@ print_answer() {
         PASSED=$((PASSED + 1))
     elif [ "$status" = "PENDING" ]; then
         echo -e "${YELLOW}A: PENDING${NC} - $answer"
-        PASSED=$((PASSED + 1))  # Count as pass since feature may not be implemented
+        PENDING=$((PENDING + 1))
+        FAILED=$((FAILED + 1))  # Count as failure - feature is NOT implemented
     else
         echo -e "${RED}A: NO${NC} - $answer"
         FAILED=$((FAILED + 1))
@@ -737,17 +739,20 @@ echo ""
 echo -e "${YELLOW}========================================${NC}"
 echo -e "${YELLOW}ADVANCED FEATURES AUDIT SUMMARY${NC}"
 echo -e "${YELLOW}========================================${NC}"
-echo -e "${GREEN}Passed/Pending: $PASSED${NC}"
+echo -e "${GREEN}Passed: $PASSED${NC}"
+echo -e "${YELLOW}Pending (not implemented): $PENDING${NC}"
 echo -e "${RED}Failed: $FAILED${NC}"
-echo -e "Total: $((PASSED + FAILED))"
+echo -e "Total tests: $((PASSED + FAILED))"
 echo -e "${YELLOW}========================================${NC}"
 
 if [ $FAILED -eq 0 ]; then
-    echo -e "${GREEN}✓ All advanced features audit requirements verified or pending implementation!${NC}"
+    echo -e "${GREEN}✓ All advanced features audit requirements PASSED!${NC}"
     exit 0
 else
-    echo -e "${YELLOW}⚠ Some advanced features need attention${NC}"
-    echo -e "${BLUE}Note: Features marked PENDING are optional or not yet implemented${NC}"
-    echo -e "${BLUE}See docs/requirements/ADVANCED_FEATURES_IMPLEMENTATION.md for details${NC}"
+    echo -e "${RED}✗ AUDIT FAILED: Some features are not fully implemented${NC}"
+    if [ $PENDING -gt 0 ]; then
+        echo -e "${YELLOW}  - $PENDING tests pending (features not yet implemented)${NC}"
+    fi
+    echo -e "${BLUE}See docs/requirements/ADVANCED_FEATURES_IMPLEMENTATION.md for implementation guide${NC}"
     exit 1
 fi
