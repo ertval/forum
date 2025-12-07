@@ -4,8 +4,9 @@
         <h2>Register</h2>
         <form id="registerForm" method="POST" action="/api/auth/register">
             <div class="form-group">
-                <label for="username">Username:</label>
-                <input type="text" id="username" name="username" required>
+                <label for="username">Full Name:</label>
+                <input type="text" id="username" name="username" placeholder="e.g., Alice or Alice Smith" required>
+                <small class="form-hint">Name must start with a capital letter and contain only letters</small>
             </div>
 
             <div class="form-group">

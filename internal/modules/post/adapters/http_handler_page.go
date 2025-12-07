@@ -388,6 +388,7 @@ func (h *HTTPHandler) CreatePostPage(w http.ResponseWriter, r *http.Request) {
 		"Categories":      categories,
 		"ShowSidebar":     true,
 		"ShowPostSidebar": true,
+		"MaxImageSize":    h.postService.MaxImageSize(),
 	}
 
 	// Parse templates individually for this page
@@ -462,6 +463,7 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 		"Categories":      categories,
 		"ShowSidebar":     true,
 		"ShowPostSidebar": true,
+		"MaxImageSize":    h.postService.MaxImageSize(),
 	}
 
 	// Parse templates individually for this page

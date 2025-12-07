@@ -7,6 +7,13 @@ Summary
 - Test migrations on a copy of the database before applying to staging/production.
 - Back up the DB file before running migrations in production: `cp data/forum.db data/forum.db.bak`.
 
+Running Migrations
+- Use the Makefile command: `make migrate`
+- Or run directly: `bash scripts/run_migrations.sh`
+- The migrator creates a `schema_migrations` table to track applied migrations
+- Migrations are applied in order by their numeric prefix (001, 002, 003, etc.)
+- Already-applied migrations are automatically skipped
+
 Filename and ordering
 - Use a numeric prefix that increases with time to order migrations (this repo uses `NNN_description.sql` for clarity, e.g. `008_user_add_password_hash.sql`).
 - Keep filenames short and descriptive.

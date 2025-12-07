@@ -10,9 +10,6 @@ import (
 	"forum/internal/platform/upload"
 )
 
-// MaxImageUploadSize is the maximum allowed image upload size (20MB).
-const MaxImageUploadSize = 20 << 20 // 20MB
-
 // ImageUploadResult contains the result of parsing an image upload.
 type ImageUploadResult struct {
 	Data        []byte
@@ -29,7 +26,7 @@ type ImageUploadResult struct {
 // Returns:
 // - ImageUploadResult with parsed data
 // - error if file exists but cannot be read or exceeds size limit
-func ParseImageUpload(r *http.Request, fieldName string) (*ImageUploadResult, error) {
+func ParseImageUpload(r *http.Request, fieldName string, maxSize int64) (*ImageUploadResult, error) {
 	result := &ImageUploadResult{
 		RemoveImage: r.FormValue("remove_image") == "true",
 	}
@@ -47,12 +44,12 @@ func ParseImageUpload(r *http.Request, fieldName string) (*ImageUploadResult, er
 	result.HasFile = true
 
 	// Validate size before reading
-	if header.Size > MaxImageUploadSize {
+	if header.Size > maxSize {
 		return nil, upload.ErrImageTooLarge
 	}
 
 	// Read file data with limit
-	data, err := io.ReadAll(io.LimitReader(file, MaxImageUploadSize))
+	data, err := io.ReadAll(io.LimitReader(file, maxSize))
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +60,7 @@ func ParseImageUpload(r *http.Request, fieldName string) (*ImageUploadResult, er
 
 // ParseMultipartImageUpload extracts image data from an already-parsed multipart form.
 // Use this when r.ParseMultipartForm has already been called.
-func ParseMultipartImageUpload(form *multipart.Form, fieldName string) (*ImageUploadResult, error) {
+func ParseMultipartImageUpload(form *multipart.Form, fieldName string, maxSize int64) (*ImageUploadResult, error) {
 	result := &ImageUploadResult{}
 
 	// Check for remove_image flag
@@ -81,7 +78,7 @@ func ParseMultipartImageUpload(form *multipart.Form, fieldName string) (*ImageUp
 	result.HasFile = true
 
 	// Validate size before reading
-	if header.Size > MaxImageUploadSize {
+	if header.Size > maxSize {
 		return nil, upload.ErrImageTooLarge
 	}
 
@@ -92,7 +89,7 @@ func ParseMultipartImageUpload(form *multipart.Form, fieldName string) (*ImageUp
 	defer file.Close()
 
 	// Read file data with limit
-	data, err := io.ReadAll(io.LimitReader(file, MaxImageUploadSize))
+	data, err := io.ReadAll(io.LimitReader(file, maxSize))
 	if err != nil {
 		return nil, err
 	}
@@ -113,14 +110,14 @@ func ValidateImageType(data []byte) error {
 }
 
 // FormatImageError returns a user-friendly error message for image upload errors.
-func FormatImageError(err error) string {
+func FormatImageError(err error, maxSize int64) string {
 	switch err {
 	case upload.ErrInvalidImageType:
 		return "Invalid image type, must be JPEG, PNG, or GIF"
-	case upload.ErrImageTooLarge:
-		return "Image file too large (max 20MB)"
 	case upload.ErrEmptyImage:
 		return "Image data is empty"
+	case upload.ErrImageTooLarge:
+		return upload.FormatImageSizeError(maxSize)
 	default:
 		return "Failed to process image upload"
 	}

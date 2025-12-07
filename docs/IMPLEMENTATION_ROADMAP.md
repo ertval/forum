@@ -34,6 +34,7 @@ Fast path to functional forum MVP following core requirements, then complete rem
 - [x] Config loading from environment variables
 - [x] Database connection (SQLite with mattn/go-sqlite3)
 - [x] Database migrator - auto-apply migrations on startup
+- [x] Manual migration script (`make migrate` / `scripts/run_migrations.sh`)
 - [x] HTTP server with standard lib http.ServeMux
 - [x] Structured logger with levels
 - [x] Logger middleware (request logging)

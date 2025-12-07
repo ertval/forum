@@ -142,6 +142,9 @@ cleanup() {
     fi
     
     # Clean up test users from database directly
+        if [ ${#CREATED_USERS[@]} -gt 0 ]; then
+            echo "Cleaning up ${#CREATED_USERS[@]} test user(s)..."
+        fi
     for username in "${CREATED_USERS[@]}"; do
         if [ -n "$username" ]; then
             sqlite3 "$DB_PATH" "DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE username='$username');" 2>/dev/null
@@ -167,6 +170,30 @@ echo -e "${YELLOW}Complete E2E tests per docs/requirements/audit.md${NC}"
 echo -e "${YELLOW}========================================${NC}"
 
 # Setup
+# Verify prerequisites
+if [ ! -f "$DB_PATH" ]; then
+    echo -e "${RED}ERROR: Database file not found at $DB_PATH${NC}"
+    echo -e "${YELLOW}Please run: make seed${NC}"
+    exit 1
+fi
+
+# Verify database has required data
+USER_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM users;" 2>&1)
+if [ $? -ne 0 ]; then
+    echo -e "${RED}ERROR: Cannot query database. Database may be corrupted.${NC}"
+    echo -e "${YELLOW}Please run: make seed${NC}"
+    exit 1
+fi
+
+if [ "$USER_COUNT" -lt 1 ]; then
+    echo -e "${RED}ERROR: Database is empty. No users found.${NC}"
+    echo -e "${YELLOW}Please run: make seed${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Database verified (${USER_COUNT} users)${NC}"
+echo ""
+
 kill_existing_server
 start_server
 

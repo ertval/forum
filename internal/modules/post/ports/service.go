@@ -23,6 +23,8 @@ type PostService interface {
 	DeletePost(ctx context.Context, postID string) error
 	// ListPosts returns posts matching the given filter criteria.
 	ListPosts(ctx context.Context, filter domain.PostFilter) ([]*domain.Post, error)
+	// MaxImageSize returns the maximum allowed image size in bytes.
+	MaxImageSize() int64
 }
 
 // CategoryService defines category management use cases.

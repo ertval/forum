@@ -86,21 +86,43 @@ kill_existing_server() {
 
 start_server() {
     echo "Starting forum server..."
+    
+    # Check if binary exists, build if needed
     if [ ! -f "${PROJECT_ROOT}/bin/forum" ]; then
         echo "Building forum binary..."
-        cd "$PROJECT_ROOT" && go build -o bin/forum cmd/forum/main.go
+        cd "$PROJECT_ROOT" || exit 1
+        if ! go build -o bin/forum cmd/forum/main.go; then
+            echo -e "${RED}ERROR: Failed to build forum binary${NC}"
+            exit 1
+        fi
+        echo -e "${GREEN}✓ Binary built successfully${NC}"
     fi
+    
+    # Start server
     "${PROJECT_ROOT}/bin/forum" > "$SERVER_LOG" 2>&1 &
     SERVER_PID=$!
     
+    # Wait for server to be ready
+    echo "Waiting for server to start (PID: $SERVER_PID)..."
     for i in {1..30}; do
+        if ! kill -0 $SERVER_PID 2>/dev/null; then
+            echo -e "${RED}ERROR: Server process died${NC}"
+            echo -e "${YELLOW}Server log:${NC}"
+            tail -20 "$SERVER_LOG"
+            exit 1
+        fi
+        
         if curl -s "$BASE_URL/" > /dev/null 2>&1; then
-            echo "Server ready!"
+            echo -e "${GREEN}✓ Server ready (PID: $SERVER_PID)${NC}"
             return 0
         fi
         sleep 1
     done
-    echo -e "${RED}Server failed to start${NC}"
+    
+    echo -e "${RED}ERROR: Server failed to respond within 30 seconds${NC}"
+    echo -e "${YELLOW}Server log:${NC}"
+    tail -20 "$SERVER_LOG"
+    kill $SERVER_PID 2>/dev/null || true
     exit 1
 }
 
@@ -120,6 +142,30 @@ echo -e "${YELLOW}Testing HTML pages and visual presentation${NC}"
 echo -e "${YELLOW}========================================${NC}"
 
 # Setup
+# Verify prerequisites
+if [ ! -f "$DB_PATH" ]; then
+    echo -e "${RED}ERROR: Database file not found at $DB_PATH${NC}"
+    echo -e "${YELLOW}Please run: make seed${NC}"
+    exit 1
+fi
+
+# Verify database has required data
+USER_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM users;" 2>&1)
+if [ $? -ne 0 ]; then
+    echo -e "${RED}ERROR: Cannot query database. Database may be corrupted.${NC}"
+    echo -e "${YELLOW}Please run: make seed${NC}"
+    exit 1
+fi
+
+if [ "$USER_COUNT" -lt 1 ]; then
+    echo -e "${RED}ERROR: Database is empty. No users found.${NC}"
+    echo -e "${YELLOW}Please run: make seed${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Database verified (${USER_COUNT} users)${NC}"
+echo ""
+
 kill_existing_server
 start_server
 
@@ -652,7 +698,7 @@ print_test "Templates don't use old hardcoded URLs" "PASS"
 # =============================================================================
 print_section "JAVASCRIPT FILE SYNTAX VERIFICATION"
 
-JS_FILES=("auth.js" "post-forms.js" "post-detail.js" "load-more-posts.js" "app.js")
+JS_FILES=("auth.js" "post-forms.js" "post-detail.js" "load-more-posts.js" "main.js")
 JS_DIR="${PROJECT_ROOT}/static/js"
 
 for jsfile in "${JS_FILES[@]}"; do

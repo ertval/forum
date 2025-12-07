@@ -127,6 +127,30 @@ echo -e "${YELLOW}Tests per docs/requirements/audit-security.md${NC}"
 echo -e "${YELLOW}========================================${NC}"
 
 # Setup
+# Verify prerequisites
+if [ ! -f "$DB_PATH" ]; then
+    echo -e "${RED}ERROR: Database file not found at $DB_PATH${NC}"
+    echo -e "${YELLOW}Please run: make seed${NC}"
+    exit 1
+fi
+
+# Verify database has required data
+USER_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM users;" 2>&1)
+if [ $? -ne 0 ]; then
+    echo -e "${RED}ERROR: Cannot query database. Database may be corrupted.${NC}"
+    echo -e "${YELLOW}Please run: make seed${NC}"
+    exit 1
+fi
+
+if [ "$USER_COUNT" -lt 1 ]; then
+    echo -e "${RED}ERROR: Database is empty. No users found.${NC}"
+    echo -e "${YELLOW}Please run: make seed${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ Database verified (${USER_COUNT} users)${NC}"
+echo ""
+
 kill_existing_server
 start_server
 
@@ -137,7 +161,7 @@ print_section "FUNCTIONAL - HTTPS & Security"
 
 # Q: Does the URL contain HTTPS?
 print_question "Try opening the forum - Does the URL contain HTTPS?"
-HTTPS_RESPONSE=$(curl -sk "$BASE_URL/" 2>/dev/null)
+HTTPS_RESPONSE=$(curl -sk "$BASE_URL/" 2>/dev/null || true)
 if [ -n "$HTTPS_RESPONSE" ]; then
     print_answer "YES" "Forum accessible via HTTPS at $BASE_URL"
 else

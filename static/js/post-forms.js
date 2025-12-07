@@ -1,6 +1,9 @@
 // JavaScript functions for post creation and editing
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Track if image should be removed on form submission
+    let shouldRemoveImage = false;
+
     // Handle content preview functionality for post creation
     const contentTextarea = document.getElementById('content');
     const contentPreview = document.getElementById('content-preview');
@@ -30,9 +33,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             if (file) {
-                if (file.size > 20 * 1024 * 1024) {  // 20MB limit
+                // Read maxImageSize from form data attribute (bytes)
+                const form = document.getElementById('post-create-form') || document.getElementById('post-edit-form');
+                const maxImageSize = form ? parseInt(form.getAttribute('data-max-image-size'), 10) : 20971520;
+                const maxImageSizeMB = maxImageSize / (1024 * 1024);
+                
+                if (file.size > maxImageSize) {
                     const formErrors = document.getElementById('form-errors');
-                    if (formErrors) formErrors.innerHTML = '<p class="error">Image must be less than 20MB</p>';
+                    if (formErrors) formErrors.innerHTML = `<p class="error">Image must be less than ${maxImageSizeMB}MB</p>`;
                     e.target.value = '';
                     if (preview) preview.innerHTML = '';
                     if (fileNameDisplay) fileNameDisplay.textContent = 'No file chosen';
@@ -42,12 +50,57 @@ document.addEventListener('DOMContentLoaded', function() {
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     if (preview) {
-                        preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                        preview.innerHTML = `
+                            <img src="${e.target.result}" alt="Preview">
+                            <button type="button" class="btn-remove-image" id="remove-preview-image" title="Remove image">
+                                <span class="remove-icon">×</span> Remove Image
+                            </button>
+                        `;
+                        // Attach remove handler to the new button
+                        attachPreviewRemoveHandler();
                     }
                 };
                 reader.readAsDataURL(file);
             } else {
                 if (preview) preview.innerHTML = '';
+            }
+        });
+    }
+
+    // Handle removing preview image (newly selected file)
+    function attachPreviewRemoveHandler() {
+        const removePreviewBtn = document.getElementById('remove-preview-image');
+        if (removePreviewBtn) {
+            removePreviewBtn.addEventListener('click', function() {
+                const preview = document.getElementById('image-preview');
+                const fileNameDisplay = document.getElementById('file-name-display');
+                const imageInput = document.getElementById('image');
+
+                // Clear the file input
+                if (imageInput) imageInput.value = '';
+                // Clear the preview
+                if (preview) preview.innerHTML = '';
+                // Reset file name display
+                if (fileNameDisplay) fileNameDisplay.textContent = 'No file chosen';
+            });
+        }
+    }
+
+    // Handle removing current/existing image (in edit form)
+    const removeCurrentBtn = document.getElementById('remove-current-image');
+    if (removeCurrentBtn) {
+        removeCurrentBtn.addEventListener('click', function() {
+            const currentImageContainer = document.getElementById('current-image-container');
+            if (currentImageContainer) {
+                // Mark for removal
+                shouldRemoveImage = true;
+                // Hide the container
+                currentImageContainer.style.display = 'none';
+                // Update the label
+                const imageLabel = document.querySelector('label[for="image"]');
+                if (imageLabel) {
+                    imageLabel.textContent = 'Add Image (Optional)';
+                }
             }
         });
     }
@@ -149,8 +202,8 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('content', content);
             categories.forEach(cat => formData.append('categories[]', cat));
 
-            const removeImage = document.getElementById('remove-image');
-            if (removeImage && removeImage.checked) {
+            // Add remove_image flag if user clicked remove button
+            if (shouldRemoveImage) {
                 formData.append('remove_image', 'true');
             }
 

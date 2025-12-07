@@ -30,5 +30,5 @@ var (
 	ErrWeakPassword = errors.New("password doesn't meet security requirements")
 
 	// ErrInvalidUsername is returned when username format is invalid.
-	ErrInvalidUsername = errors.New("invalid username format")
+	ErrInvalidUsername = errors.New("invalid username: must start with a capital letter and contain only letters (e.g., Alice or Alice Smith)")
 )

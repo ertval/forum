@@ -7,6 +7,8 @@ import (
 	"testing"
 )
 
+const testMaxImageSize = 20 * 1024 * 1024 // 20MB for tests
+
 // Sample image magic bytes for testing
 var (
 	// JPEG magic bytes: FF D8 FF
@@ -116,7 +118,7 @@ func TestValidateImageSize(t *testing.T) {
 		{"valid - 1KB", 1024, false},
 		{"valid - 1MB", 1024 * 1024, false},
 		{"valid - 19MB", 19 * 1024 * 1024, false},
-		{"valid - exactly 20MB", MaxImageSize, false},
+		{"valid - exactly 20MB", testMaxImageSize, false},
 		{"invalid - 21MB", 21 * 1024 * 1024, true},
 		{"invalid - 100MB", 100 * 1024 * 1024, true},
 		{"invalid - 0 bytes", 0, true},
@@ -125,7 +127,7 @@ func TestValidateImageSize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateImageSize(tt.size)
+			err := ValidateImageSize(tt.size, testMaxImageSize)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateImageSize(%d) error = %v, wantErr %v", tt.size, err, tt.wantErr)
 			}
@@ -136,7 +138,7 @@ func TestValidateImageSize(t *testing.T) {
 func TestImageHandler_Save(t *testing.T) {
 	// Create temporary directory for test uploads
 	tmpDir := t.TempDir()
-	handler := NewImageHandler(tmpDir)
+	handler := NewImageHandler(tmpDir, testMaxImageSize)
 
 	tests := []struct {
 		name    string
@@ -197,7 +199,7 @@ func TestImageHandler_Save(t *testing.T) {
 
 func TestImageHandler_Delete(t *testing.T) {
 	tmpDir := t.TempDir()
-	handler := NewImageHandler(tmpDir)
+	handler := NewImageHandler(tmpDir, testMaxImageSize)
 
 	// Save an image first
 	filename, err := handler.Save(jpegMagic)
@@ -225,7 +227,7 @@ func TestImageHandler_Delete(t *testing.T) {
 
 func TestImageHandler_Delete_NonExistent(t *testing.T) {
 	tmpDir := t.TempDir()
-	handler := NewImageHandler(tmpDir)
+	handler := NewImageHandler(tmpDir, testMaxImageSize)
 
 	// Deleting non-existent file should not error
 	err := handler.Delete("non-existent.jpg")
@@ -236,7 +238,7 @@ func TestImageHandler_Delete_NonExistent(t *testing.T) {
 
 func TestImageHandler_Delete_PathTraversal(t *testing.T) {
 	tmpDir := t.TempDir()
-	handler := NewImageHandler(tmpDir)
+	handler := NewImageHandler(tmpDir, testMaxImageSize)
 
 	// Attempt path traversal should be blocked
 	tests := []string{
@@ -259,7 +261,7 @@ func TestImageHandler_Delete_PathTraversal(t *testing.T) {
 func TestImageHandler_Save_CreatesDirectory(t *testing.T) {
 	// Use a path that doesn't exist yet
 	tmpDir := filepath.Join(t.TempDir(), "nested", "uploads")
-	handler := NewImageHandler(tmpDir)
+	handler := NewImageHandler(tmpDir, testMaxImageSize)
 
 	filename, err := handler.Save(jpegMagic)
 	if err != nil {
@@ -309,7 +311,7 @@ func TestValidateImage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateImage(tt.data)
+			err := ValidateImage(tt.data, testMaxImageSize)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateImage() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -318,7 +320,7 @@ func TestValidateImage(t *testing.T) {
 }
 
 func TestImageHandler_FullPath(t *testing.T) {
-	handler := NewImageHandler("/var/uploads")
+	handler := NewImageHandler("/var/uploads", testMaxImageSize)
 
 	tests := []struct {
 		name     string

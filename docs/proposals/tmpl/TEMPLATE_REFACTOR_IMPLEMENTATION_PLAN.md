@@ -71,7 +71,7 @@ templates/
         </div>
     </main>
     <footer><!-- Footer --></footer>
-    <script src="/static/js/app.js"></script>
+   <script src="/static/js/main.js"></script>
     {{block "scripts" .}}{{end}}
 </body>
 </html>

@@ -2,8 +2,6 @@
 package wire
 
 import (
-	"time"
-
 	authAdapters "forum/internal/modules/auth/adapters"
 	authApp "forum/internal/modules/auth/application"
 	commentApp "forum/internal/modules/comment/application"
@@ -21,6 +19,7 @@ import (
 	reactionPorts "forum/internal/modules/reaction/ports"
 	userPorts "forum/internal/modules/user/ports"
 
+	"forum/internal/platform/config"
 	"forum/internal/platform/logger"
 	"forum/internal/platform/upload"
 )
@@ -57,16 +56,13 @@ func (sc *ServiceContainer) Notification() notificationPorts.NotificationService
 }
 func (sc *ServiceContainer) Logger() *logger.Logger { return sc.logger }
 
-// DefaultUploadDir is the default directory for image uploads.
-const DefaultUploadDir = "static/uploads"
-
 // initServices creates a ServiceContainer with all service instances and their dependencies.
-func initServices(repos *Repositories, sessionDuration time.Duration, lgr *logger.Logger) *ServiceContainer {
+func initServices(repos *Repositories, cfg *config.Config, lgr *logger.Logger) *ServiceContainer {
 	// Layer 1: Services with no dependencies
 	userService := userApp.NewService(repos.User)
 
-	// Initialize image handler for post uploads
-	imageHandler := upload.NewImageHandler(DefaultUploadDir)
+	// Initialize image handler for post uploads (config-driven)
+	imageHandler := upload.NewImageHandler(cfg.Upload.UploadDir, cfg.Upload.MaxSize)
 	categoryService := postApp.NewCategoryService(repos.Category)
 	filterService := postApp.NewFilterService()
 	reactionService := reactionApp.NewService(repos.Reaction)
@@ -74,8 +70,8 @@ func initServices(repos *Repositories, sessionDuration time.Duration, lgr *logge
 	notificationService := notificationApp.NewService(repos.Notification)
 
 	// Layer 2: Services depending on Layer 1
-	authService := authApp.NewService(repos.Session, userService, sessionDuration)
-	postService := postApp.NewService(repos.Post, repos.Category, userService, imageHandler,)
+	authService := authApp.NewService(repos.Session, userService, cfg.Session.Duration)
+	postService := postApp.NewService(repos.Post, repos.Category, userService, imageHandler, cfg.Upload.MaxSize)
 	commentService := commentApp.NewService(repos.Comment, postService, userService)
 
 	// Layer 3: Adapters/middleware depending on services

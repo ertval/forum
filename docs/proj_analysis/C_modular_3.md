@@ -187,7 +187,7 @@ forum/
 │   ├── css/
 │   │   └── style.css
 │   └── js/
-│       └── app.js
+│       └── main.js
 │
 ├── migrations/                        # SQL migrations (flat)
 │   ├── 001_initial_schema.sql

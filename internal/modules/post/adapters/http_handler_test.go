@@ -77,6 +77,10 @@ func (m *mockPostService) ListPosts(ctx context.Context, filter postDomain.PostF
 	return []*postDomain.Post{}, nil
 }
 
+func (m *mockPostService) MaxImageSize() int64 {
+	return 20 * 1024 * 1024 // 20MB for tests
+}
+
 type mockCategoryService struct {
 	createFunc func(ctx context.Context, name, description string) (*postDomain.Category, error)
 	getFunc    func(ctx context.Context, categoryID string) (*postDomain.Category, error)
@@ -320,7 +324,7 @@ func createTestHandler(postSvc *mockPostService, catSvc *mockCategoryService, au
 		middlewareProvider: &mockMiddlewareProvider{},
 	}
 
-	return NewHTTPHandler(container, nil)
+	return NewHTTPHandler(container, nil) // 20MB test max size
 }
 
 // Test helpers

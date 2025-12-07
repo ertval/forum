@@ -103,7 +103,7 @@ func TestService_CreatePostWithImage(t *testing.T) {
 				tt.setupMocks(mockPostRepo, mockCategoryRepo, mockImgHandler)
 			}
 
-			service := NewService(mockPostRepo, mockCategoryRepo, mockUserSvc, mockImgHandler)
+			service := NewService(mockPostRepo, mockCategoryRepo, mockUserSvc, mockImgHandler, 20*1024*1024)
 
 			post, err := service.CreatePost(ctx, tt.userID, tt.title, tt.content, tt.categories, tt.image)
 
@@ -228,7 +228,7 @@ func TestService_UpdatePostImage(t *testing.T) {
 				tt.setupMocks(mockPostRepo, mockImgHandler)
 			}
 
-			service := NewService(mockPostRepo, nil, mockUserSvc, mockImgHandler)
+			service := NewService(mockPostRepo, nil, mockUserSvc, mockImgHandler, 20*1024*1024)
 
 			err := service.UpdatePostImage(ctx, tt.postID, tt.image, tt.removeImage)
 
@@ -276,7 +276,7 @@ func TestService_DeletePostWithImage(t *testing.T) {
 		},
 	}
 
-	service := NewService(mockPostRepo, nil, &mockUserService{}, mockImgHandler)
+	service := NewService(mockPostRepo, nil, &mockUserService{}, mockImgHandler, 20*1024*1024)
 
 	err := service.DeletePost(ctx, "post-1")
 	if err != nil {
