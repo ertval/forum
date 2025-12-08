@@ -144,6 +144,12 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 
+				// Get reaction counts for this comment
+				likes, dislikes := 0, 0
+				if h.reactionService != nil {
+					likes, dislikes, _ = h.reactionService.CountReactions(ctx, comment.PublicID, "comment")
+				}
+
 				commentData := map[string]interface{}{
 					"PublicID":           comment.PublicID,
 					"AuthorUsername":     authorUsername,
@@ -154,8 +160,8 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 					"PostCategories":     postCategories,
 					"CreatedAt":          comment.CreatedAt,
 					"UpdatedAt":          comment.UpdatedAt,
-					"Likes":              0,
-					"Dislikes":           0,
+					"Likes":              likes,
+					"Dislikes":           dislikes,
 				}
 				comments = append(comments, commentData)
 			}
@@ -270,6 +276,12 @@ func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request
 			postAuthorUsername = "Unknown"
 		}
 
+		// Get reaction counts for this comment
+		likes, dislikes := 0, 0
+		if h.reactionService != nil {
+			likes, dislikes, _ = h.reactionService.CountReactions(ctx, comment.PublicID, "comment")
+		}
+
 		commentData := map[string]interface{}{
 			"PublicID":           comment.PublicID,
 			"AuthorUsername":     authorUsername,
@@ -279,8 +291,8 @@ func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request
 			"PostAuthorUsername": postAuthorUsername,
 			"CreatedAt":          comment.CreatedAt,
 			"UpdatedAt":          comment.UpdatedAt,
-			"Likes":              0,
-			"Dislikes":           0,
+			"Likes":              likes,
+			"Dislikes":           dislikes,
 		}
 		commentsData = append(commentsData, commentData)
 	}

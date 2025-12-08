@@ -55,4 +55,10 @@ type UserService interface {
 
 	// ExistsByUsername checks if a user with the given username exists.
 	ExistsByUsername(ctx context.Context, username string) (bool, error)
+
+	// IncrementReactionCount atomically increments the user's reaction count.
+	IncrementReactionCount(ctx context.Context, userID int) error
+
+	// DecrementReactionCount atomically decrements the user's reaction count.
+	DecrementReactionCount(ctx context.Context, userID int) error
 }

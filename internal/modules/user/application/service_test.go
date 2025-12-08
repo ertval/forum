@@ -197,6 +197,22 @@ func (m *MockUserRepository) DecrementCommentCount(ctx context.Context, userID i
 	return nil
 }
 
+// IncrementReactionCount increments the user's reaction count.
+func (m *MockUserRepository) IncrementReactionCount(ctx context.Context, userID int) error {
+	if user, exists := m.users[userID]; exists {
+		user.ReactionCount++
+	}
+	return nil
+}
+
+// DecrementReactionCount decrements the user's reaction count.
+func (m *MockUserRepository) DecrementReactionCount(ctx context.Context, userID int) error {
+	if user, exists := m.users[userID]; exists && user.ReactionCount > 0 {
+		user.ReactionCount--
+	}
+	return nil
+}
+
 func TestService_GetByPublicID(t *testing.T) {
 	ctx := context.Background()
 	mockRepo := &MockUserRepository{}

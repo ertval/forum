@@ -29,6 +29,8 @@ type MockUserService struct {
 	decrementCommentCountFn func(ctx context.Context, userID int) error
 	existsByEmailFn         func(ctx context.Context, email string) (bool, error)
 	existsByUsernameFn      func(ctx context.Context, username string) (bool, error)
+	incrementReactionCountFn func(ctx context.Context, userID int) error
+	decrementReactionCountFn func(ctx context.Context, userID int) error
 }
 
 func (m *MockUserService) GetByID(ctx context.Context, userID int) (*domain.User, error) {
@@ -134,6 +136,20 @@ func (m *MockUserService) ExistsByUsername(ctx context.Context, username string)
 		return m.existsByUsernameFn(ctx, username)
 	}
 	return false, nil
+}
+
+func (m *MockUserService) IncrementReactionCount(ctx context.Context, userID int) error {
+	if m.incrementReactionCountFn != nil {
+		return m.incrementReactionCountFn(ctx, userID)
+	}
+	return nil
+}
+
+func (m *MockUserService) DecrementReactionCount(ctx context.Context, userID int) error {
+	if m.decrementReactionCountFn != nil {
+		return m.decrementReactionCountFn(ctx, userID)
+	}
+	return nil
 }
 
 // mockServiceContainer implements ServiceContainer for testing

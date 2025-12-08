@@ -65,7 +65,7 @@ func initServices(repos *Repositories, cfg *config.Config, lgr *logger.Logger) *
 	imageHandler := upload.NewImageHandler(cfg.Upload.UploadDir, cfg.Upload.MaxSize)
 	categoryService := postApp.NewCategoryService(repos.Category)
 	filterService := postApp.NewFilterService()
-	reactionService := reactionApp.NewService(repos.Reaction)
+	reactionService := reactionApp.NewService(repos.Reaction, repos.Post, repos.Comment, userService)
 	moderationService := moderationApp.NewService(repos.Moderation)
 	notificationService := notificationApp.NewService(repos.Notification)
 
@@ -75,7 +75,7 @@ func initServices(repos *Repositories, cfg *config.Config, lgr *logger.Logger) *
 	commentService := commentApp.NewService(repos.Comment, postService, userService)
 
 	// Layer 3: Adapters/middleware depending on services
-	authMiddleware := authAdapters.NewAuthMiddleware(authService, userService)
+	authMiddleware := authAdapters.NewAuthMiddleware(authService, userService, "session_token")
 
 	return &ServiceContainer{
 		auth:           authService,

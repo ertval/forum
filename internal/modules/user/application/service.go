@@ -167,3 +167,13 @@ func (s *Service) ExistsByEmail(ctx context.Context, email string) (bool, error)
 func (s *Service) ExistsByUsername(ctx context.Context, username string) (bool, error) {
 	return s.userRepo.ExistsByUsername(ctx, username)
 }
+
+// IncrementReactionCount atomically increments the user's reaction count.
+func (s *Service) IncrementReactionCount(ctx context.Context, userID int) error {
+	return s.userRepo.IncrementReactionCount(ctx, userID)
+}
+
+// DecrementReactionCount atomically decrements the user's reaction count.
+func (s *Service) DecrementReactionCount(ctx context.Context, userID int) error {
+	return s.userRepo.DecrementReactionCount(ctx, userID)
+}
