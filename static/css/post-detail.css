@@ -88,6 +88,15 @@
     color: #5a5a5a;
 }
 
+.reactions button.active {
+    background: #80cbc4;
+    color: white;
+}
+
+.reactions button.active:hover {
+    background: #5a9e97;
+}
+
 .post-owner-actions {
     display: flex;
     gap: 0.75rem;

@@ -6,6 +6,7 @@ import (
 	authPorts "forum/internal/modules/auth/ports"
 	reactionPorts "forum/internal/modules/reaction/ports"
 	userPorts "forum/internal/modules/user/ports"
+	"forum/internal/platform/logger"
 	"html/template"
 	"net/http"
 )
@@ -16,6 +17,7 @@ type HTTPHandler struct {
 	userService        userPorts.UserService
 	middlewareProvider authPorts.AuthMiddleware
 	templates          *template.Template
+	logger             *logger.Logger
 }
 
 // ServiceContainer defines the minimal interface needed by this handler.
@@ -23,6 +25,7 @@ type ServiceContainer interface {
 	Reaction() reactionPorts.ReactionService
 	User() userPorts.UserService
 	AuthMiddleware() authPorts.AuthMiddleware
+	Logger() *logger.Logger  // Add this to the interface to access logger
 }
 
 // NewHTTPHandler creates a new HTTP handler for reactions with unified dependency injection.
@@ -32,6 +35,7 @@ func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HT
 		userService:        services.User(),
 		middlewareProvider: services.AuthMiddleware(),
 		templates:          templates,
+		logger:             services.Logger(),
 	}
 }
 

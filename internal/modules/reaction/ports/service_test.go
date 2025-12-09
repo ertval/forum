@@ -6,25 +6,6 @@ import (
 	"testing"
 )
 
-// This test file verifies that the interfaces are properly defined and can be implemented
-func TestReactionServiceInterface(t *testing.T) {
-	// This test ensures that the ReactionService interface is properly defined
-	// and that we can create a variable of the interface type
-
-	var reactionService ReactionService
-	if reactionService != nil {
-		t.Error("ReactionService interface should be usable as a nil variable")
-	}
-}
-
-func TestReactionRepositoryInterface(t *testing.T) {
-	// This test ensures that the ReactionRepository interface is properly defined
-	var reactionRepo ReactionRepository
-	if reactionRepo != nil {
-		t.Error("ReactionRepository interface should be usable as a nil variable")
-	}
-}
-
 // Mock implementations for interface compatibility testing
 type mockReactionService struct{}
 

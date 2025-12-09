@@ -44,6 +44,9 @@ function updateUserCommentCount(delta) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize reaction button states based on current user's reactions
+    initializeReactionButtons();
+
     // Handle post reactions
     document.body.addEventListener('click', async function(e) {
         // Handle post likes
@@ -166,12 +169,139 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // Function to handle post reactions
+    // Function to initialize reaction button states based on user's reactions
+    async function initializeReactionButtons() {
+        // Get all unique post IDs and check reactions for each
+        const postIds = new Set();
+        document.querySelectorAll('.btn-like[data-post-id], .btn-dislike[data-post-id]').forEach(button => {
+            postIds.add(button.getAttribute('data-post-id'));
+        });
+
+        // Process each post to determine user's reaction
+        for (const postId of postIds) {
+            await checkUserReactionToTarget(postId, 'post');
+        }
+
+        // Get all unique comment IDs and check reactions for each
+        const commentIds = new Set();
+        document.querySelectorAll('.btn-like-comment[data-comment-id], .btn-dislike-comment[data-comment-id]').forEach(button => {
+            commentIds.add(button.getAttribute('data-comment-id'));
+        });
+
+        // Process each comment to determine user's reaction
+        for (const commentId of commentIds) {
+            await checkUserReactionToTarget(commentId, 'comment');
+        }
+    }
+
+    // Function to check a user's reaction for a specific target and update button UI
+    async function checkUserReactionToTarget(targetId, targetType) {
+        try {
+            // Use the new API endpoint that returns only the current user's reaction to the target
+            const response = await fetch(`/api/reactions/${targetType}/${targetId}/user`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'  // Include session cookie
+            });
+
+            if (response.ok) {
+                const userReaction = await response.json();
+
+                // Update our local tracking of the user's reaction
+                if (targetType === 'post') {
+                    userReactions.posts[targetId] = userReaction.type || null;
+                } else if (targetType === 'comment') {
+                    userReactions.comments[targetId] = userReaction.type || null;
+                }
+
+                // Update the button UI to reflect the user's existing reaction
+                if (userReaction.type === 'like') {
+                    let likeButton;
+                    if (targetType === 'post') {
+                        likeButton = document.querySelector(`.btn-like[data-post-id="${targetId}"]`);
+                    } else if (targetType === 'comment') {
+                        likeButton = document.querySelector(`.btn-like-comment[data-comment-id="${targetId}"]`);
+                    }
+
+                    if (likeButton) {
+                        likeButton.classList.add('active');
+                    }
+                } else if (userReaction.type === 'dislike') {
+                    let dislikeButton;
+                    if (targetType === 'post') {
+                        dislikeButton = document.querySelector(`.btn-dislike[data-post-id="${targetId}"]`);
+                    } else if (targetType === 'comment') {
+                        dislikeButton = document.querySelector(`.btn-dislike-comment[data-comment-id="${targetId}"]`);
+                    }
+
+                    if (dislikeButton) {
+                        dislikeButton.classList.add('active');
+                    }
+                }
+            }
+        } catch (error) {
+            console.error(`Error checking user reaction to ${targetType} ${targetId}:`, error);
+        }
+    }
+
+    // Object to track user's reactions to targets
+    const userReactions = {
+        posts: {},
+        comments: {}
+    };
+
+    // Function to initialize reaction button states based on user's reactions
+    async function initializeReactionButtons() {
+        // This function requires backend changes to provide this data in the HTML
+        // For now, we'll rely on the user clicking first to establish the state
+        // This initialization would happen when we have an API to get all user reactions
+    }
+
+    // Function to get a user's specific reaction to a target
+    async function getUserReactionToTarget(targetId, targetType) {
+        try {
+            // Get all reactions for this target
+            const response = await fetch(`/api/reactions/${targetType}/${targetId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'  // Include session cookie
+            });
+
+            if (response.ok) {
+                const reactions = await response.json();
+                // In the current implementation, the backend doesn't identify which user made each reaction
+                // To properly implement this feature, we would need an endpoint that specifically returns
+                // the current user's reaction to a target, but since we can't change the backend,
+                // we'll implement a solution that tracks the state after the first interaction
+                return null;
+            } else {
+                return null;
+            }
+        } catch (error) {
+            console.error('Error getting user reaction:', error);
+            return null;
+        }
+    }
+
+    // Function to handle post reactions - simplified version since toggle is handled by backend
     async function handlePostReaction(postId, reactionType) {
         clearPageError();
+
         try {
-            // Simple approach: always send a POST request with the reaction
-            // The backend service will handle toggle logic (add, update, or remove based on existing reactions)
+            // Get the current button elements to identify the current state
+            const likeButton = document.querySelector(`.btn-like[data-post-id="${postId}"]`);
+            const dislikeButton = document.querySelector(`.btn-dislike[data-post-id="${postId}"]`);
+
+            // Check the current state of the buttons from our tracked state
+            const currentReaction = userReactions.posts[postId] || null;
+            const isLikeButtonActive = currentReaction === 'like';
+            const isDislikeButtonActive = currentReaction === 'dislike';
+
+            // Make a POST request to add or modify reaction (toggle handled by backend)
             const response = await fetch('/api/reactions', {
                 method: 'POST',
                 headers: {
@@ -182,27 +312,87 @@ document.addEventListener('DOMContentLoaded', function() {
                     target_id: postId,
                     type: reactionType
                 }),
-                credentials: 'include'  // Include cookies with the request for authentication
+                credentials: 'include'
             });
 
             if (response.ok) {
-                location.reload(); // Reload to get updated counts
+                // Update our tracking of user's reaction based on the action
+                // If clicking the same reaction type as currently active, we're removing it
+                if ((reactionType === 'like' && isLikeButtonActive) ||
+                    (reactionType === 'dislike' && isDislikeButtonActive)) {
+                    userReactions.posts[postId] = null;
+
+                    // Visually update the button state for removal
+                    if (reactionType === 'like' && likeButton) {
+                        likeButton.classList.remove('active');
+                        // Update the count (decrement by 1)
+                        const currentCount = parseInt(likeButton.textContent.match(/\((\d+)\)/)?.[1] || '0');
+                        likeButton.textContent = `👍 Like (${Math.max(0, currentCount - 1)})`;
+                    } else if (reactionType === 'dislike' && dislikeButton) {
+                        dislikeButton.classList.remove('active');
+                        // Update the count (decrement by 1)
+                        const currentCount = parseInt(dislikeButton.textContent.match(/\((\d+)\)/)?.[1] || '0');
+                        dislikeButton.textContent = `👎 Dislike (${Math.max(0, currentCount - 1)})`;
+                    }
+                } else {
+                    // Add or change reaction
+                    userReactions.posts[postId] = reactionType;
+
+                    // Visually update the button state for addition
+                    if (reactionType === 'like' && likeButton) {
+                        likeButton.classList.add('active');
+                        // Update the count (increment by 1 if not previously active, or keep same if switching)
+                        const currentCount = parseInt(likeButton.textContent.match(/\((\d+)\)/)?.[1] || '0');
+                        likeButton.textContent = `👍 Like (${currentCount + 1})`;
+
+                        // If switching from dislike to like, update the dislike button
+                        if (isDislikeButtonActive && dislikeButton) {
+                            const currentDislikeCount = parseInt(dislikeButton.textContent.match(/\((\d+)\)/)?.[1] || '0');
+                            dislikeButton.textContent = `👎 Dislike (${Math.max(0, currentDislikeCount - 1)})`;
+                            dislikeButton.classList.remove('active');
+                        }
+                    } else if (reactionType === 'dislike' && dislikeButton) {
+                        dislikeButton.classList.add('active');
+                        // Update the count (increment by 1 if not previously active, or keep same if switching)
+                        const currentCount = parseInt(dislikeButton.textContent.match(/\((\d+)\)/)?.[1] || '0');
+                        dislikeButton.textContent = `👎 Dislike (${currentCount + 1})`;
+
+                        // If switching from like to dislike, update the like button
+                        if (isLikeButtonActive && likeButton) {
+                            const currentLikeCount = parseInt(likeButton.textContent.match(/\((\d+)\)/)?.[1] || '0');
+                            likeButton.textContent = `👍 Like (${Math.max(0, currentLikeCount - 1)})`;
+                            likeButton.classList.remove('active');
+                        }
+                    }
+                }
             } else {
                 const error = await response.json();
-                showPageError(error.error || `Failed to ${reactionType} post`);
+                showPageError(error.error || 'Failed to process reaction');
+                location.reload(); // Reload to reset to server state on error
             }
         } catch (error) {
             console.error(`Reaction error (${reactionType}):`, error);
-            showPageError(`An error occurred while ${reactionType}ing the post`);
+            showPageError(`An error occurred while processing the reaction`);
+            // Reload to reset to server state
+            location.reload();
         }
     }
 
-    // Function to handle comment reactions
+    // Function to handle comment reactions - simplified version since toggle is handled by backend
     async function handleCommentReaction(commentId, reactionType) {
         clearPageError();
+
         try {
-            // Simple approach: always send a POST request with the reaction
-            // The backend service will handle toggle logic (add, update, or remove based on existing reactions)
+            // Get the current button elements to identify the current state
+            const likeButton = document.querySelector(`.btn-like-comment[data-comment-id="${commentId}"]`);
+            const dislikeButton = document.querySelector(`.btn-dislike-comment[data-comment-id="${commentId}"]`);
+
+            // Check the current state of the buttons from our tracked state
+            const currentReaction = userReactions.comments[commentId] || null;
+            const isLikeButtonActive = currentReaction === 'like';
+            const isDislikeButtonActive = currentReaction === 'dislike';
+
+            // Make a POST request to add or modify reaction (toggle handled by backend)
             const response = await fetch('/api/reactions', {
                 method: 'POST',
                 headers: {
@@ -213,18 +403,69 @@ document.addEventListener('DOMContentLoaded', function() {
                     target_id: commentId,
                     type: reactionType
                 }),
-                credentials: 'include'  // Include cookies with the request for authentication
+                credentials: 'include'
             });
 
             if (response.ok) {
-                location.reload(); // Reload to get updated counts
+                // Update our tracking of user's reaction based on the action
+                // If clicking the same reaction type as currently active, we're removing it
+                if ((reactionType === 'like' && isLikeButtonActive) ||
+                    (reactionType === 'dislike' && isDislikeButtonActive)) {
+                    userReactions.comments[commentId] = null;
+
+                    // Visually update the button state for removal
+                    if (reactionType === 'like' && likeButton) {
+                        likeButton.classList.remove('active');
+                        // Update the count (decrement by 1)
+                        const currentCount = parseInt(likeButton.textContent.match(/\((\d+)\)/)?.[1] || '0');
+                        likeButton.textContent = `👍 (${Math.max(0, currentCount - 1)})`;
+                    } else if (reactionType === 'dislike' && dislikeButton) {
+                        dislikeButton.classList.remove('active');
+                        // Update the count (decrement by 1)
+                        const currentCount = parseInt(dislikeButton.textContent.match(/\((\d+)\)/)?.[1] || '0');
+                        dislikeButton.textContent = `👎 (${Math.max(0, currentCount - 1)})`;
+                    }
+                } else {
+                    // Add or change reaction
+                    userReactions.comments[commentId] = reactionType;
+
+                    // Visually update the button state for addition
+                    if (reactionType === 'like' && likeButton) {
+                        likeButton.classList.add('active');
+                        // Update the count (increment by 1 if not previously active, or keep same if switching)
+                        const currentCount = parseInt(likeButton.textContent.match(/\((\d+)\)/)?.[1] || '0');
+                        likeButton.textContent = `👍 (${currentCount + 1})`;
+
+                        // If switching from dislike to like, update the dislike button
+                        if (isDislikeButtonActive && dislikeButton) {
+                            const currentDislikeCount = parseInt(dislikeButton.textContent.match(/\((\d+)\)/)?.[1] || '0');
+                            dislikeButton.textContent = `👎 (${Math.max(0, currentDislikeCount - 1)})`;
+                            dislikeButton.classList.remove('active');
+                        }
+                    } else if (reactionType === 'dislike' && dislikeButton) {
+                        dislikeButton.classList.add('active');
+                        // Update the count (increment by 1 if not previously active, or keep same if switching)
+                        const currentCount = parseInt(dislikeButton.textContent.match(/\((\d+)\)/)?.[1] || '0');
+                        dislikeButton.textContent = `👎 (${currentCount + 1})`;
+
+                        // If switching from like to dislike, update the like button
+                        if (isLikeButtonActive && likeButton) {
+                            const currentLikeCount = parseInt(likeButton.textContent.match(/\((\d+)\)/)?.[1] || '0');
+                            likeButton.textContent = `👍 (${Math.max(0, currentLikeCount - 1)})`;
+                            likeButton.classList.remove('active');
+                        }
+                    }
+                }
             } else {
                 const error = await response.json();
-                showPageError(error.error || `Failed to ${reactionType} comment`);
+                showPageError(error.error || 'Failed to process reaction');
+                location.reload(); // Reload to reset to server state on error
             }
         } catch (error) {
             console.error(`Comment reaction error (${reactionType}):`, error);
-            showPageError(`An error occurred while ${reactionType}ing the comment`);
+            showPageError(`An error occurred while processing the reaction`);
+            // Reload to reset to server state
+            location.reload();
         }
     }
 

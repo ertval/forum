@@ -78,9 +78,9 @@ func (s *Service) React(ctx context.Context, userID int, targetPublicID string, 
 	}
 
 	if existingReaction != nil {
-		// If the existing reaction is the same type, no need to do anything (idempotent)
+		// If the existing reaction is the same type, remove it (toggle behavior)
 		if existingReaction.Type == reactionType {
-			return nil
+			return s.RemoveReaction(ctx, userID, targetPublicID, targetType)
 		}
 
 		// If it's a different type, remove the old reaction first
@@ -219,4 +219,32 @@ func (s *Service) GetUserReactionCount(ctx context.Context, userID int) (int, er
 	}
 
 	return s.reactionRepo.CountByUserID(ctx, userID)
+}
+
+// GetByUserAndTargetPublicID retrieves a user's reaction for a specific target by target's public UUID.
+func (s *Service) GetByUserAndTargetPublicID(ctx context.Context, userID int, targetPublicID string, targetType string) (*domain.Reaction, error) {
+	// Validate inputs
+	if userID <= 0 {
+		return nil, domain.ErrInvalidUserID
+	}
+
+	if targetType != "post" && targetType != "comment" {
+		return nil, domain.ErrInvalidTarget
+	}
+
+	// Verify target exists
+	switch targetType {
+	case "post":
+		_, err := s.postRepo.GetByID(ctx, targetPublicID)
+		if err != nil {
+			return nil, err
+		}
+	case "comment":
+		_, err := s.commentRepo.GetByPublicID(ctx, targetPublicID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return s.reactionRepo.GetByUserAndTargetPublicID(ctx, userID, targetPublicID, targetType)
 }
