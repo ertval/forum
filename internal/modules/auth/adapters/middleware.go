@@ -12,23 +12,15 @@ import (
 // AuthMiddleware implements authPorts.AuthMiddleware.
 // It provides authentication middleware using auth and user services.
 type AuthMiddleware struct {
-	authService       authPorts.AuthService
-	userService       userPorts.UserService
-	sessionCookieName string // Name of the session cookie from config
+	authService authPorts.AuthService
+	userService userPorts.UserService
 }
 
-// NewAuthMiddleware creates a new AuthMiddleware with the session cookie name.
-// For backward compatibility and configuration consistency, uses the configured name.
-func NewAuthMiddleware(authService authPorts.AuthService, userService userPorts.UserService, sessionCookieName string) *AuthMiddleware {
-	cookieName := "session_token"
-	if sessionCookieName != "" {
-		cookieName = sessionCookieName
-	}
-
+// NewAuthMiddleware creates a new AuthMiddleware.
+func NewAuthMiddleware(authService authPorts.AuthService, userService userPorts.UserService) *AuthMiddleware {
 	return &AuthMiddleware{
-		authService:       authService,
-		userService:       userService,
-		sessionCookieName: cookieName,
+		authService: authService,
+		userService: userService,
 	}
 }
 
@@ -39,8 +31,8 @@ func NewAuthMiddleware(authService authPorts.AuthService, userService userPorts.
 func (p *AuthMiddleware) RequireAuth() authPorts.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Get session token from cookie using configured name
-			cookie, err := r.Cookie(p.sessionCookieName)
+			// Get session token from cookie
+			cookie, err := r.Cookie("session_token")
 			if err != nil {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return
@@ -73,7 +65,7 @@ func (p *AuthMiddleware) RequireAuth() authPorts.Middleware {
 // Prefer using MiddlewareProvider.RequireAuth() for new code.
 // DEPRECATED: Use AuthMiddleware instead.
 func RequireAuth(authService authPorts.AuthService, userService userPorts.UserService) func(http.Handler) http.Handler {
-	provider := NewAuthMiddleware(authService, userService, "session_token")
+	provider := NewAuthMiddleware(authService, userService)
 	return provider.RequireAuth()
 }
 
@@ -84,8 +76,8 @@ func RequireAuth(authService authPorts.AuthService, userService userPorts.UserSe
 func (p *AuthMiddleware) OptionalAuth() authPorts.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Try to get session token from cookie using configured name
-			cookie, err := r.Cookie(p.sessionCookieName)
+			// Try to get session token from cookie
+			cookie, err := r.Cookie("session_token")
 			if err != nil {
 				// No session token, continue as guest
 				next.ServeHTTP(w, r)
@@ -121,7 +113,7 @@ func (p *AuthMiddleware) OptionalAuth() authPorts.Middleware {
 // Prefer using MiddlewareProvider.OptionalAuth() for new code.
 // DEPRECATED: Use AuthMiddleware instead.
 func OptionalAuth(authService authPorts.AuthService, userService userPorts.UserService) func(http.Handler) http.Handler {
-	provider := NewAuthMiddleware(authService, userService, "session_token")
+	provider := NewAuthMiddleware(authService, userService)
 	return provider.OptionalAuth()
 }
 

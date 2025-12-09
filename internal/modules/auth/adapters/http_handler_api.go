@@ -64,7 +64,7 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set the session cookie - using configured name for consistency
+	// Set the session cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    session.Token,
@@ -119,7 +119,7 @@ func (h *HTTPHandler) LoginAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set the session cookie - using configured name for consistency
+	// Set the session cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    session.Token,
@@ -157,7 +157,7 @@ func (h *HTTPHandler) LoginAPI(w http.ResponseWriter, r *http.Request) {
 
 // LogoutAPI handles user logout requests.
 func (h *HTTPHandler) LogoutAPI(w http.ResponseWriter, r *http.Request) {
-	// Get session token from cookie - using configured name for consistency
+	// Get session token from cookie
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "No session token found")
@@ -173,7 +173,7 @@ func (h *HTTPHandler) LogoutAPI(w http.ResponseWriter, r *http.Request) {
 
 	// Clear the session cookie
 	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token", // Using consistent name across the application
+		Name:     "session_token",
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1, // Delete the cookie
@@ -192,7 +192,7 @@ func (h *HTTPHandler) LogoutAPI(w http.ResponseWriter, r *http.Request) {
 
 // GetSessionAPI retrieves the current session information.
 func (h *HTTPHandler) GetSessionAPI(w http.ResponseWriter, r *http.Request) {
-	// Get session token from cookie - using configured name for consistency
+	// Get session token from cookie
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "No session token found")

@@ -75,7 +75,7 @@ func initServices(repos *Repositories, cfg *config.Config, lgr *logger.Logger) *
 	commentService := commentApp.NewService(repos.Comment, postService, userService)
 
 	// Layer 3: Adapters/middleware depending on services
-	authMiddleware := authAdapters.NewAuthMiddleware(authService, userService, "session_token")
+	authMiddleware := authAdapters.NewAuthMiddleware(authService, userService)
 
 	return &ServiceContainer{
 		auth:           authService,

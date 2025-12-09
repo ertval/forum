@@ -55,16 +55,16 @@ func (h *HTTPHandler) RegisterPage(w http.ResponseWriter, r *http.Request) {
 
 // LogoutPage handles the frontend logout by invalidating the session and redirecting.
 func (h *HTTPHandler) LogoutPage(w http.ResponseWriter, r *http.Request) {
-	// Get session token from cookie - using configured name for consistency
+	// Get session token from cookie
 	cookie, err := r.Cookie("session_token")
 	if err == nil && cookie.Value != "" {
 		// Call the service to logout the user (invalidate the session)
 		_ = h.authService.Logout(r.Context(), cookie.Value) // We ignore the error for frontend UX
 	}
 
-	// Clear the session cookie - using configured name for consistency
+	// Clear the session cookie
 	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token", // Using configured name for consistency across app
+		Name:     "session_token",
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1, // Delete the cookie
