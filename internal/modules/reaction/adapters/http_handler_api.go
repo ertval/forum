@@ -16,13 +16,9 @@ import (
 // RegisterAPIRoutes registers all reaction API routes with the router.
 func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
 	// POST /api/reactions - Add or update reaction (requires auth)
-	router.HandleFunc("POST /api/reactions", func(w http.ResponseWriter, r *http.Request) {
-		h.middlewareProvider.RequireAuth()(http.HandlerFunc(h.AddReactionAPI)).ServeHTTP(w, r)
-	})
+	router.HandleFunc("POST /api/reactions", h.AddReactionAPI)
 	// DELETE /api/reactions - Remove reaction (requires auth)
-	router.HandleFunc("DELETE /api/reactions", func(w http.ResponseWriter, r *http.Request) {
-		h.middlewareProvider.RequireAuth()(http.HandlerFunc(h.RemoveReactionAPI)).ServeHTTP(w, r)
-	})
+	router.HandleFunc("DELETE /api/reactions", h.RemoveReactionAPI)
 	// GET /api/reactions/{targetType}/{targetId} - Get reactions for target (public)
 	router.HandleFunc("GET /api/reactions/{targetType}/{targetId}", h.GetReactionsAPI)
 	// GET /api/reactions/{targetType}/{targetId}/count - Count reactions (public)
@@ -31,13 +27,15 @@ func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
 
 // AddReactionAPI handles adding a reaction to a post or comment.
 func (h *HTTPHandler) AddReactionAPI(w http.ResponseWriter, r *http.Request) {
-	// Extract user ID from context
-	userPublicID := authPorts.GetUserID(r.Context())
-	if userPublicID == "" {
+	// Verify authentication first
+	if !authPorts.IsAuthenticated(r.Context()) {
 		h.logger.Error("Unauthorized reaction attempt", logger.String("method", "POST"), logger.String("path", "/api/reactions"))
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
+
+	// Extract user ID from context
+	userPublicID := authPorts.GetUserID(r.Context())
 
 	// Get user's internal ID
 	user, err := h.userService.GetByPublicID(r.Context(), userPublicID)
@@ -113,13 +111,15 @@ func (h *HTTPHandler) AddReactionAPI(w http.ResponseWriter, r *http.Request) {
 
 // RemoveReactionAPI handles removing a reaction from a post or comment.
 func (h *HTTPHandler) RemoveReactionAPI(w http.ResponseWriter, r *http.Request) {
-	// Extract user ID from context
-	userPublicID := authPorts.GetUserID(r.Context())
-	if userPublicID == "" {
+	// Verify authentication first
+	if !authPorts.IsAuthenticated(r.Context()) {
 		h.logger.Error("Unauthorized reaction removal attempt", logger.String("method", "DELETE"), logger.String("path", "/api/reactions"))
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
+
+	// Extract user ID from context
+	userPublicID := authPorts.GetUserID(r.Context())
 
 	// Get user's internal ID
 	user, err := h.userService.GetByPublicID(r.Context(), userPublicID)
