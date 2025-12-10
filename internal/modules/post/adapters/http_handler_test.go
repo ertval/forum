@@ -247,6 +247,14 @@ func (m *mockUserService) DecrementCommentCount(ctx context.Context, userID int)
 	return nil
 }
 
+func (m *mockUserService) IncrementReactionCount(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *mockUserService) DecrementReactionCount(ctx context.Context, userID int) error {
+	return nil
+}
+
 // Mock middleware provider for testing
 type mockMiddlewareProvider struct{}
 

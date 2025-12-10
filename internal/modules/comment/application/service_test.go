@@ -177,6 +177,14 @@ func (m *MockUserService) DecrementCommentCount(ctx context.Context, userID int)
 	return nil
 }
 
+func (m *MockUserService) IncrementReactionCount(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *MockUserService) DecrementReactionCount(ctx context.Context, userID int) error {
+	return nil
+}
+
 // MockPostService implements PostService for testing
 type MockPostService struct{}
 

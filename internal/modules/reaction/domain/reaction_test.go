@@ -63,9 +63,10 @@ func TestReaction_IsValid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.reaction.IsValid()
+			err := tt.reaction.Validate()
+			result := err == nil
 			if result != tt.expected {
-				t.Errorf("IsValid() = %v, want %v", result, tt.expected)
+				t.Errorf("Validate() = %v (err: %v), want %v", result, err, tt.expected)
 			}
 		})
 	}

@@ -314,6 +314,12 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 					}
 				}
 
+				// Get reaction counts for this comment
+				likes, dislikes := 0, 0
+				if h.reactionService != nil {
+					likes, dislikes, _ = h.reactionService.CountReactions(ctx, comment.PublicID, "comment")
+				}
+
 				commentData := map[string]interface{}{
 					"PublicID":       comment.PublicID,
 					"AuthorUsername": authorUsername,
@@ -321,8 +327,8 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 					"Content":        comment.Content,
 					"CreatedAt":      comment.CreatedAt,
 					"UpdatedAt":      comment.UpdatedAt,
-					"Likes":          0,
-					"Dislikes":       0,
+					"Likes":          likes,
+					"Dislikes":       dislikes,
 				}
 				comments = append(comments, commentData)
 			}

@@ -97,6 +97,15 @@
     color: #5a5a5a;
 }
 
+.comment-reactions button.active {
+    background: #80cbc4;
+    color: white;
+}
+
+.comment-reactions button.active:hover {
+    background: #5a9e97;
+}
+
 /* Edit comment textarea style */
 .edit-comment-textarea {
     width: 100%;

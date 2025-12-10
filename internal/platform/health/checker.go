@@ -86,8 +86,7 @@ func (c *Checker) checkAPIEndpoints(ctx context.Context, results map[string]stri
 	commentAllUp := c.areAllRoutesRegistered(ctx, commentEndpoints)
 	results["comment_api"] = map[bool]string{true: "up", false: "down"}[commentAllUp]
 
-	// Reaction module endpoints - NOT YET IMPLEMENTED
-	// These endpoints are scaffolded but not functional yet
+	// Reaction module endpoints
 	reactionEndpoints := []struct{ method, path string }{
 		{"POST", "/api/reactions"},
 		{"DELETE", "/api/reactions"},
@@ -95,8 +94,7 @@ func (c *Checker) checkAPIEndpoints(ctx context.Context, results map[string]stri
 		{"GET", "/api/reactions/{targetType}/{targetId}/count"},
 	}
 	reactionAllUp := c.areAllRoutesRegistered(ctx, reactionEndpoints)
-	// Mark as down if routes not registered OR module not fully implemented
-	results["reaction_api"] = map[bool]string{true: "down", false: "down"}[reactionAllUp] // TODO: change to "up" when implemented
+	results["reaction_api"] = map[bool]string{true: "up", false: "down"}[reactionAllUp]
 
 	// Moderation module endpoints - NOT YET IMPLEMENTED
 	moderationEndpoints := []struct{ method, path string }{

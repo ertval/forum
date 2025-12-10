@@ -170,17 +170,23 @@ document.addEventListener('DOMContentLoaded', function() {
     async function handlePostReaction(postId, reactionType) {
         clearPageError();
         try {
-            const response = await fetch(`/api/reactions`, {
+            // Simple approach: always send a POST request with the reaction
+            // The backend service will handle toggle logic (add, update, or remove based on existing reactions)
+            const response = await fetch('/api/reactions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ target_type: 'post', target_id: postId, type: reactionType })
+                body: JSON.stringify({
+                    target_type: 'post',
+                    target_id: postId,
+                    type: reactionType
+                }),
+                credentials: 'include'  // Include cookies with the request for authentication
             });
 
             if (response.ok) {
-                // Update the UI to reflect the new reaction count
-                location.reload(); // Simple approach; in a real app we'd update the UI dynamically
+                location.reload(); // Reload to get updated counts
             } else {
                 const error = await response.json();
                 showPageError(error.error || `Failed to ${reactionType} post`);
@@ -195,17 +201,23 @@ document.addEventListener('DOMContentLoaded', function() {
     async function handleCommentReaction(commentId, reactionType) {
         clearPageError();
         try {
-            const response = await fetch(`/api/reactions`, {
+            // Simple approach: always send a POST request with the reaction
+            // The backend service will handle toggle logic (add, update, or remove based on existing reactions)
+            const response = await fetch('/api/reactions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ target_type: 'comment', target_id: commentId, type: reactionType })
+                body: JSON.stringify({
+                    target_type: 'comment',
+                    target_id: commentId,
+                    type: reactionType
+                }),
+                credentials: 'include'  // Include cookies with the request for authentication
             });
 
             if (response.ok) {
-                // Update the UI to reflect the new reaction count
-                location.reload(); // Simple approach; in a real app we'd update the UI dynamically
+                location.reload(); // Reload to get updated counts
             } else {
                 const error = await response.json();
                 showPageError(error.error || `Failed to ${reactionType} comment`);

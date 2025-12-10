@@ -65,7 +65,7 @@ func initServices(repos *Repositories, cfg *config.Config, lgr *logger.Logger) *
 	imageHandler := upload.NewImageHandler(cfg.Upload.UploadDir, cfg.Upload.MaxSize)
 	categoryService := postApp.NewCategoryService(repos.Category)
 	filterService := postApp.NewFilterService()
-	reactionService := reactionApp.NewService(repos.Reaction)
+	reactionService := reactionApp.NewService(repos.Reaction, repos.Post, repos.Comment, userService)
 	moderationService := moderationApp.NewService(repos.Moderation)
 	notificationService := notificationApp.NewService(repos.Notification)
 

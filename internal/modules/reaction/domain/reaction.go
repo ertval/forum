@@ -28,10 +28,23 @@ type Reaction struct {
 	PublicTargetID string `json:"target_id,omitempty"` // Public UUID of target
 }
 
-// IsValid checks if the reaction is valid.
-// TODO: Implement reaction validation.
-func (r *Reaction) IsValid() bool {
-	// Check target type is "post" or "comment"
-	// Check reaction type is "like" or "dislike"
-	return r.TargetType == "post" || r.TargetType == "comment"
+// Validate checks if the reaction is valid.
+func (r *Reaction) Validate() error {
+	if r.TargetType != "post" && r.TargetType != "comment" {
+		return ErrInvalidTarget
+	}
+
+	if r.Type != ReactionLike && r.Type != ReactionDislike {
+		return ErrInvalidReactionType
+	}
+
+	if r.UserID <= 0 {
+		return ErrInvalidUserID
+	}
+
+	if r.TargetID <= 0 && r.PublicTargetID == "" {
+		return ErrInvalidTargetID
+	}
+
+	return nil
 }

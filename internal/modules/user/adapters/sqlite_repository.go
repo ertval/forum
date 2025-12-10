@@ -362,3 +362,17 @@ func (r *SQLiteUserRepository) DecrementCommentCount(ctx context.Context, userID
 	_, err := r.db.ExecContext(ctx, query, userID)
 	return err
 }
+
+// IncrementReactionCount atomically increments the user's reaction count.
+func (r *SQLiteUserRepository) IncrementReactionCount(ctx context.Context, userID int) error {
+	query := `UPDATE users SET reaction_count = reaction_count + 1 WHERE id = ?`
+	_, err := r.db.ExecContext(ctx, query, userID)
+	return err
+}
+
+// DecrementReactionCount atomically decrements the user's reaction count.
+func (r *SQLiteUserRepository) DecrementReactionCount(ctx context.Context, userID int) error {
+	query := `UPDATE users SET reaction_count = MAX(0, reaction_count - 1) WHERE id = ?`
+	_, err := r.db.ExecContext(ctx, query, userID)
+	return err
+}

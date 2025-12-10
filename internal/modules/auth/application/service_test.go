@@ -136,6 +136,14 @@ func (m *MockUserService) ExistsByUsername(ctx context.Context, username string)
 	return false, nil
 }
 
+func (m *MockUserService) IncrementReactionCount(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *MockUserService) DecrementReactionCount(ctx context.Context, userID int) error {
+	return nil
+}
+
 // MockSessionRepository implements auth ports SessionRepository for testing
 type MockSessionRepository struct {
 	sessions        map[string]*domain.Session
