@@ -24,75 +24,97 @@
 
         function createPostElement(post, compact) {
             const el = document.createElement('article');
+            
+            // SECURITY: Escape all user-generated content to prevent XSS
+            const safePostId = window.escapeHtml(post.PublicID);
+            const safeTitle = window.escapeHtml(post.Title);
+            const safeAuthor = window.escapeHtml(post.AuthorUsername);
+            const safeContent = window.escapeHtml(post.Content);
+            // ImageURL is server-generated, but escape for safety
+            const safeImageURL = post.ImageURL ? window.escapeHtml(post.ImageURL) : '';
+            
+            const postDate = new Date(post.CreatedAt);
+            const formattedDate = postDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+            
+            // Safely render categories
+            const categoriesHtml = (post.Categories || []).map(cat => {
+                const safeCat = window.escapeHtml(cat);
+                if (compact) {
+                    return `<a class="category-tag-compact" href="?category=${encodeURIComponent(cat)}">${safeCat}</a>`;
+                }
+                return `<a class="category-tag" href="/board?category=${encodeURIComponent(cat)}">${safeCat}</a>`;
+            }).join('');
+            
+            // Parse numeric values safely
+            const likeCount = parseInt(post.LikeCount, 10) || 0;
+            const dislikeCount = parseInt(post.DislikeCount, 10) || 0;
+            const commentCount = parseInt(post.CommentCount, 10) || 0;
+            
             if (compact) {
                 el.className = 'post-card-compact clickable-card';
-                el.setAttribute('data-href', `/posts/${post.PublicID}`);
-                const postDate = new Date(post.CreatedAt);
-                const formattedDate = postDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                el.setAttribute('data-href', `/posts/${safePostId}`);
                 el.innerHTML = `
                     <div class="post-header-compact">
-                        <h3><a href="/posts/${post.PublicID}">${post.Title}</a></h3>
+                        <h3><a href="/posts/${safePostId}">${safeTitle}</a></h3>
                         <div class="post-meta-compact">
-                            <span class="author-compact">by ${post.AuthorUsername}</span>
+                            <span class="author-compact">by ${safeAuthor}</span>
                             <span class="date-compact">${formattedDate}</span>
                         </div>
                     </div>
 
-                    ${post.ImageURL ? `
+                    ${safeImageURL ? `
                     <div class="post-image-compact">
-                        <img src="${post.ImageURL}" alt="${post.Title}">
+                        <img src="${safeImageURL}" alt="${safeTitle}">
                     </div>
                     ` : ''}
 
                     <div class="post-content-compact">
-                        <p>${post.Content}</p>
+                        <p>${safeContent}</p>
                     </div>
 
                     <div class="post-footer-compact">
                         <div class="categories-compact">
-                            ${post.Categories.map(cat => `<a class="category-tag-compact" href="?category=${encodeURIComponent(cat)}">${cat}</a>`).join('')}
+                            ${categoriesHtml}
                         </div>
 
                         <div class="post-actions-compact">
-                            <span class="likes-compact">👍 ${post.LikeCount}</span>
-                            <span class="dislikes-compact">👎 ${post.DislikeCount}</span>
-                            <span class="comments-compact">💬 ${post.CommentCount}</span>
+                            <span class="likes-compact">👍 ${likeCount}</span>
+                            <span class="dislikes-compact">👎 ${dislikeCount}</span>
+                            <span class="comments-compact">💬 ${commentCount}</span>
                         </div>
                     </div>
                 `;
             } else {
                 el.className = 'post-card clickable-card';
-                el.setAttribute('data-href', `/posts/${post.PublicID}`);
-                const postDate = new Date(post.CreatedAt);
-                const formattedDate = postDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                el.setAttribute('data-href', `/posts/${safePostId}`);
                 el.innerHTML = `
                     <div class="post-header">
-                        <h3><a href="/posts/${post.PublicID}">${post.Title}</a></h3>
+                        <h3><a href="/posts/${safePostId}">${safeTitle}</a></h3>
                         <div class="post-meta">
-                            <span class="author">by ${post.AuthorUsername}</span>
+                            <span class="author">by ${safeAuthor}</span>
                             <span class="date">${formattedDate}</span>
                         </div>
                     </div>
 
-                    ${post.ImageURL ? `
+                    ${safeImageURL ? `
                     <div class="post-image">
-                        <img src="${post.ImageURL}" alt="${post.Title}">
+                        <img src="${safeImageURL}" alt="${safeTitle}">
                     </div>
                     ` : ''}
 
                     <div class="post-content">
-                        <p>${post.Content}</p>
+                        <p>${safeContent}</p>
                     </div>
 
                     <div class="post-footer">
                         <div class="categories">
-                            ${post.Categories.map(cat => `<a class="category-tag" href="/board?category=${encodeURIComponent(cat)}">${cat}</a>`).join('')}
+                            ${categoriesHtml}
                         </div>
 
                         <div class="post-actions">
-                            <span class="likes">👍 ${post.LikeCount}</span>
-                            <span class="dislikes">👎 ${post.DislikeCount}</span>
-                            <span class="comments">💬 ${post.CommentCount}</span>
+                            <span class="likes">👍 ${likeCount}</span>
+                            <span class="dislikes">👎 ${dislikeCount}</span>
+                            <span class="comments">💬 ${commentCount}</span>
                         </div>
                     </div>
                 `;

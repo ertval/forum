@@ -4,7 +4,8 @@
 function showPageError(message) {
     const pageErrors = document.getElementById('page-errors');
     if (pageErrors) {
-        pageErrors.innerHTML = `<p class="error">${message}</p>`;
+        // SECURITY: Escape message to prevent XSS from reflected error content
+        pageErrors.innerHTML = `<p class="error">${window.escapeHtml(message)}</p>`;
         pageErrors.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 }
@@ -115,9 +116,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             try {
-                const formData = new FormData();
-                formData.append('content', content);
-
                 const response = await fetch(`/api/comments/posts/${postId}`, {
                     method: 'POST',
                     headers: {
@@ -143,28 +141,31 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Handle the global deletePost function that is called from inline onclick
-    window.deletePost = async function(postId) {
-        const confirmed = await confirmDelete('Post');
-        if (!confirmed) {
-            return;
-        }
-
-        try {
-            const response = await fetch(`/api/posts/${postId}`, {
-                method: 'DELETE'
-            });
-
-            if (response.ok) {
-                window.location.href = '/board?my_posts=true';
-            } else {
-                const error = await response.json();
-                showPageError(error.error || 'Failed to delete post');
+    // Use guard pattern to prevent redefinition if another script already defined it
+    if (!window.deletePost) {
+        window.deletePost = async function(postId) {
+            const confirmed = await confirmDelete('Post');
+            if (!confirmed) {
+                return;
             }
-        } catch (error) {
-            console.error('Delete error:', error);
-            showPageError('An error occurred while deleting the post');
-        }
-    };
+
+            try {
+                const response = await fetch(`/api/posts/${postId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    window.location.href = '/board?my_posts=true';
+                } else {
+                    const error = await response.json();
+                    showPageError(error.error || 'Failed to delete post');
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                showPageError('An error occurred while deleting the post');
+            }
+        };
+    }
 
     // Function to handle post reactions
     async function handlePostReaction(postId, reactionType) {
@@ -273,6 +274,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to start editing a comment
     function startEditingComment(commentElement, commentId) {
         const contentElement = commentElement.querySelector('.comment-content');
+        const actionsDiv = commentElement.querySelector('.comment-actions');
+        
+        // Defensive check: ensure required elements exist
+        if (!contentElement || !actionsDiv) {
+            console.error('Comment element missing required children (.comment-content or .comment-actions)');
+            return;
+        }
+        
         const currentContent = contentElement.textContent.trim();
 
         // Create form structure similar to post edit form
@@ -297,14 +306,15 @@ document.addEventListener('DOMContentLoaded', function() {
         contentElement.appendChild(formGroup);
 
         // Create save and cancel buttons with consistent styling
-        const actionsDiv = commentElement.querySelector('.comment-actions');
         const originalActions = actionsDiv.innerHTML;
         // Store original actions in a data attribute for later restoration
         actionsDiv.setAttribute('data-original-actions', originalActions);
 
         // Use consistent button styling like in post edit form
+        // SECURITY: Escape commentId to prevent XSS
+        const safeCommentId = window.escapeHtml(commentId);
         actionsDiv.innerHTML = `
-            <button class="btn btn-primary btn-save-comment" data-comment-id="${commentId}">Save</button>
+            <button class="btn btn-primary btn-save-comment" data-comment-id="${safeCommentId}">Save</button>
             <button class="btn btn-secondary btn-cancel-edit">Cancel</button>
         `;
 

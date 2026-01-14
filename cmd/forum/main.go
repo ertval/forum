@@ -4,13 +4,11 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"forum/cmd/forum/wire"
 	"forum/internal/platform/config"
@@ -24,13 +22,17 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// 2. Initialize Logger
-	log := logger.New(logger.InfoLevel, os.Stdout)
+	// 2. Initialize Logger (level from config)
+	logLevel := logger.InfoLevel
+	if cfg.Logger.Level == "DEBUG" {
+		logLevel = logger.DebugLevel
+	}
+	lgr := logger.New(logLevel, os.Stdout)
 
 	// 3. Initialize Application (all wiring happens in wire package)
-	app, err := wire.InitializeApp(cfg, log)
+	app, err := wire.InitializeApp(cfg, lgr)
 	if err != nil {
-		log.Error("Failed to initialize application", logger.Error(err))
+		lgr.Error("Failed to initialize application", logger.Error(err))
 		os.Exit(1)
 	}
 	defer app.Cleanup()
@@ -39,15 +41,15 @@ func main() {
 	// Call Start synchronously. Server.Start launches the HTTP(S) listeners
 	// in their own goroutines and returns quickly, so this call won't block.
 	if err := app.Start(); err != nil {
-		log.Error("Server failed to start", logger.Error(err))
+		lgr.Error("Server failed to start", logger.Error(err))
 		os.Exit(1)
 	}
 
-	log.Info(fmt.Sprintf("Forum server started on port %d (HTTP) and %d (HTTPS)",
+	lgr.Info(fmt.Sprintf("Forum server started on port %d (HTTP) and %d (HTTPS)",
 		cfg.Server.Port, cfg.Server.TLSPort))
-	log.Info(fmt.Sprintf("HTTPS access: http://localhost:%d", cfg.Server.Port))
+	lgr.Info(fmt.Sprintf("HTTP access: http://localhost:%d", cfg.Server.Port))
 	if cfg.Security.TLSCertFile != "" && cfg.Security.TLSKeyFile != "" {
-		log.Info(fmt.Sprintf("HTTPS access: https://localhost:%d", cfg.Server.TLSPort))
+		lgr.Info(fmt.Sprintf("HTTPS access: https://localhost:%d", cfg.Server.TLSPort))
 	}
 
 	// 5. Graceful Shutdown
@@ -55,19 +57,13 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Info("Shutting down server...")
+	lgr.Info("Shutting down server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
+	// Shutdown uses internal 30s timeout context
 	if err := app.Shutdown(); err != nil {
-		log.Error("Server forced to shutdown", logger.Error(err))
+		lgr.Error("Server forced to shutdown", logger.Error(err))
+		return
 	}
 
-	select {
-	case <-ctx.Done():
-		log.Info("Timeout of 30 seconds exceeded")
-	default:
-		log.Info("Server exited gracefully")
-	}
+	lgr.Info("Server exited gracefully")
 }

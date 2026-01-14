@@ -6,12 +6,12 @@ package adapters
 import (
 	"bytes"
 	"fmt"
-	"html/template"
 	"net/http"
 	"strconv"
 	"time"
 
 	platformErrors "forum/internal/platform/errors"
+	"forum/internal/platform/templates"
 )
 
 // RegisterPageRoutes registers all comment page routes with the router.
@@ -181,8 +181,8 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 		"Offset":           initialLimit,
 	}
 
-	// Parse templates individually for this page
-	tmpl, err := template.ParseFiles("templates/base.html", "templates/comments.html")
+	// Get cached templates (only parses on first request)
+	tmpl, err := templates.Get("comments", "templates/base.html", "templates/comments.html")
 	if err != nil {
 		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
 		return

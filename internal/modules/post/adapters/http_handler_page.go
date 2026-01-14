@@ -6,11 +6,11 @@ package adapters
 import (
 	"bytes"
 	"fmt"
-	"html/template"
 	"net/http"
 
 	authPorts "forum/internal/modules/auth/ports"
 	postDomain "forum/internal/modules/post/domain"
+	"forum/internal/platform/templates"
 )
 
 // RegisterPageRoutes registers all post page routes with the router.
@@ -126,8 +126,8 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 		"ShowSidebar":      false,
 	}
 
-	// Parse templates individually for this page
-	tmpl, err := template.ParseFiles("templates/base.html", "templates/home.html")
+	// Get cached templates (only parses on first request)
+	tmpl, err := templates.Get("home", "templates/base.html", "templates/home.html")
 	if err != nil {
 		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
 		return
@@ -245,8 +245,8 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 		"User":             currentUser,
 	}
 
-	// Parse templates individually for this page
-	tmpl, err := template.ParseFiles("templates/base.html", "templates/board.html")
+	// Get cached templates (only parses on first request)
+	tmpl, err := templates.Get("board", "templates/base.html", "templates/board.html")
 	if err != nil {
 		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
 		return
@@ -342,8 +342,8 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 		"Comments": comments,
 	}
 
-	// Parse templates individually for this page
-	tmpl, err := template.ParseFiles("templates/base.html", "templates/post_detail.html")
+	// Get cached templates (only parses on first request)
+	tmpl, err := templates.Get("post_detail", "templates/base.html", "templates/post_detail.html")
 	if err != nil {
 		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
 		return
@@ -397,8 +397,8 @@ func (h *HTTPHandler) CreatePostPage(w http.ResponseWriter, r *http.Request) {
 		"MaxImageSize":    h.postService.MaxImageSize(),
 	}
 
-	// Parse templates individually for this page
-	tmpl, err := template.ParseFiles("templates/base.html", "templates/post_create.html")
+	// Get cached templates (only parses on first request)
+	tmpl, err := templates.Get("post_create", "templates/base.html", "templates/post_create.html")
 	if err != nil {
 		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
 		return
@@ -472,8 +472,8 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 		"MaxImageSize":    h.postService.MaxImageSize(),
 	}
 
-	// Parse templates individually for this page
-	tmpl, err := template.ParseFiles("templates/base.html", "templates/post_edit.html")
+	// Get cached templates (only parses on first request)
+	tmpl, err := templates.Get("post_edit", "templates/base.html", "templates/post_edit.html")
 	if err != nil {
 		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
 		return

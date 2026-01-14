@@ -1,7 +1,6 @@
-package wire
-
 // Package wire handles dependency injection and application wiring.
 // It initializes all components and returns a fully configured App instance.
+package wire
 
 import (
 	"database/sql"
@@ -22,14 +21,14 @@ type App struct {
 	Logger   *logger.Logger
 }
 
-// Cleanup performs graceful cleanup of application resources.
-func (a *App) Cleanup() error {
+// Cleanup releases application resources.
+// Errors are logged but not returned since callers typically cannot
+// meaningfully handle cleanup failures.
+func (a *App) Cleanup() {
 	a.Logger.Info("Cleaning up application resources")
 	if err := a.Database.Close(); err != nil {
 		a.Logger.Error("Failed to close database connection", logger.Error(err))
-		return err
 	}
-	return nil
 }
 
 // Start starts the HTTP server.
@@ -60,7 +59,11 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 	services := initServices(repos, cfg, lgr)
 
 	// 4. Initialize HTTP Handlers (Input Adapters)
-	handlers := initHandlers(services)
+	handlers, err := initHandlers(services)
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to initialize handlers: %w", err)
+	}
 
 	// 5. Initialize HTTP Server
 	server := initServer(cfg, lgr, handlers, db.DB())
@@ -86,7 +89,9 @@ func initDatabase(cfg *config.Config, lgr *logger.Logger) (*database.Connection,
 	lgr.Info("Running database migrations")
 	migrator := database.NewMigrator(dbConn)
 	if err := migrator.Migrate(cfg.Database.MigrationsDir); err != nil {
-		dbConn.Close()
+		if closeErr := dbConn.Close(); closeErr != nil {
+			lgr.Error("Failed to close database after migration failure", logger.Error(closeErr))
+		}
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 

@@ -83,17 +83,21 @@
 
     /**
      * Close the current modal
+     * IMPORTANT: Captures the modal reference before clearing to prevent race conditions
+     * when modals are opened in rapid succession (e.g., double-click scenarios).
      */
     function closeModal() {
         if (currentModal) {
-            currentModal.classList.remove('show');
-            // Wait for transition then remove
+            const modalToRemove = currentModal; // Capture reference before clearing
+            currentModal = null; // Clear immediately to prevent race conditions
+            
+            modalToRemove.classList.remove('show');
+            // Wait for transition then remove from DOM
             setTimeout(() => {
-                if (currentModal && currentModal.parentNode) {
-                    currentModal.parentNode.removeChild(currentModal);
+                if (modalToRemove.parentNode) {
+                    modalToRemove.parentNode.removeChild(modalToRemove);
                 }
-                currentModal = null;
-            }, 200);
+            }, window.FORUM_CONSTANTS?.MODAL_TRANSITION_MS || 200);
             
             // Remove event listeners
             document.removeEventListener('keydown', handleKeydown);
