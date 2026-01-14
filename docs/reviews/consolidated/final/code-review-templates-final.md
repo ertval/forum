@@ -5,11 +5,22 @@
 **Scope:** `/templates/` directory (10 HTML template files)  
 **Focus:** Quality, safety, performance, and best practices for Go HTML templates
 
+**Source Reviews:**
+
+- `code-review-templates-202601141507.md`
+- `code-simplifier-templates-202601141515.md`
+
 ---
 
 ## Executive Summary
 
 The template codebase is **well-structured and follows Go's html/template conventions** with proper template inheritance using `define`/`template` blocks. However, there are **several security concerns**, including potential XSS vulnerabilities from unescaped HTML content, missing CSRF protection on forms, and inline styles that violate content security policies. The templates could also benefit from DRY improvements to reduce code duplication.
+
+**Key Strengths:**
+
+- Good use of template composition (`{{define}}`, `{{template}}`)
+- ID Security Compliance: All templates correctly use `PublicID` (UUID) for URLs and data attributes
+- JavaScript correctly loaded at end of body with `{{block "scripts" .}}` pattern
 
 ---
 
@@ -68,6 +79,7 @@ The template codebase is **well-structured and follows Go's html/template conven
   1. Prevents using strict Content-Security-Policy headers (`style-src 'self'`)
   2. Causes duplicate CSS loading if the page is rendered multiple times
   3. Mixes concerns between templates and stylesheets
+  4. Inline styles bypass CSS caching, increasing page load times
 
 - **Proposed Fix:** Move styles to `/static/css/style.css` or a dedicated `health.css`:
 
@@ -142,17 +154,39 @@ The template codebase is **well-structured and follows Go's html/template conven
       ModuleAPIs     map[string]string
       OtherServices  map[string]string
   }
+
+  // Or use structured data with display names
+  type HealthItem struct {
+      Key         string
+      DisplayName string
+      Status      string
+  }
+
+  data := map[string]interface{}{
+      "ModuleHealth": []HealthItem{
+          {Key: "auth_api", DisplayName: "Authentication Module API", Status: "up"},
+          {Key: "post_api", DisplayName: "Post Module API", Status: "up"},
+          // ...
+      },
+  }
   ```
 
   ```html
-  {{/* In health.html - simpler, single-pass iteration */}} {{range $service,
-  $status := .CoreServices}}
+  {{/* In health.html - simpler, single-pass iteration */}} {{range
+  .ModuleHealth}}
   <tr>
-    <td>{{$service}}</td>
-    <td><span class="status-badge status-{{$status}}">{{$status}}</span></td>
+    <td>{{.DisplayName}}</td>
+    <td><span class="status-badge status-{{.Status}}">{{.Status}}</span></td>
   </tr>
   {{end}}
   ```
+
+  **Rationale:**
+
+  - Moves display logic to Go where it's testable
+  - Dramatically simplifies the template
+  - Adding new modules requires no template changes
+  - Follows separation of concerns principle
 
 ---
 
@@ -172,6 +206,183 @@ The template codebase is **well-structured and follows Go's html/template conven
   {{/* Line 78 - DELETE this line, use existing $showUserSidebar from line 13
   */}} {{/* Already declared above in body tag section */}}
   ```
+
+  **Rationale:** Duplicate variable declarations are confusing and indicate the template scope might not be fully understood. The variable from line 13 is already available in the template's scope.
+
+---
+
+### PERF-4: Duplicate Load-More Button Markup
+
+- **Location:** `home.html` Lines 51-58, `board.html` Lines 52-59, `comments.html` Lines 39-45
+- **Description:** Load-more button markup is duplicated across multiple templates.
+
+- **Current Code (home.html):**
+
+  ```html
+  <button
+    id="load-more-btn"
+    class="btn btn-primary"
+    data-offset="{{len .Posts}}"
+    data-category="{{if .SelectedCategory}}{{.SelectedCategory}}{{end}}"
+    data-my-posts="{{.MyPosts}}"
+    data-liked-posts="{{.LikedPosts}}"
+    data-date-filter="{{if .DateFilter}}{{.DateFilter}}{{end}}"
+  >
+    Show More
+  </button>
+  ```
+
+- **Suggested Improvement:** Create a reusable load-more button template:
+
+  ```html
+  {{define "load-more-button"}}
+  <button
+    id="{{.ButtonID}}"
+    class="btn btn-primary"
+    data-offset="{{.Offset}}"
+    data-category="{{if .SelectedCategory}}{{.SelectedCategory}}{{end}}"
+    data-my-posts="{{.MyPosts}}"
+    data-liked-posts="{{.LikedPosts}}"
+    data-date-filter="{{if .DateFilter}}{{.DateFilter}}{{end}}"
+  >
+    Show More
+  </button>
+  {{end}}
+  ```
+
+  **Rationale:** Centralizes the load-more button logic, making it easier to add new data attributes or modify behavior consistently.
+
+---
+
+### PERF-5: Complex Layout Logic in base.html
+
+- **Location:** `base.html`, Lines 77-147
+- **Description:** Complex boolean logic for layout decisions in templates is hard to test and debug.
+
+  ```html
+  {{ $showUserSidebar := and .User (not (or (eq .Title "Home") (eq .Title
+  "Health Status"))) }} {{ $showLeftSidebar := .ShowFilter }} {{ $isPostFormPage
+  := or (eq .Title "Create Post") (eq .Title "Edit Post") }} {{/* Three-column
+  layout: filter left, content center, user right */}} {{ if and
+  $showLeftSidebar $showUserSidebar }}
+  <div class="page-layout-three-col">
+    ... {{ else if and $showUserSidebar $isPostFormPage .ShowSidebar }}
+    <div class="page-layout-three-col">
+      ... {{ else if $showUserSidebar }}
+      <div class="page-layout-right">
+        ... {{ else if .ShowSidebar }}
+        <div class="page-layout">
+          ... {{ else }} {{ template "content" . }} {{ end }}
+        </div>
+      </div>
+    </div>
+  </div>
+  ```
+
+- **Suggested Improvement:** Simplify by using a single layout class computed server-side:
+
+  ```html
+  {{/* Handler should set .LayoutClass: "three-col", "right", "left", or
+  "single" */}}
+  <div class="page-layout-{{.LayoutClass}}">
+    {{if .ShowLeftSidebar}}
+    <aside class="sidebar-left">{{template "left-sidebar-content" .}}</aside>
+    {{end}}
+
+    <div class="main-content">{{template "content" .}}</div>
+
+    {{if .ShowRightSidebar}}
+    <aside class="sidebar-right">{{template "user-card" .}}</aside>
+    {{end}}
+  </div>
+  ```
+
+  **Rationale:**
+
+  - Moving layout decisions to Go handlers makes them unit-testable
+  - Reduces template complexity and improves readability
+  - Single `LayoutClass` field simplifies CSS and template logic
+
+---
+
+### PERF-6: Sidebar Cards Duplication
+
+- **Location:** `base.html`, Lines 287-335 (`post-sidebar-cards`) and Lines 337-371 (`post-create-sidebar-cards`)
+- **Description:** These two templates share ~80% identical markup for the image upload and category selection sections.
+
+- **Suggested Improvement:** Extract shared components:
+
+  ```html
+  {{define "image-upload-section"}}
+  <div class="user-card">
+    <h2>Image</h2>
+    {{if .ShowCurrentImage}}
+    <div class="form-group">
+      <div class="current-image" id="current-image-container">
+        <img src="{{.ImageURL}}" alt="Current image" id="current-image" />
+        <button
+          type="button"
+          class="btn-remove-image"
+          id="remove-current-image"
+          title="Remove image"
+        >
+          <span class="remove-icon">×</span> Remove Image
+        </button>
+      </div>
+    </div>
+    {{end}}
+    <div class="form-group">
+      <label for="image"
+        >{{if .ShowCurrentImage}}Replace Image{{else}}Add Image{{end}}
+        (Optional)</label
+      >
+      <div class="file-input-wrapper">
+        <label for="image" class="file-input-label">Choose File</label>
+        <input
+          type="file"
+          id="image"
+          name="image"
+          accept="image/jpeg,image/png,image/gif"
+          form="{{.FormID}}"
+        />
+        <span class="file-name" id="file-name-display">No file chosen</span>
+      </div>
+      <span class="form-help">JPEG, PNG, or GIF. Maximum 20MB</span>
+      <div id="image-preview" class="image-preview"></div>
+    </div>
+  </div>
+  {{end}} {{define "category-selection-section"}}
+  <div class="user-card" style="margin-top:1rem;">
+    <h2>Categories</h2>
+    <div class="form-group">
+      <div class="category-checkboxes">
+        {{if .Categories}} {{range .Categories}}
+        <label class="checkbox-label">
+          <input
+            type="checkbox"
+            name="categories"
+            value="{{.Name}}"
+            form="{{$.FormID}}"
+            {{if
+            $.SelectedCategories}}{{range
+            $.SelectedCategories}}{{if
+            eq
+            .
+            $.Name}}checked{{end}}{{end}}{{end}}
+          />
+          {{.Name}}
+        </label>
+        {{end}} {{else}}
+        <p class="form-help">No categories available</p>
+        {{end}}
+      </div>
+      <span class="form-help">Select at least one category</span>
+    </div>
+  </div>
+  {{end}}
+  ```
+
+  **Rationale:** Reduces code duplication from ~80 lines to ~40 lines, centralizes form component logic.
 
 ---
 
@@ -216,7 +427,7 @@ The template codebase is **well-structured and follows Go's html/template conven
 - **Location:** Various buttons and links lack accessibility attributes
 
   - `post_detail.html` Line 33: `<button class="btn-like"...>` - Missing aria-label
-  - `comments.html` Lines 22-27: Like/dislike buttons missing labels
+  - `post_detail.html` Lines 33-38, `comments.html` Lines 22-27: Like/dislike buttons missing labels
   - `base.html` Line 295: Remove image button has only title, missing aria-label
 
 - **Recommendation:** Add accessibility labels:
@@ -225,11 +436,22 @@ The template codebase is **well-structured and follows Go's html/template conven
   <button
     class="btn-like"
     data-post-id="{{.Post.PublicID}}"
-    aria-label="Like this post"
+    aria-label="Like this post, current count: {{.Post.LikeCount}}"
+    title="Like"
   >
     👍 Like ({{.Post.LikeCount}})
   </button>
+  <button
+    class="btn-dislike"
+    data-post-id="{{.Post.PublicID}}"
+    aria-label="Dislike this post, current count: {{.Post.DislikeCount}}"
+    title="Dislike"
+  >
+    👎 Dislike ({{.Post.DislikeCount}})
+  </button>
   ```
+
+  **Rationale:** Screen readers cannot interpret emoji. ARIA labels provide context for users with assistive technologies, improving accessibility compliance.
 
 ---
 
@@ -263,8 +485,11 @@ The template codebase is **well-structured and follows Go's html/template conven
   ```
 
 - **Recommendation:** Either:
+
   1. Generate dynamically in Go: `{{.CurrentYear}}`
   2. Or use a year range: `&copy; 2024-{{.CurrentYear}}`
+
+  **Rationale:** Avoids manual updates, ensures copyright notice stays current automatically.
 
 ---
 
@@ -313,39 +538,82 @@ The template codebase is **well-structured and follows Go's html/template conven
 
 ---
 
-### NIT-7: Post Sidebar Templates Could Be Merged
+### NIT-7: Inconsistent Error Container IDs
 
-- **Location:** `base.html`, Lines 287-335 (`post-sidebar-cards`) and Lines 338-371 (`post-create-sidebar-cards`)
-- **Description:** These two templates are nearly identical, differing only in:
-
-  1. Whether to show current image
-  2. The `form` attribute value (`post-edit-form` vs `post-create-form`)
-  3. Pre-checked categories
-
-- **Recommendation:** Merge into a single template with conditional logic:
+- **Location:** Multiple templates
+- **Description:** Error containers use different IDs across templates:
 
   ```html
-  {{define "post-sidebar-cards"}}
-  <div class="user-card">
-    <h2>Image</h2>
-    {{if and .Post .Post.ImageURL}}
-    <div class="form-group">{{/* Current image section */}}</div>
-    {{end}}
+  <!-- home.html, board.html, post_detail.html, comments.html -->
+  <div id="page-errors" class="form-errors"></div>
 
-    <div class="form-group">
-      <label for="image"
-        >{{if and .Post .Post.ImageURL}}Replace Image{{else}}Add Image{{end}}
-        (Optional)</label
-      >
-      <input
-        type="file"
-        ...
-        form="{{if .Post}}post-edit-form{{else}}post-create-form{{end}}"
-      />
-    </div>
-  </div>
-  {{/* Categories section with similar conditional */}} {{end}}
+  <!-- login.html, register.html, post_create.html, post_edit.html -->
+  <div id="form-errors" class="form-errors"></div>
   ```
+
+- **Suggested Improvement:** Standardize on a single convention:
+
+  - Use `id="page-errors"` for page-level errors (top of page)
+  - Use `id="form-errors"` for form-specific validation errors (inside forms)
+
+  Or create a reusable error container template:
+
+  ```html
+  {{define "error-container"}}
+  <div id="{{.ErrorContainerID}}" class="form-errors"></div>
+  {{end}}
+  ```
+
+  **Rationale:** Consistent naming makes JavaScript error handling simpler and more predictable. A single `showError()` function can target the appropriate container.
+
+---
+
+### NIT-8: CSS Class Naming Inconsistency
+
+- **Location:** Multiple templates
+- **Description:** Two naming conventions are in use:
+
+  - BEM-like: `post-header-compact`, `category-tag-compact`
+  - Simple: `post-header`, `category-tag`
+
+- **Recommendation:** Consider standardizing on one approach for maintainability.
+
+---
+
+### NIT-9: Form Attribute Pattern Complexity
+
+- **Location:** Sidebar templates in `base.html`
+- **Description:** The use of `form="post-edit-form"` to associate inputs outside the `<form>` element with the form is a clever workaround for the sidebar layout, but adds complexity.
+
+- **Recommendation:** Consider documenting this pattern clearly in the templates or simplifying the layout to keep form inputs inside the form element.
+
+---
+
+## Action Items
+
+### High Priority
+
+- [ ] Add CSRF tokens to all POST forms (`login.html`, `register.html`)
+- [ ] Verify XSS mitigations are in place server-side for post/comment content
+- [ ] Move inline styles from `health.html` to `/static/css/style.css`
+- [ ] Refactor `health.html` to use structured data instead of repetitive conditionals
+
+### Medium Priority
+
+- [ ] Create reusable `post-card-compact` template component
+- [ ] Simplify `base.html` layout logic by moving decisions to Go handlers
+- [ ] Add ARIA labels to all interactive buttons (like/dislike, delete, edit)
+- [ ] Extract shared sidebar card components to reduce duplication
+
+### Low Priority
+
+- [ ] Remove duplicate `$showUserSidebar` variable declaration in `base.html`
+- [ ] Standardize error container naming convention
+- [ ] Standardize form ID naming to kebab-case
+- [ ] Create reusable load-more button template
+- [ ] Make footer copyright year dynamic
+- [ ] Standardize CSS class naming convention
+- [ ] Document form attribute pattern for sidebar inputs
 
 ---
 
@@ -378,6 +646,22 @@ The template codebase is **well-structured and follows Go's html/template conven
 | `post_detail.html` | 111   | ⚠️ XSS review needed |
 | `post_edit.html`   | 48    | Minor issues         |
 | `register.html`    | 36    | ❌ Missing CSRF      |
+
+---
+
+## Notes
+
+1. **Template Scope**: The Go Simplifier workflow is designed for `.go` files. This review adapts similar principles (DRY, KISS, clarity, maintainability) to Go `html/template` files.
+
+2. **Security Considerations**: The templates correctly use Go's `html/template` package which auto-escapes HTML, preventing XSS vulnerabilities. The use of `{{.}}` and `{{urlquery .}}` is appropriate.
+
+3. **ID Security Compliance**: All templates correctly use `PublicID` (UUID) for URLs and data attributes, never exposing internal IDs. This aligns with the GEMINI.md security guidelines.
+
+4. **Template Composition**: Good use of `{{define}}` and `{{template}}` for component reuse in `base.html`. This pattern should be extended to other repeated elements.
+
+5. **JavaScript Dependencies**: Templates correctly load JavaScript at the end of the body and use the `{{block "scripts" .}}` pattern for page-specific scripts.
+
+6. **Form Attribute Pattern**: The use of `form="post-edit-form"` to associate inputs outside the `<form>` element with the form is a clever workaround for the sidebar layout, but adds complexity. Consider documenting this pattern.
 
 ---
 
