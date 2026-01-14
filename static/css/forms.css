@@ -34,7 +34,7 @@
 
 .form-group input:focus {
     outline: none;
-    border-color: #a3d9c5; /* Darker pastel green with blue tint */
+    border-color: var(--color-primary);
     box-shadow: 0 0 0 2px rgba(163, 217, 197, 0.3);
 }
 
@@ -53,7 +53,7 @@
 
 .form-group textarea:focus {
     outline: none;
-    border-color: #a3d9c5;
+    border-color: var(--color-primary);
     box-shadow: 0 0 0 2px rgba(163, 217, 197, 0.3);
 }
 
@@ -69,7 +69,7 @@
     margin-right: 0.5rem;
     width: 18px;
     height: 18px;
-    accent-color: #a3d9c5;
+    accent-color: var(--color-primary);
 }
 
 /* Categories grid for post forms */
@@ -93,14 +93,14 @@
 
 .category-checkbox:hover {
     background-color: #e8f4f0;
-    border-color: #a3d9c5;
+    border-color: var(--color-primary);
 }
 
 .category-checkbox input[type="checkbox"] {
     margin-right: 0.5rem;
     width: 16px;
     height: 16px;
-    accent-color: #a3d9c5;
+    accent-color: var(--color-primary);
 }
 
 .category-checkbox input[type="checkbox"]:checked + span {
@@ -193,7 +193,7 @@
     border-radius: 8px;
     background: linear-gradient(135deg, #b5ead7 0%, #c2f2e9 100%);
     color: #5a5a5a;
-    border: 1px solid #a3d9c5;
+    border: 1px solid var(--color-primary);
     box-shadow: 0 2px 6px rgba(181, 234, 215, 0.4);
     cursor: pointer;
     font-weight: 500;
@@ -201,7 +201,7 @@
 }
 
 .file-input-label:hover {
-    background: linear-gradient(135deg, #a3d9c5 0%, #b0f0db 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(181, 234, 215, 0.4);
 }
@@ -277,4 +277,37 @@
 
 .current-image .btn-remove-image {
     margin-top: 0.75rem;
+}
+
+/* ==========================================================================
+   UTILITY STYLES - For replacing inline styles in templates
+   ========================================================================== */
+
+/* Filter button styling (base.html filter-card) */
+.btn-filter-apply {
+    font-weight: normal;
+}
+
+.btn-filter-reset {
+    margin-top: 0.5rem;
+    display: block;
+    text-align: center;
+}
+
+/* Sidebar card spacing (base.html sidebar cards) */
+.user-card-spaced {
+    margin-top: 1rem;
+}
+
+/* Content preview box styling (post_create.html, post_edit.html) */
+.content-preview {
+    border: 1px solid #e0e0e0;
+    padding: 1rem;
+    min-height: 100px;
+    background-color: #fafafa;
+}
+
+/* Post meta date alignment (post_detail.html) */
+.post-meta .date-right {
+    margin-left: auto;
 }

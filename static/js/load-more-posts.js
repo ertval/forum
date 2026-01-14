@@ -1,4 +1,5 @@
 // Load More Posts functionality for the forum homepage
+'use strict';
 
 // Initialize as soon as possible - handle both cases where DOM is already ready or not
 (function() {

@@ -15,10 +15,13 @@ import (
 
 // RegisterAPIRoutes registers all reaction API routes with the router.
 func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
-	// POST /api/reactions - Add or update reaction (requires auth)
-	router.HandleFunc("POST /api/reactions", h.AddReactionAPI)
-	// DELETE /api/reactions - Remove reaction (requires auth)
-	router.HandleFunc("DELETE /api/reactions", h.RemoveReactionAPI)
+	authMiddleware := h.middlewareProvider.RequireAuth()
+
+	// Protected API routes (require authentication)
+	router.Handle("POST /api/reactions", authMiddleware(http.HandlerFunc(h.AddReactionAPI)))
+	router.Handle("DELETE /api/reactions", authMiddleware(http.HandlerFunc(h.RemoveReactionAPI)))
+
+	// Public API routes (no authentication required)
 	// GET /api/reactions/{targetType}/{targetId} - Get reactions for target (public)
 	router.HandleFunc("GET /api/reactions/{targetType}/{targetId}", h.GetReactionsAPI)
 	// GET /api/reactions/{targetType}/{targetId}/count - Count reactions (public)
@@ -291,7 +294,6 @@ func (h *HTTPHandler) CountReactionsAPI(w http.ResponseWriter, r *http.Request) 
 
 	h.writeJSON(w, http.StatusOK, response)
 }
-
 
 // writeJSON writes a JSON response.
 func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interface{}) {

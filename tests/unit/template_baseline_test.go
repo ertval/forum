@@ -111,7 +111,7 @@ func TestAllTemplatesWithBase(t *testing.T) {
 			contains: []string{
 				"<!DOCTYPE html>",
 				"<title>Login - Forum</title>",
-				"loginForm",
+				"login-form",
 			},
 		},
 		{
@@ -121,7 +121,7 @@ func TestAllTemplatesWithBase(t *testing.T) {
 			contains: []string{
 				"<!DOCTYPE html>",
 				"<title>Register - Forum</title>",
-				"registerForm",
+				"register-form",
 			},
 		},
 		{

@@ -1,4 +1,5 @@
 // JavaScript functions for post detail page
+'use strict';
 
 // Helper function to show inline error messages
 function showPageError(message) {

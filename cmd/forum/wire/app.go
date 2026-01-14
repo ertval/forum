@@ -1,5 +1,4 @@
-// Package wire handles dependency injection and application wiring.
-// It initializes all components and returns a fully configured App instance.
+// CORE - Application lifecycle and initialization
 package wire
 
 import (
@@ -49,7 +48,7 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 	// 1. Initialize Database
 	db, err := initDatabase(cfg, lgr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize database: %w", err)
+		return nil, fmt.Errorf("initialize database: %w", err)
 	}
 
 	// 2. Initialize Repositories (Output Adapters)
@@ -59,10 +58,10 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 	services := initServices(repos, cfg, lgr)
 
 	// 4. Initialize HTTP Handlers (Input Adapters)
-	handlers, err := initHandlers(services)
+	handlers, err := initHandlers(services, cfg)
 	if err != nil {
 		db.Close()
-		return nil, fmt.Errorf("failed to initialize handlers: %w", err)
+		return nil, fmt.Errorf("initialize handlers: %w", err)
 	}
 
 	// 5. Initialize HTTP Server
@@ -83,7 +82,7 @@ func initDatabase(cfg *config.Config, lgr *logger.Logger) (*database.Connection,
 
 	dbConn, err := database.NewConnection(cfg.Database.Path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		return nil, fmt.Errorf("database connection: %w", err)
 	}
 
 	lgr.Info("Running database migrations")
@@ -92,7 +91,7 @@ func initDatabase(cfg *config.Config, lgr *logger.Logger) (*database.Connection,
 		if closeErr := dbConn.Close(); closeErr != nil {
 			lgr.Error("Failed to close database after migration failure", logger.Error(closeErr))
 		}
-		return nil, fmt.Errorf("failed to run migrations: %w", err)
+		return nil, fmt.Errorf("migrations: %w", err)
 	}
 
 	return dbConn, nil
@@ -136,10 +135,8 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *
 	}))
 	server.Router().Handle("GET /health-api", httpserver.HealthAPI(healthChecker))
 
-	// Serve static files (optional - skip if directory doesn't exist)
-	// This allows tests to run without static files
-	lgr.Info("Checking for static directory")
-	if _, err := os.Stat("./static"); err == nil {
+	// Serve static files (optional - skip if directory doesn't exist or isn't a directory)
+	if info, err := os.Stat("./static"); err == nil && info.IsDir() {
 		lgr.Info("Registering static file handler")
 		server.Router().Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 	}

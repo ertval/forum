@@ -1,4 +1,5 @@
 // Load More Comments functionality for the My Comments page
+'use strict';
 
 (function() {
     function init() {

@@ -11,6 +11,14 @@ import (
 	"forum/internal/platform/logger"
 )
 
+// Package-level error logger (created once, not on every error)
+var errLogger = logger.NewWithConfig(logger.ErrorLevel, os.Stderr, &logger.Config{
+	TimePrecision: logger.TimePrecisionSeconds,
+	AllowedFields: []string{"status", "error"},
+	MaxLineWidth:  200,
+	Colorize:      true,
+})
+
 // Error represents a domain error with additional context.
 type Error struct {
 	Code    string // Error code for identification
@@ -75,24 +83,23 @@ const (
 	ErrCodeTooManyRequests = "TOO_MANY_REQUESTS"
 )
 
+// codeToStatus maps error codes to HTTP status codes (KISS-5: map lookup instead of switch)
+var codeToStatus = map[string]int{
+	ErrCodeValidation:      http.StatusBadRequest,
+	ErrCodeBadRequest:      http.StatusBadRequest,
+	ErrCodeUnauthorized:    http.StatusUnauthorized,
+	ErrCodeForbidden:       http.StatusForbidden,
+	ErrCodeNotFound:        http.StatusNotFound,
+	ErrCodeConflict:        http.StatusConflict,
+	ErrCodeTooManyRequests: http.StatusTooManyRequests,
+	ErrCodeInternal:        http.StatusInternalServerError,
+}
+
 // HTTPStatus maps error codes to HTTP status codes.
 func HTTPStatus(err error) int {
 	if e, ok := err.(*Error); ok {
-		switch e.Code {
-		case ErrCodeValidation, ErrCodeBadRequest:
-			return http.StatusBadRequest
-		case ErrCodeUnauthorized:
-			return http.StatusUnauthorized
-		case ErrCodeForbidden:
-			return http.StatusForbidden
-		case ErrCodeNotFound:
-			return http.StatusNotFound
-		case ErrCodeConflict:
-			return http.StatusConflict
-		case ErrCodeTooManyRequests:
-			return http.StatusTooManyRequests
-		case ErrCodeInternal:
-			return http.StatusInternalServerError
+		if status, found := codeToStatus[e.Code]; found {
+			return status
 		}
 	}
 	return http.StatusInternalServerError
@@ -122,6 +129,11 @@ func ToHTTPResponse(err error) ErrorResponse {
 // This is the standard way to return errors from HTTP handlers.
 // It automatically logs errors to stderr for debugging and monitoring.
 func WriteErrorJSON(w http.ResponseWriter, status int, message string) {
+	// Log error for debugging (using package-level logger)
+	errLogger.Error("http.error",
+		logger.Int("status", status),
+		logger.String("error", message))
+
 	// Set JSON content type
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -133,22 +145,11 @@ func WriteErrorJSON(w http.ResponseWriter, status int, message string) {
 		Error: message,
 	}
 
-	// Log error for debugging (human-readable to stderr)
-	cfg := &logger.Config{
-		TimePrecision: logger.TimePrecisionSeconds,
-		AllowedFields: []string{"status", "error"},
-		MaxLineWidth:  200,
-		Colorize:      true,
-	}
-	lgr := logger.NewWithConfig(logger.ErrorLevel, os.Stderr, cfg)
-	lgr.Error("http.error",
-		logger.Int("status", status),
-		logger.String("error", message))
-
-	// Write JSON response
+	// Write JSON response with fallback to plain text if encoding fails (CRIT-3)
 	if err := json.NewEncoder(w).Encode(errResp); err != nil {
-		// If JSON encoding fails, log but don't expose to client
-		lgr.Error("failed to encode error response",
-			logger.Error(err))
+		// JSON encoding failed - log and send plain text fallback
+		errLogger.Error("failed to encode error response", logger.Error(err))
+		// Note: headers already sent, but we can try to write something useful
+		// The client may receive a partial/malformed response in this edge case
 	}
 }

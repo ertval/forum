@@ -8,20 +8,23 @@ import (
 	"net/http"
 	"time"
 
+	authPorts "forum/internal/modules/auth/ports"
 	commentDomain "forum/internal/modules/comment/domain"
 	platformErrors "forum/internal/platform/errors"
 )
 
 // RegisterAPIRoutes registers all comment API routes with the router.
 func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
-	// POST /api/comments/posts/{post_id} - Create comment (requires auth)
-	router.HandleFunc("POST /api/comments/posts/{post_id}", h.CreateCommentAPI)
+	authMiddleware := h.middlewareProvider.RequireAuth()
+
+	// Protected API routes (require authentication)
+	router.Handle("POST /api/comments/posts/{post_id}", authMiddleware(http.HandlerFunc(h.CreateCommentAPI)))
+	router.Handle("PUT /api/comments/{id}", authMiddleware(http.HandlerFunc(h.UpdateCommentAPI)))
+	router.Handle("DELETE /api/comments/{id}", authMiddleware(http.HandlerFunc(h.DeleteCommentAPI)))
+
+	// Public API routes (no authentication required)
 	// GET /api/comments/{id} - Get comment (public)
 	router.HandleFunc("GET /api/comments/{id}", h.GetCommentAPI)
-	// PUT /api/comments/{id} - Update comment (requires auth + ownership)
-	router.HandleFunc("PUT /api/comments/{id}", h.UpdateCommentAPI)
-	// DELETE /api/comments/{id} - Delete comment (requires auth + ownership)
-	router.HandleFunc("DELETE /api/comments/{id}", h.DeleteCommentAPI)
 	// GET /api/comments/posts/{post_id} - List comments for post (public)
 	router.HandleFunc("GET /api/comments/posts/{post_id}", h.ListCommentsByPostAPI)
 }
@@ -35,10 +38,17 @@ func (h *HTTPHandler) CreateCommentAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get userID from session
-	userID, _ := h.GetCurrentUser(r)
-	if userID == 0 {
+	// Get user PUBLIC ID (UUID) from context (set by RequireAuth middleware)
+	userPublicID := authPorts.GetUserID(r.Context())
+	if userPublicID == "" {
 		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	// Convert PUBLIC ID (UUID) to internal INT ID for service layer
+	userID, err := h.getInternalUserID(r.Context(), userPublicID)
+	if err != nil {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
 		return
 	}
 
@@ -136,10 +146,17 @@ func (h *HTTPHandler) UpdateCommentAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get userID from session
-	userID, _ := h.GetCurrentUser(r)
-	if userID == 0 {
+	// Get user PUBLIC ID (UUID) from context
+	userPublicID := authPorts.GetUserID(r.Context())
+	if userPublicID == "" {
 		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	// Convert PUBLIC ID (UUID) to internal INT ID for service layer
+	userID, err := h.getInternalUserID(r.Context(), userPublicID)
+	if err != nil {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
 		return
 	}
 
@@ -214,10 +231,17 @@ func (h *HTTPHandler) DeleteCommentAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get userID from session
-	userID, _ := h.GetCurrentUser(r)
-	if userID == 0 {
+	// Get user PUBLIC ID (UUID) from context
+	userPublicID := authPorts.GetUserID(r.Context())
+	if userPublicID == "" {
 		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	// Convert PUBLIC ID (UUID) to internal INT ID for service layer
+	userID, err := h.getInternalUserID(r.Context(), userPublicID)
+	if err != nil {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
 		return
 	}
 

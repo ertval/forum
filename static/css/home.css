@@ -40,7 +40,7 @@
 }
 
 .post-header-compact h3 a:hover {
-    color: #a3d9c5;
+    color: var(--color-primary);
 }
 
 .post-meta-compact {
@@ -154,7 +154,7 @@
 }
 
 .no-posts-home a {
-    color: #a3d9c5;
+    color: var(--color-primary);
     text-decoration: none;
     font-weight: 500;
 }

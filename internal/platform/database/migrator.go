@@ -2,6 +2,7 @@
 package database
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -59,6 +60,10 @@ func (m *Migrator) Migrate(migrationsPath string) error {
 			return err
 		}
 		applied[v] = true
+	}
+	// NIT-1: Check for iteration errors
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("error iterating migration rows: %w", err)
 	}
 
 	// Sort migration files by version
@@ -134,15 +139,19 @@ func extractUpSQL(content string) string {
 }
 
 // Rollback rolls back the last migration.
-// TODO: Implement rollback logic.
+// Returns an error as rollback is not yet implemented.
 func (m *Migrator) Rollback() error {
-	// Implementation placeholder
-	return nil
+	return errors.New("rollback not yet implemented")
 }
 
 // Version returns the current database schema version.
-// TODO: Implement version tracking.
 func (m *Migrator) Version() (int, error) {
-	// Implementation placeholder
-	return 0, nil
+	var version int
+	err := m.conn.DB().QueryRow(
+		"SELECT COALESCE(MAX(version), 0) FROM schema_migrations",
+	).Scan(&version)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get schema version: %w", err)
+	}
+	return version, nil
 }

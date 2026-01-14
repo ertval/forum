@@ -3,6 +3,7 @@ package httpserver
 
 import (
 	"net/http"
+	"strconv"
 )
 
 // SecurityHeadersConfig holds configuration for security headers middleware.
@@ -70,7 +71,7 @@ func SecurityHeaders(cfg SecurityHeadersConfig) Middleware {
 
 			// Strict-Transport-Security (HSTS): Forces HTTPS
 			if cfg.HSTSMaxAge > 0 {
-				hstsValue := "max-age=" + itoa(cfg.HSTSMaxAge)
+				hstsValue := "max-age=" + strconv.Itoa(cfg.HSTSMaxAge)
 				if cfg.HSTSIncludeSubdomains {
 					hstsValue += "; includeSubDomains"
 				}
@@ -108,33 +109,4 @@ func SecurityHeaders(cfg SecurityHeadersConfig) Middleware {
 			next.ServeHTTP(w, r)
 		})
 	}
-}
-
-// itoa converts an integer to a string without importing strconv.
-func itoa(i int) string {
-	if i == 0 {
-		return "0"
-	}
-
-	negative := i < 0
-	if negative {
-		i = -i
-	}
-
-	// Maximum int64 is 19 digits
-	buf := make([]byte, 20)
-	pos := len(buf)
-
-	for i > 0 {
-		pos--
-		buf[pos] = byte('0' + i%10)
-		i /= 10
-	}
-
-	if negative {
-		pos--
-		buf[pos] = '-'
-	}
-
-	return string(buf[pos:])
 }

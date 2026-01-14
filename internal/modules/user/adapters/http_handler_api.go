@@ -11,16 +11,21 @@ import (
 
 // RegisterAPIRoutes registers all user API routes with the router.
 func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
+	authMiddleware := h.middlewareProvider.RequireAuth()
+
+	// Public API routes (no authentication required)
 	// GET /api/users/{id} - Get user profile
 	router.HandleFunc("GET /api/users/{id}", h.GetUserAPI)
 	// GET /api/users - List users
 	router.HandleFunc("GET /api/users", h.ListUsersAPI)
+
+	// Protected API routes (require authentication)
 	// PUT /api/users/{id}/role - Update user role (admin only)
-	router.HandleFunc("PUT /api/users/{id}/role", h.UpdateRoleAPI)
+	router.Handle("PUT /api/users/{id}/role", authMiddleware(http.HandlerFunc(h.UpdateRoleAPI)))
 	// PUT /api/users/{id}/deactivate - Deactivate user
-	router.HandleFunc("PUT /api/users/{id}/deactivate", h.DeactivateUserAPI)
+	router.Handle("PUT /api/users/{id}/deactivate", authMiddleware(http.HandlerFunc(h.DeactivateUserAPI)))
 	// PUT /api/users/{id}/activate - Activate user
-	router.HandleFunc("PUT /api/users/{id}/activate", h.ActivateUserAPI)
+	router.Handle("PUT /api/users/{id}/activate", authMiddleware(http.HandlerFunc(h.ActivateUserAPI)))
 }
 
 // GetUserAPI handles user retrieval requests.

@@ -9,10 +9,13 @@ import (
 
 // RegisterAPIRoutes registers all notification API routes with the router.
 func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
+	authMiddleware := h.middlewareProvider.RequireAuth()
+
+	// Protected API routes (require authentication)
 	// GET /api/notifications - Get user's notifications
-	router.HandleFunc("GET /api/notifications", h.GetNotificationsAPI)
+	router.Handle("GET /api/notifications", authMiddleware(http.HandlerFunc(h.GetNotificationsAPI)))
 	// PUT /api/notifications/{id}/read - Mark notification as read
-	router.HandleFunc("PUT /api/notifications/{id}/read", h.MarkAsReadAPI)
+	router.Handle("PUT /api/notifications/{id}/read", authMiddleware(http.HandlerFunc(h.MarkAsReadAPI)))
 }
 
 // GetNotificationsAPI handles retrieving user notifications.

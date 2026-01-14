@@ -4,7 +4,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -45,11 +44,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	lgr.Info(fmt.Sprintf("Forum server started on port %d (HTTP) and %d (HTTPS)",
-		cfg.Server.Port, cfg.Server.TLSPort))
-	lgr.Info(fmt.Sprintf("HTTP access: http://localhost:%d", cfg.Server.Port))
+	lgr.Info("Forum server started",
+		logger.Int("http_port", cfg.Server.Port),
+		logger.Int("https_port", cfg.Server.TLSPort))
 	if cfg.Security.TLSCertFile != "" && cfg.Security.TLSKeyFile != "" {
-		lgr.Info(fmt.Sprintf("HTTPS access: https://localhost:%d", cfg.Server.TLSPort))
+		lgr.Info("HTTPS enabled", logger.Int("port", cfg.Server.TLSPort))
 	}
 
 	// 5. Graceful Shutdown

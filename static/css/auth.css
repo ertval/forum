@@ -35,7 +35,7 @@
 .auth-form button {
     width: 100%;
     padding: 0.75rem;
-    background: linear-gradient(135deg, #a3d9c5 0%, #c2f2e9 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, #c2f2e9 100%);
     color: #5a5a5a;
     border: none;
     border-radius: 8px;
@@ -59,7 +59,7 @@
 }
 
 .auth-link a {
-    color: #a3d9c5;
+    color: var(--color-primary);
     text-decoration: none;
     font-weight: 500;
 }
@@ -78,7 +78,7 @@
 }
 
 .login-prompt a {
-    color: #a3d9c5;
+    color: var(--color-primary);
     text-decoration: none;
     font-weight: 500;
 }

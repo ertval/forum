@@ -1,8 +1,9 @@
 // Authentication JavaScript functions for login and register forms
+'use strict';
 
 document.addEventListener('DOMContentLoaded', function() {
     // Handle login form submission
-    const loginForm = document.getElementById('loginForm');
+    const loginForm = document.getElementById('login-form');
     if (loginForm) {
         loginForm.addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -41,7 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Handle register form submission
-    const registerForm = document.getElementById('registerForm');
+    const registerForm = document.getElementById('register-form');
     if (registerForm) {
         registerForm.addEventListener('submit', async function(e) {
             e.preventDefault();

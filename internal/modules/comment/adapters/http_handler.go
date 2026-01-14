@@ -107,6 +107,24 @@ func (h *HTTPHandler) GetCurrentUser(r *http.Request) (userID int, username stri
 	return session.UserID, "" // Return ID even if username fetch fails
 }
 
+// getInternalUserID converts a PublicID (UUID) from context to internal INT ID.
+// This is used by handlers to convert the UUID stored in context by middleware
+// to the internal INT ID needed for service layer calls.
+// SECURITY: Ensures public UUID is never exposed, only used for lookups.
+func (h *HTTPHandler) getInternalUserID(ctx context.Context, userPublicID string) (int, error) {
+	if userPublicID == "" {
+		return 0, fmt.Errorf("user ID required")
+	}
+
+	// Fetch user by PublicID to get internal INT ID
+	user, err := h.userService.GetByPublicID(ctx, userPublicID)
+	if err != nil {
+		return 0, fmt.Errorf("user not found")
+	}
+
+	return user.ID, nil
+}
+
 // RegisterRoutes registers all comment routes.
 func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	// Register API routes

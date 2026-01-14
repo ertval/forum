@@ -46,6 +46,15 @@ type HealthPageConfig struct {
 // HealthPage renders an HTML page with the system's health status.
 // Now accepts shared templates and auth function to preserve session.
 func HealthPage(cfg HealthPageConfig) http.HandlerFunc {
+	// Parse templates ONCE at handler creation time (not on every request)
+	healthTemplate, parseErr := template.ParseFiles("templates/base.html", "templates/health.html")
+	if parseErr != nil {
+		// If templates can't be parsed at startup, return a handler that reports the error
+		return func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "Health templates not available", http.StatusInternalServerError)
+		}
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Perform checks
 		results := cfg.Checker.Check(r.Context())
@@ -72,17 +81,11 @@ func HealthPage(cfg HealthPageConfig) http.HandlerFunc {
 			"User":   currentUser,
 			// Health page should not show the sidebar even when user is present
 			"ShowSidebar": false,
-		} // Always parse health-specific templates to avoid conflicts with other content blocks
-		var tmpl *template.Template
-		var err error
-		tmpl, err = template.ParseFiles("templates/base.html", "templates/health.html")
-		if err != nil {
-			http.Error(w, "Could not parse templates", http.StatusInternalServerError)
-			return
-		} // Execute the template
+		}
+
+		// Execute the pre-parsed template
 		w.Header().Set("Content-Type", "text/html")
-		err = tmpl.ExecuteTemplate(w, "base", data)
-		if err != nil {
+		if err := healthTemplate.ExecuteTemplate(w, "base", data); err != nil {
 			http.Error(w, "Could not execute template", http.StatusInternalServerError)
 		}
 	}

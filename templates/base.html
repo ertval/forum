@@ -75,7 +75,7 @@
     <main>
         <div class="container">
             {{/* Determine layout based on page type and user status */}}
-            {{ $showUserSidebar := and .User (not (or (eq .Title "Home") (eq .Title "Health Status"))) }}
+            {{/* $showUserSidebar already declared in body tag section (line 13) */}}
             {{ $showLeftSidebar := .ShowFilter }}
             {{ $isPostFormPage := or (eq .Title "Create Post") (eq .Title "Edit Post") }}
 
@@ -240,9 +240,8 @@
 
         <!-- 'Posts I Liked' filter removed: use 'My Likes' button in user card instead -->
 
-        <button type="submit" class="btn btn-primary btn-small" style="font-weight: normal;">Apply Filters</button>
-        <a href="{{.FilterAction}}" class="btn btn-primary btn-small"
-            style="margin-top: 0.5rem; display: block; text-align: center;">Reset</a>
+        <button type="submit" class="btn btn-primary btn-small btn-filter-apply">Apply Filters</button>
+        <a href="{{.FilterAction}}" class="btn btn-primary btn-small btn-filter-reset">Reset</a>
     </form>
 </div>
 {{end}}
@@ -293,7 +292,7 @@
     <div class="form-group">
         <div class="current-image" id="current-image-container">
             <img src="{{.Post.ImageURL}}" alt="Current image" id="current-image">
-            <button type="button" class="btn-remove-image" id="remove-current-image" title="Remove image">
+            <button type="button" class="btn-remove-image" id="remove-current-image" title="Remove image" aria-label="Remove the current post image">
                 <span class="remove-icon">×</span> Remove Image
             </button>
         </div>
@@ -313,7 +312,7 @@
     {{end}}
 </div>
 
-<div class="user-card" style="margin-top:1rem;">
+<div class="user-card user-card-spaced">
     <h2>Categories</h2>
     <div class="form-group">
         <div class="category-checkboxes">
@@ -351,7 +350,7 @@
     </div>
 </div>
 
-<div class="user-card" style="margin-top:1rem;">
+<div class="user-card user-card-spaced">
     <h2>Categories</h2>
     <div class="form-group">
         <div class="category-checkboxes">

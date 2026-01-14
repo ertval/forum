@@ -1,4 +1,5 @@
 // Forum Application JavaScript
+'use strict';
 
 // User Menu Dropdown Toggle
 // The script is loaded at the end of body, so DOM is already ready

@@ -73,7 +73,7 @@
 .status-up {
     background: linear-gradient(135deg, #b5ead7 0%, #c2f2e9 100%);
     color: #2d7a5e;
-    border: 1px solid #a3d9c5;
+    border: 1px solid var(--color-primary);
 }
 
 .status-unhealthy,
