@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"forum/internal/modules/auth/domain"
@@ -9,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofrs/uuid/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -658,9 +658,13 @@ func TestService_generateSessionToken(t *testing.T) {
 		t.Error("Generated session token should not be empty")
 	}
 
-	// Try to parse the token as a UUID to verify format
-	_, err = uuid.FromString(token)
+	// Verify the token format (should be 64 characters hex)
+	if len(token) != 64 {
+		t.Errorf("Expected token length 64, got %d", len(token))
+	}
+
+	_, err = hex.DecodeString(token)
 	if err != nil {
-		t.Errorf("Generated token is not a valid UUID: %v", err)
+		t.Errorf("Generated token is not a valid hex string: %v", err)
 	}
 }
