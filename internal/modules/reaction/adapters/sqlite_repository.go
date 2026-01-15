@@ -5,6 +5,7 @@ package adapters
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"forum/internal/modules/reaction/domain"
 	"forum/internal/modules/reaction/ports"
 
@@ -171,6 +172,10 @@ func (r *SQLiteReactionRepository) GetByTargetPublicID(ctx context.Context, targ
 		}
 
 		reactions = append(reactions, &reaction)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating reactions: %w", err)
 	}
 
 	return reactions, nil

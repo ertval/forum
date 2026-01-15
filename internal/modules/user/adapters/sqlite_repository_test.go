@@ -27,6 +27,7 @@ func TestSQLiteUserRepository_Create(t *testing.T) {
 		role TEXT,
 		post_count INTEGER NOT NULL DEFAULT 0,
 		comment_count INTEGER NOT NULL DEFAULT 0,
+		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -89,6 +90,7 @@ func TestSQLiteUserRepository_Get(t *testing.T) {
 		role TEXT,
 		post_count INTEGER NOT NULL DEFAULT 0,
 		comment_count INTEGER NOT NULL DEFAULT 0,
+		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -161,6 +163,7 @@ func TestSQLiteUserRepository_GetByEmail(t *testing.T) {
 		role TEXT,
 		post_count INTEGER NOT NULL DEFAULT 0,
 		comment_count INTEGER NOT NULL DEFAULT 0,
+		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -224,6 +227,7 @@ func TestSQLiteUserRepository_GetByUsername(t *testing.T) {
 		role TEXT,
 		post_count INTEGER NOT NULL DEFAULT 0,
 		comment_count INTEGER NOT NULL DEFAULT 0,
+		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -286,6 +290,7 @@ func TestSQLiteUserRepository_Update(t *testing.T) {
 		role TEXT,
 		post_count INTEGER NOT NULL DEFAULT 0,
 		comment_count INTEGER NOT NULL DEFAULT 0,
+		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -367,6 +372,7 @@ func TestSQLiteUserRepository_Delete(t *testing.T) {
 		role TEXT,
 		post_count INTEGER NOT NULL DEFAULT 0,
 		comment_count INTEGER NOT NULL DEFAULT 0,
+		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -428,6 +434,7 @@ func TestSQLiteUserRepository_List(t *testing.T) {
 		role TEXT,
 		post_count INTEGER NOT NULL DEFAULT 0,
 		comment_count INTEGER NOT NULL DEFAULT 0,
+		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -494,6 +501,7 @@ func TestSQLiteUserRepository_ExistsByEmail(t *testing.T) {
 		role TEXT,
 		post_count INTEGER NOT NULL DEFAULT 0,
 		comment_count INTEGER NOT NULL DEFAULT 0,
+		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -558,6 +566,7 @@ func TestSQLiteUserRepository_ExistsByUsername(t *testing.T) {
 		role TEXT,
 		post_count INTEGER NOT NULL DEFAULT 0,
 		comment_count INTEGER NOT NULL DEFAULT 0,
+		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -622,6 +631,7 @@ func TestSQLiteUserRepository_GetByPublicID(t *testing.T) {
 		role TEXT,
 		post_count INTEGER NOT NULL DEFAULT 0,
 		comment_count INTEGER NOT NULL DEFAULT 0,
+		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -675,8 +685,8 @@ func TestSQLiteUserRepository_GetByPublicID(t *testing.T) {
 
 	// Test non-existent public ID
 	_, err = repo.GetByPublicID(ctx, "non-existent")
-	if err != sql.ErrNoRows {
-		t.Errorf("Expected sql.ErrNoRows, got %v", err)
+	if err != domain.ErrUserNotFound {
+		t.Errorf("Expected domain.ErrUserNotFound, got %v", err)
 	}
 }
 
@@ -697,6 +707,7 @@ func TestSQLiteUserRepository_Count(t *testing.T) {
 		role TEXT,
 		post_count INTEGER NOT NULL DEFAULT 0,
 		comment_count INTEGER NOT NULL DEFAULT 0,
+		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -762,6 +773,7 @@ func TestSQLiteUserRepository_IncrementPostCount(t *testing.T) {
 		role TEXT,
 		post_count INTEGER NOT NULL DEFAULT 0,
 		comment_count INTEGER NOT NULL DEFAULT 0,
+		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -824,6 +836,7 @@ func TestSQLiteUserRepository_DecrementPostCount(t *testing.T) {
 		role TEXT,
 		post_count INTEGER NOT NULL DEFAULT 0,
 		comment_count INTEGER NOT NULL DEFAULT 0,
+		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -917,6 +930,7 @@ func TestSQLiteUserRepository_IncrementCommentCount(t *testing.T) {
 		role TEXT,
 		post_count INTEGER NOT NULL DEFAULT 0,
 		comment_count INTEGER NOT NULL DEFAULT 0,
+		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER
@@ -979,6 +993,7 @@ func TestSQLiteUserRepository_DecrementCommentCount(t *testing.T) {
 		role TEXT,
 		post_count INTEGER NOT NULL DEFAULT 0,
 		comment_count INTEGER NOT NULL DEFAULT 0,
+		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
 		is_active INTEGER

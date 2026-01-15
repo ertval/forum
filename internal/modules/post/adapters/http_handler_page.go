@@ -5,7 +5,7 @@ package adapters
 
 import (
 	"bytes"
-	"fmt"
+	"log"
 	"net/http"
 
 	authPorts "forum/internal/modules/auth/ports"
@@ -352,8 +352,8 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
-		fmt.Printf("Template error: %v\n", err)
-		http.Error(w, fmt.Sprintf("Failed to render page: %v", err), http.StatusInternalServerError)
+		log.Printf("Template error: %v", err)
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
 		return
 	}
 	if _, err := buf.WriteTo(w); err != nil {

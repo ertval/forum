@@ -4,6 +4,7 @@ package adapters
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"forum/internal/modules/user/domain"
@@ -45,7 +46,9 @@ func (h *HTTPHandler) GetUserAPI(w http.ResponseWriter, r *http.Request) {
 
 	// Return user profile (sensitive fields filtered by JSON tags)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		log.Printf("Error encoding JSON response: %v", err)
+	}
 }
 
 // ListUsersAPI handles listing users with pagination.
@@ -61,10 +64,12 @@ func (h *HTTPHandler) ListUsersAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"users": users,
 		"count": len(users),
-	})
+	}); err != nil {
+		log.Printf("Error encoding JSON response: %v", err)
+	}
 }
 
 // updateRoleRequest represents the request body for role update.
@@ -113,7 +118,9 @@ func (h *HTTPHandler) UpdateRoleAPI(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "role updated successfully"})
+	if err := json.NewEncoder(w).Encode(map[string]string{"message": "role updated successfully"}); err != nil {
+		log.Printf("Error encoding JSON response: %v", err)
+	}
 }
 
 // DeactivateUserAPI handles deactivating a user account.
@@ -138,7 +145,9 @@ func (h *HTTPHandler) DeactivateUserAPI(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "user deactivated successfully"})
+	if err := json.NewEncoder(w).Encode(map[string]string{"message": "user deactivated successfully"}); err != nil {
+		log.Printf("Error encoding JSON response: %v", err)
+	}
 }
 
 // ActivateUserAPI handles activating a user account.
@@ -163,5 +172,7 @@ func (h *HTTPHandler) ActivateUserAPI(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "user activated successfully"})
+	if err := json.NewEncoder(w).Encode(map[string]string{"message": "user activated successfully"}); err != nil {
+		log.Printf("Error encoding JSON response: %v", err)
+	}
 }

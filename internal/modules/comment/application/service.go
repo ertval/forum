@@ -4,11 +4,13 @@ package application
 import (
 	"context"
 	"fmt"
+	"log"
+	"time"
+
 	"forum/internal/modules/comment/domain"
 	"forum/internal/modules/comment/ports"
 	postPorts "forum/internal/modules/post/ports"
 	userPorts "forum/internal/modules/user/ports"
-	"time"
 )
 
 // Service implements the CommentService interface.
@@ -56,9 +58,13 @@ func (s *Service) CreateComment(ctx context.Context, postPublicID string, userID
 	}
 
 	// Increment user's comment count asynchronously (non-blocking)
-	go func() {
-		_ = s.userService.IncrementCommentCount(context.Background(), userID)
-	}()
+	go func(uid int) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.userService.IncrementCommentCount(ctx, uid); err != nil {
+			log.Printf("WARNING: failed to increment comment count for user %d: %v", uid, err)
+		}
+	}(userID)
 
 	return comment, nil
 }
@@ -108,9 +114,13 @@ func (s *Service) DeleteComment(ctx context.Context, commentPublicID string) err
 	}
 
 	// Decrement user's comment count asynchronously (non-blocking)
-	go func() {
-		_ = s.userService.DecrementCommentCount(context.Background(), comment.UserID)
-	}()
+	go func(uid int) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.userService.DecrementCommentCount(ctx, uid); err != nil {
+			log.Printf("WARNING: failed to decrement comment count for user %d: %v", uid, err)
+		}
+	}(comment.UserID)
 
 	return nil
 }

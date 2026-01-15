@@ -2,13 +2,14 @@
 
 A modern web forum built with Go, following Hexagonal Architecture principles. Clean, testable, idiomatic Go code organized as a Modular Monolith.
 
-**Current status**: MVP Core Features - 100% Complete. All core modules (Authentication, User Management, Posts, Categories, Comments, and Reactions) are fully implemented with unit and integration tests. Platform infrastructure (config, database migrations, logging, HTTP server, health checks, upload handling, caching, and validator) is complete. Optional modules (moderation, notification) remain scaffolded. See `docs/IMPLEMENTATION_ROADMAP.md` for detailed progress.
+**Current status**: Production-ready MVP - 100% Core Features Complete. All core modules (Authentication, User Management, Posts, Categories, Comments, and Reactions) are fully implemented with unit and integration tests. Platform infrastructure (config, database migrations, logging, HTTP server, health checks, upload handling, caching, and validator) is complete. Optional modules (moderation, notification) remain scaffolded. See `docs/IMPLEMENTATION_ROADMAP.md` for detailed progress.
 
 ## Features
 
 ### Core Features (Implemented ✅)
 
 - **Authentication & Authorization** ✅
+
   - User registration with email, username, and password
   - Session-based authentication (UUID cookies, server-side storage)
   - Secure password hashing (bcrypt)
@@ -18,6 +19,7 @@ A modern web forum built with Go, following Hexagonal Architecture principles. C
   - Middleware for protected routes (RequireAuth, OptionalAuth)
 
 - **User Management** ✅
+
   - User CRUD operations (get, list, update)
   - Role management (Guest, User, Moderator, Administrator)
   - User activation/deactivation
@@ -25,6 +27,7 @@ A modern web forum built with Go, following Hexagonal Architecture principles. C
   - Filter by created posts or liked posts
 
 - **Posts & Categories** ✅
+
   - Create, read, update, delete posts
   - Multiple categories per post (minimum 1 required)
   - Title validation (max 300 characters)
@@ -38,6 +41,7 @@ A modern web forum built with Go, following Hexagonal Architecture principles. C
   - Image upload support (JPEG, PNG, GIF, max 20MB)
 
 - **Comments** ✅
+
   - Comment on posts
   - Edit/delete own comments
   - Comments visible to all
@@ -62,6 +66,7 @@ A modern web forum built with Go, following Hexagonal Architecture principles. C
 ### Optional Features
 
 - **Moderation System** [OPTIONAL]
+
   - User roles (Guest, User, Moderator, Administrator)
   - Report posts and comments
   - Review and handle reports
@@ -104,7 +109,7 @@ module/
 
 ## Project Structure
 
-``` text
+```text
 forum/
 ├── bin/                     # Compiled binaries
 │   └── forum               # Main application binary
@@ -202,12 +207,11 @@ forum/
 └── README.md              # This file
 ```
 
-
 ## Getting Started
 
 ### Prerequisites
 
-- Go 1.25+
+- Go 1.24+
 - Docker & Docker Compose (for containerized deployment)
 - SQLite3
 
@@ -235,9 +239,9 @@ forum/
 
 4. **Run the application**
 
-  ```bash
-  go run cmd/forum/main.go
-  ```
+```bash
+go run cmd/forum/main.go
+```
 
 5. **Access the forum**
    - HTTP: http://localhost:8080
@@ -354,20 +358,32 @@ All JSON API endpoints follow the pattern: `/api/{module}/{action}`
 - `GET /api/comments/posts/{post_id}` - List comments for post (public)
   - Returns: 200 OK with array of comments
 
-### Reactions (Scaffolded)
+### Reactions ✅
 
 - `POST /api/reactions` - Add/toggle reaction
   - Body: `{"target_type": "post|comment", "target_id": "<uuid>", "type": "like|dislike"}`
+  - Returns: 200 OK
 - `DELETE /api/reactions` - Remove reaction
-- `GET /api/reactions/{target_type}/{target_id}` - Get reactions for target
-- `GET /api/reactions/{target_type}/{target_id}/count` - Count reactions
+  - Body: `{"target_type": "post|comment", "target_id": "<uuid>"}`
+  - Returns: 204 No Content
+- `GET /api/reactions/{target_type}/{target_id}` - Get reactions for target (public)
+  - Returns: 200 OK with array of reactions
+- `GET /api/reactions/{target_type}/{target_id}/count` - Count reactions (public)
+  - Returns: 200 OK with reaction counts
 
-### Users (Planned / Partially Implemented)
+### Users ✅
 
-- `GET /users/:id` - Get user profile
-- `PUT /users/:id` - Update profile (handlers not fully implemented)
-- `GET /users/:id/posts` - User's posts
-- `GET /users/:id/activity` - User's activity
+- `GET /api/users` - List all users (public)
+  - Returns: 200 OK with array of users
+- `GET /api/users/{id}` - Get user profile by public ID (public)
+  - Returns: 200 OK with user object
+- `PUT /api/users/{id}/role` - Update user role (requires admin)
+  - Body: `{"role": "user|moderator|admin"}`
+- `PUT /api/users/{id}/deactivate` - Deactivate user (requires auth)
+- `PUT /api/users/{id}/activate` - Activate user (requires auth)
+
+> [!NOTE]
+> HTML profile pages are currently pending; use API endpoints for user data.
 
 ### Moderation [OPTIONAL]
 
@@ -424,6 +440,7 @@ The `scripts/tests/test_pages.sh` script tests HTML page rendering, static asset
 ```
 
 This tests:
+
 - HTML page structure and accessibility
 - Static assets (CSS, JS)
 - JavaScript API URL verification (ensures all JS files use correct `/api/` prefix)
@@ -491,7 +508,7 @@ Each migration file follows this format:
 -- SQL to apply changes
 CREATE TABLE example (id INTEGER PRIMARY KEY);
 
--- +migrate Down  
+-- +migrate Down
 -- SQL to rollback (if feasible)
 DROP TABLE example;
 ```
@@ -506,15 +523,15 @@ The forum supports image uploads for posts with the following specifications:
 
 ### Configuration
 
-| Environment Variable | Default | Description |
-|---------------------|---------|-------------|
+| Environment Variable | Default            | Description                   |
+| -------------------- | ------------------ | ----------------------------- |
 | `STATIC_UPLOADS_DIR` | `./static/uploads` | Directory for uploaded images |
-| `MAX_UPLOAD_SIZE` | `20971520` (20MB) | Maximum file size in bytes |
+| `MAX_UPLOAD_SIZE`    | `20971520` (20MB)  | Maximum file size in bytes    |
 
 ### Supported Formats
 
 - **JPEG** (`.jpg`, `.jpeg`) - `image/jpeg`
-- **PNG** (`.png`) - `image/png`  
+- **PNG** (`.png`) - `image/png`
 - **GIF** (`.gif`) - `image/gif`
 
 ### Security Features
@@ -528,18 +545,21 @@ The forum supports image uploads for posts with the following specifications:
 ### Usage
 
 **Creating a post with image:**
+
 ```html
 <form method="POST" action="/posts" enctype="multipart/form-data">
-    <input type="file" name="image" accept="image/jpeg,image/png,image/gif">
-    <!-- other fields -->
+  <input type="file" name="image" accept="image/jpeg,image/png,image/gif" />
+  <!-- other fields -->
 </form>
 ```
 
 **Updating/removing image:**
+
 ```html
 <form method="POST" action="/posts/{id}" enctype="multipart/form-data">
-    <input type="file" name="image">
-    <input type="checkbox" name="remove_image" value="true"> Remove current image
+  <input type="file" name="image" />
+  <input type="checkbox" name="remove_image" value="true" /> Remove current
+  image
 </form>
 ```
 
@@ -567,6 +587,7 @@ chmod +x scripts/tests/test_image_upload.sh
 ```
 
 The E2E test script (`scripts/tests/test_image_upload.sh`) validates all audit requirements:
+
 - PNG, JPEG, GIF image uploads
 - Oversized image (>20MB) rejection
 - Image persistence verification
@@ -589,6 +610,7 @@ The E2E test script (`scripts/tests/test_image_upload.sh`) validates all audit r
 ### Implementation Roadmap
 
 See [docs/IMPLEMENTATION_ROADMAP.md](./docs/IMPLEMENTATION_ROADMAP.md) for:
+
 - Current implementation status
 - Phase-by-phase development plan
 - MVP path (6-8 days to functional forum)
@@ -642,6 +664,7 @@ docker run -p 8080:8080 forum:latest
    ```
 
 3. **Obtain proper TLS certificates** (not self-signed):
+
    - **Recommended**: Use [Let's Encrypt](https://letsencrypt.org/) with certbot for free, automated certificates
    - **Alternative**: Purchase from a commercial CA (DigiCert, Sectigo) or use a reverse proxy (Caddy, nginx) for TLS termination
    - See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md#production-tls-certificates) for detailed setup instructions

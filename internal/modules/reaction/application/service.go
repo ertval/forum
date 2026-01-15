@@ -3,12 +3,13 @@ package application
 
 import (
 	"context"
+	"log"
 	"time"
 
+	commentPorts "forum/internal/modules/comment/ports"
+	postPorts "forum/internal/modules/post/ports"
 	"forum/internal/modules/reaction/domain"
 	"forum/internal/modules/reaction/ports"
-	postPorts "forum/internal/modules/post/ports"
-	commentPorts "forum/internal/modules/comment/ports"
 	userPorts "forum/internal/modules/user/ports"
 )
 
@@ -92,12 +93,12 @@ func (s *Service) React(ctx context.Context, userID int, targetPublicID string, 
 
 	// Create new reaction
 	reaction := &domain.Reaction{
-		UserID:       userID,
-		TargetID:     0, // Will be resolved by repository based on targetPublicID
+		UserID:         userID,
+		TargetID:       0,              // Will be resolved by repository based on targetPublicID
 		PublicTargetID: targetPublicID, // Set the public target ID for repository to resolve
-		TargetType:   targetType,
-		Type:         reactionType,
-		CreatedAt:    time.Now(),
+		TargetType:     targetType,
+		Type:           reactionType,
+		CreatedAt:      time.Now(),
 	}
 
 	// The repository will handle resolving the targetPublicID to internal ID
@@ -107,9 +108,13 @@ func (s *Service) React(ctx context.Context, userID int, targetPublicID string, 
 	}
 
 	// Increment user's reaction count asynchronously (non-blocking)
-	go func() {
-		_ = s.userService.IncrementReactionCount(context.Background(), userID)
-	}()
+	go func(uid int) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.userService.IncrementReactionCount(ctx, uid); err != nil {
+			log.Printf("WARNING: failed to increment reaction count for user %d: %v", uid, err)
+		}
+	}(userID)
 
 	return nil
 }
@@ -145,9 +150,13 @@ func (s *Service) RemoveReaction(ctx context.Context, userID int, targetPublicID
 	}
 
 	// Decrement user's reaction count asynchronously (non-blocking)
-	go func() {
-		_ = s.userService.DecrementReactionCount(context.Background(), userID)
-	}()
+	go func(uid int) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.userService.DecrementReactionCount(ctx, uid); err != nil {
+			log.Printf("WARNING: failed to decrement reaction count for user %d: %v", uid, err)
+		}
+	}(userID)
 
 	return nil
 }

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 
 	authPorts "forum/internal/modules/auth/ports"
 	"forum/internal/modules/reaction/domain"
@@ -186,16 +185,9 @@ func (h *HTTPHandler) RemoveReactionAPI(w http.ResponseWriter, r *http.Request) 
 
 // GetReactionsAPI handles retrieving reactions for a post or comment.
 func (h *HTTPHandler) GetReactionsAPI(w http.ResponseWriter, r *http.Request) {
-	// Extract target type and target ID from path
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 4 {
-		h.logger.Error("Invalid path for getting reactions", logger.String("path", r.URL.Path))
-		http.Error(w, "Invalid path", http.StatusBadRequest)
-		return
-	}
-
-	targetType := pathParts[len(pathParts)-2]
-	targetID := pathParts[len(pathParts)-1]
+	// Extract target type and target ID from path using Go 1.22+ PathValue
+	targetType := r.PathValue("targetType")
+	targetID := r.PathValue("targetId")
 
 	// Validate the target type
 	if targetType != "post" && targetType != "comment" {
@@ -235,16 +227,9 @@ func (h *HTTPHandler) GetReactionsAPI(w http.ResponseWriter, r *http.Request) {
 
 // CountReactionsAPI handles counting reactions for a target.
 func (h *HTTPHandler) CountReactionsAPI(w http.ResponseWriter, r *http.Request) {
-	// Extract target type and target ID from path
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 {
-		h.logger.Error("Invalid path for counting reactions", logger.String("path", r.URL.Path))
-		http.Error(w, "Invalid path", http.StatusBadRequest)
-		return
-	}
-
-	targetType := pathParts[len(pathParts)-2]
-	targetID := pathParts[len(pathParts)-1]
+	// Extract target type and target ID from path using Go 1.22+ PathValue
+	targetType := r.PathValue("targetType")
+	targetID := r.PathValue("targetId")
 
 	// Validate the target type
 	if targetType != "post" && targetType != "comment" {
@@ -299,5 +284,7 @@ func (h *HTTPHandler) CountReactionsAPI(w http.ResponseWriter, r *http.Request) 
 func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		h.logger.Error("Error encoding JSON response", logger.Error(err))
+	}
 }

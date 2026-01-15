@@ -6,6 +6,8 @@ package adapters
 import (
 	"context"
 	"database/sql"
+	"fmt"
+
 	"forum/internal/modules/auth/domain"
 	"forum/internal/modules/auth/ports"
 
@@ -118,6 +120,10 @@ func (r *SQLiteSessionRepository) GetByUserID(ctx context.Context, userID int) (
 			return nil, err
 		}
 		sessions = append(sessions, &session)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating sessions: %w", err)
 	}
 
 	return sessions, nil

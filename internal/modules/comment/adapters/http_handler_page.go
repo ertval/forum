@@ -5,7 +5,7 @@ package adapters
 
 import (
 	"bytes"
-	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -56,7 +56,7 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 	// Fetch all categories for filter dropdown
 	categories, err := h.categoryService.List(ctx)
 	if err != nil {
-		fmt.Printf("Error fetching categories: %v\n", err)
+		log.Printf("Error fetching categories: %v", err)
 	}
 
 	// Fetch comments made by this user (with pagination)
@@ -78,7 +78,7 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 		// Fetch one extra to check if there are more comments
 		commentsFromService, err := h.commentService.ListCommentsByUserPaginated(ctx, userPublicID, initialLimit+1, 0)
 		if err != nil {
-			fmt.Printf("Error fetching user comments: %v\n", err)
+			log.Printf("Error fetching user comments: %v", err)
 		} else {
 			// Check if there are more comments than the initial limit
 			if len(commentsFromService) > initialLimit {
@@ -191,8 +191,8 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
-		fmt.Printf("Template error: %v\n", err)
-		http.Error(w, fmt.Sprintf("Failed to render page: %v", err), http.StatusInternalServerError)
+		log.Printf("Template error: %v", err)
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
 		return
 	}
 	if _, err := buf.WriteTo(w); err != nil {

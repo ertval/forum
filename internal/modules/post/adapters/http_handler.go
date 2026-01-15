@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
+	"strings"
 
 	authPorts "forum/internal/modules/auth/ports"
 	commentPorts "forum/internal/modules/comment/ports"
@@ -167,16 +169,7 @@ func (h *HTTPHandler) buildPageTitle(filterParams postDomain.FilterParams) strin
 		return "All Posts"
 	}
 
-	// Join parts with spaces
-	title := ""
-	for i, part := range parts {
-		if i > 0 {
-			title += " "
-		}
-		title += part
-	}
-
-	return title
+	return strings.Join(parts, " ")
 }
 
 // RegisterRoutes registers all post routes.
@@ -192,15 +185,9 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
-}
-
-// min returns the minimum of two integers.
-func min(a, b int) int {
-	if a < b {
-		return a
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		log.Printf("Error encoding JSON response: %v", err)
 	}
-	return b
 }
 
 // createPostPreview creates a preview of the post content with a fixed length.

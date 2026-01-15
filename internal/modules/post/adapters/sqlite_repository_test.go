@@ -91,6 +91,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 		role TEXT NOT NULL DEFAULT 'user',
 		post_count INTEGER NOT NULL DEFAULT 0,
 		comment_count INTEGER NOT NULL DEFAULT 0,
+			reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at DATETIME NOT NULL,
 		updated_at DATETIME NOT NULL,
 		is_active INTEGER DEFAULT 1,

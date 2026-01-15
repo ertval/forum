@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -239,7 +240,7 @@ func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interfac
 
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		// Log the error, but don't send it to the client
-		fmt.Printf("Error encoding JSON response: %v\n", err)
+		log.Printf("Error encoding JSON response: %v", err)
 	}
 }
 

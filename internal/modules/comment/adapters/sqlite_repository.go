@@ -5,6 +5,8 @@ package adapters
 import (
 	"context"
 	"database/sql"
+	"fmt"
+
 	"forum/internal/modules/comment/domain"
 	"forum/internal/modules/comment/ports"
 
@@ -119,6 +121,10 @@ func (r *SQLiteCommentRepository) ListByPostPublicID(ctx context.Context, postPu
 		comments = append(comments, &comment)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating comments: %w", err)
+	}
+
 	return comments, nil
 }
 
@@ -157,6 +163,10 @@ func (r *SQLiteCommentRepository) ListByUser(ctx context.Context, userID int) ([
 		}
 		comment.PublicPostID = postPublicID
 		comments = append(comments, &comment)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating user comments: %w", err)
 	}
 
 	return comments, nil
@@ -198,6 +208,10 @@ func (r *SQLiteCommentRepository) ListByUserPaginated(ctx context.Context, userI
 		}
 		comment.PublicPostID = postPublicID
 		comments = append(comments, &comment)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating paginated comments: %w", err)
 	}
 
 	return comments, nil

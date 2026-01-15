@@ -3,6 +3,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"forum/internal/modules/user/domain"
@@ -36,7 +37,7 @@ func (s *Service) CreateUser(ctx context.Context, email, username, passwordHash 
 
 	err = s.userRepo.Create(ctx, user)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("creating user: %w", err)
 	}
 
 	return user.ID, nil
@@ -76,7 +77,7 @@ func (s *Service) UpdateRole(ctx context.Context, userID int, newRole domain.Rol
 	// Get the user first to ensure they exist
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return domain.ErrUserNotFound
+		return fmt.Errorf("getting user for role update: %w", err)
 	}
 
 	// Update role and timestamp
@@ -91,7 +92,7 @@ func (s *Service) UpdateRole(ctx context.Context, userID int, newRole domain.Rol
 func (s *Service) DeactivateUser(ctx context.Context, userID int) error {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return domain.ErrUserNotFound
+		return fmt.Errorf("getting user for deactivation: %w", err)
 	}
 
 	if !user.IsActive {
@@ -109,7 +110,7 @@ func (s *Service) DeactivateUser(ctx context.Context, userID int) error {
 func (s *Service) ActivateUser(ctx context.Context, userID int) error {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return domain.ErrUserNotFound
+		return fmt.Errorf("getting user for activation: %w", err)
 	}
 
 	if user.IsActive {

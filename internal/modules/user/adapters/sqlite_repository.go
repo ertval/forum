@@ -5,6 +5,8 @@ package adapters
 import (
 	"context"
 	"database/sql"
+	"fmt"
+
 	"forum/internal/modules/user/domain"
 	"forum/internal/modules/user/ports"
 
@@ -64,7 +66,7 @@ func (r *SQLiteUserRepository) Create(ctx context.Context, user *domain.User) er
 
 // GetByID retrieves a user by their ID.
 func (r *SQLiteUserRepository) GetByID(ctx context.Context, userID int) (*domain.User, error) {
-	query := `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, created_at, updated_at, is_active
+	query := `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, reaction_count, created_at, updated_at, is_active
               FROM users WHERE id = ?`
 
 	row := r.db.QueryRowContext(ctx, query, userID)
@@ -81,6 +83,7 @@ func (r *SQLiteUserRepository) GetByID(ctx context.Context, userID int) (*domain
 		&user.Role,
 		&user.PostCount,
 		&user.CommentCount,
+		&user.ReactionCount,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 		&isActive,
@@ -88,7 +91,7 @@ func (r *SQLiteUserRepository) GetByID(ctx context.Context, userID int) (*domain
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, sql.ErrNoRows
+			return nil, domain.ErrUserNotFound
 		}
 		return nil, err
 	}
@@ -100,7 +103,7 @@ func (r *SQLiteUserRepository) GetByID(ctx context.Context, userID int) (*domain
 
 // GetByPublicID retrieves a user by their public UUID.
 func (r *SQLiteUserRepository) GetByPublicID(ctx context.Context, publicID string) (*domain.User, error) {
-	query := `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, created_at, updated_at, is_active
+	query := `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, reaction_count, created_at, updated_at, is_active
               FROM users WHERE public_id = ?`
 
 	row := r.db.QueryRowContext(ctx, query, publicID)
@@ -117,6 +120,7 @@ func (r *SQLiteUserRepository) GetByPublicID(ctx context.Context, publicID strin
 		&user.Role,
 		&user.PostCount,
 		&user.CommentCount,
+		&user.ReactionCount,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 		&isActive,
@@ -124,7 +128,7 @@ func (r *SQLiteUserRepository) GetByPublicID(ctx context.Context, publicID strin
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, sql.ErrNoRows
+			return nil, domain.ErrUserNotFound
 		}
 		return nil, err
 	}
@@ -136,7 +140,7 @@ func (r *SQLiteUserRepository) GetByPublicID(ctx context.Context, publicID strin
 
 // GetByEmail retrieves a user by their email address.
 func (r *SQLiteUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
-	query := `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, created_at, updated_at, is_active
+	query := `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, reaction_count, created_at, updated_at, is_active
               FROM users WHERE email = ?`
 
 	row := r.db.QueryRowContext(ctx, query, email)
@@ -153,6 +157,7 @@ func (r *SQLiteUserRepository) GetByEmail(ctx context.Context, email string) (*d
 		&user.Role,
 		&user.PostCount,
 		&user.CommentCount,
+		&user.ReactionCount,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 		&isActive,
@@ -160,7 +165,7 @@ func (r *SQLiteUserRepository) GetByEmail(ctx context.Context, email string) (*d
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, sql.ErrNoRows
+			return nil, domain.ErrUserNotFound
 		}
 		return nil, err
 	}
@@ -172,7 +177,7 @@ func (r *SQLiteUserRepository) GetByEmail(ctx context.Context, email string) (*d
 
 // GetByUsername retrieves a user by their username.
 func (r *SQLiteUserRepository) GetByUsername(ctx context.Context, username string) (*domain.User, error) {
-	query := `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, created_at, updated_at, is_active
+	query := `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, reaction_count, created_at, updated_at, is_active
               FROM users WHERE username = ?`
 
 	row := r.db.QueryRowContext(ctx, query, username)
@@ -189,6 +194,7 @@ func (r *SQLiteUserRepository) GetByUsername(ctx context.Context, username strin
 		&user.Role,
 		&user.PostCount,
 		&user.CommentCount,
+		&user.ReactionCount,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 		&isActive,
@@ -196,7 +202,7 @@ func (r *SQLiteUserRepository) GetByUsername(ctx context.Context, username strin
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, sql.ErrNoRows
+			return nil, domain.ErrUserNotFound
 		}
 		return nil, err
 	}
@@ -250,7 +256,7 @@ func (r *SQLiteUserRepository) Delete(ctx context.Context, userID int) error {
 
 // List returns a paginated list of users.
 func (r *SQLiteUserRepository) List(ctx context.Context, offset, limit int) ([]*domain.User, error) {
-	query := `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, created_at, updated_at, is_active
+	query := `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, reaction_count, created_at, updated_at, is_active
               FROM users ORDER BY created_at DESC`
 
 	// Add pagination if limit is specified
@@ -281,6 +287,7 @@ func (r *SQLiteUserRepository) List(ctx context.Context, offset, limit int) ([]*
 			&user.Role,
 			&user.PostCount,
 			&user.CommentCount,
+			&user.ReactionCount,
 			&user.CreatedAt,
 			&user.UpdatedAt,
 			&isActive,
@@ -291,6 +298,10 @@ func (r *SQLiteUserRepository) List(ctx context.Context, offset, limit int) ([]*
 
 		user.IsActive = isActive == 1
 		users = append(users, &user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating users: %w", err)
 	}
 
 	return users, nil
