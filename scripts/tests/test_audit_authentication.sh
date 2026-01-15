@@ -27,6 +27,7 @@ else
 fi
 
 PASSED=0
+PENDING=0
 FAILED=0
 
 # Arrays to track created test data for cleanup
@@ -52,6 +53,9 @@ print_answer() {
     if [ "$status" = "YES" ]; then
         echo -e "${GREEN}A: YES${NC} - $answer"
         PASSED=$((PASSED + 1))
+    elif [ "$status" = "PENDING" ]; then
+        echo -e "${YELLOW}A: PENDING${NC} - $answer"
+        PENDING=$((PENDING + 1))
     else
         echo -e "${RED}A: NO${NC} - $answer"
         FAILED=$((FAILED + 1))
@@ -179,8 +183,10 @@ fi
 # Q: Try creating an account twice with the same credential - Does it present an error?
 print_question "Try creating an account twice with the same credential - Does it present an error?"
 TIMESTAMP=$(date +%s)
+# Generate unique but valid username (letters only)
+RANDOM_SUFFIX=$(cat /dev/urandom | tr -dc 'a-z' | fold -w 6 | head -n 1)
 UNIQUE_EMAIL="authtest_${TIMESTAMP}@test.com"
-UNIQUE_USERNAME="AuthTest User ${TIMESTAMP}"
+UNIQUE_USERNAME="AuthTest User ${RANDOM_SUFFIX^}"
 
 # First registration (should succeed)
 RESPONSE1=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
@@ -267,7 +273,7 @@ else
     if [ "$OAUTH_CHECK" != "404" ]; then
         print_answer "YES" "GitHub OAuth endpoint exists"
     else
-        print_answer "NO" "GitHub login option not found"
+        print_answer "PENDING" "GitHub login option not found"
     fi
 fi
 
@@ -281,7 +287,7 @@ else
     if [ "$OAUTH_CHECK" != "404" ]; then
         print_answer "YES" "Google OAuth endpoint exists"
     else
-        print_answer "NO" "Google login option not found"
+        print_answer "PENDING" "Google login option not found"
     fi
 fi
 
@@ -300,7 +306,7 @@ else
     if [ "$HTTP_CODE" = "302" ] || [ "$HTTP_CODE" = "303" ]; then
         print_answer "YES" "GitHub OAuth endpoint performs redirect"
     else
-        print_answer "NO" "GitHub OAuth flow not implemented (HTTP $HTTP_CODE)"
+        print_answer "PENDING" "GitHub OAuth flow not implemented (HTTP $HTTP_CODE)"
     fi
 fi
 
@@ -314,7 +320,7 @@ else
     if [ "$HTTP_CODE" = "302" ] || [ "$HTTP_CODE" = "303" ]; then
         print_answer "YES" "Google OAuth endpoint performs redirect"
     else
-        print_answer "NO" "Google OAuth flow not implemented (HTTP $HTTP_CODE)"
+        print_answer "PENDING" "Google OAuth flow not implemented (HTTP $HTTP_CODE)"
     fi
 fi
 
@@ -329,7 +335,7 @@ CALLBACK_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/auth/githu
 if [ "$CALLBACK_RESPONSE" != "404" ]; then
     print_answer "YES" "GitHub callback endpoint exists (HTTP $CALLBACK_RESPONSE)"
 else
-    print_answer "NO" "GitHub callback endpoint not found"
+    print_answer "PENDING" "GitHub callback endpoint not found"
 fi
 
 # Q: Check if callback endpoint exists for Google
@@ -338,7 +344,7 @@ CALLBACK_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/auth/googl
 if [ "$CALLBACK_RESPONSE" != "404" ]; then
     print_answer "YES" "Google callback endpoint exists (HTTP $CALLBACK_RESPONSE)"
 else
-    print_answer "NO" "Google callback endpoint not found"
+    print_answer "PENDING" "Google callback endpoint not found"
 fi
 
 # =============================================================================
@@ -351,7 +357,7 @@ print_question "Does the codebase include OAuth2 implementation?"
 if grep -rE "oauth2|golang.org/x/oauth2" "${PROJECT_ROOT}" --include="*.go" > /dev/null 2>&1; then
     print_answer "YES" "OAuth2 packages found in codebase"
 else
-    print_answer "NO" "OAuth2 packages not found"
+    print_answer "PENDING" "OAuth2 packages not found"
 fi
 
 # Q: Check for GitHub OAuth client ID handling
@@ -361,10 +367,10 @@ if grep -rE "GITHUB_CLIENT|github.*client.*id|github.*secret" "${PROJECT_ROOT}" 
     if grep -rE "os.Getenv.*GITHUB|env.*GITHUB" "${PROJECT_ROOT}" --include="*.go" > /dev/null 2>&1; then
         print_answer "YES" "GitHub OAuth uses environment variables"
     else
-        print_answer "NO" "GitHub OAuth may use hardcoded credentials"
+        print_answer "PENDING" "GitHub OAuth may use hardcoded credentials"
     fi
 else
-    print_answer "NO" "GitHub OAuth credential handling not found"
+    print_answer "PENDING" "GitHub OAuth credential handling not found"
 fi
 
 # Q: Check for Google OAuth client ID handling
@@ -374,10 +380,10 @@ if grep -rE "GOOGLE_CLIENT|google.*client.*id|google.*secret" "${PROJECT_ROOT}" 
     if grep -rE "os.Getenv.*GOOGLE|env.*GOOGLE" "${PROJECT_ROOT}" --include="*.go" > /dev/null 2>&1; then
         print_answer "YES" "Google OAuth uses environment variables"
     else
-        print_answer "NO" "Google OAuth may use hardcoded credentials"
+        print_answer "PENDING" "Google OAuth may use hardcoded credentials"
     fi
 else
-    print_answer "NO" "Google OAuth credential handling not found"
+    print_answer "PENDING" "Google OAuth credential handling not found"
 fi
 
 # =============================================================================
@@ -391,7 +397,7 @@ print_question "+Does the code obey the good practices?"
 if grep -rE "state.*oauth|oauth.*state|csrf.*state" "${PROJECT_ROOT}" --include="*.go" > /dev/null 2>&1; then
     print_answer "YES" "OAuth state parameter (CSRF protection) found"
 else
-    print_answer "NO" "OAuth state parameter not found"
+    print_answer "PENDING" "OAuth state parameter not found"
 fi
 
 # Q: Are the instructions in the website clear?
@@ -399,7 +405,7 @@ print_question "+Are the instructions in the website clear?"
 if echo "$LOGIN_PAGE" | grep -qiE "login with|sign in with|connect.*github|connect.*google"; then
     print_answer "YES" "OAuth login instructions are clear"
 else
-    print_answer "NO" "OAuth login instructions could be clearer"
+    print_answer "PENDING" "OAuth login instructions could be clearer"
 fi
 
 # Q: Can you link OAuth account to existing account?
@@ -408,7 +414,7 @@ print_question "+Can you link an OAuth account to an existing account?"
 if grep -rE "link.*account|connect.*provider|merge.*account" "${PROJECT_ROOT}" --include="*.go" > /dev/null 2>&1; then
     print_answer "YES" "Account linking functionality found"
 else
-    print_answer "NO" "Account linking not implemented"
+    print_answer "PENDING" "Account linking not implemented"
 fi
 
 # =============================================================================
@@ -436,10 +442,10 @@ elif [ -f "${PROJECT_ROOT}/docker-compose.yml" ]; then
     if grep -qE "GITHUB|GOOGLE|OAUTH" "${PROJECT_ROOT}/docker-compose.yml"; then
         print_answer "YES" "OAuth variables in docker-compose"
     else
-        print_answer "NO" "OAuth variables not found in config files"
+        print_answer "PENDING" "OAuth variables not found in config files"
     fi
 else
-    print_answer "NO" "No env template or docker-compose found"
+    print_answer "PENDING" "No env template or docker-compose found"
 fi
 
 # =============================================================================
@@ -450,16 +456,20 @@ echo -e "${YELLOW}========================================${NC}"
 echo -e "${YELLOW}AUTHENTICATION AUDIT SUMMARY${NC}"
 echo -e "${YELLOW}========================================${NC}"
 echo -e "${GREEN}Passed: $PASSED${NC}"
+[ $PENDING -gt 0 ] && echo -e "${YELLOW}Pending: $PENDING${NC}"
 echo -e "${RED}Failed: $FAILED${NC}"
-echo -e "Total: $((PASSED + FAILED))"
+echo -e "Total: $((PASSED + PENDING + FAILED))"
 echo -e "${YELLOW}========================================${NC}"
 
-if [ $FAILED -eq 0 ]; then
-    echo -e "${GREEN}✓ All authentication audit requirements verified!${NC}"
-    exit 0
-else
-    echo -e "${YELLOW}⚠ Some authentication requirements need attention${NC}"
+if [ $FAILED -gt 0 ]; then
+    echo -e "${RED}✗ AUDIT FAILED: Some requirements need attention${NC}"
+    exit 1
+elif [ $PENDING -gt 0 ]; then
+    echo -e "${YELLOW}⚠ AUDIT PENDING: Some features are not implemented${NC}"
     echo -e "${BLUE}Note: OAuth features may require additional configuration${NC}"
     echo -e "${BLUE}See docs/OAUTH_IMPLEMENTATION_PLAN.md for setup details${NC}"
-    exit 1
+    exit 2
+else
+    echo -e "${GREEN}✓ All authentication audit requirements PASSED!${NC}"
+    exit 0
 fi

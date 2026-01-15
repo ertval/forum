@@ -51,6 +51,9 @@ fi
 
 echo -e "${YELLOW}=== Image Removal Functionality Test ===${NC}\n"
 
+# Clean up any stale cookies from previous runs
+rm -f "$COOKIE_JAR"
+
 # Create a test image
 echo "Creating test image..."
 convert -size 100x100 xc:blue "$TEST_IMAGE" 2>/dev/null || {
@@ -72,11 +75,13 @@ SHORT_ID="${UNIQUE_ID: -6}"
 NAME_IDX=$((10#$SHORT_ID % 100))
 FIRST_NAMES=("Alice" "Bob" "Charlie" "Diana" "Eve" "Frank" "Grace" "Henry" "Ivy" "Jack" "Kate" "Leo" "Mia" "Noah" "Olivia" "Peter" "Quinn" "Rose" "Sam" "Tina")
 LAST_NAMES=("Smith" "Jones" "Brown" "Davis" "Miller" "Wilson" "Moore" "Taylor" "Anderson" "Thomas")
+# Additional word pool for unique suffix (letters only to comply with username validation)
+SUFFIX_WORDS=("Alpha" "Beta" "Gamma" "Delta" "Echo" "Foxtrot" "Golf" "Hotel" "India" "Juliet" "Kilo" "Lima" "Mike" "November" "Oscar" "Papa" "Quebec" "Romeo" "Sierra" "Tango" "Uniform" "Victor" "Whiskey" "Xray" "Yankee" "Zulu")
 FIRST_IDX=$((10#$NAME_IDX % 20))
 LAST_IDX=$((10#$NAME_IDX / 20 % 10))
-# Construct username with names and UUID for guaranteed uniqueness
-UUID_SUFFIX=$(uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid 2>/dev/null || echo "$$")
-TEST_USERNAME="${FIRST_NAMES[$FIRST_IDX]} ${LAST_NAMES[$LAST_IDX]} ${UUID_SUFFIX:0:8}"
+SUFFIX_IDX=$((10#${UNIQUE_ID: -4} % 26))
+# Construct username with names only (no numbers/UUIDs - validation requires letters only)
+TEST_USERNAME="${FIRST_NAMES[$FIRST_IDX]} ${LAST_NAMES[$LAST_IDX]} ${SUFFIX_WORDS[$SUFFIX_IDX]}"
 TEST_EMAIL="imgremove_${UNIQUE_ID}@example.com"
 TEST_PASSWORD="TestPass123!"
 

@@ -15,6 +15,7 @@ make test-fail     # Show only failures
 ```
 
 **Test Credentials:**
+- Default: `erti@erti.com` / `ertierti`
 - Primary: `testuser@example.com` / `password123`
 - Secondary: `testuser2@example.com` / `password123`
 - Admin: `admin@example.com` / `adminpass123`
