@@ -79,8 +79,8 @@
                         </div>
 
                         <div class="post-actions-compact">
-                            <span class="likes-compact">👍 ${likeCount}</span>
-                            <span class="dislikes-compact">👎 ${dislikeCount}</span>
+                            <button class="btn-like" data-post-id="${safePostId}" aria-label="Like this post" title="Like">👍 ${likeCount}</button>
+                            <button class="btn-dislike" data-post-id="${safePostId}" aria-label="Dislike this post" title="Dislike">👎 ${dislikeCount}</button>
                             <span class="comments-compact">💬 ${commentCount}</span>
                         </div>
                     </div>
@@ -113,8 +113,8 @@
                         </div>
 
                         <div class="post-actions">
-                            <span class="likes">👍 ${likeCount}</span>
-                            <span class="dislikes">👎 ${dislikeCount}</span>
+                            <button class="btn-like" data-post-id="${safePostId}" aria-label="Like this post" title="Like">👍 ${likeCount}</button>
+                            <button class="btn-dislike" data-post-id="${safePostId}" aria-label="Dislike this post" title="Dislike">👎 ${dislikeCount}</button>
                             <span class="comments">💬 ${commentCount}</span>
                         </div>
                     </div>

@@ -82,19 +82,22 @@
 
 .comment-reactions button {
     background: #e0f7e9;
-    border: none;
+    border: 1px solid #c2e6d6;
     padding: 0.35rem 0.75rem;
     border-radius: 16px;
     cursor: pointer;
     font-size: 0.85rem;
     color: #5a5a5a;
     transition: all 0.3s ease;
-    border: 1px solid #c2e6d6;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
 }
 
 .comment-reactions button:hover {
     background: #b5ead7;
     color: #5a5a5a;
+    transform: translateY(-1px);
 }
 
 .comment-reactions button.active {

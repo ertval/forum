@@ -46,36 +46,8 @@ function updateUserCommentCount(delta) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Handle post reactions
+    // Event delegation for comment and post actions
     document.body.addEventListener('click', async function(e) {
-        // Handle post likes
-        if (e.target.classList.contains('btn-like')) {
-            e.preventDefault();
-            const postId = e.target.getAttribute('data-post-id');
-            await handlePostReaction(postId, 'like');
-        }
-
-        // Handle post dislikes
-        if (e.target.classList.contains('btn-dislike')) {
-            e.preventDefault();
-            const postId = e.target.getAttribute('data-post-id');
-            await handlePostReaction(postId, 'dislike');
-        }
-
-        // Handle comment likes
-        if (e.target.classList.contains('btn-like-comment')) {
-            e.preventDefault();
-            const commentId = e.target.getAttribute('data-comment-id');
-            await handleCommentReaction(commentId, 'like');
-        }
-
-        // Handle comment dislikes
-        if (e.target.classList.contains('btn-dislike-comment')) {
-            e.preventDefault();
-            const commentId = e.target.getAttribute('data-comment-id');
-            await handleCommentReaction(commentId, 'dislike');
-        }
-
         // Handle comment deletion
         if (e.target.classList.contains('btn-delete-comment')) {
             e.preventDefault();
@@ -168,67 +140,6 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
-    // Function to handle post reactions
-    async function handlePostReaction(postId, reactionType) {
-        clearPageError();
-        try {
-            // Simple approach: always send a POST request with the reaction
-            // The backend service will handle toggle logic (add, update, or remove based on existing reactions)
-            const response = await fetch('/api/reactions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    target_type: 'post',
-                    target_id: postId,
-                    type: reactionType
-                }),
-                credentials: 'include'  // Include cookies with the request for authentication
-            });
-
-            if (response.ok) {
-                location.reload(); // Reload to get updated counts
-            } else {
-                const error = await response.json();
-                showPageError(error.error || `Failed to ${reactionType} post`);
-            }
-        } catch (error) {
-            console.error(`Reaction error (${reactionType}):`, error);
-            showPageError(`An error occurred while ${reactionType}ing the post`);
-        }
-    }
-
-    // Function to handle comment reactions
-    async function handleCommentReaction(commentId, reactionType) {
-        clearPageError();
-        try {
-            // Simple approach: always send a POST request with the reaction
-            // The backend service will handle toggle logic (add, update, or remove based on existing reactions)
-            const response = await fetch('/api/reactions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    target_type: 'comment',
-                    target_id: commentId,
-                    type: reactionType
-                }),
-                credentials: 'include'  // Include cookies with the request for authentication
-            });
-
-            if (response.ok) {
-                location.reload(); // Reload to get updated counts
-            } else {
-                const error = await response.json();
-                showPageError(error.error || `Failed to ${reactionType} comment`);
-            }
-        } catch (error) {
-            console.error(`Comment reaction error (${reactionType}):`, error);
-            showPageError(`An error occurred while ${reactionType}ing the comment`);
-        }
-    }
 
     // Function to delete a comment
     async function deleteComment(commentId) {
