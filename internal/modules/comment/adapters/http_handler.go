@@ -19,6 +19,13 @@ import (
 	logger "forum/internal/platform/logger"
 )
 
+const (
+	// DefaultPaginationLimit is the default number of items to show per page.
+	DefaultPaginationLimit = 20
+	// MaxPaginationLimit is the maximum number of items allowed to be requested per page.
+	MaxPaginationLimit = 100
+)
+
 // HTTPHandler handles HTTP requests for comments.
 type HTTPHandler struct {
 	commentService     commentPorts.CommentService

@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"forum/internal/modules/user/domain"
 	"testing"
 	"time"
@@ -444,7 +445,7 @@ func TestService_UpdateRole(t *testing.T) {
 		service := NewService(mockRepo)
 
 		err := service.UpdateRole(ctx, 999, domain.RoleAdmin)
-		if err != domain.ErrUserNotFound {
+		if !errors.Is(err, domain.ErrUserNotFound) {
 			t.Errorf("Expected ErrUserNotFound, got %v", err)
 		}
 	})
@@ -503,7 +504,7 @@ func TestService_DeactivateUser(t *testing.T) {
 		service := NewService(mockRepo)
 
 		err := service.DeactivateUser(ctx, 999)
-		if err != domain.ErrUserNotFound {
+		if !errors.Is(err, domain.ErrUserNotFound) {
 			t.Errorf("Expected ErrUserNotFound, got %v", err)
 		}
 	})
@@ -562,7 +563,7 @@ func TestService_ActivateUser(t *testing.T) {
 		service := NewService(mockRepo)
 
 		err := service.ActivateUser(ctx, 999)
-		if err != domain.ErrUserNotFound {
+		if !errors.Is(err, domain.ErrUserNotFound) {
 			t.Errorf("Expected ErrUserNotFound, got %v", err)
 		}
 	})
@@ -711,7 +712,7 @@ func TestService_CreateUser_WithError(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error, got nil")
 	}
-	if err != domain.ErrUserNotFound {
+	if !errors.Is(err, domain.ErrUserNotFound) {
 		t.Errorf("Expected ErrUserNotFound, got %v", err)
 	}
 }

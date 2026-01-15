@@ -28,7 +28,7 @@ func (h *HTTPHandler) RegisterPageRoutes(router *http.ServeMux) {
 // MyCommentsPage handles the page that displays all comments made by the current user.
 func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	const initialLimit = 20
+	const initialLimit = DefaultPaginationLimit
 
 	// Get current user if logged in
 	var currentUser interface{}
@@ -227,11 +227,11 @@ func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request
 	}
 
 	// Parse pagination parameters
-	limit := 20
+	limit := DefaultPaginationLimit
 	offset := 0
 
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
-		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= MaxPaginationLimit {
 			limit = l
 		}
 	}

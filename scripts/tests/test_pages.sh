@@ -627,7 +627,7 @@ else
 fi
 
 # Check reactions URL uses /api prefix
-if echo "$POST_DETAIL_JS" | grep -q "fetch(\`/api/reactions\`"; then
+if echo "$POST_DETAIL_JS" | grep -q "fetch('/api/reactions'"; then
     print_test "post-detail.js uses /api/reactions URL" "PASS"
 else
     print_test "post-detail.js uses /api/reactions URL" "FAIL" "Wrong reactions API URL"
