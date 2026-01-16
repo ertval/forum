@@ -4,6 +4,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -44,18 +45,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	lgr.Info("Forum server started",
-		logger.Int("http_port", cfg.Server.Port),
-		logger.Int("https_port", cfg.Server.TLSPort))
+	httpAddr := fmt.Sprintf("http://%s:%d", cfg.Server.Host, cfg.Server.Port)
+	httpsAddr := fmt.Sprintf("https://%s:%d", cfg.Server.Host, cfg.Server.TLSPort)
+
+	urls := httpAddr
 	if cfg.Security.TLSCertFile != "" && cfg.Security.TLSKeyFile != "" {
-		lgr.Info("HTTPS enabled", logger.Int("port", cfg.Server.TLSPort))
+		urls += " " + httpsAddr
 	}
+
+	lgr.Info("Forum server started", logger.String("", urls))
 
 	// 5. Graceful Shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
+	fmt.Println()
 	lgr.Info("Shutting down server...")
 
 	// Shutdown uses internal 30s timeout context

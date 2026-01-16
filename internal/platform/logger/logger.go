@@ -430,6 +430,7 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 			for _, k := range l.config.AllowedFields {
 				allowed[k] = struct{}{}
 			}
+			allowed[""] = struct{}{} // Always allow empty keys for prefix-less fields
 			useAllowed = true
 		}
 
@@ -469,6 +470,15 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 				// prepare value string and optionally color status codes or URLs
 				valStr := fmt.Sprintf("%v", v)
 				valColor := ""
+
+				// color URL-like values for better visibility and clickability
+				if vs, ok := v.(string); ok {
+					lower := strings.ToLower(vs)
+					if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
+						valColor = colorBlue
+					}
+				}
+
 				if k == "status" {
 					// try to detect integer status code from various types
 					switch tv := v.(type) {
@@ -491,24 +501,18 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 					}
 				}
 
-				// color URL-like values for better visibility and clickability
-				if valColor == "" {
-					if k == "url" {
-						valColor = colorBlue
-					} else if vs, ok := v.(string); ok {
-						lower := strings.ToLower(vs)
-						if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
-							valColor = colorBlue
-						}
-					}
-				}
-
 				// color error values red
 				if valColor == "" && k == "error" {
 					valColor = colorRed
 				}
 
-				if valColor != "" {
+				if k == "" {
+					if valColor != "" {
+						out += " " + l.applyColor(valStr, valColor)
+					} else {
+						out += " " + valStr
+					}
+				} else if valColor != "" {
 					out += fmt.Sprintf(" %s:%s", k, l.applyColor(valStr, valColor))
 				} else {
 					out += fmt.Sprintf(" %s:%v", k, v)
