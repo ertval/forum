@@ -12,17 +12,13 @@ func TestCommentServiceInterface(t *testing.T) {
 	// and that we can create a variable of the interface type
 
 	var commentService CommentService
-	if commentService != nil {
-		t.Error("CommentService interface should be usable as a nil variable")
-	}
+	_ = commentService // ensure the interface is defined and can be used
 }
 
 func TestCommentRepositoryInterface(t *testing.T) {
 	// This test ensures that the CommentRepository interface is properly defined
 	var commentRepo CommentRepository
-	if commentRepo != nil {
-		t.Error("CommentRepository interface should be usable as a nil variable")
-	}
+	_ = commentRepo // ensure the interface is defined and can be used
 }
 
 // Mock implementations for interface compatibility testing
