@@ -1,7 +1,6 @@
-package adapters
-
-// INPUT ADAPTER - HTTP Handler
+// INPUT ADAPTER - HTTP Handler Base
 // Package adapters implements the HTTP handlers for user endpoints.
+package adapters
 
 import (
 	"forum/internal/modules/user/ports"
@@ -29,34 +28,10 @@ func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HT
 }
 
 // RegisterRoutes registers all user routes.
-// TODO: Implement route registration.
 func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
-	// GET /users/{id} - Get user profile
-	// GET /users - List users
-	// PUT /users/{id}/role - Update user role (admin only)
-	// PUT /users/{id}/deactivate - Deactivate user
-}
+	// Register API routes
+	h.RegisterAPIRoutes(router)
 
-// GetUserAPI handles user retrieval requests.
-// TODO: Implement user retrieval handler.
-func (h *HTTPHandler) GetUserAPI(w http.ResponseWriter, r *http.Request) {
-	// Implementation placeholder
-}
-
-// ListUsersAPI handles listing users.
-// TODO: Implement user listing handler.
-func (h *HTTPHandler) ListUsersAPI(w http.ResponseWriter, r *http.Request) {
-	// Implementation placeholder
-}
-
-// UpdateRoleAPI handles updating a user's role.
-// TODO: Implement role update handler.
-func (h *HTTPHandler) UpdateRoleAPI(w http.ResponseWriter, r *http.Request) {
-	// Implementation placeholder
-}
-
-// DeactivateUserAPI handles deactivating a user account.
-// TODO: Implement user deactivation handler.
-func (h *HTTPHandler) DeactivateUserAPI(w http.ResponseWriter, r *http.Request) {
-	// Implementation placeholder
+	// Register page routes (none yet)
+	h.RegisterPageRoutes(router)
 }

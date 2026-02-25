@@ -33,7 +33,7 @@ func TestComment_Validate(t *testing.T) {
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			},
-			expectError: false, // Currently Validate returns nil (TODO implementation)
+			expectError: true, // Now Validate returns ErrEmptyContent
 		},
 		{
 			name: "comment with only whitespace content",
@@ -45,7 +45,19 @@ func TestComment_Validate(t *testing.T) {
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			},
-			expectError: false, // Currently Validate returns nil (TODO implementation)
+			expectError: true, // Now Validate returns ErrEmptyContent
+		},
+		{
+			name: "comment with content exceeding 5000 characters",
+			comment: &Comment{
+				ID:        1,
+				PostID:    1,
+				UserID:    1,
+				Content:   string(make([]byte, 5001)), // 5001 characters
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			expectError: true, // ErrContentTooLong
 		},
 	}
 

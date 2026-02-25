@@ -1,5 +1,3 @@
-.PHONY: build run go test clean fmt vet mod tidy migrate migration docker-build docker-run docker-up docker-down up down help
-
 # Go parameters
 GOCMD=go
 GOBUILD=$(GOCMD) build
@@ -31,55 +29,108 @@ NC=\033[0m # No Color
 
 # Default target
 all: clean mod fmt vet test build
+.PHONY: all
 
 # Build the binary
 build:
 	@echo "$(BLUE)Building $(BINARY_NAME)...$(NC)"
 	CGO_ENABLED=$(CGO_ENABLED) $(GOBUILD) $(LDFLAGS) -o $(BINARY_NAME) $(MAIN_PACKAGE)
 	@echo "$(GREEN)Build complete: $(BINARY_NAME)$(NC)"
+.PHONY: build
 
 # Run the application
 run: build
 	@echo "$(BLUE)Running $(BINARY_NAME)...$(NC)"
 	./$(BINARY_NAME)
+.PHONY: run
 
 # Run the application with `go run` (no build step)
 go:
 	@echo "$(BLUE)Running with go run ($(MAIN_PACKAGE))...$(NC)"
 	CGO_ENABLED=$(CGO_ENABLED) $(GOCMD) run $(MAIN_PACKAGE)
+.PHONY: go
 
 # Test scripts directory
 TEST_SCRIPTS_DIR=./scripts/tests
 
-# Run all standard Go tests in the repository
+# Run all tests (quiet mode - shows only summary)
 test:
+	@echo "$(BLUE)=========================================$(NC)"
+	@echo "$(BLUE)Running Complete Test Suite (Quiet Mode)$(NC)"
+	@echo "$(BLUE)=========================================$(NC)"
+	@echo ""
+	@echo "$(BLUE)Step 1/3: Running Standard Go Tests...$(NC)"
+	@$(GOTEST) ./... > /dev/null 2>&1 && echo "$(GREEN)✓ Go standard tests passed$(NC)" || (echo "$(RED)✗ Go tests failed$(NC)" && $(GOTEST) ./... && exit 1)
+	@echo ""
+	@echo "$(BLUE)Step 2/3: Running Integration Go Tests in tests directory...$(NC)"
+	@$(GOTEST) ./tests/... > /dev/null 2>&1 && echo "$(GREEN)✓ All Integration Tests directory passed$(NC)" || (echo "$(RED)✗ Tests directory failed$(NC)" && $(GOTEST) ./tests/... && exit 1)
+	@echo ""
+	@echo "$(BLUE)Step 3/3: Running E2E Audit Test scripts...$(NC)"
+	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh --quiet
+	@echo ""
+	@echo "$(GREEN)=========================================$(NC)"
+	@echo "$(GREEN)All tests complete!$(NC)"
+	@echo "$(GREEN)=========================================$(NC)"
+.PHONY: test
+
+# Run all tests (verbose mode - shows all test output)
+tests:
+	@echo "$(BLUE)=========================================$(NC)"
+	@echo "$(BLUE)Running Complete Test Suite (Verbose Mode)$(NC)"
+	@echo "$(BLUE)=========================================$(NC)"
+	@echo ""
+	@echo "$(BLUE)Step 1/3: Running Standard Go Tests...$(NC)"
+	$(GOTEST) ./...
+	@echo "$(GREEN)Go tests complete$(NC)"
+	@echo ""
+	@echo "$(BLUE)Step 2/3: Running Integration Go Tests in tests directory...$(NC)"
+	$(GOTEST) ./tests/...
+	@echo "$(GREEN)Tests directory complete$(NC)"
+	@echo ""
+	@echo "$(BLUE)Step 3/3: Running E2E Audit Test scripts...$(NC)"
+	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh
+	@echo "$(GREEN)E2E Audit Integration test scripts complete$(NC)"
+	@echo ""
+	@echo "$(GREEN)=========================================$(NC)"
+	@echo "$(GREEN)All tests passed!$(NC)"
+	@echo "$(GREEN)=========================================$(NC)"
+.PHONY: tests
+
+# Run only standard Go tests
+test-go:
 	@echo "$(BLUE)Running all standard Go tests...$(NC)"
 	$(GOTEST) ./...
+.PHONY: test-go
 
-# Run all test scripts
+# Run all test scripts (e2e)
 test-script:
 	@echo "$(BLUE)Running all test scripts (scripts/tests/run_all_tests.sh)...$(NC)"
 	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh
+.PHONY: test-script
 
 # Run API test script
 test-script-api:
 	@echo "$(BLUE)Running API test script (scripts/tests/test_api.sh)...$(NC)"
 	@$(TEST_SCRIPTS_DIR)/test_api.sh
+.PHONY: test-script-api
 
 # Run HTML test script
 test-script-html:
 	@echo "$(BLUE)Running HTML test script (scripts/tests/test_pages.sh)...$(NC)"
 	@$(TEST_SCRIPTS_DIR)/test_pages.sh
+.PHONY: test-script-html
 
 # Run tests with coverage
 test-coverage:
-	@echo "$(BLUE)Running tests with coverage...$(NC)"
-	$(GOTEST) -race -coverprofile=coverage.out -covermode=atomic ./...
-	$(GOCMD) tool cover -html=coverage.out -o coverage.html
-	@echo "$(GREEN)Coverage report generated: coverage.html$(NC)"
-
 # Clean build artifacts
 clean:
+	@echo "$(BLUE)Cleaning...$(NC)"
+	$(GOCLEAN)
+	rm -f $(BINARY_NAME)
+	rm -f $(BINARY_UNIX)
+	rm -f coverage.out coverage.html
+	@echo "$(GREEN)Clean complete$(NC)"
+.PHONY: clean
 	@echo "$(BLUE)Cleaning...$(NC)"
 	$(GOCLEAN)
 	rm -f $(BINARY_NAME)
@@ -92,18 +143,21 @@ fmt:
 	@echo "$(BLUE)Formatting code...$(NC)"
 	$(GOFMT) ./...
 	@echo "$(GREEN)Code formatted$(NC)"
+.PHONY: fmt
 
 # Vet code
 vet:
 	@echo "$(BLUE)Vetting code...$(NC)"
 	$(GOVET) ./...
 	@echo "$(GREEN)Code vetted$(NC)"
+.PHONY: vet
 
 # Tidy modules
 tidy:
 	@echo "$(BLUE)Tidying modules...$(NC)"
 	$(GOMOD) tidy
 	@echo "$(GREEN)Modules tidied$(NC)"
+.PHONY: tidy
 
 # Download dependencies
 mod:
@@ -111,12 +165,14 @@ mod:
 	$(GOMOD) download
 	$(GOMOD) verify
 	@echo "$(GREEN)Dependencies downloaded$(NC)"
+.PHONY: mod
 
 # Run database migrations
 migrate:
 	@echo "$(BLUE)Running database migrations...$(NC)"
-	$(GOCMD) run ./scripts/run_migrations.go
+	@bash ./scripts/run_migrations.sh
 	@echo "$(GREEN)Migrations complete$(NC)"
+.PHONY: migrate
 
 # Create a new migration file
 migration:
@@ -130,60 +186,59 @@ migration:
 	filename=$(MIGRATIONS_DIR)/$${timestamp}_$(NAME).sql; \
 	cp $(MIGRATIONS_DIR)/template/000_template_migration.sql $${filename}; \
 	echo "$(GREEN)Migration created: $${filename}$(NC)"
+.PHONY: migration
 
 # Docker build
 docker-build:
 	@echo "$(BLUE)Building Docker image...$(NC)"
 	docker build -t forum .
 	@echo "$(GREEN)Docker image built$(NC)"
+.PHONY: docker-build
 
 # Docker run
 docker-run:
 	@echo "$(BLUE)Running Docker container...$(NC)"
 	docker run -p 8080:8080 forum
+.PHONY: docker-run
 
 # Docker compose up
 docker-up:
 	@echo "$(BLUE)Starting Docker Compose...$(NC)"
 	docker-compose up -d
+.PHONY: docker-up
 
 # Docker compose down
 docker-down:
 	@echo "$(BLUE)Stopping Docker Compose...$(NC)"
 	docker-compose down
+.PHONY: docker-down
 
-# Aliases for convenience
+# up: Alias to start docker-compose
 up: docker-up
+.PHONY: up
 
+# down: Alias to stop docker-compose
 down: docker-down
+.PHONY: down
 
 # Cross compilation for Linux
 build-linux:
 	@echo "$(BLUE)Building for Linux...$(NC)"
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=linux GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BINARY_UNIX) $(MAIN_PACKAGE)
 	@echo "$(GREEN)Linux build complete: $(BINARY_UNIX)$(NC)"
-
-# Install development dependencies
-dev-setup:
-	@echo "$(BLUE)Setting up development environment...$(NC)"
-	$(GOMOD) download
-	$(GOCMD) install github.com/cosmtrek/air@latest
-	@echo "$(GREEN)Development setup complete$(NC)"
-
-# Run with hot reload (requires air)
-dev:
-	@echo "$(BLUE)Starting development server with hot reload...$(NC)"
-	air
+.PHONY: build-linux
 
 # Check database schema
 check-schema:
 	@echo "$(BLUE)Checking database schema...$(NC)"
 	$(GOCMD) run ./scripts/check/check_schema.go
+.PHONY: check-schema
 
 # Seed database
 seed:
 	@echo "$(BLUE)Seeding database...$(NC)"
 	bash ./scripts/seed/seed.sh
+.PHONY: seed
 
 # Help
 help:
@@ -191,12 +246,15 @@ help:
 	@echo "  $(GREEN)all$(NC)             - Run clean, mod, fmt, vet, test, build"
 	@echo "  $(GREEN)build$(NC)           - Build the binary"
 	@echo "  $(GREEN)run$(NC)             - Build and run the application"
-	@echo "  $(GREEN)run-go$(NC)          - Run the application with 'go run' (no build)"
-	@echo "  $(GREEN)test$(NC)            - Run All standard Go tests in the repository"
-	@echo "  $(GREEN)test-script$(NC)     - Run All test scripts"
+	@echo "  $(GREEN)go$(NC)              - Run the application with 'go run' (no build)"
+	@echo "  $(GREEN)test$(NC)            - Run all tests (quiet mode - summary only)"
+	@echo "  $(GREEN)tests$(NC)           - Run all tests (verbose mode - full output)"
+	@echo "  $(GREEN)test-go$(NC)         - Run only standard Go tests"
+	@echo "  $(GREEN)test-script$(NC)     - Run all e2e test scripts"
 	@echo "  $(GREEN)test-script-api$(NC) - Run API test script"
 	@echo "  $(GREEN)test-script-html$(NC) - Run HTML test script"
-	@echo "  $(GREEN)test-coverage$(NC)   - Run All tests with coverage report"
+	@echo "  $(GREEN)test-fail$(NC)       - Run all tests and show only failures"
+	@echo "  $(GREEN)test-coverage$(NC)   - Run all tests with coverage report"
 	@echo "  $(GREEN)clean$(NC)           - Clean build artifacts"
 	@echo "  $(GREEN)fmt$(NC)             - Format code"
 	@echo "  $(GREEN)vet$(NC)             - Vet code"
@@ -211,8 +269,7 @@ help:
 	@echo "  $(GREEN)up$(NC)              - Alias for docker-up"
 	@echo "  $(GREEN)down$(NC)            - Alias for docker-down"
 	@echo "  $(GREEN)build-linux$(NC)     - Cross compile for Linux"
-	@echo "  $(GREEN)dev-setup$(NC)       - Setup development environment"
-	@echo "  $(GREEN)dev$(NC)             - Run with hot reload"
 	@echo "  $(GREEN)check-schema$(NC)    - Check database schema"
 	@echo "  $(GREEN)seed$(NC)            - Seed database"
 	@echo "  $(GREEN)help$(NC)            - Show this help"
+.PHONY: help

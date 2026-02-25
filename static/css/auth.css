@@ -1,0 +1,100 @@
+/* ==========================================================================
+   AUTH STYLES - Login, register, and authentication pages
+   ========================================================================== */
+
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 250px);
+    padding: 1rem 0;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #d3e0ea 0%, #f9f9f9 100%);
+    background-clip: padding-box;
+    overflow: hidden;
+}
+
+.auth-form {
+    background: #ffffff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+    border: 1px solid #e0e0e0;
+}
+
+.auth-form h2 {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    color: #5a5a5a;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.auth-form button {
+    width: 100%;
+    padding: 0.75rem;
+    background: linear-gradient(135deg, #a3d9c5 0%, #c2f2e9 100%);
+    color: #5a5a5a;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 8px rgba(163, 217, 197, 0.3);
+}
+
+.auth-form button:hover {
+    background: linear-gradient(135deg, #a2d5c6 0%, #b5ead7 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(181, 234, 215, 0.4);
+}
+
+.auth-link {
+    text-align: center;
+    margin-top: 1rem;
+    color: #5a5a5a;
+}
+
+.auth-link a {
+    color: #a3d9c5;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.auth-link a:hover {
+    color: #7fb8a5;
+    text-decoration: underline;
+}
+
+.login-prompt {
+    text-align: center;
+    padding: 1rem;
+    background: #f9f9f9;
+    border-radius: 8px;
+    margin: 1rem 0;
+}
+
+.login-prompt a {
+    color: #a3d9c5;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.login-prompt a:hover {
+    color: #7fb8a5;
+    text-decoration: underline;
+}
+
+/* Responsive - Auth Pages */
+@media (max-width: 768px) {
+    .auth-container {
+        padding: 1rem;
+    }
+    
+    .auth-form {
+        padding: 1.5rem;
+    }
+}

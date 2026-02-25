@@ -1,0 +1,303 @@
+/* ==========================================================================
+   LAYOUT STYLES - Page structure, grid systems, and responsive layouts
+   ========================================================================== */
+
+/* Sidebar Container */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Left sidebar - Filter cards */
+.sidebar-left {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Right sidebar - User card */
+.sidebar-right {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Make sidebars sticky */
+.page-layout .sidebar,
+.page-layout .sidebar-left,
+.page-layout .sidebar-right {
+    position: sticky;
+    top: 80px; /* Header height + padding to prevent overlap */
+    align-self: start;
+    max-height: calc(100vh - 100px); /* Account for header and spacing */
+    overflow: auto;
+}
+
+/* Three-column page layout: left sidebar | content | right sidebar */
+.page-layout-three-col {
+    display: grid;
+    grid-template-columns: 260px 1fr 260px;
+    gap: 2rem;
+}
+
+/* Two-column page layout: left sidebar | content (default) */
+.page-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 2rem;
+}
+
+/* Two-column page layout: content | right sidebar */
+.page-layout-right {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    gap: 2rem;
+}
+
+.main-content {
+    min-width: 0;
+}
+
+/* Home Page Grid Layout */
+.home {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: 2rem;
+}
+
+.home-grid {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.home-title {
+    font-size: 1.75rem;
+    text-align: center;
+    margin-bottom: 1.25rem;
+    color: #5a5a5a;
+}
+
+.home-posts-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.home-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+/* Load More Container */
+.load-more-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: none;
+}
+
+/* User Menu Dropdown (for narrow screens) */
+.user-menu-container {
+    position: relative;
+    display: none; /* Hidden by default on wide screens */
+}
+
+/* Always show user menu dropdown on pages without user sidebar (Home, Health Status) */
+body[data-page="no-user-sidebar"] .user-menu-container {
+    display: block;
+}
+
+.user-menu-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.8rem;
+    border-radius: 20px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #5a5a5a;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.user-menu-btn:hover {
+    background: linear-gradient(135deg, #e8f4fa 0%, #f0f8fc 100%);
+}
+
+/* Clicked / active state for user-menu button */
+.user-menu-btn.active {
+    background: linear-gradient(135deg, #e8f4fa 0%, #f0f8fc 100%);
+    transform: translateY(1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    color: #2b6b97;
+}
+
+.user-menu-btn .avatar-icon-small {
+    font-size: 1.2rem;
+}
+
+.user-menu-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    border: 1px solid #c0d0e0;
+    min-width: 280px;
+    z-index: 1000;
+    padding: 1rem;
+    display: none; /* Hidden by default */
+}
+
+.user-menu-dropdown.show {
+    display: block;
+}
+
+.user-menu-dropdown .user-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.user-menu-dropdown .user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #d3e0ea 0%, #e0f0f7 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-menu-dropdown .user-details .username {
+    font-weight: 600;
+    color: #5a5a5a;
+    font-size: 0.95rem;
+}
+
+.user-menu-dropdown .user-details .user-email {
+    font-size: 0.8rem;
+    color: #7a7a7a;
+}
+
+.user-menu-dropdown .user-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 1rem;
+    padding: 0.5rem 0;
+}
+
+.user-menu-dropdown .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+}
+
+.user-menu-dropdown .stat-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #5a5a5a;
+}
+
+.user-menu-dropdown .stat-label {
+    font-size: 0.75rem;
+    color: #7a7a7a;
+}
+
+.user-menu-dropdown .user-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.user-menu-dropdown .user-actions .btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+}
+
+/* Responsive Design - Layout */
+@media (max-width: 1200px) {
+    /* On medium screens, collapse to two columns (hide user card on right, show dropdown) */
+    .page-layout-three-col {
+        grid-template-columns: 260px 1fr;
+    }
+    
+    .page-layout-right {
+        grid-template-columns: 1fr;
+    }
+    
+    .sidebar-right {
+        display: none;
+    }
+    
+    /* Left sidebar stays visible */
+    .sidebar-left {
+        display: flex;
+    }
+    
+    .user-menu-container {
+        display: block;
+    }
+}
+
+@media (max-width: 768px) {
+    .home {
+        grid-template-columns: 1fr;
+    }
+    
+    .sidebar,
+    .sidebar-left {
+        position: static;
+    }
+    
+    .page-layout,
+    .page-layout-three-col {
+        grid-template-columns: 1fr;
+    }
+    
+    .page-layout-right {
+        grid-template-columns: 1fr;
+    }
+    
+    .sidebar-right {
+        display: none;
+    }
+    
+    /* Left sidebar stays visible on small screens too */
+    .sidebar-left {
+        display: flex;
+        width: 100%;
+    }
+    
+    .user-menu-container {
+        display: block;
+    }
+    
+    .home-posts-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .home-posts-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1025px) and (max-width: 1400px) {
+    .home-posts-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}

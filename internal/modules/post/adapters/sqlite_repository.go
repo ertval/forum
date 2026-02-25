@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"forum/internal/modules/post/domain"
 	"forum/internal/modules/post/ports"
+	"time"
 
 	"github.com/gofrs/uuid/v5"
 )
@@ -238,8 +239,49 @@ func (r *SQLitePostRepository) Delete(ctx context.Context, postID string) error 
 	return nil
 }
 
+// UpdateImagePath updates only the image_path field for a post.
+func (r *SQLitePostRepository) UpdateImagePath(ctx context.Context, postID string, imagePath string) error {
+	var imgPath *string
+	if imagePath != "" {
+		imgPath = &imagePath
+	}
+
+	query := "UPDATE posts SET image_path = ?, updated_at = ? WHERE public_id = ?"
+	result, err := r.db.ExecContext(ctx, query, imgPath, time.Now(), postID)
+	if err != nil {
+		return fmt.Errorf("failed to update image path: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rows == 0 {
+		return domain.ErrPostNotFound
+	}
+
+	return nil
+}
+
+// GetImagePath retrieves the image_path for a post by its public ID.
+func (r *SQLitePostRepository) GetImagePath(ctx context.Context, postID string) (string, error) {
+	var imagePath sql.NullString
+	query := "SELECT image_path FROM posts WHERE public_id = ?"
+	err := r.db.QueryRowContext(ctx, query, postID).Scan(&imagePath)
+	if err == sql.ErrNoRows {
+		return "", domain.ErrPostNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("failed to get image path: %w", err)
+	}
+	if imagePath.Valid {
+		return imagePath.String, nil
+	}
+	return "", nil
+}
+
 // List returns filtered posts.
-func (r *SQLitePostRepository) List(ctx context.Context, filter ports.PostFilter) ([]*domain.Post, error) {
+func (r *SQLitePostRepository) List(ctx context.Context, filter domain.PostFilter) ([]*domain.Post, error) {
 	query := `
 		SELECT DISTINCT 
 			p.id, p.public_id, p.title, p.content, p.author_id, p.image_path, 
@@ -293,11 +335,21 @@ func (r *SQLitePostRepository) List(ctx context.Context, filter ports.PostFilter
 	// Filter by liked posts
 	if filter.LikedByUserID != "" {
 		query += `
-		INNER JOIN reactions r ON p.id = r.target_id 
+		INNER JOIN reactions r ON p.id = r.target_id
 		INNER JOIN users liked_user ON r.user_id = liked_user.id
 		`
 		conditions = append(conditions, "liked_user.public_id = ? AND r.target_type = 'post' AND r.type = 'like'")
 		args = append(args, filter.LikedByUserID)
+	}
+
+	// Filter by posts where user has commented
+	if filter.CommenterID != "" {
+		query += `
+		INNER JOIN comments cmt ON p.id = cmt.post_id
+		INNER JOIN users cmt_user ON cmt.author_id = cmt_user.id
+		`
+		conditions = append(conditions, "cmt_user.public_id = ?")
+		args = append(args, filter.CommenterID)
 	}
 
 	// Filter by date

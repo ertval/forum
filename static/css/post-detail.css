@@ -1,0 +1,130 @@
+/* ==========================================================================
+   POST DETAIL STYLES - Single post view, full content display
+   ========================================================================== */
+
+/* Post detail page styles */
+.post-detail {
+    max-width: 800px;
+    margin: 0 auto;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+.post-detail .post-header h1 {
+    font-size: 1.8rem;
+    color: #4a4a4a;
+    margin-bottom: 0.5rem;
+}
+
+.post-detail .post-meta {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.9rem;
+    color: #6a85a8;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #c0d0e0;
+}
+
+.post-categories {
+    margin-top: 1rem;
+}
+
+.post-detail-content {
+    margin: 1.5rem 0;
+    color: #5a5a5a;
+    line-height: 1.7;
+    font-size: 1.05rem;
+    word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    max-width: 100%;
+}
+
+/* Post image in detail view - larger display */
+.post-detail .post-image {
+    margin: 1rem 0;
+}
+
+.post-detail .post-image img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.post-detail .post-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #c0d0e0;
+}
+
+.reactions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.reactions button {
+    background: #e0f7e9;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: #5a5a5a;
+    transition: all 0.3s ease;
+    border: 1px solid #c2e6d6;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.reactions button:hover {
+    background: #b5ead7;
+    color: #5a5a5a;
+}
+
+.reactions button.active {
+    background: #80cbc4;
+    color: white;
+}
+
+.reactions button.active:hover {
+    background: #5a9e97;
+}
+
+.post-owner-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* Post edit and create pages */
+.post-edit, .post-create {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+}
+
+/* Responsive - Post Detail */
+@media (max-width: 768px) {
+    .post-detail .post-actions {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .reactions {
+        margin-bottom: 1rem;
+    }
+    
+    .post-owner-actions {
+        align-self: flex-start;
+    }
+}

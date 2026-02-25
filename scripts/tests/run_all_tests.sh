@@ -1,119 +1,136 @@
 #!/bin/bash
+# =============================================================================
+# SIMPLE TEST RUNNER
+# Discovers and runs all test scripts in scripts/tests/
+# Usage: ./run_all_tests.sh [--quiet|-q]
+# =============================================================================
 
-# Master Test Runner - Runs both API and Page tests in sequence
-# Usage: ./scripts/run_all_tests.sh [-v|--verbose]
-
-set -e
-
-VERBOSE_FLAG=""
-if [ "$1" = "-v" ] || [ "$1" = "--verbose" ]; then
-    VERBOSE_FLAG="-v"
-fi
-
-echo "========================================="
-echo "Forum Complete Test Suite"
-echo "Running Unit, Integration, API and Page Tests"
-echo "========================================="
-echo ""
-
-# Get script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+DB_PATH="${FORUM_DB_PATH:-$PROJECT_ROOT/data/forum.db}"
+SEED_SCRIPT="$PROJECT_ROOT/scripts/seed/seed.sh"
 
-# Run Unit Tests (including user stats tests)
-echo "Step 1/4: Running Unit Tests..."
-echo "========================================="
-cd "$PROJECT_ROOT"
-if go test $VERBOSE_FLAG ./tests/integration/ -run "UserStats|UserCard"; then
-    UNIT_RESULT="✓ PASSED"
-    UNIT_EXIT=0
-else
-    UNIT_RESULT="✗ FAILED"
-    UNIT_EXIT=1
-fi
+# Parse quiet mode
+QUIET=false
+[[ "$*" =~ (--quiet|-q) ]] && QUIET=true
 
-echo ""
-echo "Unit Tests: $UNIT_RESULT"
-echo ""
-echo "========================================="
-echo ""
+# Colors
+RED='\033[0;31m' GREEN='\033[0;32m' YELLOW='\033[1;33m' BLUE='\033[0;34m' NC='\033[0m'
 
-# Small delay between test runs
-sleep 1
+# Results tracking
+declare -A RESULTS
+PASSED=0 FAILED=0
 
-# Run API tests
-echo "Step 2/4: Running API Tests..."
-echo "========================================="
-if "$SCRIPT_DIR/test_api.sh" $VERBOSE_FLAG; then
-    API_RESULT="✓ PASSED"
-    API_EXIT=0
-else
-    API_RESULT="✗ FAILED"
-    API_EXIT=1
-fi
+ensure_db_ready() {
+    if [ ! -f "$DB_PATH" ]; then
+        echo -e "${YELLOW}Database not found at $DB_PATH${NC}"
+        echo -e "Run ${GREEN}$SEED_SCRIPT${NC} to create the database and seed the required data."
+        exit 1
+    fi
 
-echo ""
-echo "API Tests: $API_RESULT"
-echo ""
-echo "========================================="
-echo ""
+    REQUIRED_TABLES=(users categories posts comments reactions notifications reports)
+    for table in "${REQUIRED_TABLES[@]}"; do
+        count=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM $table;" 2>/dev/null)
+        if [ $? -ne 0 ]; then
+            echo -e "${YELLOW}Unable to query '$table'. Run ${GREEN}$SEED_SCRIPT${NC} before running the tests.${NC}"
+            exit 1
+        fi
+        if [ -z "$count" ] || [ "$count" -eq 0 ]; then
+            echo -e "${YELLOW}Table '$table' exists but has no rows.${NC}"
+            echo -e "Run ${GREEN}$SEED_SCRIPT${NC} to ensure necessary data is available for the tests."
+            exit 1
+        fi
+    done
+}
 
-# Small delay between test runs
-sleep 2
+ensure_db_ready
 
-# Run Integration tests
-echo "Step 3/4: Running Integration Tests..."
-echo "========================================="
-cd "$PROJECT_ROOT"
-if go test $VERBOSE_FLAG ./tests/integration/; then
-    INTEGRATION_RESULT="✓ PASSED"
-    INTEGRATION_EXIT=0
-else
-    INTEGRATION_RESULT="✗ FAILED"
-    INTEGRATION_EXIT=1
-fi
+# Brief header removed to avoid duplicating the summary at the end
 
-echo ""
-echo "Integration Tests: $INTEGRATION_RESULT"
-echo ""
-echo "========================================="
-echo ""
+# Find all test scripts (exclude this script)
+TEST_SCRIPTS=($(find "$SCRIPT_DIR" -maxdepth 1 -name "test_*.sh" -type f | sort))
 
-# Small delay between test runs
-sleep 2
-
-# Run Page tests
-echo "Step 4/4: Running Page Tests..."
-echo "========================================="
-if "$SCRIPT_DIR/test_pages.sh" $VERBOSE_FLAG; then
-    PAGE_RESULT="✓ PASSED"
-    PAGE_EXIT=0
-else
-    PAGE_RESULT="✗ FAILED"
-    PAGE_EXIT=1
-fi
-
-echo ""
-echo "Page Tests: $PAGE_RESULT"
-echo ""
-
-# Final summary
-echo "========================================="
-echo "FINAL SUMMARY"
-echo "========================================="
-echo "Unit Tests:        $UNIT_RESULT"
-echo "Integration Tests: $INTEGRATION_RESULT"
-echo "API Tests:         $API_RESULT"
-echo "Page Tests:        $PAGE_RESULT"
-echo "========================================="
-
-# Exit with failure if any failed
-if [ $UNIT_EXIT -ne 0 ] || [ $INTEGRATION_EXIT -ne 0 ] || [ $API_EXIT -ne 0 ] || [ $PAGE_EXIT -ne 0 ]; then
-    echo ""
-    echo "Some tests failed. Please review the output above."
+if [ ${#TEST_SCRIPTS[@]} -eq 0 ]; then
+    echo -e "${RED}✗ No test scripts found!${NC}"
     exit 1
-else
+fi
+
+# Spinner function
+spinner() {
+    local pid=$1
+    local script_name=$2
+    local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    local i=0
+    while kill -0 $pid 2>/dev/null; do
+        printf "\r${BLUE}${spin:$i:1}${NC} Running %s..." "$script_name"
+        sleep 0.08
+        i=$(( (i+1) % ${#spin} ))
+    done
+    printf "\r\033[K"  # Clear line
+}
+
+# Run each test
+for script in "${TEST_SCRIPTS[@]}"; do
+    script_name=$(basename "$script")
+    chmod +x "$script"
+    
+    if [ "$QUIET" = true ]; then
+        # Quiet mode: show spinner, capture output
+        temp_out=$(mktemp)
+        bash "$script" > "$temp_out" 2>&1 &
+        pid=$!
+        spinner $pid "$script_name"
+        wait $pid
+        exit_code=$?
+        rm -f "$temp_out"
+    else
+        # Verbose mode: show full output
+        echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+        echo -e "${BLUE}Running: $script_name${NC}"
+        echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+        echo ""
+        bash "$script"
+        exit_code=$?
+        echo ""
+    fi
+    
+    # Track result (records only; skip per-test immediate printing to avoid duplicate summaries)
+    if [ $exit_code -eq 0 ]; then
+        RESULTS["$script_name"]="PASS"
+        PASSED=$((PASSED + 1))
+    else
+        RESULTS["$script_name"]="FAIL"
+        FAILED=$((FAILED + 1))
+    fi
+done
+
+# Summary
+echo ""
+echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${BLUE}                    SUMMARY                                 ${NC}"
+echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+echo ""
+
+for script_name in $(printf '%s\n' "${!RESULTS[@]}" | sort); do
+    if [ "${RESULTS[$script_name]}" = "PASS" ]; then
+        echo -e "  ${GREEN}✓${NC} $script_name"
+    else
+        echo -e "  ${RED}✗${NC} $script_name"
+    fi
+done
+
+echo ""
+echo -e "${YELLOW}───────────────────────────────────────────────────────────${NC}"
+echo -e "  Passed: ${GREEN}$PASSED${NC} | Failed: ${RED}$FAILED${NC} | Total: $((PASSED + FAILED))"
+echo -e "${YELLOW}───────────────────────────────────────────────────────────${NC}"
+echo ""
+
+if [ $FAILED -eq 0 ]; then
+    echo -e "${GREEN}✓ ALL TESTS PASSED!${NC}"
     echo ""
-    echo "✓ All tests passed successfully!"
     exit 0
+else
+    echo -e "${RED}✗ SOME TESTS FAILED${NC}"
+    echo ""
+    exit 1
 fi

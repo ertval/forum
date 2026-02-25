@@ -2,7 +2,7 @@
 <div class="post-create">
     <h1>Create New Post</h1>
 
-    <form id="post-create-form" enctype="multipart/form-data">
+    <form id="post-create-form" enctype="multipart/form-data" data-max-image-size="{{.MaxImageSize}}">
         <div class="form-group">
             <label for="title">Title *</label>
             <input 
@@ -29,6 +29,8 @@
             <label>Content Preview</label>
             <div id="content-preview" class="post-detail-content" style="border: 1px solid #e0e0e0; padding: 1rem; min-height: 100px; background-color: #fafafa;"></div>
         </div>
+
+        {{/* Image upload and category selection are in the sidebar cards (base.html) */}}
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Create Post</button>

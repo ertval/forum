@@ -53,4 +53,10 @@ type UserRepository interface {
 
 	// DecrementCommentCount atomically decrements the user's comment count.
 	DecrementCommentCount(ctx context.Context, userID int) error
+
+	// IncrementReactionCount atomically increments the user's reaction count.
+	IncrementReactionCount(ctx context.Context, userID int) error
+
+	// DecrementReactionCount atomically decrements the user's reaction count.
+	DecrementReactionCount(ctx context.Context, userID int) error
 }

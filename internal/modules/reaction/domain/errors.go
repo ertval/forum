@@ -16,4 +16,10 @@ var (
 
 	// ErrInvalidReactionType is returned when the reaction type is invalid.
 	ErrInvalidReactionType = errors.New("invalid reaction type, must be 'like' or 'dislike'")
+
+	// ErrInvalidUserID is returned when the user ID is invalid.
+	ErrInvalidUserID = errors.New("invalid user ID")
+
+	// ErrInvalidTargetID is returned when the target ID is invalid.
+	ErrInvalidTargetID = errors.New("invalid target ID")
 )

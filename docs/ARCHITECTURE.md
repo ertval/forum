@@ -4,37 +4,17 @@
 
 A modular monolith web forum built with Go, following **Hexagonal Architecture** (Ports and Adapters). Clean boundaries, testable components, idiomatic Go.
 
-**Current status**: Active development — core features implemented; additional modules scaffolded. The repository contains a complete `auth` module (registration, login, sessions) and a mature `post`/`category` implementation with unit and integration tests (see `tests/unit` and `tests/integration`). Several optional modules (`comment`, `reaction`, `moderation`, `notification`, and parts of `user`) are scaffolded and include domain/ports/application/adapters directories, but many contain `// TODO:` markers in `application` packages indicating remaining business logic to implement. See `docs/IMPLEMENTATION_ROADMAP.md` for priorities and remaining work.
+**Status**: Production-ready MVP with auth, posts, categories, comments, filtering, and image upload. All tests pass.
 
-**Migrations**: The project includes SQL migrations in the `migrations/` directory. Migrations run automatically on startup via `database.Migrator` in `cmd/forum/wire/app.go`. Migration files use `-- +migrate Up`/`-- +migrate Down` markers for forward/backward migrations.
-
-## Core Principles
-
-### Go Philosophy
-
-- **Simplicity**: Straightforward solutions over clever tricks
-- **Readability**: Code clarity over brevity
-- **Explicitness**: No hidden magic or implicit behavior
-- **Minimalism**: Minimal dependencies and abstractions
-- **Composition**: Build complexity through composition
-
-### SOLID + KISS
-
-- Single Responsibility: One reason to change per component
-- Interface Segregation: Small, focused interfaces
-- Dependency Inversion: Depend on abstractions
-- **Keep It Simple**: Simplest solution that works
+**Stack**: Go 1.24+ | SQLite (CGO required) | Minimal deps (uuid, bcrypt, sqlite3)
 
 ---
 
-## Architecture Pattern: Hexagonal (Ports & Adapters)
-
-### The Hexagon
+## Architecture: Hexagonal (Ports & Adapters)
 
 ```
                     ┌─────────────────────────┐
                     │   HTTP Handlers (IN)    │
-                    │   CLI Commands (IN)     │
                     └───────────┬─────────────┘
                                 │
                     ┌───────────▼─────────────┐
@@ -44,9 +24,7 @@ A modular monolith web forum built with Go, following **Hexagonal Architecture**
                                 │
             ┌───────────────────▼───────────────────┐
             │          DOMAIN CORE                  │
-            │   • Entities                          │
-            │   • Business Rules                    │
-            │   • Domain Logic                      │
+            │   • Entities + Business Rules         │
             │   • NO external dependencies          │
             └───────────────────┬───────────────────┘
                                 │
@@ -57,17 +35,10 @@ A modular monolith web forum built with Go, following **Hexagonal Architecture**
                                 │
                     ┌───────────▼─────────────┐
                     │  SQLite Repos (OUT)     │
-                    │  External APIs (OUT)    │
                     └─────────────────────────┘
 ```
 
-### What This Means
-
-**Domain Core** = Business logic with zero external dependencies
-**Ports** = Interfaces (contracts) that define how to interact with the core
-**Adapters** = Concrete implementations that plug into ports
-
-**Data Flow**: HTTP Request → Input Adapter (Handler) → Input Port (Service Interface) → Application Service → Domain Logic → Output Port (Repository Interface) → Output Adapter (SQLite) → Database
+**Data Flow**: HTTP Request → Handler → Service Interface → Application Service → Domain → Repository Interface → SQLite
 
 ---
 
@@ -76,29 +47,34 @@ A modular monolith web forum built with Go, following **Hexagonal Architecture**
 Every module follows this **exact 4-directory layout**:
 
 ```
-module/
-├── domain/          # Pure business logic (no imports except stdlib)
-│   ├── entity.go    # Domain entities with validation
-│   └── errors.go    # Domain-specific errors
+internal/modules/{module}/
+├── domain/           # Pure business logic (stdlib only)
+│   ├── entity.go     # Domain entities with Validate()
+│   └── errors.go     # Domain-specific errors
 │
-├── ports/           # Interface definitions
-│   ├── service.go   # INPUT PORT - Use case definitions
+├── ports/            # Interface definitions
+│   ├── service.go    # INPUT PORT - Use case interface
 │   └── repository.go # OUTPUT PORT - Data access contract
 │
-├── application/     # Orchestration layer
-│   └── service.go   # Implements ports/service.go
-│   └── filter_service.go # Specialized filtering logic (post module)
-│                    # Uses ports/repository.go
+├── application/      # Business logic implementation
+│   └── service.go    # Implements ports/service.go
 │
-└── adapters/        # Technical implementations (flat, no subdirs)
-    ├── http_handler.go       # INPUT - HTTP endpoints
-    └── sqlite_repository.go  # OUTPUT - Database access
+└── adapters/         # Technical implementations (FLAT)
+    ├── http_handler.go       # Base handler, ServiceContainer, routes
+    ├── http_handler_api.go   # JSON API handlers (/api/...)
+    ├── http_handler_page.go  # HTML page handlers
+    └── sqlite_repository.go  # Database access
 ```
 
-### Port/Adapter Markers
+### Handler File Organization
 
-Every file in `ports/` and `adapters/` has a header comment:
+1. **http_handler.go** - Base handler struct, `ServiceContainer` interface, `NewHTTPHandler()`, `RegisterRoutes()`
+2. **http_handler_api.go** - JSON API handlers with `API` suffix (e.g., `CreatePostAPI`)
+3. **http_handler_page.go** - HTML page handlers with `Page` suffix (e.g., `LoginPage`)
 
+### File Header Markers
+
+Every ports/adapters file has a header comment:
 ```go
 // INPUT PORT - Service Interface
 // OUTPUT PORT - Repository Interface
@@ -106,64 +82,238 @@ Every file in `ports/` and `adapters/` has a header comment:
 // OUTPUT ADAPTER - SQLite Repository
 ```
 
-This makes navigation and understanding instant.
+---
+
+## API URL Pattern
+
+All JSON API endpoints: `/api/{module}/{action}`
+
+```
+Auth:     POST /api/auth/register, /login, /logout | GET /api/auth/session
+Posts:    GET/POST /api/posts | GET/PUT/DELETE /api/posts/{id}
+Comments: GET/POST /api/comments/posts/{post_id} | GET/PUT/DELETE /api/comments/{id}
+Reactions: POST/DELETE /api/reactions | GET /api/reactions/{targetType}/{targetId}
+```
 
 ---
 
 ## Modules
 
-### Core Modules (Required)
-1. **auth** - Registration, login, sessions
-2. **user** - User profiles, roles
-3. **post** - Create/read/update/delete posts, categories, filtering
-   - **FilterService**: Dedicated application service for post filtering logic
-   - Supports filtering by category, user, liked posts, and date range
-   - Date filters: Today, This Week, This Month, All Time
-   - Uses `FilterParams` for query parameter parsing and `PostFilter` for repository queries
-4. **comment** - Comments on posts
-5. **reaction** - Like/dislike posts and comments
+### Complete
+| Module | Description |
+|--------|-------------|
+| **auth** | Registration, login, sessions (one per user), logout |
+| **user** | User profiles, cached stats (post/comment counts) |
+| **post** | Full CRUD, categories, filtering, image upload |
+| **comment** | Full CRUD with ownership validation, my comments page |
 
-### Optional Modules
-6. **moderation** - Reports, content moderation, role management
-7. **notification** - User notifications for interactions
+### Scaffolded (Partial Implementation)
+| Module | Description |
+|--------|-------------|
+| **reaction** | Like/dislike - routes defined, handlers return 501 |
+| **moderation** | Reports, roles - minimal implementation |
+| **notification** | User notifications - minimal implementation |
+
+---
+
+## Domain-Driven Design (DDD) Module Division
+
+This project follows **DDD tactical patterns** within a **modular monolith** architecture. Each module encapsulates a bounded context with clear responsibilities.
+
+### Core Concepts
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         MODULAR MONOLITH                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
+│  │    AUTH     │  │    USER     │  │    POST     │  │   COMMENT   │    │
+│  │  Bounded    │  │  Bounded    │  │  Bounded    │  │  Bounded    │    │
+│  │  Context    │  │  Context    │  │  Context    │  │  Context    │    │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘    │
+│         │                │                │                │           │
+│         └────────────────┼────────────────┼────────────────┘           │
+│                          │                │                             │
+│                    Service Interface Communication                      │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Bounded Contexts & Responsibilities
+
+| Bounded Context | Aggregate Root | Key Entities | Responsibilities |
+|-----------------|----------------|--------------|------------------|
+| **Auth** | Session | Session, Credentials | Authentication, session lifecycle, credential validation |
+| **User** | User | User, UserStats | User identity, profile, statistics aggregation |
+| **Post** | Post | Post, Category | Content creation, categorization, filtering, image handling |
+| **Comment** | Comment | Comment | Threaded discussions, comment CRUD, author context |
+| **Reaction** | Reaction | Reaction | Like/dislike tracking, reaction counts |
+| **Moderation** | Report | Report, Action | Content reporting, moderation actions |
+| **Notification** | Notification | Notification | User notifications, read/unread state |
+
+### DDD Layers Within Each Module
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        MODULE STRUCTURE                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │ DOMAIN LAYER (domain/)                                       │   │
+│   │ ┌─────────────┐  ┌─────────────────┐  ┌──────────────────┐  │   │
+│   │ │  Entities   │  │ Value Objects   │  │ Domain Errors    │  │   │
+│   │ │ • User      │  │ • Email         │  │ • ErrNotFound    │  │   │
+│   │ │ • Post      │  │ • Username      │  │ • ErrValidation  │  │   │
+│   │ │ • Comment   │  │ • Role          │  │ • ErrUnauthorized│  │   │
+│   │ └─────────────┘  └─────────────────┘  └──────────────────┘  │   │
+│   │ • Pure Go - NO external dependencies                         │   │
+│   │ • Business rules enforced via Validate() methods            │   │
+│   │ • Invariants protected within entity boundaries             │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                              │                                       │
+│                              ▼                                       │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │ PORTS LAYER (ports/)                                         │   │
+│   │ ┌────────────────────────┐  ┌────────────────────────────┐  │   │
+│   │ │ INPUT PORTS (service.go)│  │OUTPUT PORTS (repository.go)│  │   │
+│   │ │ • Service Interface    │  │ • Repository Interface     │  │   │
+│   │ │ • Use case definitions │  │ • Data access contracts    │  │   │
+│   │ └────────────────────────┘  └────────────────────────────┘  │   │
+│   │ • Defines contracts, not implementations                     │   │
+│   │ • Can only import from domain layer                          │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                              │                                       │
+│                              ▼                                       │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │ APPLICATION LAYER (application/)                             │   │
+│   │ ┌─────────────────────────────────────────────────────────┐ │   │
+│   │ │ Service Implementation (service.go)                      │ │   │
+│   │ │ • Implements INPUT PORT interface                        │ │   │
+│   │ │ • Orchestrates domain logic                              │ │   │
+│   │ │ • Coordinates repositories (OUTPUT PORTS)                │ │   │
+│   │ └─────────────────────────────────────────────────────────┘ │   │
+│   │ • Business logic orchestration                               │   │
+│   │ • Transaction coordination                                   │   │
+│   │ • Cross-entity workflows                                     │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                              │                                       │
+│                              ▼                                       │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │ ADAPTERS LAYER (adapters/)                                   │   │
+│   │ ┌────────────────────────┐  ┌────────────────────────────┐  │   │
+│   │ │ INPUT ADAPTERS         │  │ OUTPUT ADAPTERS            │  │   │
+│   │ │ • http_handler.go      │  │ • sqlite_repository.go     │  │   │
+│   │ │ • http_handler_api.go  │  │ • (future: cache, etc.)    │  │   │
+│   │ │ • http_handler_page.go │  │                            │  │   │
+│   │ └────────────────────────┘  └────────────────────────────┘  │   │
+│   │ • Technical implementations of ports                         │   │
+│   │ • HTTP request/response translation                          │   │
+│   │ • Database query execution                                   │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Module Communication Rules
+
+**Strict Boundaries**: Modules communicate ONLY through service interfaces, never by importing internal implementations.
+
+```go
+// ✅ CORRECT: Use service interface from other module
+type ServiceContainer interface {
+    Auth() authPorts.AuthService
+    User() userPorts.UserService
+}
+
+// ✅ CORRECT: Import port interface
+import authPorts "forum/internal/modules/auth/ports"
+
+// ❌ WRONG: Never import internal implementations
+import "forum/internal/modules/auth/application"  // FORBIDDEN
+import "forum/internal/modules/auth/adapters"     // FORBIDDEN
+```
+
+### Entity Design Principles
+
+Each entity follows these DDD principles:
+
+1. **Identity**: Each entity has a public UUID (`PublicID`) for external use and internal ID for database references
+2. **Validation**: Business rules enforced via `Validate()` method
+3. **Encapsulation**: State changes through defined methods, not direct field access
+4. **Invariants**: Entity ensures its own consistency
+
+```go
+// Example: Post entity with DDD principles
+type Post struct {
+    ID         int       // Internal identity
+    PublicID   string    // External identity (UUID)
+    AuthorID   int       // Reference to User aggregate
+    Title      string    // Value object candidate
+    Content    string    
+    ImagePath  string    // Optional
+    Categories []Category // Related aggregate
+    CreatedAt  time.Time
+    UpdatedAt  time.Time
+}
+
+func (p *Post) Validate() error {
+    // Enforces business invariants
+    if strings.TrimSpace(p.Title) == "" {
+        return ErrInvalidTitle
+    }
+    if len(p.Categories) == 0 {
+        return ErrCategoryRequired
+    }
+    return nil
+}
+```
+
+### Aggregate Boundaries
+
+Each module owns its aggregate root and is the sole authority over its data:
+
+| Module | Aggregate Root | Owned Data | References To |
+|--------|----------------|------------|---------------|
+| **auth** | Session | sessions table | users (FK) |
+| **user** | User | users table | - |
+| **post** | Post | posts, post_categories, categories | users (author_id) |
+| **comment** | Comment | comments table | posts (post_id), users (author_id) |
+| **reaction** | Reaction | reactions table | posts/comments (target_id), users (user_id) |
+
+### Cross-Cutting Concerns
+
+Infrastructure concerns that span all modules are handled in `internal/platform/`:
+
+| Platform Service | DDD Concept | Purpose |
+|------------------|-------------|---------|
+| **database** | Infrastructure | Persistence mechanism (SQLite) |
+| **logger** | Infrastructure | Structured logging across all layers |
+| **httpserver** | Infrastructure | HTTP transport, middleware |
+| **validator** | Domain Support | Input validation utilities |
+| **upload** | Infrastructure | File storage mechanism |
+| **cache** | Infrastructure | Performance optimization |
+| **errors** | Shared Kernel | Common error types |
 
 ---
 
 ## Dependency Rules
 
-### Layer Dependencies (Strict)
-
 ```
-┌──────────────┐
-│  adapters    │  ─┐
-└──────────────┘   │
-                   ├─► Can import: domain, ports
-┌──────────────┐   │
-│ application  │  ─┘
-└──────────────┘
+adapters    ─┐
+             ├─► Can import: domain, ports
+application ─┘
 
-┌──────────────┐
-│    ports     │  ───► Can import: domain only
-└──────────────┘
+ports       ───► Can import: domain only
 
-┌──────────────┐
-│   domain     │  ───► Can import: NOTHING (only stdlib)
-└──────────────┘
+domain      ───► Can import: NOTHING (stdlib only)
 ```
 
-### Module Communication
-
-Modules talk via **service interfaces** only:
+**Module Communication**: Via service interfaces only
 
 ```go
-// ✅ GOOD: Import service interface
+// ✅ Import service interface
 import "forum/internal/modules/user/ports"
 
-type PostService struct {
-    userService ports.UserService
-}
-
-// ❌ BAD: Import internal implementation
+// ❌ Never import internal implementation
 import "forum/internal/modules/user/adapters"
 ```
 
@@ -171,65 +321,20 @@ import "forum/internal/modules/user/adapters"
 
 ## Dependency Injection
 
-All wiring happens in the `cmd/forum/wire/` package, called from `main.go`:
+All wiring in `cmd/forum/wire/`:
 
-```go
-func main() {
-    // 1. Platform services
-    cfg := config.Load()
-    lgr := logger.New(cfg.Log)
-    
-    // 2. All dependency injection happens here
-    app, err := wire.InitializeApp(cfg, lgr)
-    if err != nil {
-        lgr.Fatal("Failed to initialize app", logger.Error(err))
-    }
-    defer app.Cleanup()
-    
-    // 3. Start server
-    app.Start()
-}
+```
+wire/
+├── app.go          # Main app lifecycle
+├── repos.go        # Repository initialization
+├── services.go     # ServiceContainer with all services
+└── handlers.go     # HTTP handler initialization
 ```
 
-The wire package organizes DI into focused files:
-- `app.go` - Main orchestration and app lifecycle
-- `repositories.go` - Repository initialization
-- `services.go` - Service initialization  
-- `handlers.go` - HTTP handler initialization
-
-No magic frameworks. Everything explicit and organized.
-
-### Unified Dependency Injection Pattern (Implemented)
-
-This project now uses a unified DI pattern for all HTTP handlers. The implementation lives in `cmd/forum/wire/` and is applied across module adapters.
-
-Key points:
-- A single concrete `ServiceContainer` (defined in `cmd/forum/wire/services.go`) holds all application service implementations as private fields.
-- `ServiceContainer` exposes accessor methods for each service (for example: `Auth()`, `User()`, `Post()`, `Category()`).
-- Every HTTP handler uses the same constructor signature:
-  ```go
-  func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler
-  ```
-- Each handler declares a small local `ServiceContainer` interface that lists only the accessor methods it needs (for example:
-  ```go
-  type ServiceContainer interface {
-      Post() postPorts.PostService
-      Auth() authPorts.AuthService
-  }
-  ```
-  The concrete `wire.ServiceContainer` satisfies these local interfaces.
-- Handlers call accessor methods to obtain the service interfaces they depend on and remain decoupled from concrete implementations.
-
-Why this was added:
-- **Consistency**: all handlers use identical constructor signatures, simplifying wiring and tests.
-- **Explicit dependencies**: handlers declare precisely what they require via a minimal interface.
-- **Testability**: unit tests can provide small mocks implementing the handler-local `ServiceContainer` without constructing the full application container.
-- **Avoid circular imports**: handlers depend only on service port interfaces and the small accessor interface, not concrete implementations or the `wire` package internals.
-
-Where to look:
-- Implementation & examples: `docs/UNIFIED_DI_PATTERN.md`
-- Wire code: `cmd/forum/wire/services.go`, `cmd/forum/wire/handlers.go`
-- Handler examples: `internal/modules/*/adapters/http_handler.go` (each handler shows a local `ServiceContainer` interface)
+**ServiceContainer Pattern**:
+- Single concrete `ServiceContainer` holds all services
+- Each handler declares a local interface with only needed accessors
+- Constructors: `NewHTTPHandler(services ServiceContainer, templates *template.Template)`
 
 ---
 
@@ -237,25 +342,21 @@ Where to look:
 
 Shared infrastructure in `internal/platform/`:
 
-- **config** - Environment variable loading
-- **database** - SQLite connection, migrations, transactions
-- **logger** - Structured logging (JSON output)
-- **httpserver** - HTTP server wrapper with middleware
-- **errors** - Common error types with HTTP status mapping
-- **validator** - Input validation and sanitization
+| Package | Purpose |
+|---------|---------|
+| config | Environment variable loading |
+| database | SQLite connection, migrations |
+| logger | Structured logging (JSON) |
+| httpserver | HTTP server, middleware, TLS, security headers |
+| errors | Common errors, HTTP status mapping |
+| validator | Input validation |
+| upload | Image upload handling |
 
 ---
 
-## Database Design
+## Database
 
-### Technology: SQLite
-
-Simple, embedded, single-file database. Perfect for this use case.
-
-### Migrations
-
-Sequential numbered SQL files in `migrations/`:
-
+**SQLite** with migrations in `migrations/`:
 ```
 001_auth_create_sessions.sql
 002_user_create_users.sql
@@ -264,163 +365,200 @@ Sequential numbered SQL files in `migrations/`:
 005_reaction_create_reactions.sql
 ```
 
-Each migration has `-- +migrate Up` and `-- +migrate Down` sections.
-
-### Key Patterns
-
-- Foreign keys with `ON DELETE CASCADE`
-- Indexes on frequently queried columns (user_id, post_id, session_token)
-- Timestamps (created_at, updated_at) on all entities
-- Soft deletes where appropriate
+**Running Migrations:**
+- Automatic: Migrations auto-apply on application startup via `database.Migrator`
+- Manual: Run `make migrate` or `bash scripts/run_migrations.sh`
+- The migrator creates a `schema_migrations` table to track applied migrations
+- Already-applied migrations are automatically skipped
+- See `migrations/MIGRATIONS_GUIDE.md` for detailed migration authoring guidelines
 
 ---
 
-## Error Handling
+## Security
 
-### Two-Layer System
+### TLS Configuration
+- TLS 1.2 minimum version
+- Strong cipher suites (AEAD only)
+- Certificate configuration via environment variables
+- Self-signed certificate generation script: `scripts/generate_certs.sh`
 
-**Domain Errors** (simple):
-```go
-// internal/modules/auth/domain/errors.go
-var ErrSessionExpired = errors.New("session has expired")
-```
+### Production TLS Certificates
 
-**Platform Errors** (structured):
-```go
-// internal/platform/errors/errors.go
-return errors.Wrap(err, errors.ErrCodeInternal, "failed to create session")
-```
+**For production deployments, use proper TLS certificates from a trusted Certificate Authority (CA), not self-signed certificates.**
 
-HTTP handlers map errors to status codes:
-- Domain `ErrNotFound` → 404
-- Domain `ErrUnauthorized` → 401
-- Platform `ErrCodeValidation` → 400
-- Platform `ErrCodeInternal` → 500
+#### Option 1: Let's Encrypt (Free, Automated)
 
----
+**Recommended for most deployments.** Let's Encrypt provides free, automated TLS certificates with 90-day validity.
 
-## Testing Strategy
-
-### Unit Tests
-- Domain logic (pure functions, business rules)
-- Application services with mocked repositories
-- Location: Each module's directory (`*_test.go`)
-
-### Integration Tests
-- HTTP handlers with real database
-- End-to-end workflows
-- Location: `tests/integration/`
-
-### Repository Tests
-- Test against in-memory SQLite (`:memory:`)
-- Verify SQL queries work correctly
-
----
-
-## Configuration
-
-All config in `internal/platform/config/config.go`. Loaded from environment variables with sane defaults.
-
-```env
-# Server
-PORT=8080
-ENVIRONMENT=development
-
-# Database
-DB_PATH=./forum.db
-
-# Session
-SESSION_DURATION=24h
-
-# Security
-RATE_LIMIT_REQUESTS=100
-RATE_LIMIT_WINDOW=1m
-```
-
-No config files, no external config libraries. Simple env vars.
-
----
-
-## HTTP Server & Middleware
-
-Standard library `http.ServeMux` wrapped for convenience.
-
-### Middleware Chain (Global)
-
-1. **Recovery** - Panic handling
-2. **Logger** - Request/response logging
-3. **CORS** - Cross-origin headers
-4. **RateLimit** - Request throttling
-
-### HTTP Status Code Conventions
-
-- `200 OK` - Successful GET
-- `201 Created` - Successful POST (create resource)
-- `204 No Content` - Successful DELETE
-- `400 Bad Request` - Invalid input
-- `401 Unauthorized` - Missing/invalid session
-- `403 Forbidden` - Insufficient permissions
-- `404 Not Found` - Resource doesn't exist
-- `409 Conflict` - Duplicate email/username
-- `413 Payload Too Large` - File too large
-- `429 Too Many Requests` - Rate limit exceeded
-- `500 Internal Server Error` - Unexpected error
-
----
-
-## Security Features
-
-- **HTTPS/TLS** - TLS 1.2+, strong ciphers
-- **Password Hashing** - bcrypt with cost factor 12
-- **Session Management** - UUID tokens, HttpOnly cookies, server-side storage
-- **Rate Limiting** - Per-IP and per-user limits
-- **Input Validation** - Email format, password strength, data sanitization
-- **CSRF Protection** - CSRF tokens on state-changing operations
-- **Security Headers** - CSP, X-Frame-Options, HSTS
-
----
-
-## Build & Deployment
-
-### Local Development
+**Using Certbot:**
 ```bash
-go run cmd/forum/main.go
+# Install certbot
+sudo apt-get install certbot  # Debian/Ubuntu
+sudo yum install certbot      # RHEL/CentOS
+
+# Obtain certificate (standalone mode - requires port 80/443 temporarily)
+sudo certbot certonly --standalone -d yourdomain.com -d www.yourdomain.com
+
+# Certificates will be saved to:
+# /etc/letsencrypt/live/yourdomain.com/fullchain.pem  (certificate)
+# /etc/letsencrypt/live/yourdomain.com/privkey.pem    (private key)
+
+# Update .env with certificate paths
+TLS_CERT_FILE=/etc/letsencrypt/live/yourdomain.com/fullchain.pem
+TLS_KEY_FILE=/etc/letsencrypt/live/yourdomain.com/privkey.pem
+
+# Set up auto-renewal (certbot installs a systemd timer automatically)
+sudo certbot renew --dry-run  # Test renewal
 ```
 
-### Docker
+**Using ACME clients (alternative):**
+- [acme.sh](https://github.com/acmesh-official/acme.sh) - Lightweight, shell-based
+- [lego](https://github.com/go-acme/lego) - Go-based ACME client
+
+#### Option 2: Commercial Certificate Authority
+
+Purchase certificates from trusted CAs like DigiCert, Sectigo, or GlobalSign for extended validation or wildcard certificates.
+
+**Steps:**
+1. Generate a Certificate Signing Request (CSR):
+   ```bash
+   openssl req -new -newkey rsa:2048 -nodes \
+     -keyout yourdomain.key \
+     -out yourdomain.csr \
+     -subj "/C=US/ST=State/L=City/O=Organization/CN=yourdomain.com"
+   ```
+
+2. Submit CSR to your chosen CA and complete their validation process
+
+3. Download the issued certificate and intermediate certificates
+
+4. Configure the forum:
+   ```env
+   TLS_CERT_FILE=/path/to/yourdomain.crt
+   TLS_KEY_FILE=/path/to/yourdomain.key
+   ```
+
+#### Option 3: Reverse Proxy with TLS Termination
+
+Use a reverse proxy (nginx, Caddy, Traefik) to handle TLS, allowing the forum to run on HTTP internally.
+
+**Example with Caddy (automatic HTTPS):**
+```caddy
+yourdomain.com {
+    reverse_proxy localhost:8080
+}
+```
+
+**Example with nginx:**
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name yourdomain.com;
+    
+    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+    
+    location / {
+        proxy_pass http://localhost:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+#### Certificate Permissions
+
+Ensure the forum process has read access to certificate files:
 ```bash
-docker-compose up --build
+# Option 1: Copy certificates to forum directory with proper permissions
+sudo cp /etc/letsencrypt/live/yourdomain.com/*.pem /path/to/forum/certs/
+sudo chown forum-user:forum-user /path/to/forum/certs/*.pem
+sudo chmod 600 /path/to/forum/certs/*.pem
+
+# Option 2: Add forum user to certificate group
+sudo usermod -aG ssl-cert forum-user
+sudo chgrp ssl-cert /etc/letsencrypt/live/yourdomain.com/*.pem
+sudo chmod 640 /etc/letsencrypt/live/yourdomain.com/*.pem
 ```
 
-Multi-stage Dockerfile:
-1. Build stage (compile binary)
-2. Runtime stage (minimal alpine image)
+### Security Headers
+Applied via middleware to all responses:
+- **Content-Security-Policy**: Restricts resource loading
+- **X-Frame-Options**: DENY (prevents clickjacking)
+- **X-Content-Type-Options**: nosniff
+- **X-XSS-Protection**: 1; mode=block
+- **Referrer-Policy**: strict-origin-when-cross-origin
+- **Strict-Transport-Security**: max-age=31536000 (HSTS)
+- **Permissions-Policy**: Restricts browser features
 
-**Important**: Requires `CGO_ENABLED=1` for SQLite.
+### Rate Limiting
+Per-IP request throttling to prevent abuse.
+
+---
+
+## ID Security
+
+**INT internally, UUID publicly** - Never expose sequential IDs.
+
+```go
+// ✅ Context stores UUID
+ctx.Value(UserIDKey) // user.PublicID (UUID)
+
+// ✅ Templates use PublicID
+<a href="/board?user={{.User.PublicID}}">
+
+// ✅ JSON uses UUID
+{"id": "uuid-here", "user_id": "uuid-here"}
+```
+
+---
+
+## HTTP Status Codes
+
+| Code | Usage |
+|------|-------|
+| 200 | Successful GET |
+| 201 | Successful POST (create) |
+| 204 | Successful DELETE |
+| 400 | Invalid input |
+| 401 | Missing/invalid session |
+| 403 | Insufficient permissions |
+| 404 | Resource not found |
+| 409 | Duplicate email/username |
+| 413 | File too large |
+| 500 | Internal error |
+
+---
+
+## Testing
+
+| Type | Location | Coverage |
+|------|----------|----------|
+| Unit | `internal/modules/*/` | Domain, services, repos |
+| Integration | `tests/integration/` | Full request/response |
+| E2E | `scripts/tests/` | API, audit, pages, images |
+
+Run all: `make test`
+
+---
+
+## Commands
+
+```bash
+make go           # Run locally
+make test         # Full test suite
+make test-go      # Go tests only
+make test-script  # E2E scripts only
+```
 
 ---
 
 ## Key Design Decisions
 
-### Why SQLite?
-Simple, embedded, zero-config. Perfect for learning and small-medium forums. Can migrate to Postgres later without changing much code (thanks to repository pattern).
-
-### Why No ORM?
-ORMs hide SQL and add complexity. Raw SQL with `database/sql` is explicit, performant, and idiomatic Go.
-
-### Why Flat Adapters?
-Prevents over-engineering. One handler file, one repository file per module. Easy to find, easy to understand.
-
-### Why Manual DI?
-No magic. Every dependency is visible in `main.go`. Easy to trace, easy to debug.
-
-### Why Hexagonal Architecture?
-Testability + flexibility. Swap SQLite for Postgres? Change only the repository adapter. Add gRPC API? Add a new input adapter. Core logic untouched.
-
----
-
-## References
-
-- [Go Project Layout](https://github.com/golang-standards/project-layout)
-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
-- [Effective Go](https://go.dev/doc/effective_go)
+| Choice | Reason |
+|--------|--------|
+| SQLite | Simple, embedded, zero-config |
+| No ORM | Raw SQL is explicit and performant |
+| Flat adapters | Prevents over-engineering |
+| Manual DI | No magic, every dependency visible |
+| Hexagonal | Testability + flexibility |

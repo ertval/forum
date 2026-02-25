@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
     oauth_provider_id TEXT,
     post_count INTEGER NOT NULL DEFAULT 0,
     comment_count INTEGER NOT NULL DEFAULT 0,
+    reaction_count INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
     is_active INTEGER NOT NULL DEFAULT 1

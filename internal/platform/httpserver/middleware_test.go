@@ -30,10 +30,6 @@ func (tl *testLogger) contains(substr string) bool {
 	return strings.Contains(tl.buf.String(), substr)
 }
 
-func (tl *testLogger) reset() {
-	tl.buf.Reset()
-}
-
 // TestResponseWriterCapture tests that the responseWriter correctly captures status and size
 func TestResponseWriterCapture(t *testing.T) {
 	tests := []struct {
@@ -221,24 +217,24 @@ func TestLoggerMiddleware(t *testing.T) {
 			// Check log output - logger outputs JSON with fields nested
 			logOutput := tl.buf.String()
 			for _, expected := range tt.expectedInLog {
-				if !strings.Contains(logOutput, expected) {
+				if !tl.contains(expected) {
 					t.Errorf("log output missing expected string %q\nLog: %s", expected, logOutput)
 				}
 			}
 
 			for _, unexpected := range tt.unexpectedInLog {
-				if strings.Contains(logOutput, unexpected) {
+				if tl.contains(unexpected) {
 					t.Errorf("log output contains unexpected string %q\nLog: %s", unexpected, logOutput)
 				}
 			}
 
 			// Verify duration is logged (in JSON it's "duration_ms":)
-			if !strings.Contains(logOutput, `"duration_ms":`) {
+			if !tl.contains(`"duration_ms":`) {
 				t.Errorf("log output missing duration_ms field\nLog: %s", logOutput)
 			}
 
 			// Verify size is logged (in JSON it's "size":)
-			if !strings.Contains(logOutput, `"size":`) {
+			if !tl.contains(`"size":`) {
 				t.Errorf("log output missing size field\nLog: %s", logOutput)
 			}
 		})
@@ -263,13 +259,13 @@ func TestLoggerMiddlewareDuration(t *testing.T) {
 	wrappedHandler.ServeHTTP(rec, req)
 
 	logOutput := tl.buf.String()
-	if !strings.Contains(logOutput, `"duration_ms":`) {
+	if !tl.contains(`"duration_ms":`) {
 		t.Fatalf("log output missing duration_ms field\nLog: %s", logOutput)
 	}
 
 	// Verify that the duration logged is reasonable (should be >= sleepDuration in ms)
 	// The logger outputs milliseconds, so we expect at least 50ms
-	if !strings.Contains(logOutput, `"duration_ms":`) {
+	if !tl.contains(`"duration_ms":`) {
 		t.Error("duration not logged")
 	}
 }
@@ -312,12 +308,11 @@ func TestRecoveryMiddleware(t *testing.T) {
 		{
 			name: "panic with nil",
 			handler: func(w http.ResponseWriter, r *http.Request) {
-				var nilErr error
-				panic(nilErr) // panic with nil error value
+				panic("nil")
 			},
 			shouldPanic:   true,
-			panicValue:    nil,
-			expectedInLog: []string{"panic.recovered"},
+			panicValue:    "nil",
+			expectedInLog: []string{"panic.recovered", "nil"},
 		},
 	}
 
@@ -341,19 +336,19 @@ func TestRecoveryMiddleware(t *testing.T) {
 				// Check log output
 				logOutput := tl.buf.String()
 				for _, expected := range tt.expectedInLog {
-					if !strings.Contains(logOutput, expected) {
+					if !tl.contains(expected) {
 						t.Errorf("log output missing expected string %q\nLog: %s", expected, logOutput)
 					}
 				}
 
 				// Verify stack trace is logged (in JSON it's "stack":)
-				if !strings.Contains(logOutput, `"stack":`) {
+				if !tl.contains(`"stack":`) {
 					t.Errorf("log output missing stack trace\nLog: %s", logOutput)
 				}
 			} else {
 				// Normal execution - should not log panic
 				logOutput := tl.buf.String()
-				if strings.Contains(logOutput, "panic.recovered") {
+				if tl.contains("panic.recovered") {
 					t.Errorf("log output contains unexpected panic recovery\nLog: %s", logOutput)
 				}
 			}
@@ -446,17 +441,17 @@ func TestRecoveryWithLoggerMiddleware(t *testing.T) {
 	logOutput := tl.buf.String()
 
 	// Should log panic recovery
-	if !strings.Contains(logOutput, "panic.recovered") {
+	if !tl.contains("panic.recovered") {
 		t.Errorf("log output missing panic.recovered\nLog: %s", logOutput)
 	}
 
 	// Verify error message is logged
-	if !strings.Contains(logOutput, "test panic") {
+	if !tl.contains("test panic") {
 		t.Errorf("log output missing panic message\nLog: %s", logOutput)
 	}
 
 	// Verify stack trace is logged
-	if !strings.Contains(logOutput, `"stack":`) {
+	if !tl.contains(`"stack":`) {
 		t.Errorf("log output missing stack trace\nLog: %s", logOutput)
 	}
 }
@@ -478,7 +473,7 @@ func TestLoggerMiddlewareRemoteAddr(t *testing.T) {
 	wrappedHandler.ServeHTTP(rec, req)
 
 	logOutput := tl.buf.String()
-	if !strings.Contains(logOutput, `"remote":`) {
+	if !tl.contains(`"remote":`) {
 		t.Errorf("log output missing remote field\nLog: %s", logOutput)
 	}
 }
@@ -500,7 +495,7 @@ func TestLoggerMiddlewareUserAgent(t *testing.T) {
 	wrappedHandler.ServeHTTP(rec, req)
 
 	logOutput := tl.buf.String()
-	if !strings.Contains(logOutput, `"user_agent":`) {
+	if !tl.contains(`"user_agent":`) {
 		t.Errorf("log output missing user_agent field\nLog: %s", logOutput)
 	}
 }

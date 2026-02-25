@@ -57,7 +57,7 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 	repos := initRepositories(db.DB())
 
 	// 3. Initialize Services (Application Layer)
-	services := initServices(repos, cfg.Session.Duration, lgr)
+	services := initServices(repos, cfg, lgr)
 
 	// 4. Initialize HTTP Handlers (Input Adapters)
 	handlers := initHandlers(services)
@@ -100,9 +100,10 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *
 	// Create server with config as single source of truth
 	server := httpserver.New(cfg)
 
-	// Register global middleware in correct order: recovery -> logger -> others
+	// Register global middleware in correct order: recovery -> logger -> security headers -> rate limit -> cors
 	server.RegisterMiddleware(httpserver.Recovery(lgr))
 	server.RegisterMiddleware(httpserver.Logger(lgr))
+	server.RegisterMiddleware(httpserver.SecurityHeaders(httpserver.DefaultSecurityHeadersConfig()))
 	server.RegisterMiddleware(httpserver.CORS([]string{"*"}))
 	server.RegisterMiddleware(httpserver.RateLimit(
 		cfg.Security.RateLimitRequests,
@@ -123,9 +124,10 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *
 
 	// Register health check routes with proper configuration
 	server.Router().Handle("GET /health", httpserver.HealthPage(httpserver.HealthPageConfig{
-		Checker:   healthChecker,
-		Templates: handlers.Post.Templates(), // Reuse shared templates
-		AuthFunc:  handlers.Auth.GetCurrentUser,
+		Checker:          healthChecker,
+		Templates:        handlers.Post.Templates(), // Reuse shared templates
+		AuthFunc:         handlers.Auth.GetCurrentUser,
+		GetUserWithStats: handlers.Post.GetUserWithStats,
 	}))
 	server.Router().Handle("GET /health-api", httpserver.HealthAPI(healthChecker))
 

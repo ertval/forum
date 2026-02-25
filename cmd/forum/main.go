@@ -26,7 +26,6 @@ func main() {
 
 	// 2. Initialize Logger
 	log := logger.New(logger.InfoLevel, os.Stdout)
-	log.Info("Starting Forum Application")
 
 	// 3. Initialize Application (all wiring happens in wire package)
 	app, err := wire.InitializeApp(cfg, log)

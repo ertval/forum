@@ -22,4 +22,10 @@ type ReactionService interface {
 
 	// CountReactions returns the count of likes and dislikes for a target.
 	CountReactions(ctx context.Context, targetPublicID string, targetType string) (likes, dislikes int, err error)
+
+	// GetUserReactionCount returns the total number of reactions given by a user.
+	GetUserReactionCount(ctx context.Context, userID int) (int, error)
+
+	// GetByUserAndTargetPublicID retrieves a user's reaction for a specific target by target's public UUID.
+	GetByUserAndTargetPublicID(ctx context.Context, userID int, targetPublicID string, targetType string) (*domain.Reaction, error)
 }

@@ -604,3 +604,453 @@ func TestSQLiteUserRepository_ExistsByUsername(t *testing.T) {
 		t.Error("Expected username to not exist")
 	}
 }
+
+func TestSQLiteUserRepository_GetByPublicID(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+	defer db.Close()
+
+	// Create the users table
+	_, err = db.Exec(`CREATE TABLE users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT UNIQUE NOT NULL,
+		email TEXT UNIQUE,
+		username TEXT UNIQUE,
+		password_hash TEXT,
+		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMP,
+		updated_at TIMESTAMP,
+		is_active INTEGER
+	)`)
+	if err != nil {
+		t.Fatalf("Failed to create table: %v", err)
+	}
+
+	repo := NewSQLiteUserRepository(db)
+
+	user := &domain.User{
+		PublicID:     "test-public-id",
+		Email:        "test@example.com",
+		Username:     "testuser",
+		PasswordHash: "hashed_password",
+		Role:         domain.RoleUser,
+		PostCount:    5,
+		CommentCount: 10,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		IsActive:     true,
+	}
+
+	ctx := context.Background()
+	err = repo.Create(ctx, user)
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	// Test GetByPublicID
+	retrieved, err := repo.GetByPublicID(ctx, user.PublicID)
+	if err != nil {
+		t.Fatalf("Failed to get user by public ID: %v", err)
+	}
+
+	if retrieved.PublicID != user.PublicID {
+		t.Errorf("Expected PublicID %s, got %s", user.PublicID, retrieved.PublicID)
+	}
+	if retrieved.Email != user.Email {
+		t.Errorf("Expected Email %s, got %s", user.Email, retrieved.Email)
+	}
+	if retrieved.Username != user.Username {
+		t.Errorf("Expected Username %s, got %s", user.Username, retrieved.Username)
+	}
+	if retrieved.PostCount != user.PostCount {
+		t.Errorf("Expected PostCount %d, got %d", user.PostCount, retrieved.PostCount)
+	}
+	if retrieved.CommentCount != user.CommentCount {
+		t.Errorf("Expected CommentCount %d, got %d", user.CommentCount, retrieved.CommentCount)
+	}
+
+	// Test non-existent public ID
+	_, err = repo.GetByPublicID(ctx, "non-existent")
+	if err != sql.ErrNoRows {
+		t.Errorf("Expected sql.ErrNoRows, got %v", err)
+	}
+}
+
+func TestSQLiteUserRepository_Count(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+	defer db.Close()
+
+	// Create the users table
+	_, err = db.Exec(`CREATE TABLE users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT UNIQUE NOT NULL,
+		email TEXT UNIQUE,
+		username TEXT UNIQUE,
+		password_hash TEXT,
+		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMP,
+		updated_at TIMESTAMP,
+		is_active INTEGER
+	)`)
+	if err != nil {
+		t.Fatalf("Failed to create table: %v", err)
+	}
+
+	repo := NewSQLiteUserRepository(db)
+	ctx := context.Background()
+
+	// Test count with no users
+	count, err := repo.Count(ctx)
+	if err != nil {
+		t.Fatalf("Failed to count users: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("Expected count 0, got %d", count)
+	}
+
+	// Create some users
+	for i := 0; i < 3; i++ {
+		user := &domain.User{
+			PublicID:     "test-public-id-" + string(rune(i+'0')),
+			Email:        "test" + string(rune(i+'0')) + "@example.com",
+			Username:     "testuser" + string(rune(i+'0')),
+			PasswordHash: "hashed_password",
+			Role:         domain.RoleUser,
+			CreatedAt:    time.Now(),
+			UpdatedAt:    time.Now(),
+			IsActive:     true,
+		}
+		err = repo.Create(ctx, user)
+		if err != nil {
+			t.Fatalf("Failed to create user: %v", err)
+		}
+	}
+
+	// Test count with users
+	count, err = repo.Count(ctx)
+	if err != nil {
+		t.Fatalf("Failed to count users: %v", err)
+	}
+	if count != 3 {
+		t.Errorf("Expected count 3, got %d", count)
+	}
+}
+
+func TestSQLiteUserRepository_IncrementPostCount(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+	defer db.Close()
+
+	// Create the users table
+	_, err = db.Exec(`CREATE TABLE users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT UNIQUE NOT NULL,
+		email TEXT UNIQUE,
+		username TEXT UNIQUE,
+		password_hash TEXT,
+		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMP,
+		updated_at TIMESTAMP,
+		is_active INTEGER
+	)`)
+	if err != nil {
+		t.Fatalf("Failed to create table: %v", err)
+	}
+
+	repo := NewSQLiteUserRepository(db)
+
+	user := &domain.User{
+		PublicID:     "test-public-id",
+		Email:        "test@example.com",
+		Username:     "testuser",
+		PasswordHash: "hashed_password",
+		Role:         domain.RoleUser,
+		PostCount:    5,
+		CommentCount: 10,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		IsActive:     true,
+	}
+
+	ctx := context.Background()
+	err = repo.Create(ctx, user)
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	// Increment post count
+	err = repo.IncrementPostCount(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to increment post count: %v", err)
+	}
+
+	// Verify the count was incremented
+	retrieved, err := repo.GetByID(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to get user: %v", err)
+	}
+	if retrieved.PostCount != 6 {
+		t.Errorf("Expected PostCount 6, got %d", retrieved.PostCount)
+	}
+}
+
+func TestSQLiteUserRepository_DecrementPostCount(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+	defer db.Close()
+
+	// Create the users table
+	_, err = db.Exec(`CREATE TABLE users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT UNIQUE NOT NULL,
+		email TEXT UNIQUE,
+		username TEXT UNIQUE,
+		password_hash TEXT,
+		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMP,
+		updated_at TIMESTAMP,
+		is_active INTEGER
+	)`)
+	if err != nil {
+		t.Fatalf("Failed to create table: %v", err)
+	}
+
+	repo := NewSQLiteUserRepository(db)
+
+	user := &domain.User{
+		PublicID:     "test-public-id",
+		Email:        "test@example.com",
+		Username:     "testuser",
+		PasswordHash: "hashed_password",
+		Role:         domain.RoleUser,
+		PostCount:    5,
+		CommentCount: 10,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		IsActive:     true,
+	}
+
+	ctx := context.Background()
+	err = repo.Create(ctx, user)
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	// Decrement post count
+	err = repo.DecrementPostCount(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to decrement post count: %v", err)
+	}
+
+	// Verify the count was decremented
+	retrieved, err := repo.GetByID(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to get user: %v", err)
+	}
+	if retrieved.PostCount != 4 {
+		t.Errorf("Expected PostCount 4, got %d", retrieved.PostCount)
+	}
+
+	// Test decrementing to zero (should not go below 0)
+	userZero := &domain.User{
+		PublicID:     "test-public-id-zero",
+		Email:        "testzero@example.com",
+		Username:     "testuserzero",
+		PasswordHash: "hashed_password",
+		Role:         domain.RoleUser,
+		PostCount:    0,
+		CommentCount: 0,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		IsActive:     true,
+	}
+	err = repo.Create(ctx, userZero)
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	err = repo.DecrementPostCount(ctx, userZero.ID)
+	if err != nil {
+		t.Fatalf("Failed to decrement post count: %v", err)
+	}
+
+	retrievedZero, err := repo.GetByID(ctx, userZero.ID)
+	if err != nil {
+		t.Fatalf("Failed to get user: %v", err)
+	}
+	if retrievedZero.PostCount != 0 {
+		t.Errorf("Expected PostCount 0, got %d", retrievedZero.PostCount)
+	}
+}
+
+func TestSQLiteUserRepository_IncrementCommentCount(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+	defer db.Close()
+
+	// Create the users table
+	_, err = db.Exec(`CREATE TABLE users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT UNIQUE NOT NULL,
+		email TEXT UNIQUE,
+		username TEXT UNIQUE,
+		password_hash TEXT,
+		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMP,
+		updated_at TIMESTAMP,
+		is_active INTEGER
+	)`)
+	if err != nil {
+		t.Fatalf("Failed to create table: %v", err)
+	}
+
+	repo := NewSQLiteUserRepository(db)
+
+	user := &domain.User{
+		PublicID:     "test-public-id",
+		Email:        "test@example.com",
+		Username:     "testuser",
+		PasswordHash: "hashed_password",
+		Role:         domain.RoleUser,
+		PostCount:    5,
+		CommentCount: 10,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		IsActive:     true,
+	}
+
+	ctx := context.Background()
+	err = repo.Create(ctx, user)
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	// Increment comment count
+	err = repo.IncrementCommentCount(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to increment comment count: %v", err)
+	}
+
+	// Verify the count was incremented
+	retrieved, err := repo.GetByID(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to get user: %v", err)
+	}
+	if retrieved.CommentCount != 11 {
+		t.Errorf("Expected CommentCount 11, got %d", retrieved.CommentCount)
+	}
+}
+
+func TestSQLiteUserRepository_DecrementCommentCount(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+	defer db.Close()
+
+	// Create the users table
+	_, err = db.Exec(`CREATE TABLE users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT UNIQUE NOT NULL,
+		email TEXT UNIQUE,
+		username TEXT UNIQUE,
+		password_hash TEXT,
+		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMP,
+		updated_at TIMESTAMP,
+		is_active INTEGER
+	)`)
+	if err != nil {
+		t.Fatalf("Failed to create table: %v", err)
+	}
+
+	repo := NewSQLiteUserRepository(db)
+
+	user := &domain.User{
+		PublicID:     "test-public-id",
+		Email:        "test@example.com",
+		Username:     "testuser",
+		PasswordHash: "hashed_password",
+		Role:         domain.RoleUser,
+		PostCount:    5,
+		CommentCount: 10,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		IsActive:     true,
+	}
+
+	ctx := context.Background()
+	err = repo.Create(ctx, user)
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	// Decrement comment count
+	err = repo.DecrementCommentCount(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to decrement comment count: %v", err)
+	}
+
+	// Verify the count was decremented
+	retrieved, err := repo.GetByID(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to get user: %v", err)
+	}
+	if retrieved.CommentCount != 9 {
+		t.Errorf("Expected CommentCount 9, got %d", retrieved.CommentCount)
+	}
+
+	// Test decrementing to zero (should not go below 0)
+	userZero := &domain.User{
+		PublicID:     "test-public-id-zero",
+		Email:        "testzero@example.com",
+		Username:     "testuserzero",
+		PasswordHash: "hashed_password",
+		Role:         domain.RoleUser,
+		PostCount:    0,
+		CommentCount: 0,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		IsActive:     true,
+	}
+	err = repo.Create(ctx, userZero)
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	err = repo.DecrementCommentCount(ctx, userZero.ID)
+	if err != nil {
+		t.Fatalf("Failed to decrement comment count: %v", err)
+	}
+
+	retrievedZero, err := repo.GetByID(ctx, userZero.ID)
+	if err != nil {
+		t.Fatalf("Failed to get user: %v", err)
+	}
+	if retrievedZero.CommentCount != 0 {
+		t.Errorf("Expected CommentCount 0, got %d", retrievedZero.CommentCount)
+	}
+}

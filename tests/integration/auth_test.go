@@ -11,6 +11,7 @@ import (
 	"forum/internal/modules/auth/application"
 	authDomain "forum/internal/modules/auth/domain"
 	userAdapters "forum/internal/modules/user/adapters"
+	userApp "forum/internal/modules/user/application"
 	"forum/internal/platform/config"
 
 	_ "github.com/mattn/go-sqlite3" // Import SQLite driver
@@ -36,6 +37,7 @@ func TestAuthIntegration(t *testing.T) {
 	// Setup repositories
 	sessionRepo := authAdapters.NewSQLiteSessionRepository(db)
 	userRepo := userAdapters.NewSQLiteUserRepository(db)
+	userService := userApp.NewService(userRepo)
 
 	// Create required tables manually since we're not running migrations in memory
 	// This replicates what the migrations do
@@ -77,12 +79,12 @@ func TestAuthIntegration(t *testing.T) {
 	}
 
 	// Setup service
-	authService := application.NewService(sessionRepo, userRepo, cfg.Session.Duration)
+	authService := application.NewService(sessionRepo, userService, cfg.Session.Duration)
 
 	t.Run("Register and Login User", func(t *testing.T) {
 		// Test registration
 		email := fmt.Sprintf("testuser%d@example.com", time.Now().UnixNano()%1000000)
-		username := "testuser"
+		username := "Test User"
 		password := "password123"
 
 		userID, session, err := authService.Register(context.Background(), email, username, password)
@@ -151,7 +153,7 @@ func TestAuthIntegration(t *testing.T) {
 	t.Run("Registration Validation", func(t *testing.T) {
 		// Test duplicate email
 		email := fmt.Sprintf("dupetest%d@example.com", time.Now().UnixNano()%1000000)
-		username := "dupuser"
+		username := "Duplicate User"
 		password := "password123"
 
 		// First registration should succeed
@@ -161,12 +163,12 @@ func TestAuthIntegration(t *testing.T) {
 		}
 
 		// Second registration with same email should fail
-		_, _, err = authService.Register(context.Background(), email, username+"2", password)
+		_, _, err = authService.Register(context.Background(), email, "Other User", password)
 		if err == nil {
 			t.Fatal("Expected error for duplicate email registration")
 		}
-		if err != authDomain.ErrUserAlreadyExists {
-			t.Fatalf("Expected ErrUserAlreadyExists for duplicate email, got: %v", err)
+		if err != authDomain.ErrEmailAlreadyExists {
+			t.Fatalf("Expected ErrEmailAlreadyExists for duplicate email, got: %v", err)
 		}
 
 		// Test duplicate username
@@ -175,14 +177,14 @@ func TestAuthIntegration(t *testing.T) {
 		if err == nil {
 			t.Fatal("Expected error for duplicate username registration")
 		}
-		if err != authDomain.ErrUserAlreadyExists {
-			t.Fatalf("Expected ErrUserAlreadyExists for duplicate username, got: %v", err)
+		if err != authDomain.ErrUsernameAlreadyExists {
+			t.Fatalf("Expected ErrUsernameAlreadyExists for duplicate username, got: %v", err)
 		}
 	})
 
 	t.Run("Session Management", func(t *testing.T) {
 		email := fmt.Sprintf("sessionuser%d@example.com", time.Now().UnixNano()%1000000)
-		username := "sessionuser"
+		username := "Session User"
 		password := "password123"
 
 		// Register user

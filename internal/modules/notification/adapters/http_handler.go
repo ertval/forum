@@ -1,4 +1,4 @@
-// INPUT ADAPTER - HTTP Handler
+// INPUT ADAPTER - HTTP Handler Base
 // [OPTIONAL FEATURE: forum-advanced-features]
 // Package adapters implements HTTP handlers for notification endpoints.
 package adapters
@@ -29,27 +29,7 @@ func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HT
 }
 
 // RegisterRoutes registers all notification routes.
-// TODO: Implement route registration.
 func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
-	// Implementation placeholder
-	// GET /notifications - Get user's notifications
-	// PUT /notifications/{id}/read - Mark notification as read
-}
-
-// GetNotificationsAPI handles retrieving user notifications.
-// TODO: Implement notification retrieval handler.
-func (h *HTTPHandler) GetNotificationsAPI(w http.ResponseWriter, r *http.Request) {
-	// Implementation placeholder
-	// 1. Get userID from session
-	// 2. Call notificationService.GetUserNotifications
-	// 3. Return notifications list
-}
-
-// MarkAsReadAPI handles marking notifications as read.
-// TODO: Implement mark as read handler.
-func (h *HTTPHandler) MarkAsReadAPI(w http.ResponseWriter, r *http.Request) {
-	// Implementation placeholder
-	// 1. Parse notification ID from URL
-	// 2. Call notificationService.MarkAsRead
-	// 3. Return 200 OK
+	// Register API routes
+	h.RegisterAPIRoutes(router)
 }

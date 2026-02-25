@@ -1,10 +1,11 @@
 {{define "content"}}
 <div class="posts">
+    <div id="page-errors" class="form-errors"></div>
     <h2>{{.PageTitle}}</h2>
 
     {{if .Posts}}
         {{range .Posts}}
-        <article class="post-card">
+        <article class="post-card clickable-card" data-href="/posts/{{.PublicID}}">
             <div class="post-header">
                 <h3><a href="/posts/{{.PublicID}}">{{.Title}}</a></h3>
                 <div class="post-meta">
@@ -39,7 +40,11 @@
         </article>
         {{end}}
     {{else}}
-        <p class="no-posts">No posts found. {{if .User}}<a href="/posts/new">Create the first post!</a>{{else}}<a href="/register">Register</a> to create posts.{{end}}</p>
+        {{if .LikedPosts}}
+            <p class="no-posts">You have not interacted with any posts. Like or Dislike some post to create interactions.</p>
+        {{else}}
+            <p class="no-posts">No posts found. {{if .User}}<a href="/posts/new">Create the first post!</a>{{else}}<a href="/register">Register</a> to create posts.{{end}}</p>
+        {{end}}
     {{end}}
 
     {{if .Posts}}
@@ -49,7 +54,8 @@
                     data-offset="{{len .Posts}}"
                     data-category="{{if .SelectedCategory}}{{.SelectedCategory}}{{end}}"
                     data-my-posts="{{.MyPosts}}"
-                    data-liked-posts="{{.LikedPosts}}">Show More</button>
+                    data-liked-posts="{{.LikedPosts}}"
+                    data-date-filter="{{if .DateFilter}}{{.DateFilter}}{{end}}">Show More</button>
         </div>
     {{end}}
 </div>

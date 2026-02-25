@@ -1,0 +1,280 @@
+/* ==========================================================================
+   FORM STYLES - Input fields, textareas, labels, and form layouts
+   ========================================================================== */
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #5a5a5a;
+}
+
+.form-group small.form-hint {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: #7a7a7a;
+    font-style: italic;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #c5d0b8;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background-color: #ffffff;
+    color: #5a5a5a;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #a3d9c5; /* Darker pastel green with blue tint */
+    box-shadow: 0 0 0 2px rgba(163, 217, 197, 0.3);
+}
+
+.form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #c5d0b8;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background-color: #ffffff;
+    color: #5a5a5a;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.form-group textarea:focus {
+    outline: none;
+    border-color: #a3d9c5;
+    box-shadow: 0 0 0 2px rgba(163, 217, 197, 0.3);
+}
+
+/* Checkbox labels */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    margin-right: 0.5rem;
+    width: 18px;
+    height: 18px;
+    accent-color: #a3d9c5;
+}
+
+/* Categories grid for post forms */
+.categories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.category-checkbox {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.category-checkbox:hover {
+    background-color: #e8f4f0;
+    border-color: #a3d9c5;
+}
+
+.category-checkbox input[type="checkbox"] {
+    margin-right: 0.5rem;
+    width: 16px;
+    height: 16px;
+    accent-color: #a3d9c5;
+}
+
+.category-checkbox input[type="checkbox"]:checked + span {
+    color: #2d7a5e;
+    font-weight: 500;
+}
+
+/* Form actions layout */
+.form-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.form-actions .btn {
+    width: 160px;
+    padding: 0.6rem 1rem;
+    text-align: center;
+}
+
+.form-actions .btn-secondary {
+    margin-left: auto;
+}
+
+@media (max-width: 480px) {
+    .form-actions {
+        flex-direction: column-reverse;
+        gap: 0.5rem;
+        align-items: stretch;
+    }
+    .form-actions .btn {
+        width: 100%;
+    }
+}
+
+/* Image preview */
+.image-preview {
+    margin-top: 0.75rem;
+}
+
+.image-preview img {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Current image display in edit form */
+.current-image {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    text-align: center;
+}
+
+.current-image p {
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #5a5a5a;
+}
+
+.current-image img {
+    max-width: 100%;
+    max-height: 150px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Custom file input styling to match project buttons */
+.form-group input[type="file"] {
+    display: none;
+}
+
+.file-input-wrapper {
+    display: inline-block;
+    width: 100%;
+}
+
+.file-input-label {
+    display: inline-block;
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.95rem;
+    text-align: center;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #b5ead7 0%, #c2f2e9 100%);
+    color: #5a5a5a;
+    border: 1px solid #a3d9c5;
+    box-shadow: 0 2px 6px rgba(181, 234, 215, 0.4);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.file-input-label:hover {
+    background: linear-gradient(135deg, #a3d9c5 0%, #b0f0db 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(181, 234, 215, 0.4);
+}
+
+.file-input-label:active {
+    transform: translateY(0);
+}
+
+.file-name {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: #7a7a7a;
+    text-align: center;
+    word-break: break-all;
+}
+
+.image-actions {
+    margin-top: 0.75rem;
+}
+
+.remove-image-checkbox {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    color: #d32f2f;
+}
+
+.remove-image-checkbox input {
+    margin-right: 0.5rem;
+}
+
+/* Remove image button */
+.btn-remove-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    margin-top: 0.75rem;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #ffcdd2 0%, #ef9a9a 100%);
+    color: #c62828;
+    border: 1px solid #e57373;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(198, 40, 40, 0.2);
+    width: 100%;
+}
+
+.btn-remove-image:hover {
+    background: linear-gradient(135deg, #ef9a9a 0%, #e57373 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(198, 40, 40, 0.3);
+}
+
+.btn-remove-image:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(198, 40, 40, 0.2);
+}
+
+.btn-remove-image .remove-icon {
+    font-size: 1.4rem;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.image-preview .btn-remove-image {
+    margin-top: 0.5rem;
+}
+
+.current-image .btn-remove-image {
+    margin-top: 0.75rem;
+}

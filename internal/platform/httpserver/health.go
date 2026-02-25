@@ -38,6 +38,9 @@ type HealthPageConfig struct {
 	Checker   *health.Checker
 	Templates *template.Template
 	AuthFunc  func(r *http.Request) (userID int, username string)
+	// GetUserWithStats returns full user data including stats for template rendering.
+	// If nil, only basic auth info (ID, Username) will be shown.
+	GetUserWithStats func(r *http.Request) map[string]interface{}
 }
 
 // HealthPage renders an HTML page with the system's health status.
@@ -49,7 +52,11 @@ func HealthPage(cfg HealthPageConfig) http.HandlerFunc {
 
 		// Get current user if logged in
 		var currentUser interface{}
-		if cfg.AuthFunc != nil {
+		if cfg.GetUserWithStats != nil {
+			// Use full user data with stats if available
+			currentUser = cfg.GetUserWithStats(r)
+		} else if cfg.AuthFunc != nil {
+			// Fall back to basic auth info
 			if userID, username := cfg.AuthFunc(r); userID > 0 {
 				currentUser = map[string]interface{}{
 					"ID":       userID,

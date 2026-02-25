@@ -3,6 +3,8 @@ package application
 
 import (
 	"context"
+	"time"
+
 	"forum/internal/modules/user/domain"
 	"forum/internal/modules/user/ports"
 )
@@ -17,6 +19,27 @@ func NewService(userRepo ports.UserRepository) *Service {
 	return &Service{
 		userRepo: userRepo,
 	}
+}
+
+// CreateUser creates a new user with the given details.
+// Returns the created user's internal ID or an error.
+func (s *Service) CreateUser(ctx context.Context, email, username, passwordHash string) (userID int, err error) {
+	user := &domain.User{
+		Email:        email,
+		Username:     username,
+		PasswordHash: passwordHash,
+		Role:         domain.RoleUser, // Default role is User
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		IsActive:     true,
+	}
+
+	err = s.userRepo.Create(ctx, user)
+	if err != nil {
+		return 0, err
+	}
+
+	return user.ID, nil
 }
 
 // GetByID retrieves a user by their internal ID (for internal use only).
@@ -43,24 +66,70 @@ func (s *Service) GetByEmail(ctx context.Context, email string) (*domain.User, e
 }
 
 // UpdateRole updates a user's role.
-// TODO: Implement role update with permission checks.
+// Validates the new role and updates the user in the repository.
 func (s *Service) UpdateRole(ctx context.Context, userID int, newRole domain.Role) error {
-	// Implementation placeholder
-	return nil
+	// Validate role
+	if !isValidRole(newRole) {
+		return domain.ErrInvalidRole
+	}
+
+	// Get the user first to ensure they exist
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return domain.ErrUserNotFound
+	}
+
+	// Update role and timestamp
+	user.Role = newRole
+	user.UpdatedAt = time.Now()
+
+	return s.userRepo.Update(ctx, user)
 }
 
 // DeactivateUser deactivates a user account.
-// TODO: Implement user deactivation.
+// Sets IsActive to false and updates the repository.
 func (s *Service) DeactivateUser(ctx context.Context, userID int) error {
-	// Implementation placeholder
-	return nil
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return domain.ErrUserNotFound
+	}
+
+	if !user.IsActive {
+		return nil // Already inactive
+	}
+
+	user.IsActive = false
+	user.UpdatedAt = time.Now()
+
+	return s.userRepo.Update(ctx, user)
 }
 
 // ActivateUser reactivates a user account.
-// TODO: Implement user activation.
+// Sets IsActive to true and updates the repository.
 func (s *Service) ActivateUser(ctx context.Context, userID int) error {
-	// Implementation placeholder
-	return nil
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return domain.ErrUserNotFound
+	}
+
+	if user.IsActive {
+		return nil // Already active
+	}
+
+	user.IsActive = true
+	user.UpdatedAt = time.Now()
+
+	return s.userRepo.Update(ctx, user)
+}
+
+// isValidRole checks if a role string is a valid role.
+func isValidRole(role domain.Role) bool {
+	switch role {
+	case domain.RoleGuest, domain.RoleUser, domain.RoleModerator, domain.RoleAdmin:
+		return true
+	default:
+		return false
+	}
 }
 
 // ListUsers returns a paginated list of users.
@@ -87,4 +156,24 @@ func (s *Service) IncrementCommentCount(ctx context.Context, userID int) error {
 // DecrementCommentCount atomically decrements the user's comment count.
 func (s *Service) DecrementCommentCount(ctx context.Context, userID int) error {
 	return s.userRepo.DecrementCommentCount(ctx, userID)
+}
+
+// ExistsByEmail checks if a user with the given email exists.
+func (s *Service) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	return s.userRepo.ExistsByEmail(ctx, email)
+}
+
+// ExistsByUsername checks if a user with the given username exists.
+func (s *Service) ExistsByUsername(ctx context.Context, username string) (bool, error) {
+	return s.userRepo.ExistsByUsername(ctx, username)
+}
+
+// IncrementReactionCount atomically increments the user's reaction count.
+func (s *Service) IncrementReactionCount(ctx context.Context, userID int) error {
+	return s.userRepo.IncrementReactionCount(ctx, userID)
+}
+
+// DecrementReactionCount atomically decrements the user's reaction count.
+func (s *Service) DecrementReactionCount(ctx context.Context, userID int) error {
+	return s.userRepo.DecrementReactionCount(ctx, userID)
 }

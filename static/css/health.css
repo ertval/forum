@@ -1,0 +1,98 @@
+/* ==========================================================================
+   HEALTH PAGE STYLES - System health status display
+   ========================================================================== */
+
+.health-status {
+    max-width: 800px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.health-status h2 {
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+.health-status p {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    color: #7a7a7a;
+}
+
+.health-status h3 {
+    margin: 1.5rem 0 1rem;
+    color: #5a5a5a;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 0.5rem;
+    text-align: center;
+}
+
+.health-status table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.5rem;
+    background: #ffffff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.health-status th,
+.health-status td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.health-status th {
+    background: linear-gradient(135deg, #d3e0ea 0%, #e0f0f7 100%);
+    color: #5a5a5a;
+    font-weight: 600;
+}
+
+.health-status tr:last-child td {
+    border-bottom: none;
+}
+
+.health-status tr:hover td {
+    background-color: #f8fdfb;
+}
+
+/* Status badges */
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.status-healthy,
+.status-ok,
+.status-up {
+    background: linear-gradient(135deg, #b5ead7 0%, #c2f2e9 100%);
+    color: #2d7a5e;
+    border: 1px solid #a3d9c5;
+}
+
+.status-unhealthy,
+.status-error,
+.status-down {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ff8a8a 100%);
+    color: #ffffff;
+    border: 1px solid #e53e3e;
+    font-weight: 600;
+}
+
+.status-warning {
+    background: linear-gradient(135deg, #f9e6a8 0%, #fcf0c8 100%);
+    color: #7a6520;
+    border: 1px solid #f5d98f;
+}
+
+.status-unknown {
+    background: linear-gradient(135deg, #d3e0ea 0%, #e6eef5 100%);
+    color: #5a5a5a;
+    border: 1px solid #c0d0e0;
+}

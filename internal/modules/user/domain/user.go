@@ -8,17 +8,18 @@ import (
 
 // User represents a forum user.
 type User struct {
-	ID           int       `json:"-"`             // Internal unique identifier (INT PRIMARY KEY) - never expose
-	PublicID     string    `json:"id"`            // Public UUID identifier (exposed in API)
-	Email        string    `json:"email"`         // User's email address (unique)
-	Username     string    `json:"username"`      // User's display name (unique)
-	PasswordHash string    `json:"-"`             // Hashed password - never expose
-	Role         Role      `json:"role"`          // User's role (Guest, User, Moderator, Admin)
-	PostCount    int       `json:"post_count"`    // Number of posts created (cached from posts table)
-	CommentCount int       `json:"comment_count"` // Number of comments made (cached from comments table)
-	CreatedAt    time.Time `json:"created_at"`    // Account creation timestamp
-	UpdatedAt    time.Time `json:"updated_at"`    // Last update timestamp
-	IsActive     bool      `json:"is_active"`     // Account active status
+	ID            int       `json:"-"`              // Internal unique identifier (INT PRIMARY KEY) - never expose
+	PublicID      string    `json:"id"`             // Public UUID identifier (exposed in API)
+	Email         string    `json:"email"`          // User's email address (unique)
+	Username      string    `json:"username"`       // User's display name (unique)
+	PasswordHash  string    `json:"-"`              // Hashed password - never expose
+	Role          Role      `json:"role"`           // User's role (Guest, User, Moderator, Admin)
+	PostCount     int       `json:"post_count"`     // Number of posts created (cached from posts table)
+	CommentCount  int       `json:"comment_count"`  // Number of comments made (cached from comments table)
+	ReactionCount int       `json:"reaction_count"` // Number of reactions given (computed from reactions table)
+	CreatedAt     time.Time `json:"created_at"`     // Account creation timestamp
+	UpdatedAt     time.Time `json:"updated_at"`     // Last update timestamp
+	IsActive      bool      `json:"is_active"`      // Account active status
 }
 
 // Role represents a user's permission level.
