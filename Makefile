@@ -122,6 +122,20 @@ test-script-html:
 
 # Run tests with coverage
 test-coverage:
+	@echo "$(BLUE)Running tests with coverage...$(NC)"
+	CGO_ENABLED=$(CGO_ENABLED) $(GOTEST) -coverprofile=coverage.out ./...
+	$(GOCMD) tool cover -html=coverage.out -o coverage.html
+	@echo "$(GREEN)Coverage report generated: coverage.html$(NC)"
+.PHONY: test-coverage
+
+# Run tests and show only failures
+test-fail:
+	@echo "$(BLUE)Running tests and showing only failures...$(NC)"
+	@$(GOTEST) ./... | grep "FAIL" || echo "$(GREEN)✓ Go tests: No failures$(NC)"
+	@$(GOTEST) ./tests/... | grep "FAIL" || echo "$(GREEN)✓ Integration tests: No failures$(NC)"
+	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh --quiet | grep "✗" || echo "$(GREEN)✓ Script tests: No failures$(NC)"
+.PHONY: test-fail
+
 # Clean build artifacts
 clean:
 	@echo "$(BLUE)Cleaning...$(NC)"
@@ -131,12 +145,6 @@ clean:
 	rm -f coverage.out coverage.html
 	@echo "$(GREEN)Clean complete$(NC)"
 .PHONY: clean
-	@echo "$(BLUE)Cleaning...$(NC)"
-	$(GOCLEAN)
-	rm -f $(BINARY_NAME)
-	rm -f $(BINARY_UNIX)
-	rm -f coverage.out coverage.html
-	@echo "$(GREEN)Clean complete$(NC)"
 
 # Format code
 fmt:
