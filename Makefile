@@ -178,7 +178,7 @@ mod:
 # Run database migrations
 migrate:
 	@echo "$(BLUE)Running database migrations...$(NC)"
-	@bash ./scripts/run_migrations.sh
+	@bash ./scripts/seed/run_migrations.sh
 	@echo "$(GREEN)Migrations complete$(NC)"
 .PHONY: migrate
 

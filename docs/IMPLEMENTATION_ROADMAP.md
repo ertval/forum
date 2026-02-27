@@ -4,7 +4,7 @@ Fast path to functional forum MVP following core requirements, then complete rem
 
 ## Current Status
 
-**Project Phase**: Production-ready MVP — all core and secondary features complete, all tests pass.
+**Project Phase**: Production-ready MVP — core features complete, optional modules scaffolded, and test coverage is broad with occasional regressions under active maintenance.
 
 ### ✅ Completed Features
 
@@ -25,9 +25,8 @@ Fast path to functional forum MVP following core requirements, then complete rem
 
 ### 🧪 Test Status
 
-- ✅ All Go unit tests pass
-- ✅ All integration tests pass
-- ✅ All E2E test scripts pass (API, audit, image upload, pages)
+- ✅ Broad unit/integration/E2E coverage exists across core modules
+- ℹ️ Use `make test` to verify the current repository state on your environment
 
 ---
 
@@ -38,7 +37,7 @@ Fast path to functional forum MVP following core requirements, then complete rem
 - [x] Config loading from environment variables
 - [x] Database connection (SQLite with mattn/go-sqlite3)
 - [x] Database migrator - auto-apply migrations on startup
-- [x] Manual migration script (`make migrate` / `scripts/run_migrations.sh`)
+- [x] Manual migration script (`make migrate` / `scripts/seed/run_migrations.sh`)
 - [x] HTTP server with standard lib http.ServeMux
 - [x] Structured logger with levels
 - [x] Logger middleware (request logging)
@@ -158,7 +157,7 @@ Fast path to functional forum MVP following core requirements, then complete rem
 - [x] HTTPS/TLS configuration (TLS 1.2+, strong cipher suites)
 - [x] Rate limiting middleware (per-IP/per-user)
 - [x] Security headers (CSP, HSTS, X-Frame-Options, X-XSS-Protection, Referrer-Policy)
-- [x] Certificate generation script (`scripts/generate_certs.sh`)
+- [x] Certificate generation script (`scripts/seed/generate_certs.sh`)
 - [x] Security headers tests
 
 ---

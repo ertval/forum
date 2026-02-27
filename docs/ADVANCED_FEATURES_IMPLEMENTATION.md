@@ -358,12 +358,8 @@ func (h *HTTPHandler) MarkAsReadAPI(w http.ResponseWriter, r *http.Request) {
     // ...
 }
 
-// PUT /api/notifications/read-all
-func (h *HTTPHandler) MarkAllAsReadAPI(w http.ResponseWriter, r *http.Request) {
-    userID := r.Context().Value(middleware.UserIDKey).(string)
-    err := h.service.MarkAllAsRead(r.Context(), userID)
-    // ...
-}
+// Additional endpoints can be introduced later (for example, unread counts)
+// while keeping `/api/notifications` and `/api/notifications/{id}/read` as core.
 ```
 
 #### 2.7 Notification Bell in Navigation

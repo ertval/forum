@@ -9,7 +9,7 @@ Summary
 
 Running Migrations
 - Use the Makefile command: `make migrate`
-- Or run directly: `bash scripts/run_migrations.sh`
+- Or run directly: `bash scripts/seed/run_migrations.sh`
 - The migrator creates a `schema_migrations` table to track applied migrations
 - Migrations are applied in order by their numeric prefix (001, 002, 003, etc.)
 - Already-applied migrations are automatically skipped

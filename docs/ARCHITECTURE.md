@@ -4,7 +4,7 @@
 
 A modular monolith web forum built with Go, following **Hexagonal Architecture** (Ports and Adapters). Clean boundaries, testable components, idiomatic Go.
 
-**Status**: Production-ready MVP with auth, posts, categories, comments, filtering, and image upload. All tests pass.
+**Status**: Production-ready MVP with auth, posts, categories, comments, filtering, and image upload. Test coverage is broad and continuously maintained.
 
 **Stack**: Go 1.24+ | SQLite (CGO required) | Minimal deps (uuid, bcrypt, sqlite3)
 
@@ -86,7 +86,7 @@ Every ports/adapters file has a header comment:
 
 ## API URL Pattern
 
-All JSON API endpoints: `/api/{module}/{action}`
+All JSON API endpoints use the `/api` prefix with resource-style routes.
 
 ```
 Auth:     POST /api/auth/register, /login, /logout | GET /api/auth/session
@@ -106,11 +106,11 @@ Reactions: POST/DELETE /api/reactions | GET /api/reactions/{targetType}/{targetI
 | **user** | User profiles, cached stats (post/comment counts) |
 | **post** | Full CRUD, categories, filtering, image upload |
 | **comment** | Full CRUD with ownership validation, my comments page |
+| **reaction** | Like/dislike toggles for posts/comments with counts |
 
 ### Scaffolded (Partial Implementation)
 | Module | Description |
 |--------|-------------|
-| **reaction** | Like/dislike - routes defined, handlers return 501 |
 | **moderation** | Reports, roles - minimal implementation |
 | **notification** | User notifications - minimal implementation |
 
@@ -367,7 +367,7 @@ Shared infrastructure in `internal/platform/`:
 
 **Running Migrations:**
 - Automatic: Migrations auto-apply on application startup via `database.Migrator`
-- Manual: Run `make migrate` or `bash scripts/run_migrations.sh`
+- Manual: Run `make migrate` or `bash scripts/seed/run_migrations.sh`
 - The migrator creates a `schema_migrations` table to track applied migrations
 - Already-applied migrations are automatically skipped
 - See `migrations/MIGRATIONS_GUIDE.md` for detailed migration authoring guidelines
@@ -380,7 +380,7 @@ Shared infrastructure in `internal/platform/`:
 - TLS 1.2 minimum version
 - Strong cipher suites (AEAD only)
 - Certificate configuration via environment variables
-- Self-signed certificate generation script: `scripts/generate_certs.sh`
+- Self-signed certificate generation script: `scripts/seed/generate_certs.sh`
 
 ### Production TLS Certificates
 

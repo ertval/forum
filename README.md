@@ -61,7 +61,7 @@ A modern web forum built with Go, following Hexagonal Architecture principles. C
 - **Input Validation** - Email format, password strength, data sanitization
 - **Secure Sessions** - UUID tokens, server-side storage, secure cookies
 - **Security Headers** - CSP, X-Frame-Options, HSTS, X-XSS-Protection, Referrer-Policy, Permissions-Policy
-- **Certificate Generation** - Script for self-signed certificates (`scripts/generate_certs.sh`)
+- **Certificate Generation** - Script for self-signed certificates (`scripts/seed/generate_certs.sh`)
 
 ### Optional Features
 
@@ -266,37 +266,42 @@ Environment variables with sane defaults:
 
 ```env
 # Server
-PORT=8080
-TLS_PORT=8443
-ENVIRONMENT=development
+SERVER_PORT=8080
+SERVER_TLS_PORT=8443
+SERVER_ENVIRONMENT=development
 
 # Database
-DB_PATH=./forum.db
+DATABASE_PATH=./data/forum.db
+DATABASE_MIGRATIONS_DIR=./migrations
 
 # Session
 SESSION_SECRET=your-secret-key-here
 SESSION_DURATION=24h
+SESSION_COOKIE_NAME=forum_session
+SESSION_SECURE=false
 
 # Rate Limiting
 RATE_LIMIT_REQUESTS=100
 RATE_LIMIT_WINDOW=1m
 
 # File Upload
-MAX_UPLOAD_SIZE=20971520  # 20MB
+UPLOAD_MAX_SIZE_MB=20
 UPLOAD_DIR=./static/uploads
 
 # OAuth (optional)
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-GITHUB_CLIENT_ID=your-github-client-id
-GITHUB_CLIENT_SECRET=your-github-client-secret
+GOOGLE_OAUTH_CLIENT_ID=your-google-client-id
+GOOGLE_OAUTH_CLIENT_SECRET=your-google-client-secret
+GOOGLE_OAUTH_REDIRECT_URL=https://localhost:8443/auth/google/callback
+GITHUB_OAUTH_CLIENT_ID=your-github-client-id
+GITHUB_OAUTH_CLIENT_SECRET=your-github-client-secret
+GITHUB_OAUTH_REDIRECT_URL=https://localhost:8443/auth/github/callback
 ```
 
 ---
 
 ## API Endpoints
 
-All JSON API endpoints follow the pattern: `/api/{module}/{action}`
+All JSON API endpoints are served under the `/api` prefix using resource-oriented routes.
 
 ### Authentication ✅
 
@@ -387,17 +392,14 @@ All JSON API endpoints follow the pattern: `/api/{module}/{action}`
 
 ### Moderation [OPTIONAL]
 
-- `POST /reports` - Create report
-- `GET /reports` - List reports (moderators)
-- `PUT /reports/:id` - Review report (moderators)
-- `DELETE /posts/:id` - Delete post (moderators)
-- `DELETE /comments/:id` - Delete comment (moderators)
+- `POST /api/moderation/reports` - Create report
+- `GET /api/moderation/reports` - List reports (moderators)
+- `PUT /api/moderation/reports/{id}` - Review report (moderators)
 
 ### Notifications [OPTIONAL]
 
-- `GET /notifications` - List notifications
-- `PUT /notifications/:id/read` - Mark as read
-- `PUT /notifications/read-all` - Mark all as read
+- `GET /api/notifications` - List notifications
+- `PUT /api/notifications/{id}/read` - Mark as read
 
 ---
 
@@ -487,7 +489,7 @@ The forum uses SQL migrations tracked in `migrations/` directory. Migrations are
 make migrate
 
 # Or run directly
-bash scripts/run_migrations.sh
+bash scripts/seed/run_migrations.sh
 ```
 
 **Create New Migration:**
@@ -496,7 +498,7 @@ bash scripts/run_migrations.sh
 # Generate a new migration file
 make migration NAME=add_user_bio
 
-# Creates: migrations/<timestamp>_add_user_bio.sql
+# Creates: migrations/<NNN>_add_user_bio.sql (e.g. 008_add_user_bio.sql)
 ```
 
 **Migration Structure:**
@@ -526,7 +528,7 @@ The forum supports image uploads for posts with the following specifications:
 | Environment Variable | Default            | Description                   |
 | -------------------- | ------------------ | ----------------------------- |
 | `STATIC_UPLOADS_DIR` | `./static/uploads` | Directory for uploaded images |
-| `MAX_UPLOAD_SIZE`    | `20971520` (20MB)  | Maximum file size in bytes    |
+| `UPLOAD_MAX_SIZE_MB` | `20`               | Maximum file size in megabytes |
 
 ### Supported Formats
 
@@ -599,7 +601,7 @@ The E2E test script (`scripts/tests/test_image_upload.sh`) validates all audit r
 
 - **Database**: [mattn/go-sqlite3](https://github.com/mattn/go-sqlite3)
 - **Password Hashing**: [golang.org/x/crypto/bcrypt](https://pkg.go.dev/golang.org/x/crypto/bcrypt)
-- **UUID**: [gofrs/uuid](https://github.com/gofrs/uuid) or [google/uuid](https://github.com/google/uuid)
+- **UUID**: [gofrs/uuid/v5](https://github.com/gofrs/uuid)
 
 **Minimal dependencies** - Prefer standard library where reasonable.
 
@@ -657,7 +659,7 @@ docker run -p 8080:8080 forum:latest
 2. Set production environment:
 
    ```env
-   ENVIRONMENT=production
+  SERVER_ENVIRONMENT=production
    SESSION_SECRET=<strong-secret-key>
    TLS_CERT_FILE=/path/to/cert.pem
    TLS_KEY_FILE=/path/to/key.pem

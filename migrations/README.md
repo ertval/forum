@@ -4,9 +4,9 @@ This directory contains SQL migration files organized by module.
 
 ## Migration Naming Convention
 
-Migrations follow the pattern: `YYYYMMDDHHMMSS_module_description.sql`
+Migrations follow the pattern: `NNN_module_description.sql`
 
-Example: `20231101120000_auth_create_sessions_table.sql`
+Example: `001_auth_create_sessions.sql`
 
 ## Migration Structure
 
@@ -22,7 +22,7 @@ DROP TABLE IF EXISTS users;
 
 ## Applying Migrations
 
-Migrations are automatically applied on application startup by the migration runner in `internal/platform/database/migrations.go`.
+Migrations are automatically applied on application startup by the migration runner in `internal/platform/database/migrator.go`.
 
 ## Module Organization
 
@@ -35,4 +35,4 @@ Migrations are logically organized by module:
 - `moderation/`: Moderation and report tables
 - `notification/`: Notification tables
 
-All migrations are applied in order based on their version number (timestamp).
+All migrations are applied in order based on their numeric prefix (001, 002, ...).
