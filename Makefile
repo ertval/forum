@@ -248,6 +248,43 @@ seed:
 	bash ./scripts/seed/seed.sh
 .PHONY: seed
 
+# Generate all audit evidence artifacts
+audit-evidence:
+	@echo "$(BLUE)Generating audit evidence artifacts...$(NC)"
+	bash ./scripts/audit/run_evidence_all.sh
+	@echo "$(GREEN)Audit evidence complete$(NC)"
+.PHONY: audit-evidence
+
+# Docker build/run/health evidence
+audit-evidence-docker:
+	@echo "$(BLUE)Generating Docker health evidence...$(NC)"
+	bash ./scripts/audit/evidence_docker_health.sh
+.PHONY: audit-evidence-docker
+
+# Page sweep evidence
+audit-evidence-pages:
+	@echo "$(BLUE)Generating page sweep evidence...$(NC)"
+	bash ./scripts/audit/evidence_page_sweep.sh
+.PHONY: audit-evidence-pages
+
+# Performance smoke evidence
+audit-evidence-perf:
+	@echo "$(BLUE)Generating performance evidence...$(NC)"
+	bash ./scripts/audit/evidence_performance.sh
+.PHONY: audit-evidence-perf
+
+# Docker cleanup process (safe dry run)
+docker-prune-dry-run:
+	@echo "$(BLUE)Running Docker prune dry-run process...$(NC)"
+	bash ./scripts/audit/docker_cleanup_prune.sh --dry-run
+.PHONY: docker-prune-dry-run
+
+# Docker cleanup process (destructive)
+docker-prune-apply:
+	@echo "$(YELLOW)Applying Docker prune process...$(NC)"
+	bash ./scripts/audit/docker_cleanup_prune.sh --apply
+.PHONY: docker-prune-apply
+
 # Help
 help:
 	@echo "$(BLUE)Available targets:$(NC)"
@@ -278,6 +315,12 @@ help:
 	@echo "  $(GREEN)down$(NC)            - Alias for docker-down"
 	@echo "  $(GREEN)build-linux$(NC)     - Cross compile for Linux"
 	@echo "  $(GREEN)check-schema$(NC)    - Check database schema"
+	@echo "  $(GREEN)audit-evidence$(NC)  - Run all audit evidence scripts"
+	@echo "  $(GREEN)audit-evidence-docker$(NC) - Generate docker build/run/health artifacts"
+	@echo "  $(GREEN)audit-evidence-pages$(NC) - Generate page sweep artifacts"
+	@echo "  $(GREEN)audit-evidence-perf$(NC) - Generate performance artifacts"
+	@echo "  $(GREEN)docker-prune-dry-run$(NC) - Show docker cleanup process without deleting"
+	@echo "  $(GREEN)docker-prune-apply$(NC) - Apply docker cleanup process"
 	@echo "  $(GREEN)seed$(NC)            - Seed database"
 	@echo "  $(GREEN)help$(NC)            - Show this help"
 .PHONY: help

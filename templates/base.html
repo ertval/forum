@@ -303,10 +303,10 @@
         <label for="image">{{if .Post.ImageURL}}Replace Image{{else}}Add Image{{end}} (Optional)</label>
         <div class="file-input-wrapper">
             <label for="image" class="file-input-label">Choose File</label>
-            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif" form="post-edit-form">
+            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif,image/webp" form="post-edit-form">
             <span class="file-name" id="file-name-display">No file chosen</span>
         </div>
-        <span class="form-help">JPEG, PNG, or GIF. Maximum 20MB</span>
+        <span class="form-help">JPEG, PNG, GIF, or WebP. Maximum 20MB</span>
         <div id="image-preview" class="image-preview"></div>
     </div>
     {{end}}
@@ -342,10 +342,10 @@
         <label for="image">Add Image (Optional)</label>
         <div class="file-input-wrapper">
             <label for="image" class="file-input-label">Choose File</label>
-            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif" form="post-create-form">
+            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif,image/webp" form="post-create-form">
             <span class="file-name" id="file-name-display">No file chosen</span>
         </div>
-        <span class="form-help">JPEG, PNG, or GIF. Maximum 20MB</span>
+        <span class="form-help">JPEG, PNG, GIF, or WebP. Maximum 20MB</span>
         <div id="image-preview" class="image-preview"></div>
     </div>
 </div>

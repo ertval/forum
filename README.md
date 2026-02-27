@@ -535,14 +535,17 @@ The forum supports image uploads for posts with the following specifications:
 
 | Environment Variable | Default            | Description                   |
 | -------------------- | ------------------ | ----------------------------- |
-| `STATIC_UPLOADS_DIR` | `./static/uploads` | Directory for uploaded images |
+| `UPLOAD_DIR` | `./static/uploads` | Directory for uploaded images |
 | `UPLOAD_MAX_SIZE_MB` | `20`               | Maximum file size in megabytes |
+
+When running with Docker Compose, make sure `/app/static/uploads` is mounted to persist uploaded files across restarts.
 
 ### Supported Formats
 
 - **JPEG** (`.jpg`, `.jpeg`) - `image/jpeg`
 - **PNG** (`.png`) - `image/png`
 - **GIF** (`.gif`) - `image/gif`
+- **WebP** (`.webp`) - `image/webp`
 
 ### Security Features
 
@@ -558,7 +561,7 @@ The forum supports image uploads for posts with the following specifications:
 
 ```html
 <form method="POST" action="/posts" enctype="multipart/form-data">
-  <input type="file" name="image" accept="image/jpeg,image/png,image/gif" />
+  <input type="file" name="image" accept="image/jpeg,image/png,image/gif,image/webp" />
   <!-- other fields -->
 </form>
 ```
@@ -634,6 +637,8 @@ See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for:
 - Hexagonal Architecture patterns
 - Module structure and dependencies
 - Design decisions and rationale
+
+For Docker-only seeding/testing workflows (no local `sqlite3` required), see [docs/SEEDING_WITH_DOCKER.md](./docs/SEEDING_WITH_DOCKER.md).
 
 ---
 

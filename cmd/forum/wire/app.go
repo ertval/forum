@@ -101,6 +101,11 @@ func initDatabase(cfg *config.Config, lgr *logger.Logger) (*database.Connection,
 func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *sql.DB) *httpserver.Server {
 	lgr.Info("Initializing HTTP server")
 
+	if err := os.MkdirAll(cfg.Upload.UploadDir, 0755); err != nil {
+		lgr.Error("Failed to initialize upload directory", logger.Error(err))
+		panic(fmt.Errorf("failed to initialize upload directory: %w", err))
+	}
+
 	// Create server with config as single source of truth
 	server := httpserver.New(cfg)
 

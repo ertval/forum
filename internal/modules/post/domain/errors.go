@@ -18,7 +18,7 @@ var (
 	ErrImageTooLarge = errors.New("image file too large")
 
 	// ErrInvalidImageType is returned when image type is not allowed.
-	ErrInvalidImageType = errors.New("invalid image type, must be JPEG, PNG, or GIF")
+	ErrInvalidImageType = errors.New("invalid image type, must be JPEG, PNG, GIF, or WebP")
 
 	// ErrEmptyTitle is returned when post title is empty.
 	ErrEmptyTitle = errors.New("post title cannot be empty")

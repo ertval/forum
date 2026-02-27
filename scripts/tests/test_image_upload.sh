@@ -9,7 +9,7 @@
 # 3. GIF image upload
 # 4. Oversized image rejection (>20MB)
 # 5. Image persistence verification
-# 6. BONUS: Unsupported image type rejection (BMP, WebP, etc.)
+# 6. BONUS: Additional image type support and unsupported type rejection
 # =============================================================================
 
 set -e  # Exit on error
@@ -297,7 +297,7 @@ create_test_images() {
     
     debug_log "Created BMP: $(ls -la "$TEST_DIR/test.bmp")"
     
-    # Create WebP file (unsupported format)
+    # Create WebP file (supported additional format)
     # WebP magic bytes: RIFF....WEBP
     printf 'RIFF' > "$TEST_DIR/test.webp"
     printf '\x24\x00\x00\x00' >> "$TEST_DIR/test.webp"  # File size
@@ -664,15 +664,15 @@ test_unsupported_bmp() {
     fi
 }
 
-test_unsupported_webp() {
+test_webp_upload() {
     echo ""
-    echo -e "${CYAN}Test 7 (BONUS): WebP Image Rejection${NC}"
-    echo "Testing: Attempt to upload an unsupported WebP image"
+    echo -e "${CYAN}Test 7 (BONUS): WebP Image Upload${NC}"
+    echo "Testing: Create a post with a WebP image"
     
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
         -H "Cookie: session_token=$SESSION_TOKEN" \
         -F "title=WebP Image Test" \
-        -F "content=This should fail - WebP not supported" \
+        -F "content=This should succeed with WebP support" \
         -F "categories=General" \
         -F "image=@$TEST_DIR/test.webp")
     
@@ -682,17 +682,21 @@ test_unsupported_webp() {
     debug_log "HTTP Code: $HTTP_CODE"
     debug_log "Response: $BODY"
     
-    if [ "$HTTP_CODE" = "400" ] || [ "$HTTP_CODE" = "415" ]; then
-        print_test "WebP Rejection" "PASS" "Correctly rejected WebP (HTTP $HTTP_CODE)"
-    elif [ "$HTTP_CODE" = "201" ]; then
+    if [ "$HTTP_CODE" = "201" ]; then
+        POST_ID=$(extract_json_field "$BODY" "id")
         IMAGE_URL=$(extract_json_field "$BODY" "image_url")
-        if [ -z "$IMAGE_URL" ] || [ "$IMAGE_URL" = "null" ] || [ "$IMAGE_URL" = "" ]; then
-            print_test "WebP Rejection" "PASS" "WebP was ignored, post created without image"
+        if [ -n "$POST_ID" ]; then
+            CREATED_POST_IDS+=("$POST_ID")
+            if [ -n "$IMAGE_URL" ] && [ "$IMAGE_URL" != "null" ] && [ "$IMAGE_URL" != "" ]; then
+                print_test "WebP Upload" "PASS" "Post created with image URL: $IMAGE_URL"
+            else
+                print_test "WebP Upload" "FAIL" "Post created but no image URL returned"
+            fi
         else
-            print_test "WebP Rejection" "FAIL" "WebP image was accepted (should be rejected)"
+            print_test "WebP Upload" "FAIL" "Post created but no ID returned"
         fi
     else
-        print_test "WebP Rejection" "FAIL" "Unexpected response: HTTP $HTTP_CODE"
+        print_test "WebP Upload" "FAIL" "Expected 201, got $HTTP_CODE. Response: $BODY"
     fi
 }
 
@@ -855,7 +859,7 @@ test_gif_upload              # Requirement 3
 test_oversized_image         # Requirement 4
 test_image_persistence       # Requirement 5
 test_unsupported_bmp         # Bonus requirement
-test_unsupported_webp        # Bonus requirement
+test_webp_upload             # Bonus requirement
 test_unsupported_svg         # Bonus requirement
 test_unsupported_tiff        # Bonus requirement
 test_unauthenticated_upload  # Security test
