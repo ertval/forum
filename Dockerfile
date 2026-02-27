@@ -3,7 +3,7 @@
 
 # == Build stage ==
 # Use a stable Go 1.25 Alpine image for reproducible builds and security
-FROM golang:1.25-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Install build dependencies required for CGO and SQLite compilation
 # --no-cache: Don't store package manager cache to reduce image size

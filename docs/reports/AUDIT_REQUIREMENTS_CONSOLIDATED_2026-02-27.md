@@ -6,28 +6,6 @@ Method: one deep code-audit subagent per audit file, then merged and deduplicate
 
 ---
 
-## Quick Diagnosis: 404 for `/static/uploads/seed-placeholder.*`
-
-Observed runtime errors:
-- `GET /static/uploads/seed-placeholder.png` → 404
-- `GET /static/uploads/seed-placeholder.jpg` → 404
-- `GET /static/uploads/seed-placeholder.gif` → 404
-
-What was verified:
-- No `seed-placeholder` literal exists in repository source or seed SQL.
-- Local workspace currently has no `static/uploads` directory.
-- Seed post rows use `uploads/<uuid>.<ext>` paths (`scripts/seed/seed_data.sql`), and image URLs are later prefixed in repository code to `/static/uploads/...`.
-
-Likely root cause:
-- Requests are coming from runtime DB data (stale or prior seed content) that references `seed-placeholder.*`, but those files are not present in mounted uploads storage.
-
-What is missing to eliminate these 404s:
-- Either create the referenced placeholder files under `static/uploads/`, or
-- update/clean the DB rows that reference `seed-placeholder.*`, and
-- ensure `static/uploads` exists and is persisted for container runtime.
-
----
-
 ## Cross-Audit Outcome (Merged)
 
 ### Fully Implemented (major areas)
