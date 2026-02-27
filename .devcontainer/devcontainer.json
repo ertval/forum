@@ -1,5 +1,8 @@
 {
-  "name": "forum-dev",
+  // Devcontainer note: Dockerfile removes stale Yarn APT source files
+  // before running `apt-get update` to avoid build failures like
+  // "NO_PUBKEY 62D54FD4003F6525" from an unsigned yarnpkg repo.
+  "name": "forum-dev-container",
   "build": {
     "dockerfile": "Dockerfile",
     "context": ".."

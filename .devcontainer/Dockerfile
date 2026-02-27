@@ -1,6 +1,7 @@
 FROM mcr.microsoft.com/devcontainers/go:1-1.24-bookworm
 
-RUN apt-get update && apt-get install -y \
+RUN rm -f /etc/apt/sources.list.d/yarn.list /etc/apt/sources.list.d/yarn.sources \
+ && apt-get update && apt-get install -y \
     sqlite3 \
     libsqlite3-dev \
     build-essential \

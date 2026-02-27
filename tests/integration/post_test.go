@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -136,6 +137,8 @@ func TestFormPostCreation(t *testing.T) {
 // Helper functions
 
 func setupTestApp(t *testing.T) *wire.App {
+	uploadDir := filepath.Join(t.TempDir(), "uploads")
+
 	cfg := &config.Config{
 		Database: config.DatabaseConfig{
 			Path:          ":memory:",
@@ -144,6 +147,11 @@ func setupTestApp(t *testing.T) *wire.App {
 		Server:   config.ServerConfig{Port: 8080},
 		Session:  config.SessionConfig{Duration: 24 * time.Hour},
 		Security: config.SecurityConfig{RateLimitRequests: 100, RateLimitWindow: time.Minute},
+		Upload: config.UploadConfig{
+			MaxSize:      20 * 1024 * 1024,
+			AllowedTypes: []string{"image/jpeg", "image/png", "image/gif"},
+			UploadDir:    uploadDir,
+		},
 	}
 
 	lgr := logger.New(logger.InfoLevel, os.Stdout)

@@ -21,6 +21,14 @@ RED='\033[0;31m' GREEN='\033[0;32m' YELLOW='\033[1;33m' BLUE='\033[0;34m' NC='\0
 declare -A RESULTS
 PASSED=0 FAILED=0
 
+build_test_binary() {
+    echo -e "${BLUE}Building forum test binary...${NC}"
+    if ! (cd "$PROJECT_ROOT" && go build -o bin/forum cmd/forum/main.go); then
+        echo -e "${RED}Failed to build forum binary for tests.${NC}"
+        exit 1
+    fi
+}
+
 ensure_db_ready() {
     if [ ! -f "$DB_PATH" ]; then
         echo -e "${YELLOW}Database not found at $DB_PATH${NC}"
@@ -43,6 +51,7 @@ ensure_db_ready() {
     done
 }
 
+build_test_binary
 ensure_db_ready
 
 # Brief header removed to avoid duplicating the summary at the end

@@ -66,7 +66,7 @@ test:
 	@$(GOTEST) ./tests/... > /dev/null 2>&1 && echo "$(GREEN)✓ All Integration Tests directory passed$(NC)" || (echo "$(RED)✗ Tests directory failed$(NC)" && $(GOTEST) ./tests/... && exit 1)
 	@echo ""
 	@echo "$(BLUE)Step 3/3: Running E2E Audit Test scripts...$(NC)"
-	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh --quiet
+	@bash $(TEST_SCRIPTS_DIR)/run_all_tests.sh --quiet
 	@echo ""
 	@echo "$(GREEN)=========================================$(NC)"
 	@echo "$(GREEN)All tests complete!$(NC)"
@@ -88,7 +88,7 @@ tests:
 	@echo "$(GREEN)Tests directory complete$(NC)"
 	@echo ""
 	@echo "$(BLUE)Step 3/3: Running E2E Audit Test scripts...$(NC)"
-	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh
+	@bash $(TEST_SCRIPTS_DIR)/run_all_tests.sh
 	@echo "$(GREEN)E2E Audit Integration test scripts complete$(NC)"
 	@echo ""
 	@echo "$(GREEN)=========================================$(NC)"
@@ -105,19 +105,19 @@ test-go:
 # Run all test scripts (e2e)
 test-script:
 	@echo "$(BLUE)Running all test scripts (scripts/tests/run_all_tests.sh)...$(NC)"
-	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh
+	@bash $(TEST_SCRIPTS_DIR)/run_all_tests.sh
 .PHONY: test-script
 
 # Run API test script
 test-script-api:
 	@echo "$(BLUE)Running API test script (scripts/tests/test_api.sh)...$(NC)"
-	@$(TEST_SCRIPTS_DIR)/test_api.sh
+	@bash $(TEST_SCRIPTS_DIR)/test_api.sh
 .PHONY: test-script-api
 
 # Run HTML test script
 test-script-html:
 	@echo "$(BLUE)Running HTML test script (scripts/tests/test_pages.sh)...$(NC)"
-	@$(TEST_SCRIPTS_DIR)/test_pages.sh
+	@bash $(TEST_SCRIPTS_DIR)/test_pages.sh
 .PHONY: test-script-html
 
 # Run tests with coverage
@@ -133,7 +133,7 @@ test-fail:
 	@echo "$(BLUE)Running tests and showing only failures...$(NC)"
 	@$(GOTEST) ./... | grep "FAIL" || echo "$(GREEN)✓ Go tests: No failures$(NC)"
 	@$(GOTEST) ./tests/... | grep "FAIL" || echo "$(GREEN)✓ Integration tests: No failures$(NC)"
-	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh --quiet | grep "✗" || echo "$(GREEN)✓ Script tests: No failures$(NC)"
+	@bash $(TEST_SCRIPTS_DIR)/run_all_tests.sh --quiet | grep "✗" || echo "$(GREEN)✓ Script tests: No failures$(NC)"
 .PHONY: test-fail
 
 # Clean build artifacts
