@@ -62,7 +62,7 @@ This report analyzes the fulfillment of the requirements specified in `docs/requ
 **Status: ✅ Fulfilled**
 **Where & How:**
 
-- **Dockerfile & Images:** Present directly at the project root (`/Dockerfile`). The configuration leverages an optimized multi-stage build spanning `golang:1.24-alpine` enabling static compilation of the backend with active CGO configurations (for `sqlite3`) inherently.
+- **Dockerfile & Images:** Present directly at the project root (`/Dockerfile`). The configuration leverages an optimized multi-stage build spanning `golang:1.25-alpine` enabling static compilation of the backend with active CGO configurations (for `sqlite3`) inherently.
 - **Containers & Execution:** Fully exposed over port `8080`, managed neatly, and executable manually via standard `docker build` & `docker run` logic or utilizing the comprehensive `Makefile` directives (e.g., `make docker-up`).
 - **Pruning & Unused Objects:** The multi-stage architectural design leaves intermediate toolchains behind, shrinking final ship artifacts onto raw `alpine` environments automatically preventing unused layer blob leakages on final deployments.
 

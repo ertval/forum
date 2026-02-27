@@ -131,6 +131,12 @@ Health checks:
 
 ### Docker
 
+Generate local certs first (for HTTPS):
+
+```bash
+bash scripts/seed/generate_certs.sh ./certs
+```
+
 ```bash
 docker compose up --build -d
 ```
@@ -138,7 +144,9 @@ docker compose up --build -d
 The compose setup maps:
 
 - `8080:8080`
+- `8443:8443`
 - `./data:/app/data`
+- `./certs:/app/certs:ro`
 - `DATABASE_PATH=/app/data/forum.db`
 
 ## 8) Testing strategy

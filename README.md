@@ -249,6 +249,12 @@ go run cmd/forum/main.go
 
 ### Docker Deployment
 
+> For HTTPS in Docker with self-signed certificates, generate local certs first:
+>
+> ```bash
+> bash scripts/seed/generate_certs.sh ./certs
+> ```
+
 1. **Build and run with Docker Compose**
 
    ```bash
@@ -256,7 +262,8 @@ go run cmd/forum/main.go
    ```
 
 2. **Access the forum**
-   - http://localhost:8080
+  - HTTP: http://localhost:8080
+  - HTTPS: https://localhost:8443
 
 ---
 
@@ -266,6 +273,7 @@ Environment variables with sane defaults:
 
 ```env
 # Server
+SERVER_HOST=localhost
 SERVER_PORT=8080
 SERVER_TLS_PORT=8443
 SERVER_ENVIRONMENT=development

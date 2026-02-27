@@ -41,15 +41,50 @@ echo "  Valid for: $DAYS_VALID days"
 echo "  Common Name: $COMMON_NAME"
 echo ""
 
-# Generate certificate with Subject Alternative Name (SAN) for localhost
-openssl req -x509 -newkey rsa:4096 \
+# Generate certificate with Subject Alternative Name (SAN) for localhost.
+# Prefer -addext (newer OpenSSL), fallback to a temp config for older builds.
+if ! openssl req -x509 -newkey rsa:4096 \
     -keyout "$KEY_FILE" \
     -out "$CERT_FILE" \
     -days "$DAYS_VALID" \
     -nodes \
     -subj "/C=US/ST=State/L=City/O=Forum/OU=Development/CN=${COMMON_NAME}" \
-    -addext "subjectAltName=DNS:localhost,DNS:${COMMON_NAME},IP:127.0.0.1" \
-    2>/dev/null
+    -addext "subjectAltName=DNS:localhost,DNS:${COMMON_NAME},IP:127.0.0.1"; then
+    echo -e "${YELLOW}OpenSSL -addext unsupported, retrying with config file...${NC}"
+    TMP_CONF="$(mktemp)"
+    cat > "$TMP_CONF" <<EOF
+[req]
+distinguished_name = dn
+x509_extensions = v3_req
+prompt = no
+
+[dn]
+C = US
+ST = State
+L = City
+O = Forum
+OU = Development
+CN = ${COMMON_NAME}
+
+[v3_req]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = localhost
+DNS.2 = ${COMMON_NAME}
+IP.1 = 127.0.0.1
+EOF
+
+    openssl req -x509 -newkey rsa:4096 \
+        -keyout "$KEY_FILE" \
+        -out "$CERT_FILE" \
+        -days "$DAYS_VALID" \
+        -nodes \
+        -config "$TMP_CONF" \
+        -extensions v3_req
+
+    rm -f "$TMP_CONF"
+fi
 
 # Set appropriate permissions
 chmod 600 "$KEY_FILE"
