@@ -13,15 +13,14 @@ A web forum built with Go using **Hexagonal Architecture (Ports & Adapters)** in
 
 ### Core modules (complete)
 - `auth` — register/login/logout, session validation, one active session per user
-- `user` — user profile + user stats + account settings (username/email/password/avatar)
+- `user` — user profile + user stats
 - `post` — CRUD, categories, filtering, image upload
 - `comment` — CRUD + ownership validation
 - `reaction` — like/dislike toggles on posts/comments
-- `notification` — post owner notifications for comments/likes/dislikes + read/unread APIs
 
-### Optional/scaffolded modules
+### Scaffolded optional modules
 - `moderation`
-- OAuth-based authentication extensions
+- `notification`
 
 ### Platform layer (complete)
 - config, database connection, migrator, HTTP server + middleware, logger, validator, upload, health checks
@@ -123,11 +122,6 @@ make test-go      # go tests only
 make test-script  # e2e script tests only
 make test-coverage
 ```
-
-Current script-audit expectation:
-- `test_audit_advanced.sh` should pass
-- `test_audit_moderation.sh` is pending (optional feature)
-- `test_audit_authentication.sh` is pending (OAuth not implemented)
 
 ---
 
