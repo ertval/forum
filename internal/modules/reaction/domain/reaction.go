@@ -42,7 +42,7 @@ func (r *Reaction) Validate() error {
 		return ErrInvalidUserID
 	}
 
-	if r.TargetID <= 0 && r.PublicTargetID == "" {
+	if r.PublicTargetID == "" {
 		return ErrInvalidTargetID
 	}
 

@@ -71,7 +71,7 @@ func (h *HTTPHandler) LogoutPage(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   -1, // Delete the cookie
 		HttpOnly: true,
-		Secure:   false, // Set to true in production with HTTPS
+		Secure:   h.secureCookies,
 		SameSite: http.SameSiteLaxMode,
 	})
 

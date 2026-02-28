@@ -22,6 +22,53 @@ func NewSQLiteReactionRepository(db *sql.DB) ports.ReactionRepository {
 	return &SQLiteReactionRepository{db: db}
 }
 
+// resolveTargetID resolves a public UUID to an internal integer ID for a post or comment.
+// Returns domain.ErrTargetNotFound if the target does not exist.
+func (r *SQLiteReactionRepository) resolveTargetID(ctx context.Context, publicID, targetType string) (int, error) {
+	var query string
+	switch targetType {
+	case "post":
+		query = "SELECT id FROM posts WHERE public_id = ?"
+	case "comment":
+		query = "SELECT id FROM comments WHERE public_id = ?"
+	default:
+		return 0, domain.ErrInvalidTarget
+	}
+
+	var id int
+	err := r.db.QueryRowContext(ctx, query, publicID).Scan(&id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, domain.ErrTargetNotFound
+		}
+		return 0, err
+	}
+	return id, nil
+}
+
+// resolveTargetIDTx resolves a public UUID to an internal integer ID within a transaction.
+func (r *SQLiteReactionRepository) resolveTargetIDTx(ctx context.Context, tx *sql.Tx, publicID, targetType string) (int, error) {
+	var query string
+	switch targetType {
+	case "post":
+		query = "SELECT id FROM posts WHERE public_id = ?"
+	case "comment":
+		query = "SELECT id FROM comments WHERE public_id = ?"
+	default:
+		return 0, domain.ErrInvalidTarget
+	}
+
+	var id int
+	err := tx.QueryRowContext(ctx, query, publicID).Scan(&id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, domain.ErrTargetNotFound
+		}
+		return 0, err
+	}
+	return id, nil
+}
+
 // Create stores a new reaction in the database.
 func (r *SQLiteReactionRepository) Create(ctx context.Context, reaction *domain.Reaction) error {
 	// Generate UUID for PublicID
@@ -31,25 +78,11 @@ func (r *SQLiteReactionRepository) Create(ctx context.Context, reaction *domain.
 	}
 	reaction.PublicID = publicID.String()
 
-	// Get internal target ID based on PublicTargetID and targetType
-	var targetID int
-	switch reaction.TargetType {
-	case "post":
-		err = r.db.QueryRowContext(ctx, "SELECT id FROM posts WHERE public_id = ?", reaction.PublicTargetID).Scan(&targetID)
-	case "comment":
-		err = r.db.QueryRowContext(ctx, "SELECT id FROM comments WHERE public_id = ?", reaction.PublicTargetID).Scan(&targetID)
-	default:
-		return domain.ErrInvalidTarget
-	}
-
+	// Resolve target public ID to internal ID
+	targetID, err := r.resolveTargetID(ctx, reaction.PublicTargetID, reaction.TargetType)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return domain.ErrReactionNotFound
-		}
 		return err
 	}
-
-	// Update the target ID in the reaction object
 	reaction.TargetID = targetID
 
 	// Insert the reaction
@@ -69,21 +102,9 @@ func (r *SQLiteReactionRepository) DeleteByTargetPublicID(ctx context.Context, u
 		return domain.ErrInvalidTarget
 	}
 
-	// Get internal target ID based on targetPublicID and targetType
-	var targetID int
-	var query string
-	switch targetType {
-	case "post":
-		query = "SELECT id FROM posts WHERE public_id = ?"
-	case "comment":
-		query = "SELECT id FROM comments WHERE public_id = ?"
-	}
-
-	err := r.db.QueryRowContext(ctx, query, targetPublicID).Scan(&targetID)
+	// Resolve target public ID to internal ID
+	targetID, err := r.resolveTargetID(ctx, targetPublicID, targetType)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return domain.ErrReactionNotFound
-		}
 		return err
 	}
 
@@ -117,21 +138,9 @@ func (r *SQLiteReactionRepository) GetByTargetPublicID(ctx context.Context, targ
 		return nil, domain.ErrInvalidTarget
 	}
 
-	// Get internal target ID based on targetPublicID and targetType
-	var targetID int
-	var query string
-	switch targetType {
-	case "post":
-		query = "SELECT id FROM posts WHERE public_id = ?"
-	case "comment":
-		query = "SELECT id FROM comments WHERE public_id = ?"
-	}
-
-	err := r.db.QueryRowContext(ctx, query, targetPublicID).Scan(&targetID)
+	// Resolve target public ID to internal ID
+	targetID, err := r.resolveTargetID(ctx, targetPublicID, targetType)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, domain.ErrReactionNotFound
-		}
 		return nil, err
 	}
 
@@ -188,21 +197,9 @@ func (r *SQLiteReactionRepository) GetByUserAndTargetPublicID(ctx context.Contex
 		return nil, domain.ErrInvalidTarget
 	}
 
-	// Get internal target ID based on targetPublicID and targetType
-	var targetID int
-	var query string
-	switch targetType {
-	case "post":
-		query = "SELECT id FROM posts WHERE public_id = ?"
-	case "comment":
-		query = "SELECT id FROM comments WHERE public_id = ?"
-	}
-
-	err := r.db.QueryRowContext(ctx, query, targetPublicID).Scan(&targetID)
+	// Resolve target public ID to internal ID
+	targetID, err := r.resolveTargetID(ctx, targetPublicID, targetType)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, domain.ErrReactionNotFound
-		}
 		return nil, err
 	}
 
@@ -251,21 +248,9 @@ func (r *SQLiteReactionRepository) CountByTargetPublicID(ctx context.Context, ta
 		return 0, domain.ErrInvalidReactionType
 	}
 
-	// Get internal target ID based on targetPublicID and targetType
-	var targetID int
-	var query string
-	switch targetType {
-	case "post":
-		query = "SELECT id FROM posts WHERE public_id = ?"
-	case "comment":
-		query = "SELECT id FROM comments WHERE public_id = ?"
-	}
-
-	err := r.db.QueryRowContext(ctx, query, targetPublicID).Scan(&targetID)
+	// Resolve target public ID to internal ID
+	targetID, err := r.resolveTargetID(ctx, targetPublicID, targetType)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return 0, domain.ErrReactionNotFound
-		}
 		return 0, err
 	}
 
@@ -294,4 +279,76 @@ func (r *SQLiteReactionRepository) CountByUserID(ctx context.Context, userID int
 		return 0, err
 	}
 	return count, nil
+}
+
+// ToggleReaction atomically handles the full reaction toggle flow in a single transaction.
+// It resolves the target, checks for an existing reaction, and either:
+// - Deletes the reaction if the same type already exists (toggle off, removed=true)
+// - Updates the reaction type if a different type exists (removed=false)
+// - Creates a new reaction if none exists (removed=false)
+func (r *SQLiteReactionRepository) ToggleReaction(ctx context.Context, reaction *domain.Reaction) (removed bool, err error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+
+	// Resolve the target within the transaction
+	targetID, err := r.resolveTargetIDTx(ctx, tx, reaction.PublicTargetID, reaction.TargetType)
+	if err != nil {
+		return false, err
+	}
+	reaction.TargetID = targetID
+
+	// Check for an existing reaction within the same transaction
+	var existingType string
+	err = tx.QueryRowContext(ctx,
+		"SELECT type FROM reactions WHERE user_id = ? AND target_id = ? AND target_type = ?",
+		reaction.UserID, targetID, reaction.TargetType,
+	).Scan(&existingType)
+
+	if err == nil {
+		// Existing reaction found
+		if domain.ReactionType(existingType) == reaction.Type {
+			// Same type — toggle off (delete)
+			_, err = tx.ExecContext(ctx,
+				"DELETE FROM reactions WHERE user_id = ? AND target_id = ? AND target_type = ?",
+				reaction.UserID, targetID, reaction.TargetType,
+			)
+			if err != nil {
+				return false, err
+			}
+			return true, tx.Commit()
+		}
+		// Different type — update in place
+		_, err = tx.ExecContext(ctx,
+			"UPDATE reactions SET type = ? WHERE user_id = ? AND target_id = ? AND target_type = ?",
+			reaction.Type, reaction.UserID, targetID, reaction.TargetType,
+		)
+		if err != nil {
+			return false, err
+		}
+		return false, tx.Commit()
+	}
+
+	if err != sql.ErrNoRows {
+		return false, err
+	}
+
+	// No existing reaction — generate UUID and insert
+	publicID, err := uuid.NewV4()
+	if err != nil {
+		return false, err
+	}
+	reaction.PublicID = publicID.String()
+
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO reactions (public_id, user_id, target_id, target_type, type, created_at)
+		 VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+		reaction.PublicID, reaction.UserID, targetID, reaction.TargetType, reaction.Type,
+	)
+	if err != nil {
+		return false, err
+	}
+	return false, tx.Commit()
 }

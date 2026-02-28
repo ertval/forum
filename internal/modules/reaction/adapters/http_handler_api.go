@@ -97,6 +97,10 @@ func (h *HTTPHandler) AddReactionAPI(w http.ResponseWriter, r *http.Request) {
 			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		if err == domain.ErrTargetNotFound {
+			platformErrors.WriteErrorJSON(w, http.StatusNotFound, err.Error())
+			return
+		}
 		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
@@ -169,6 +173,10 @@ func (h *HTTPHandler) RemoveReactionAPI(w http.ResponseWriter, r *http.Request) 
 
 		if err == domain.ErrReactionNotFound || err == domain.ErrInvalidTarget {
 			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if err == domain.ErrTargetNotFound {
+			platformErrors.WriteErrorJSON(w, http.StatusNotFound, err.Error())
 			return
 		}
 		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Internal server error")

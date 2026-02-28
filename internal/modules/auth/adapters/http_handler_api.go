@@ -57,17 +57,7 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 			errors.Is(err, authDomain.ErrUsernameAlreadyExists):
 			platformErrors.WriteErrorJSON(w, http.StatusConflict, err.Error())
 		default:
-			// Check if error message contains validation keywords
-			errMsg := err.Error()
-			if strings.Contains(errMsg, "empty") || strings.Contains(errMsg, "invalid") ||
-				strings.Contains(errMsg, "required") || strings.Contains(errMsg, "format") ||
-				strings.Contains(errMsg, "too long") || strings.Contains(errMsg, "too short") {
-				platformErrors.WriteErrorJSON(w, http.StatusBadRequest, errMsg)
-			} else if strings.Contains(errMsg, "already exists") || strings.Contains(errMsg, "duplicate") || strings.Contains(errMsg, "taken") {
-				platformErrors.WriteErrorJSON(w, http.StatusConflict, errMsg)
-			} else {
-				platformErrors.WriteErrorJSON(w, http.StatusConflict, errMsg)
-			}
+			platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Registration failed")
 		}
 		return
 	}
@@ -249,7 +239,7 @@ func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interfac
 // parseJSON parses JSON request body.
 func (h *HTTPHandler) parseJSON(r *http.Request, v interface{}) error {
 	// Check if content type is JSON
-	if r.Header.Get("Content-Type") != "application/json" {
+	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 		return fmt.Errorf("content type is not application/json")
 	}
 

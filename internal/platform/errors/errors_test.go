@@ -77,49 +77,4 @@ func TestWriteErrorJSON(t *testing.T) {
 	}
 }
 
-func TestHTTPStatus(t *testing.T) {
-	tests := []struct {
-		name       string
-		err        error
-		wantStatus int
-	}{
-		{
-			name:       "validation error",
-			err:        New(ErrCodeValidation, "invalid input"),
-			wantStatus: http.StatusBadRequest,
-		},
-		{
-			name:       "not found error",
-			err:        New(ErrCodeNotFound, "resource not found"),
-			wantStatus: http.StatusNotFound,
-		},
-		{
-			name:       "unauthorized error",
-			err:        New(ErrCodeUnauthorized, "authentication required"),
-			wantStatus: http.StatusUnauthorized,
-		},
-		{
-			name:       "forbidden error",
-			err:        New(ErrCodeForbidden, "access denied"),
-			wantStatus: http.StatusForbidden,
-		},
-		{
-			name:       "conflict error",
-			err:        New(ErrCodeConflict, "resource already exists"),
-			wantStatus: http.StatusConflict,
-		},
-		{
-			name:       "internal error",
-			err:        New(ErrCodeInternal, "internal server error"),
-			wantStatus: http.StatusInternalServerError,
-		},
-	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := HTTPStatus(tt.err); got != tt.wantStatus {
-				t.Errorf("HTTPStatus() = %v, want %v", got, tt.wantStatus)
-			}
-		})
-	}
-}

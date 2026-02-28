@@ -6,6 +6,9 @@ import (
 	"time"
 )
 
+// AvatarURLPrefix is the URL path prefix for user avatar images.
+const AvatarURLPrefix = "/static/uploads/"
+
 // User represents a forum user.
 type User struct {
 	ID            int       `json:"-"`                    // Internal unique identifier (INT PRIMARY KEY) - never expose
@@ -41,23 +44,26 @@ const (
 	RoleAdmin Role = "admin"
 )
 
+// Permission represents a typed action that can be checked against a user's role.
+type Permission string
+
 // Permission constants define actions that can be checked.
 const (
-	PermissionViewContent      = "view"
-	PermissionCreatePost       = "create_post"
-	PermissionCreateComment    = "create_comment"
-	PermissionReact            = "react"
-	PermissionEditOwn          = "edit_own"
-	PermissionDeleteOwn        = "delete_own"
-	PermissionEditAny          = "edit_any"
-	PermissionDeleteAny        = "delete_any"
-	PermissionModerate         = "moderate"
-	PermissionManageUsers      = "manage_users"
-	PermissionManageCategories = "manage_categories"
+	PermissionViewContent      Permission = "view"
+	PermissionCreatePost       Permission = "create_post"
+	PermissionCreateComment    Permission = "create_comment"
+	PermissionReact            Permission = "react"
+	PermissionEditOwn          Permission = "edit_own"
+	PermissionDeleteOwn        Permission = "delete_own"
+	PermissionEditAny          Permission = "edit_any"
+	PermissionDeleteAny        Permission = "delete_any"
+	PermissionModerate         Permission = "moderate"
+	PermissionManageUsers      Permission = "manage_users"
+	PermissionManageCategories Permission = "manage_categories"
 )
 
 // HasPermission checks if the user has permission for an action based on their role.
-func (u *User) HasPermission(action string) bool {
+func (u *User) HasPermission(action Permission) bool {
 	switch u.Role {
 	case RoleAdmin:
 		// Admins have all permissions

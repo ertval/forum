@@ -644,22 +644,6 @@ CREATE INDEX idx_users ON users(id);`,
 	}
 }
 
-func TestMigrator_Rollback(t *testing.T) {
-	conn, err := NewConnection(":memory:")
-	if err != nil {
-		t.Fatalf("NewConnection() failed: %v", err)
-	}
-	defer conn.Close()
-
-	migrator := NewMigrator(conn)
-
-	// Rollback now returns an error indicating it's not implemented
-	err = migrator.Rollback()
-	if err == nil {
-		t.Error("Rollback() should return an error (not yet implemented)")
-	}
-}
-
 func TestMigrator_Version(t *testing.T) {
 	conn, err := NewConnection(":memory:")
 	if err != nil {

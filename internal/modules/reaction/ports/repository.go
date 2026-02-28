@@ -27,4 +27,11 @@ type ReactionRepository interface {
 
 	// CountByUserID returns the total number of reactions given by a user.
 	CountByUserID(ctx context.Context, userID int) (int, error)
+
+	// ToggleReaction atomically handles the full reaction toggle flow in a single transaction.
+	// It resolves the target, checks for an existing reaction, and either:
+	// - Deletes the reaction if the same type already exists (toggle off, removed=true)
+	// - Updates the reaction type if a different type exists (removed=false)
+	// - Creates a new reaction if none exists (removed=false)
+	ToggleReaction(ctx context.Context, reaction *domain.Reaction) (removed bool, err error)
 }

@@ -60,72 +60,47 @@ func (s *Service) React(ctx context.Context, userID int, targetPublicID string, 
 		return domain.ErrInvalidReactionType
 	}
 
-	// Validate that the target exists
-	postOwnerID := 0
-	switch targetType {
-	case "post":
-		post, err := s.postRepo.GetByID(ctx, targetPublicID)
-		if err != nil {
-			return err
-		}
-		postOwnerID = post.UserID
-	case "comment":
-		_, err := s.commentRepo.GetByPublicID(ctx, targetPublicID)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Check if user already has a reaction on this target
-	existingReaction, err := s.reactionRepo.GetByUserAndTargetPublicID(
-		ctx,
-		userID,
-		targetPublicID,
-		targetType,
-	)
-
-	if err != nil && err != domain.ErrReactionNotFound {
-		return err // Some other error occurred
-	}
-
-	if existingReaction != nil {
-		// If the existing reaction is the same type, remove it (toggle behavior)
-		if existingReaction.Type == reactionType {
-			return s.RemoveReaction(ctx, userID, targetPublicID, targetType)
-		}
-
-		// If it's a different type, remove the old reaction first
-		err = s.reactionRepo.DeleteByTargetPublicID(ctx, userID, targetPublicID, targetType)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Create new reaction
+	// Build the reaction domain object
 	reaction := &domain.Reaction{
 		UserID:         userID,
-		TargetID:       0,              // Will be resolved by repository based on targetPublicID
-		PublicTargetID: targetPublicID, // Set the public target ID for repository to resolve
+		PublicTargetID: targetPublicID,
 		TargetType:     targetType,
 		Type:           reactionType,
 		CreatedAt:      time.Now(),
 	}
 
-	// The repository will handle resolving the targetPublicID to internal ID
-	err = s.reactionRepo.Create(ctx, reaction)
+	// Atomically toggle/create the reaction in a single transaction.
+	// This avoids the TOCTOU race of separate read → delete → create steps.
+	removed, err := s.reactionRepo.ToggleReaction(ctx, reaction)
 	if err != nil {
 		return err
 	}
 
-	if s.notificationService != nil && targetType == "post" && postOwnerID > 0 && postOwnerID != userID {
-		notificationType := notificationDomain.TypeLike
-		message := "Someone liked your post"
-		if reactionType == domain.ReactionDislike {
-			notificationType = notificationDomain.TypeDislike
-			message = "Someone disliked your post"
-		}
-		if err := s.notificationService.CreateNotification(ctx, postOwnerID, userID, notificationType, message, targetPublicID); err != nil {
-			log.Printf("WARNING: failed to create reaction notification for post owner %d: %v", postOwnerID, err)
+	if removed {
+		// Reaction was toggled off — decrement user's reaction count
+		go func(uid int) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := s.userService.DecrementReactionCount(ctx, uid); err != nil {
+				log.Printf("WARNING: failed to decrement reaction count for user %d: %v", uid, err)
+			}
+		}(userID)
+		return nil
+	}
+
+	// Reaction was created or updated — send notification for posts
+	if s.notificationService != nil && targetType == "post" {
+		post, postErr := s.postRepo.GetByID(ctx, targetPublicID)
+		if postErr == nil && post.UserID != userID {
+			notificationType := notificationDomain.TypeLike
+			message := "Someone liked your post"
+			if reactionType == domain.ReactionDislike {
+				notificationType = notificationDomain.TypeDislike
+				message = "Someone disliked your post"
+			}
+			if err := s.notificationService.CreateNotification(ctx, post.UserID, userID, notificationType, message, targetPublicID); err != nil {
+				log.Printf("WARNING: failed to create reaction notification for post owner %d: %v", post.UserID, err)
+			}
 		}
 	}
 
@@ -152,20 +127,8 @@ func (s *Service) RemoveReaction(ctx context.Context, userID int, targetPublicID
 		return domain.ErrInvalidTarget
 	}
 
-	// Verify target exists before attempting to remove reaction
-	switch targetType {
-	case "post":
-		_, err := s.postRepo.GetByID(ctx, targetPublicID)
-		if err != nil {
-			return err
-		}
-	case "comment":
-		_, err := s.commentRepo.GetByPublicID(ctx, targetPublicID)
-		if err != nil {
-			return err
-		}
-	}
-
+	// Delete the reaction — the repository handles target resolution and returns
+	// ErrTargetNotFound or ErrReactionNotFound as appropriate.
 	err := s.reactionRepo.DeleteByTargetPublicID(ctx, userID, targetPublicID, targetType)
 	if err != nil {
 		return err

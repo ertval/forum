@@ -201,7 +201,7 @@ func (h *HTTPHandler) renderSettingsPage(w http.ResponseWriter, statusCode int, 
 	}
 
 	if currentUser != nil && currentUser.AvatarPath != "" && currentUser.AvatarURL == "" {
-		currentUser.AvatarURL = "/static/uploads/" + filepath.Base(currentUser.AvatarPath)
+		currentUser.AvatarURL = domain.AvatarURLPrefix + filepath.Base(currentUser.AvatarPath)
 	}
 
 	data := map[string]any{

@@ -5,6 +5,7 @@ package httpserver
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -14,12 +15,13 @@ import (
 
 // Server represents an HTTP server with middleware support.
 type Server struct {
-	httpServer *http.Server
-	tlsServer  *http.Server
-	router     *http.ServeMux
-	handler    http.Handler
-	middleware []Middleware
-	config     *config.Config
+	httpServer    *http.Server
+	tlsServer     *http.Server
+	router        *http.ServeMux
+	handler       http.Handler
+	middleware    []Middleware
+	config        *config.Config
+	shutdownHooks []func()
 }
 
 // New creates a new HTTP server with the specified config.
@@ -62,20 +64,6 @@ func New(cfg *config.Config) *Server {
 	}
 }
 
-// RegisterHandler registers a handler for a specific path and HTTP method.
-// The handler will be wrapped with the middleware chain.
-func (s *Server) RegisterHandler(method, path string, handler http.HandlerFunc) {
-	wrappedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Check if the request method matches
-		if r.Method != method {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-		handler(w, r)
-	})
-	s.router.Handle(path, wrappedHandler)
-}
-
 // RegisterMiddleware registers global middleware.
 // Middleware is executed in the order it is registered.
 func (s *Server) RegisterMiddleware(middleware Middleware) {
@@ -89,33 +77,38 @@ func (s *Server) RegisterMiddleware(middleware Middleware) {
 }
 
 // Start starts the HTTP and HTTPS servers.
-// Returns an error if the server fails to start.
+// Listeners are bound synchronously so binding errors are returned immediately.
+// Serving happens asynchronously in background goroutines.
 func (s *Server) Start() error {
-	errChan := make(chan error, 2)
+	// Bind HTTP listener synchronously
+	httpLn, err := net.Listen("tcp", s.httpServer.Addr)
+	if err != nil {
+		return fmt.Errorf("HTTP listen error: %w", err)
+	}
 
-	// Start HTTP server
+	// Serve HTTP asynchronously
 	go func() {
-		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			errChan <- fmt.Errorf("HTTP server error: %w", err)
+		if err := s.httpServer.Serve(httpLn); err != nil && err != http.ErrServerClosed {
+			// Error during serving is not recoverable at this point
 		}
 	}()
 
 	// Start HTTPS server if TLS is configured and certificates exist
 	if s.tlsServer != nil && s.config.Security.TLSCertFile != "" && s.config.Security.TLSKeyFile != "" {
+		tlsLn, err := net.Listen("tcp", s.tlsServer.Addr)
+		if err != nil {
+			s.httpServer.Close()
+			return fmt.Errorf("HTTPS listen error: %w", err)
+		}
+
 		go func() {
-			if err := s.tlsServer.ListenAndServeTLS(s.config.Security.TLSCertFile, s.config.Security.TLSKeyFile); err != nil && err != http.ErrServerClosed {
-				errChan <- fmt.Errorf("HTTPS server error: %w", err)
+			if err := s.tlsServer.ServeTLS(tlsLn, s.config.Security.TLSCertFile, s.config.Security.TLSKeyFile); err != nil && err != http.ErrServerClosed {
+				// Error during serving is not recoverable at this point
 			}
 		}()
 	}
 
-	// Wait for any error or return nil if both servers start
-	select {
-	case err := <-errChan:
-		return err
-	case <-time.After(100 * time.Millisecond):
-		return nil
-	}
+	return nil
 }
 
 // defaultShutdownTimeout is the duration to wait for graceful shutdown (KISS-6)
@@ -124,6 +117,11 @@ const defaultShutdownTimeout = 30 * time.Second
 // Shutdown gracefully shuts down the server.
 // It waits for existing connections to finish before shutting down.
 func (s *Server) Shutdown() error {
+	// Run shutdown hooks (e.g., stop rate limiter cleanup goroutine)
+	for _, fn := range s.shutdownHooks {
+		fn()
+	}
+
 	// Create a context with timeout for graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), defaultShutdownTimeout)
 	defer cancel()
@@ -141,6 +139,11 @@ func (s *Server) Shutdown() error {
 	}
 
 	return nil
+}
+
+// OnShutdown registers a function to be called during graceful shutdown.
+func (s *Server) OnShutdown(fn func()) {
+	s.shutdownHooks = append(s.shutdownHooks, fn)
 }
 
 // Router returns the underlying router for advanced route registration.

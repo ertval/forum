@@ -43,7 +43,7 @@ func NewService(
 func (s *Service) Register(ctx context.Context, email, username, password string) (userID int, session *domain.Session, err error) {
 	// 1. Validate input
 	creds := &domain.Credentials{Email: email, Password: password}
-	err = ValidateCredentials(creds)
+	err = validateCredentials(creds)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -123,7 +123,7 @@ func (s *Service) Register(ctx context.Context, email, username, password string
 func (s *Service) Login(ctx context.Context, email, password string) (*domain.Session, error) {
 	// 1. Validate input
 	creds := &domain.Credentials{Email: email, Password: password}
-	err := ValidateCredentials(creds)
+	err := validateCredentials(creds)
 	if err != nil {
 		return nil, domain.ErrInvalidCredentials
 	}
@@ -273,9 +273,9 @@ func (s *Service) comparePassword(hash, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 }
 
-// ValidateCredentials validates the credentials.
+// validateCredentials validates the credentials.
 // Returns an error if the credentials are invalid.
-func ValidateCredentials(c *domain.Credentials) error {
+func validateCredentials(c *domain.Credentials) error {
 	v := validator.New()
 
 	v.Required("email", c.Email)

@@ -29,7 +29,6 @@ func NewConnection(dsn string) (*Connection, error) {
 	// try to extract the file portion up to the first '?' char.
 	dbPath := dsn
 	// If DSN looks like URI with params, strip params for directory creation.
-	// KISS-1: Use strings.IndexByte instead of custom indexOf
 	if idx := strings.IndexByte(dsn, '?'); idx != -1 {
 		dbPath = dsn[:idx]
 	}
@@ -61,7 +60,6 @@ func NewConnection(dsn string) (*Connection, error) {
 	// Use WAL (Write-Ahead Logging) journal mode for better concurrency and
 	// durability compared to MEMORY mode. WAL allows readers and writers to
 	// operate concurrently and provides crash recovery.
-	// NIT-6: Changed from MEMORY to WAL for better durability
 	if _, err := db.Exec("PRAGMA journal_mode = WAL;"); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to set journal_mode=WAL: %w", err)

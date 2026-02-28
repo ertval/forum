@@ -9,7 +9,7 @@ func TestUser_HasPermission(t *testing.T) {
 	tests := []struct {
 		name       string
 		role       Role
-		action     string
+		action     Permission
 		wantResult bool
 	}{
 		// Admin has all permissions
@@ -65,10 +65,10 @@ func TestUser_HasPermission(t *testing.T) {
 		{"guest cannot manage categories", RoleGuest, PermissionManageCategories, false},
 
 		// Unknown action returns false for non-admin
-		{"user unknown action", RoleUser, "unknown_action", false},
-		{"moderator unknown action", RoleModerator, "unknown_action", false},
-		{"guest unknown action", RoleGuest, "unknown_action", false},
-		{"admin allows unknown action", RoleAdmin, "unknown_action", true},
+		{"user unknown action", RoleUser, Permission("unknown_action"), false},
+		{"moderator unknown action", RoleModerator, Permission("unknown_action"), false},
+		{"guest unknown action", RoleGuest, Permission("unknown_action"), false},
+		{"admin allows unknown action", RoleAdmin, Permission("unknown_action"), true},
 	}
 
 	for _, tt := range tests {

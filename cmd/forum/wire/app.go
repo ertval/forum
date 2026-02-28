@@ -114,10 +114,12 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *
 	server.RegisterMiddleware(httpserver.Logger(lgr))
 	server.RegisterMiddleware(httpserver.SecurityHeaders(httpserver.DefaultSecurityHeadersConfig()))
 	server.RegisterMiddleware(httpserver.CORS([]string{"*"}))
-	server.RegisterMiddleware(httpserver.RateLimit(
+	rateLimitMiddleware, rateLimitStop := httpserver.RateLimit(
 		cfg.Security.RateLimitRequests,
 		int(cfg.Security.RateLimitWindow.Seconds()),
-	))
+	)
+	server.RegisterMiddleware(rateLimitMiddleware)
+	server.OnShutdown(rateLimitStop)
 
 	// Register module routes first so they are available for the health check
 	handlers.Auth.RegisterRoutes(server.Router())

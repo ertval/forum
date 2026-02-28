@@ -147,8 +147,13 @@ func CORS(allowedOrigins []string) Middleware {
 			// Set common CORS headers
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
+
+			// Only emit credentials header when echoing a specific origin.
+			// The Fetch spec forbids credentials: true with wildcard origin.
+			if !allowAll {
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+			}
 
 			// Handle preflight requests
 			if r.Method == http.MethodOptions {
@@ -201,13 +206,15 @@ type ipEntry struct {
 // RateLimit middleware limits the number of requests per time window.
 // This is IP-based rate limiting that doesn't require user context.
 // For user-based rate limiting, use auth module middleware.
-func RateLimit(requests int, windowSeconds int) Middleware {
+// Returns the middleware and a stop function to shut down the cleanup goroutine.
+func RateLimit(requests int, windowSeconds int) (Middleware, func()) {
 	return RateLimitWithConfig(DefaultRateLimiterConfig(requests, windowSeconds))
 }
 
 // RateLimitWithConfig creates a rate limiter with custom configuration.
-// The returned cleanup function should be called during graceful shutdown.
-func RateLimitWithConfig(cfg RateLimiterConfig) Middleware {
+// Returns the middleware and a stop function that shuts down the cleanup goroutine.
+// The stop function should be called during graceful shutdown.
+func RateLimitWithConfig(cfg RateLimiterConfig) (Middleware, func()) {
 	limiter := &rateLimiter{
 		limit:      cfg.Requests,
 		window:     cfg.Window,
@@ -230,7 +237,7 @@ func RateLimitWithConfig(cfg RateLimiterConfig) Middleware {
 		}
 	}()
 
-	return func(next http.Handler) http.Handler {
+	middleware := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			clientIP := getClientIP(r, limiter.trustProxy)
 
@@ -243,6 +250,8 @@ func RateLimitWithConfig(cfg RateLimiterConfig) Middleware {
 			next.ServeHTTP(w, r)
 		})
 	}
+
+	return middleware, limiter.Stop
 }
 
 // getClientIP extracts the client IP address from the request.

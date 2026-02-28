@@ -256,7 +256,7 @@ func (s *Service) UpdateSettings(ctx context.Context, publicID, username, email,
 	}
 
 	if user.AvatarPath != "" {
-		user.AvatarURL = "/static/uploads/" + user.AvatarPath
+		user.AvatarURL = domain.AvatarURLPrefix + user.AvatarPath
 	} else {
 		user.AvatarURL = ""
 	}
