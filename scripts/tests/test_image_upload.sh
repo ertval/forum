@@ -19,7 +19,7 @@ TIMESTAMP=$(date +%s)
 # Use existing seeded test user or create a unique one for each test run
 TEST_EMAIL="testuser@example.com"
 TEST_USERNAME="Test User"
-TEST_PASSWORD="password123"
+TEST_PASSWORD="Password123"
 TEST_DIR="/tmp/forum_image_test_${TIMESTAMP}"
 SESSION_TOKEN=""
 SERVER_PID=""

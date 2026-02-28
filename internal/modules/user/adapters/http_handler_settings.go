@@ -26,6 +26,7 @@ type settingsUpdateInput struct {
 	Confirm       string
 	AvatarData    []byte
 	HasAvatarFile bool
+	DeleteAvatar  bool
 }
 
 func (h *HTTPHandler) UpdateSettingsPage(w http.ResponseWriter, r *http.Request) {
@@ -84,7 +85,13 @@ func (h *HTTPHandler) updateCurrentUserSettings(r *http.Request, userPublicID st
 
 	avatarPath := currentUser.AvatarPath
 	newAvatarFilename := ""
-	if input.HasAvatarFile {
+	deleteOldAvatar := false
+
+	if input.DeleteAvatar {
+		// User wants to remove their avatar
+		avatarPath = ""
+		deleteOldAvatar = true
+	} else if input.HasAvatarFile {
 		if err := upload.ValidateImage(input.AvatarData, h.maxAvatarSize); err != nil {
 			if errors.Is(err, upload.ErrImageTooLarge) {
 				return currentUser, http.StatusRequestEntityTooLarge, upload.FormatImageSizeError(h.maxAvatarSize)
@@ -112,20 +119,26 @@ func (h *HTTPHandler) updateCurrentUserSettings(r *http.Request, userPublicID st
 		if newAvatarFilename != "" {
 			_ = h.avatarImageHandler.Delete(newAvatarFilename)
 		}
-		switch err {
-		case domain.ErrInvalidEmail, domain.ErrInvalidUsername, domain.ErrWeakPassword:
+		switch {
+		case domain.IsPasswordValidationError(err):
 			return currentUser, http.StatusBadRequest, err.Error()
-		case domain.ErrEmailAlreadyExists, domain.ErrUsernameAlreadyExists:
+		case err == domain.ErrInvalidEmail || err == domain.ErrInvalidUsername || err == domain.ErrWeakPassword:
+			return currentUser, http.StatusBadRequest, err.Error()
+		case err == domain.ErrEmailAlreadyExists || err == domain.ErrUsernameAlreadyExists:
 			return currentUser, http.StatusConflict, err.Error()
-		case domain.ErrUserNotFound:
+		case err == domain.ErrUserNotFound:
 			return nil, http.StatusNotFound, "user not found"
 		default:
 			return currentUser, http.StatusInternalServerError, "failed to update settings"
 		}
 	}
 
-	if newAvatarFilename != "" && currentUser.AvatarPath != "" && currentUser.AvatarPath != newAvatarFilename {
-		_ = h.avatarImageHandler.Delete(currentUser.AvatarPath)
+	if currentUser.AvatarPath != "" {
+		if newAvatarFilename != "" && currentUser.AvatarPath != newAvatarFilename {
+			_ = h.avatarImageHandler.Delete(currentUser.AvatarPath)
+		} else if deleteOldAvatar {
+			_ = h.avatarImageHandler.Delete(currentUser.AvatarPath)
+		}
 	}
 
 	return updatedUser, http.StatusOK, ""
@@ -144,6 +157,7 @@ func parseSettingsUpdateInput(r *http.Request) (*settingsUpdateInput, int, strin
 		input.Email = r.FormValue("email")
 		input.NewPassword = r.FormValue("new_password")
 		input.Confirm = r.FormValue("confirm_password")
+		input.DeleteAvatar = r.FormValue("delete_avatar") == "true"
 
 		file, header, err := r.FormFile("avatar")
 		if err == nil {
@@ -171,6 +185,7 @@ func parseSettingsUpdateInput(r *http.Request) (*settingsUpdateInput, int, strin
 		input.Email = r.FormValue("email")
 		input.NewPassword = r.FormValue("new_password")
 		input.Confirm = r.FormValue("confirm_password")
+		input.DeleteAvatar = r.FormValue("delete_avatar") == "true"
 	}
 
 	if strings.TrimSpace(input.Username) == "" || strings.TrimSpace(input.Email) == "" {

@@ -45,6 +45,8 @@
                     <input type="password" id="confirm_password" name="confirm_password" minlength="8" autocomplete="new-password">
                 </div>
 
+                <input type="hidden" id="delete_avatar" name="delete_avatar" value="">
+
                 <div class="form-group">
                     <label for="avatar">Avatar image (max {{.MaxAvatarSizeMB}}MB)</label>
                     <div class="file-input-wrapper">
@@ -52,14 +54,23 @@
                         <label for="avatar" class="file-input-label">Choose avatar image</label>
                         <span class="file-name">JPG, PNG, GIF, or WebP</span>
                     </div>
+                    <div id="avatar-preview" class="avatar-preview" style="display:none;">
+                        <p><strong>New avatar preview:</strong></p>
+                        <div class="user-avatar settings-avatar">
+                            <img id="avatar-preview-img" src="" alt="Avatar preview" class="avatar-image">
+                        </div>
+                    </div>
                 </div>
 
                 {{if .User.AvatarURL}}
-                <div class="form-group">
+                <div class="form-group" id="current-avatar-section">
                     <p><strong>Current avatar:</strong></p>
-                    <div class="user-avatar">
+                    <div class="user-avatar settings-avatar">
                         <img src="{{.User.AvatarURL}}" alt="Current avatar" class="avatar-image">
                     </div>
+                    <button type="button" id="remove-avatar-btn" class="btn-remove-image">
+                        <span class="remove-icon">&times;</span> Remove Avatar
+                    </button>
                 </div>
                 {{end}}
 

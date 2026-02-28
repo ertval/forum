@@ -81,7 +81,7 @@ func TestAuthModule_NoInternalIDExposure(t *testing.T) {
 		ctx := context.Background()
 		email := fmt.Sprintf("test%d@example.com", time.Now().UnixNano())
 		username := "John Smith"
-		password := "password123"
+		password := "Password123"
 
 		// Register user
 		userID, session, err := authService.Register(ctx, email, username, password)
@@ -123,7 +123,7 @@ func TestAuthModule_NoInternalIDExposure(t *testing.T) {
 		ctx := context.Background()
 		email := fmt.Sprintf("login%d@example.com", time.Now().UnixNano())
 		username := "Jane Doe"
-		password := "password123"
+		password := "Password123"
 
 		// Register user first
 		userID, _, err := authService.Register(ctx, email, username, password)
@@ -173,7 +173,7 @@ func TestAuthModule_NoInternalIDExposure(t *testing.T) {
 		ctx := context.Background()
 		email := fmt.Sprintf("api%d@example.com", time.Now().UnixNano())
 		username := "Api User"
-		password := "password123"
+		password := "Password123"
 
 		userID, _, err := authService.Register(ctx, email, username, password)
 		if err != nil {

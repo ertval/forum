@@ -299,14 +299,6 @@
     margin-top: 1rem;
 }
 
-/* Content preview box styling (post_create.html, post_edit.html) */
-.content-preview {
-    border: 1px solid #e0e0e0;
-    padding: 1rem;
-    min-height: 100px;
-    background-color: #fafafa;
-}
-
 /* Post meta date alignment (post_detail.html) */
 .post-meta .date-right {
     margin-left: auto;
@@ -325,4 +317,19 @@
 
 .settings-form .user-avatar {
     margin-top: 0.5rem;
+}
+
+/* Settings page avatar - larger display */
+.settings-avatar {
+    width: 80px;
+    height: 80px;
+}
+
+/* Avatar preview area */
+.avatar-preview {
+    margin-top: 0.75rem;
+}
+
+.avatar-preview p {
+    margin-bottom: 0.25rem;
 }

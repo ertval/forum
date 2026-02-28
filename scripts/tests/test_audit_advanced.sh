@@ -24,7 +24,7 @@ SERVER_LOG="/tmp/forum_advanced_audit_server.log"
 
 # Test credentials (from seed data)
 TEST_EMAIL="testuser@example.com"
-TEST_PASSWORD="password123"
+TEST_PASSWORD="Password123"
 TEST_EMAIL_2="testuser2@example.com"
 
 # Colors

@@ -239,21 +239,21 @@ func TestService_Register(t *testing.T) {
 			name:          "successful registration",
 			email:         "test@example.com",
 			username:      "Test User",
-			password:      "password123",
+			password:      "Password123",
 			expectedError: nil,
 		},
 		{
 			name:          "invalid email format",
 			email:         "invalid-email",
 			username:      "Test User",
-			password:      "password123",
+			password:      "Password123",
 			expectedError: domain.ErrInvalidEmail,
 		},
 		{
 			name:          "empty email",
 			email:         "",
 			username:      "Test User",
-			password:      "password123",
+			password:      "Password123",
 			expectedError: domain.ErrInvalidEmail,
 		},
 		{
@@ -274,14 +274,14 @@ func TestService_Register(t *testing.T) {
 			name:          "invalid username",
 			email:         "test@example.com",
 			username:      "invalid@username", // Contains @
-			password:      "password123",
+			password:      "Password123",
 			expectedError: domain.ErrInvalidUsername,
 		},
 		{
 			name:          "email already exists",
 			email:         "existing@example.com",
 			username:      "Test User",
-			password:      "password123",
+			password:      "Password123",
 			expectedError: domain.ErrEmailAlreadyExists,
 			setup: func() {
 				mockUserService.emailExists = map[string]bool{
@@ -293,7 +293,7 @@ func TestService_Register(t *testing.T) {
 			name:          "username already exists",
 			email:         "new@example.com",
 			username:      "Existing User",
-			password:      "password123",
+			password:      "Password123",
 			expectedError: domain.ErrUsernameAlreadyExists,
 			setup: func() {
 				mockUserService.usernameExists = map[string]bool{
@@ -351,7 +351,7 @@ func TestService_Login(t *testing.T) {
 	service := NewService(mockSessionRepo, mockUserService, 24*time.Hour)
 
 	// Create a user for testing
-	passwordHash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+	passwordHash, _ := bcrypt.GenerateFromPassword([]byte("Password123"), bcrypt.DefaultCost)
 	testUser := &userDomain.User{
 		ID:           1,
 		Email:        "test@example.com",
@@ -374,13 +374,13 @@ func TestService_Login(t *testing.T) {
 		{
 			name:          "successful login",
 			email:         "test@example.com",
-			password:      "password123",
+			password:      "Password123",
 			expectedError: nil,
 		},
 		{
 			name:          "invalid email",
 			email:         "nonexistent@example.com",
-			password:      "password123",
+			password:      "Password123",
 			expectedError: domain.ErrInvalidCredentials,
 		},
 		{
@@ -392,13 +392,13 @@ func TestService_Login(t *testing.T) {
 		{
 			name:          "invalid email format",
 			email:         "invalid-email",
-			password:      "password123",
+			password:      "Password123",
 			expectedError: domain.ErrInvalidCredentials,
 		},
 		{
 			name:          "empty email",
 			email:         "",
-			password:      "password123",
+			password:      "Password123",
 			expectedError: domain.ErrInvalidCredentials,
 		},
 		{
@@ -574,7 +574,7 @@ func TestValidateCredentials(t *testing.T) {
 			name: "valid credentials",
 			creds: &domain.Credentials{
 				Email:    "test@example.com",
-				Password: "password123",
+				Password: "Password123",
 			},
 			expected: nil,
 		},
@@ -582,7 +582,7 @@ func TestValidateCredentials(t *testing.T) {
 			name: "invalid email",
 			creds: &domain.Credentials{
 				Email:    "invalid-email",
-				Password: "password123",
+				Password: "Password123",
 			},
 			expected: domain.ErrInvalidEmail,
 		},
@@ -590,7 +590,7 @@ func TestValidateCredentials(t *testing.T) {
 			name: "empty email",
 			creds: &domain.Credentials{
 				Email:    "",
-				Password: "password123",
+				Password: "Password123",
 			},
 			expected: domain.ErrInvalidEmail,
 		},

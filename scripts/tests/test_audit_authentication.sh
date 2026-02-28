@@ -191,13 +191,13 @@ UNIQUE_USERNAME="AuthTest User ${RANDOM_SUFFIX^}"
 # First registration (should succeed)
 RESPONSE1=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"$UNIQUE_EMAIL\",\"username\":\"$UNIQUE_USERNAME\",\"password\":\"password123\"}")
+    -d "{\"email\":\"$UNIQUE_EMAIL\",\"username\":\"$UNIQUE_USERNAME\",\"password\":\"Password123\"}")
 HTTP_CODE1=$(echo "$RESPONSE1" | tail -n1)
 
 # Second registration with same credentials (should fail)
 RESPONSE2=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"$UNIQUE_EMAIL\",\"username\":\"$UNIQUE_USERNAME\",\"password\":\"password123\"}")
+    -d "{\"email\":\"$UNIQUE_EMAIL\",\"username\":\"$UNIQUE_USERNAME\",\"password\":\"Password123\"}")
 HTTP_CODE2=$(echo "$RESPONSE2" | tail -n1)
 
 if [ "$HTTP_CODE1" = "201" ] && [ "$HTTP_CODE2" = "409" ]; then
@@ -234,7 +234,7 @@ fi
 print_question "Try to login with the user you created - Can you login and have all the rights of a registered user?"
 RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"$UNIQUE_EMAIL\",\"password\":\"password123\"}")
+    -d "{\"email\":\"$UNIQUE_EMAIL\",\"password\":\"Password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP" | tail -n1 | awk '{print $2}')
 SESSION_COOKIE=$(echo "$RESPONSE" | grep -i "set-cookie" | grep "session_token" | sed 's/.*session_token=\([^;]*\).*/\1/' | head -n 1)
 

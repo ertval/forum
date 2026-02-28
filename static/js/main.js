@@ -124,3 +124,55 @@
         }
     });
 })();
+
+// Avatar Preview - Show preview of selected avatar image before saving
+(function() {
+    var avatarInput = document.getElementById('avatar');
+    var previewContainer = document.getElementById('avatar-preview');
+    var previewImg = document.getElementById('avatar-preview-img');
+
+    if (avatarInput && previewContainer && previewImg) {
+        avatarInput.addEventListener('change', function() {
+            var file = this.files && this.files[0];
+            if (!file) {
+                previewContainer.style.display = 'none';
+                return;
+            }
+
+            if (!file.type.match(/^image\/(jpeg|png|gif|webp)$/)) {
+                previewContainer.style.display = 'none';
+                return;
+            }
+
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                previewImg.src = e.target.result;
+                previewContainer.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+
+            // Update file name display
+            var fileNameSpan = avatarInput.closest('.file-input-wrapper');
+            if (fileNameSpan) {
+                var span = fileNameSpan.querySelector('.file-name');
+                if (span) {
+                    span.textContent = file.name;
+                }
+            }
+        });
+    }
+
+    // Remove Avatar button
+    var removeBtn = document.getElementById('remove-avatar-btn');
+    var deleteField = document.getElementById('delete_avatar');
+
+    if (removeBtn && deleteField) {
+        removeBtn.addEventListener('click', function() {
+            if (!confirm('Remove your avatar and revert to default?')) {
+                return;
+            }
+            deleteField.value = 'true';
+            removeBtn.closest('form').submit();
+        });
+    }
+})();

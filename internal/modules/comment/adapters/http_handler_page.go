@@ -54,7 +54,7 @@ func (h *HTTPHandler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 	currentUser := h.buildCurrentUser(ctx, session.UserID)
 	userPublicID, ok := currentUser["PublicID"].(string)
 	if !ok || userPublicID == "" {
-		http.Error(w, "User not authenticated properly", http.StatusUnauthorized)
+		platformErrors.RenderErrorPage(w, http.StatusUnauthorized, "", nil)
 		return
 	}
 
@@ -67,7 +67,7 @@ func (h *HTTPHandler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 
 	activity, err := h.aggregateUserActivity(ctx, userPublicID, filters)
 	if err != nil {
-		http.Error(w, "Failed to load activity", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", nil)
 		return
 	}
 

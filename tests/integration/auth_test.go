@@ -86,7 +86,7 @@ func TestAuthIntegration(t *testing.T) {
 		// Test registration
 		email := fmt.Sprintf("testuser%d@example.com", time.Now().UnixNano()%1000000)
 		username := "Test User"
-		password := "password123"
+		password := "Password123"
 
 		userID, session, err := authService.Register(context.Background(), email, username, password)
 		if err != nil {
@@ -155,7 +155,7 @@ func TestAuthIntegration(t *testing.T) {
 		// Test duplicate email
 		email := fmt.Sprintf("dupetest%d@example.com", time.Now().UnixNano()%1000000)
 		username := "Duplicate User"
-		password := "password123"
+		password := "Password123"
 
 		// First registration should succeed
 		_, _, err := authService.Register(context.Background(), email, username, password)
@@ -186,7 +186,7 @@ func TestAuthIntegration(t *testing.T) {
 	t.Run("Session Management", func(t *testing.T) {
 		email := fmt.Sprintf("sessionuser%d@example.com", time.Now().UnixNano()%1000000)
 		username := "Session User"
-		password := "password123"
+		password := "Password123"
 
 		// Register user
 		userID, session, err := authService.Register(context.Background(), email, username, password)

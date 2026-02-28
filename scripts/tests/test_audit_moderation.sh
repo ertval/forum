@@ -23,7 +23,7 @@ ADMIN_PASSWORD="adminpass123"
 MOD_EMAIL="moderator@example.com"
 MOD_PASSWORD="modpass123"
 USER_EMAIL="testuser@example.com"
-USER_PASSWORD="password123"
+USER_PASSWORD="Password123"
 
 # Colors
 if [ -t 1 ]; then

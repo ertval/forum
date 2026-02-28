@@ -19,7 +19,7 @@ SERVER_LOG="/tmp/forum_pages_server.log"
 
 # Test user credentials (from seed data)
 TEST_EMAIL="testuser@example.com"
-TEST_PASSWORD="password123"
+TEST_PASSWORD="Password123"
 TEST_EMAIL2="testuser2@example.com"
 
 # Colors

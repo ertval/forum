@@ -91,26 +91,41 @@ This runs migrations first, then loads seed data.
 
 ## Docker
 
-### Start
+### Using Docker Compose (recommended)
 
 ```bash
-make up
+make up        # start
+make down      # stop
 ```
 
-### Stop
+Compose exposes `8080` (HTTP) and `8443` (HTTPS) and mounts `./data`, `./static/uploads`, and `./certs`.
+
+### Using plain `docker run`
 
 ```bash
-make down
+# Build the image
+docker build -t forum .
+
+# First run — create a named container with volumes for data persistence
+docker run -d --name forum -p 8080:8080 \
+  -v forum-data:/app/data \
+  -v forum-uploads:/app/static/uploads \
+  forum
+
+# Stop
+docker stop forum
+
+# Start again (reuses the same container and data)
+docker start forum
+
+# View logs
+docker logs -f forum
+
+# Remove the container (volumes are preserved)
+docker rm forum
 ```
 
-Compose exposes:
-- `8080:8080`
-- `8443:8443`
-
-It mounts:
-- `./data -> /app/data`
-- `./static/uploads -> /app/static/uploads`
-- `./certs -> /app/certs:ro`
+The app binds to `0.0.0.0` by default so it is accessible from outside the container without extra flags.
 
 ---
 

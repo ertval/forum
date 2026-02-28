@@ -17,7 +17,7 @@ func TestPublicIDExposure(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register user and login
-	sessionToken := registerAndLogin(t, app, "testuser@example.com", "Test User", "password")
+	sessionToken := registerAndLogin(t, app, "testuser@example.com", "Test User", "Password123")
 
 	// Create category
 	createCategory(t, app, "test")
@@ -70,7 +70,7 @@ func TestTemplateIDExposure(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register user and login
-	sessionToken := registerAndLogin(t, app, "templateuser@example.com", "Template User", "password")
+	sessionToken := registerAndLogin(t, app, "templateuser@example.com", "Template User", "Password123")
 
 	// Create category
 	createCategory(t, app, "template-test")
@@ -123,7 +123,7 @@ func TestPostListIDs(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register user and login
-	sessionToken := registerAndLogin(t, app, "listuser@example.com", "List User", "password")
+	sessionToken := registerAndLogin(t, app, "listuser@example.com", "List User", "Password123")
 
 	// Create category
 	createCategory(t, app, "list-test")
@@ -196,7 +196,7 @@ func TestUserModuleIDHandling(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register a user
-	sessionToken := registerAndLogin(t, app, "idtest@example.com", "Id Test User", "password")
+	sessionToken := registerAndLogin(t, app, "idtest@example.com", "Id Test User", "Password123")
 
 	// Get user info via auth validation to see if user IDs are handled properly
 	req := httptest.NewRequest("GET", "/", nil)
@@ -218,7 +218,7 @@ func TestRouteParameterHandling(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register user and login
-	sessionToken := registerAndLogin(t, app, "routeuser@example.com", "Route User", "password")
+	sessionToken := registerAndLogin(t, app, "routeuser@example.com", "Route User", "Password123")
 
 	// Create category
 	createCategory(t, app, "route-test")

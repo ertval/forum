@@ -32,3 +32,22 @@ var (
 	// ErrInvalidUsername is returned when username format is invalid.
 	ErrInvalidUsername = errors.New("invalid username: must start with a capital letter and contain only letters (e.g., Alice or Alice Smith)")
 )
+
+// PasswordValidationError provides specific feedback about which password
+// criteria were not met.
+type PasswordValidationError struct {
+	Message string
+}
+
+func (e *PasswordValidationError) Error() string { return e.Message }
+
+// Is allows errors.Is(err, ErrWeakPassword) to return true for PasswordValidationError.
+func (e *PasswordValidationError) Is(target error) bool {
+	return target == ErrWeakPassword
+}
+
+// IsPasswordValidationError checks whether the given error is a PasswordValidationError.
+func IsPasswordValidationError(err error) bool {
+	var pve *PasswordValidationError
+	return errors.As(err, &pve)
+}

@@ -17,7 +17,7 @@ func TestUserCard_PostAndCommentCountsDisplay(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register and login a user
-	sessionToken := registerAndLogin(t, app, "carduser@test.com", "Card User", "password123")
+	sessionToken := registerAndLogin(t, app, "carduser@test.com", "Card User", "Password123")
 	createCategory(t, app, "card-test")
 
 	// Create posts via API (triggers service layer increment)
@@ -106,7 +106,7 @@ func TestUserCard_HTMLRendering(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register and login
-	sessionToken := registerAndLogin(t, app, "htmluser@test.com", "HTML User", "password123")
+	sessionToken := registerAndLogin(t, app, "htmluser@test.com", "HTML User", "Password123")
 	createCategory(t, app, "html-test")
 
 	// Create some posts to populate user stats

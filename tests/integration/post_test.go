@@ -25,7 +25,7 @@ func TestPostCreationAndRetrieval(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register user and login
-	sessionToken := registerAndLogin(t, app, "user@test.com", "Test User", "password123")
+	sessionToken := registerAndLogin(t, app, "user@test.com", "Test User", "Password123")
 
 	// Create category
 	createCategory(t, app, "tests")
@@ -73,7 +73,7 @@ func TestEmptyPostValidation(t *testing.T) {
 	app := setupTestApp(t)
 	defer app.Cleanup()
 
-	sessionToken := registerAndLogin(t, app, "user2@test.com", "Second User", "password123")
+	sessionToken := registerAndLogin(t, app, "user2@test.com", "Second User", "Password123")
 
 	// Empty title
 	postData := map[string]interface{}{
@@ -100,7 +100,7 @@ func TestFormPostCreation(t *testing.T) {
 	app := setupTestApp(t)
 	defer app.Cleanup()
 
-	sessionToken := registerAndLogin(t, app, "user3@test.com", "Third User", "password123")
+	sessionToken := registerAndLogin(t, app, "user3@test.com", "Third User", "Password123")
 	createCategory(t, app, "tests")
 	createCategory(t, app, "news")
 

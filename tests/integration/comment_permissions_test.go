@@ -17,7 +17,7 @@ func TestUnauthorizedCommentCreation(t *testing.T) {
 	defer app.Cleanup()
 
 	// First, create a post as a logged-in user to get a valid post ID
-	sessionToken := registerAndLogin(t, app, "commentpermtest@test.com", "Comment Perm User", "password123")
+	sessionToken := registerAndLogin(t, app, "commentpermtest@test.com", "Comment Perm User", "Password123")
 	createCategory(t, app, "comment-test")
 	postID := createPost(t, app, sessionToken, "Test Post for Comments", "Test content", []string{"comment-test"})
 
@@ -47,7 +47,7 @@ func TestEmptyCommentValidation(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register and login
-	sessionToken := registerAndLogin(t, app, "emptycommenttest@test.com", "Empty Comment User", "password123")
+	sessionToken := registerAndLogin(t, app, "emptycommenttest@test.com", "Empty Comment User", "Password123")
 	createCategory(t, app, "empty-comment-test")
 	postID := createPost(t, app, sessionToken, "Test Post for Empty Comment", "Test content", []string{"empty-comment-test"})
 
@@ -77,7 +77,7 @@ func TestAuthorizedCommentCreation(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register and login
-	sessionToken := registerAndLogin(t, app, "authcommenttest@test.com", "Auth Comment User", "password123")
+	sessionToken := registerAndLogin(t, app, "authcommenttest@test.com", "Auth Comment User", "Password123")
 	createCategory(t, app, "auth-comment-test")
 	postID := createPost(t, app, sessionToken, "Test Post for Auth Comment", "Test content", []string{"auth-comment-test"})
 

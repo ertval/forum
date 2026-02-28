@@ -19,7 +19,7 @@ SERVER_LOG="/tmp/forum_api_server.log"
 
 # Test user credentials (from seed data)
 TEST_EMAIL="testuser@example.com"
-TEST_PASSWORD="password123"
+TEST_PASSWORD="Password123"
 TEST_EMAIL2="testuser2@example.com"
 
 # Performance thresholds
@@ -251,7 +251,7 @@ RANDOM_SUFFIX=$(cat /dev/urandom | tr -dc 'a-z' | fold -w 6 | head -n 1)
 TEST_USERNAME="Apitest ${RANDOM_SUFFIX^}"  # First letter uppercase, rest lowercase
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"api_${TIMESTAMP}@test.com\",\"username\":\"${TEST_USERNAME}\",\"password\":\"password123\"}")
+    -d "{\"email\":\"api_${TIMESTAMP}@test.com\",\"username\":\"${TEST_USERNAME}\",\"password\":\"Password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "201" ]; then
     print_test "POST /api/auth/register - Valid registration" "PASS"
@@ -268,7 +268,7 @@ fi
 # Use valid "Name Surname" format for username
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"Unique Testname\",\"password\":\"password123\"}")
+    -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"Unique Testname\",\"password\":\"Password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | head -n -1)
 if [ "$HTTP_CODE" = "409" ]; then
@@ -285,7 +285,7 @@ fi
 EXISTING_USERNAME=$(sqlite3 "$DB_PATH" "SELECT username FROM users LIMIT 1;" 2>/dev/null)
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"unique_$(date +%s)@test.com\",\"username\":\"$EXISTING_USERNAME\",\"password\":\"password123\"}")
+    -d "{\"email\":\"unique_$(date +%s)@test.com\",\"username\":\"$EXISTING_USERNAME\",\"password\":\"Password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | head -n -1)
 if [ "$HTTP_CODE" = "409" ]; then
@@ -301,7 +301,7 @@ fi
 # Registration - invalid email format
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d '{"email":"invalid","username":"Test User","password":"password123"}')
+    -d '{"email":"invalid","username":"Test User","password":"Password123"}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "400" ]; then
     print_test "POST /api/auth/register - Invalid email format (400)" "PASS"
@@ -357,7 +357,7 @@ fi
 # Login - non-existent user
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/login" \
     -H "Content-Type: application/json" \
-    -d '{"email":"nonexistent@test.com","password":"password123"}')
+    -d '{"email":"nonexistent@test.com","password":"Password123"}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "401" ]; then
     print_test "POST /api/auth/login - Non-existent user (401)" "PASS"

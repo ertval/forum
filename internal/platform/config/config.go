@@ -121,7 +121,7 @@ func Load() (*Config, error) {
 	// Initialize Config with default values
 	cfg := &Config{}
 
-	cfg.Server.Host = getEnvString("SERVER_HOST", "localhost")
+	cfg.Server.Host = getEnvString("SERVER_HOST", "0.0.0.0")
 	cfg.Server.Port = getEnvInt("SERVER_PORT", 8080)
 	cfg.Server.TLSPort = getEnvInt("SERVER_TLS_PORT", 8443)
 	cfg.Server.Environment = getEnvString("SERVER_ENVIRONMENT", "development")

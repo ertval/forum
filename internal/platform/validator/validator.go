@@ -116,13 +116,40 @@ func (v *Validator) Username(field, value string) {
 }
 
 // Password validates password strength.
-// TODO: Implement password strength requirements.
+// It checks minimum length, and requires at least one uppercase letter,
+// one lowercase letter, and one digit.
 func (v *Validator) Password(field, value string, minLength int) {
 	if utf8.RuneCountInString(value) < minLength {
-		v.AddError(field, "Password must be at least "+strconv.Itoa(minLength)+" characters")
+		v.AddError(field, "Password must be at least "+strconv.Itoa(minLength)+" characters long")
+		return // If too short, just report length first
 	}
-	// Additional password requirements can be added here
-	// e.g., must contain uppercase, lowercase, numbers, special characters
+
+	var missing []string
+	hasUpper, hasLower, hasDigit := false, false, false
+	for _, r := range value {
+		if unicode.IsUpper(r) {
+			hasUpper = true
+		}
+		if unicode.IsLower(r) {
+			hasLower = true
+		}
+		if unicode.IsDigit(r) {
+			hasDigit = true
+		}
+	}
+	if !hasUpper {
+		missing = append(missing, "an uppercase letter")
+	}
+	if !hasLower {
+		missing = append(missing, "a lowercase letter")
+	}
+	if !hasDigit {
+		missing = append(missing, "a digit")
+	}
+
+	if len(missing) > 0 {
+		v.AddError(field, "Password must contain at least "+strings.Join(missing, ", "))
+	}
 }
 
 // In checks if a value is in a list of allowed values.

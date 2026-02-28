@@ -211,15 +211,16 @@ func (s *Service) UpdateSettings(ctx context.Context, publicID, username, email,
 	}
 
 	if !v.Valid() {
-		for field := range v.Errors() {
-			switch field {
-			case "username":
-				return nil, domain.ErrInvalidUsername
-			case "email":
-				return nil, domain.ErrInvalidEmail
-			case "password":
-				return nil, domain.ErrWeakPassword
-			}
+		// Check fields in deterministic order.
+		errs := v.Errors()
+		if _, ok := errs["username"]; ok {
+			return nil, domain.ErrInvalidUsername
+		}
+		if _, ok := errs["email"]; ok {
+			return nil, domain.ErrInvalidEmail
+		}
+		if msg, ok := errs["password"]; ok {
+			return nil, &domain.PasswordValidationError{Message: msg}
 		}
 	}
 

@@ -20,7 +20,7 @@ SERVER_LOG="/tmp/forum_audit_server.log"
 
 # Test user credentials (from seed data)
 TEST_EMAIL="testuser@example.com"
-TEST_PASSWORD="password123"
+TEST_PASSWORD="Password123"
 TEST_EMAIL2="testuser2@example.com"
 
 # Colors
@@ -234,7 +234,7 @@ print_question "Does the project detect if the email or user name is already tak
 # Use valid "Name Surname" format for username
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"Unique Testname\",\"password\":\"password123\"}")
+    -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"Unique Testname\",\"password\":\"Password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | head -n -1)
 EMAIL_CHECK_PASSED=false
@@ -250,7 +250,7 @@ fi
 EXISTING_USERNAME=$(sqlite3 "$DB_PATH" "SELECT username FROM users LIMIT 1;" 2>/dev/null)
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"unique_$(date +%s)@test.com\",\"username\":\"$EXISTING_USERNAME\",\"password\":\"password123\"}")
+    -d "{\"email\":\"unique_$(date +%s)@test.com\",\"username\":\"$EXISTING_USERNAME\",\"password\":\"Password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | head -n -1)
 USERNAME_CHECK_PASSED=false
@@ -278,7 +278,7 @@ TIMESTAMP=$(date +%s)
 AUDIT_USERNAME="Audit User"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"audit_${TIMESTAMP}@test.com\",\"username\":\"${AUDIT_USERNAME}\",\"password\":\"password123\"}")
+    -d "{\"email\":\"audit_${TIMESTAMP}@test.com\",\"username\":\"${AUDIT_USERNAME}\",\"password\":\"Password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "201" ]; then
     print_answer "YES" "Successfully registered new user"

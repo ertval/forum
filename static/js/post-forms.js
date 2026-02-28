@@ -5,21 +5,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Track if image should be removed on form submission
     let shouldRemoveImage = false;
 
-    // Handle content preview functionality for post creation
-    const contentTextarea = document.getElementById('content');
-    const contentPreview = document.getElementById('content-preview');
-    
-    if (contentTextarea && contentPreview) {
-        // Initialize preview with existing content (for edit form)
-        if (contentTextarea.value) {
-            contentPreview.textContent = contentTextarea.value;
-        }
-
-        contentTextarea.addEventListener('input', function() {
-            contentPreview.textContent = this.value;
-        });
-    }
-
     // Handle image preview functionality
     const imageInput = document.getElementById('image');
     if (imageInput) {

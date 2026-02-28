@@ -47,6 +47,8 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Differentiate between validation errors (400) and conflict errors (409)
 		switch {
+		case authDomain.IsPasswordValidationError(err):
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 		case errors.Is(err, authDomain.ErrInvalidEmail),
 			errors.Is(err, authDomain.ErrWeakPassword),
 			errors.Is(err, authDomain.ErrInvalidUsername):

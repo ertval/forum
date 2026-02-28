@@ -10,6 +10,7 @@ import (
 
 	authPorts "forum/internal/modules/auth/ports"
 	postDomain "forum/internal/modules/post/domain"
+	platformErrors "forum/internal/platform/errors"
 	"forum/internal/platform/templates"
 )
 
@@ -29,7 +30,7 @@ func (h *HTTPHandler) RegisterPageRoutes(router *http.ServeMux) {
 // HomePage handles the homepage rendering with post list.
 func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
-		http.NotFound(w, r)
+		platformErrors.RenderErrorPage(w, http.StatusNotFound, "", nil)
 		return
 	}
 
@@ -157,7 +158,7 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 // BoardPage handles the board page rendering with post list (identical to homepage).
 func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/board" {
-		http.NotFound(w, r)
+		platformErrors.RenderErrorPage(w, http.StatusNotFound, "", nil)
 		return
 	}
 
@@ -300,9 +301,9 @@ func (h *HTTPHandler) PostDetailPage(w http.ResponseWriter, r *http.Request) {
 	post, err := h.postService.GetPost(ctx, postID)
 	if err != nil {
 		if err == postDomain.ErrPostNotFound {
-			http.Error(w, "Post not found", http.StatusNotFound)
+			platformErrors.RenderErrorPage(w, http.StatusNotFound, "The post you're looking for doesn't exist or has been removed.", nil)
 		} else {
-			http.Error(w, "Failed to retrieve post", http.StatusInternalServerError)
+			platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", nil)
 		}
 		return
 	}
@@ -458,7 +459,7 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 	// Extract post ID
 	postID := r.PathValue("id")
 	if postID == "" {
-		http.Error(w, "Post ID required", http.StatusBadRequest)
+		platformErrors.RenderErrorPage(w, http.StatusBadRequest, "Post ID is required.", nil)
 		return
 	}
 
@@ -466,16 +467,16 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 	post, err := h.postService.GetPost(ctx, postID)
 	if err != nil {
 		if err == postDomain.ErrPostNotFound {
-			http.Error(w, "Post not found", http.StatusNotFound)
+			platformErrors.RenderErrorPage(w, http.StatusNotFound, "The post you're looking for doesn't exist or has been removed.", nil)
 		} else {
-			http.Error(w, "Failed to retrieve post", http.StatusInternalServerError)
+			platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", nil)
 		}
 		return
 	}
 
 	// Check ownership
 	if post.UserID != userID {
-		http.Error(w, "You can only edit your own posts", http.StatusForbidden)
+		platformErrors.RenderErrorPage(w, http.StatusForbidden, "You can only edit your own posts.", nil)
 		return
 	}
 

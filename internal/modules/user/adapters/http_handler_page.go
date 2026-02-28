@@ -4,6 +4,7 @@ package adapters
 
 import (
 	authPorts "forum/internal/modules/auth/ports"
+	platformErrors "forum/internal/platform/errors"
 	"net/http"
 )
 
@@ -22,13 +23,13 @@ func (h *HTTPHandler) SettingsPage(w http.ResponseWriter, r *http.Request) {
 	// Get user PUBLIC ID (UUID) from context (set by RequireAuth middleware)
 	userPublicID := authPorts.GetUserID(ctx)
 	if userPublicID == "" {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		platformErrors.RenderErrorPage(w, http.StatusUnauthorized, "", nil)
 		return
 	}
 
 	currentUser, err := h.userService.GetByPublicID(ctx, userPublicID)
 	if err != nil || currentUser == nil {
-		http.Error(w, "Failed to load user settings", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "Failed to load user settings.", nil)
 		return
 	}
 

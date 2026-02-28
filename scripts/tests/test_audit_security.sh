@@ -230,7 +230,7 @@ fi
 print_question "Try to login - Does the session cookie present a UUID?"
 RESPONSE=$(curl -si -X POST "$BASE_URL_HTTP/api/auth/login" \
     -H "Content-Type: application/json" \
-    -d '{"email":"testuser@example.com","password":"password123"}' 2>/dev/null)
+    -d '{"email":"testuser@example.com","password":"Password123"}' 2>/dev/null)
 SESSION_COOKIE=$(echo "$RESPONSE" | grep -i "set-cookie" | grep "session_token" | head -n 1)
 
 # Check if session token looks like a UUID (36 chars with hyphens)

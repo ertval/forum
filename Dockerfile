@@ -46,8 +46,14 @@ COPY --from=builder /app/static ./static
 COPY --from=builder /app/templates ./templates
 COPY --from=builder /app/migrations ./migrations
 
+# Create data and upload directories so the app can run without mounted volumes
+RUN mkdir -p data static/uploads
+
 # Change ownership of all files to the non-root user
 RUN chown -R appuser:appuser /app
+
+# Declare volumes for data persistence across container restarts
+VOLUME ["/app/data", "/app/static/uploads"]
 
 # Switch to non-root user for security (principle of least privilege)
 USER appuser

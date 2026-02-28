@@ -26,7 +26,7 @@ func TestLoadMorePostsAPI(t *testing.T) {
 	defer app.Cleanup()
 
 	// Create a test user and login
-	sessionToken := registerAndLogin(t, app, "loadmore@test.com", "Load More User", "password123")
+	sessionToken := registerAndLogin(t, app, "loadmore@test.com", "Load More User", "Password123")
 
 	// Create a category
 	createCategory(t, app, "tests")

@@ -17,19 +17,19 @@ func TestValidateCredentials(t *testing.T) {
 		{
 			name:     "valid credentials",
 			email:    "user@example.com",
-			password: "password123",
+			password: "Password123",
 			wantErr:  false,
 		},
 		{
 			name:     "empty email",
 			email:    "",
-			password: "password123",
+			password: "Password123",
 			wantErr:  true,
 		},
 		{
 			name:     "invalid email",
 			email:    "invalid-email",
-			password: "password123",
+			password: "Password123",
 			wantErr:  true,
 		},
 		{

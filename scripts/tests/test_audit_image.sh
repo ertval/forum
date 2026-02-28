@@ -20,7 +20,7 @@ TEST_IMAGES_DIR="/tmp/forum_image_test"
 
 # Test credentials
 TEST_EMAIL="testuser@example.com"
-TEST_PASSWORD="password123"
+TEST_PASSWORD="Password123"
 
 # Colors
 if [ -t 1 ]; then

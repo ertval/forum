@@ -290,14 +290,14 @@ func ValidateCredentials(c *domain.Credentials) error {
 	}
 
 	if !v.Valid() {
-		// Convert validator errors to domain-specific errors
-		for field := range v.Errors() {
-			switch field {
-			case "email":
-				return domain.ErrInvalidEmail
-			case "password":
-				return domain.ErrWeakPassword
-			}
+		// Convert validator errors to domain-specific errors.
+		// Check email first for deterministic error ordering.
+		errs := v.Errors()
+		if _, ok := errs["email"]; ok {
+			return domain.ErrInvalidEmail
+		}
+		if msg, ok := errs["password"]; ok {
+			return &domain.PasswordValidationError{Message: msg}
 		}
 	}
 
