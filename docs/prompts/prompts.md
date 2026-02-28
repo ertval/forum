@@ -174,3 +174,10 @@ Provide your analysis in the following format:
 ## 5. Critical Issues & Suggestions
 - **Critical**: [List any architecture violations or circular dependencies]
 - **Suggestion**: [Refactoring tips to align better with the Hexagonal pattern]
+
+---
+
+- The number next to my activity button does not reflect the actual number of notifications. Read the notifications requirements and audit file to better understand the expected behavior and ensure the implementation meets the specified requirements.
+- In the settings page in the avatar upload section there should be a preview of the uploaded image before saving. Implement this feature following the requirements and audit guidelines for the avatar upload functionality. Also you should be able to delete the current avatar and revert to a default image if desired. Ensure that the implementation adheres to the project's architectural standards and best practices for Go development.
+- In the post creation and editing page, remove the content preview section.
+- Properly fomated with app style 404 and other error pages should be implemented and displayed when a user tries to access a non-existent post, comment, or any other resource. Ensure that the error handling is consistent across the application and that the user experience is maintained even in error scenarios. Follow the project's architectural guidelines and best practices for error handling in Go.
