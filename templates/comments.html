@@ -36,13 +36,7 @@
 
         {{if .HasMoreComments}}
         <div class="load-more-container">
-            <button id="load-more-comments-btn" 
-                    class="btn btn-primary"
-                    data-offset="{{.Offset}}"
-                    data-category="{{.SelectedCategory}}"
-                    data-date-filter="{{.DateFilter}}">
-                Show More
-            </button>
+            {{template "load-more-button" $}}
         </div>
         {{end}}
     </div>

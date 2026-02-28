@@ -8,22 +8,35 @@ import (
 	"forum/internal/platform/health"
 )
 
+// criticalChecks lists health check keys that must be "up" for the
+// readiness endpoint to return 200. Everything else is optional and
+// will be surfaced in the body but won't cause a 503.
+var criticalChecks = map[string]bool{
+	"database":         true,
+	"auth_api":         true,
+	"post_api":         true,
+	"comment_api":      true,
+	"reaction_api":     true,
+	"notification_api": true,
+	"user_api":         true,
+}
+
 func HealthAPI(checker *health.Checker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Perform checks
 		results := checker.Check(r.Context())
 
-		// Determine overall status
-		isHealthy := true
-		for _, status := range results {
-			if status != "up" {
-				isHealthy = false
+		// Determine overall status — only critical checks affect readiness
+		criticalHealthy := true
+		for key, status := range results {
+			if criticalChecks[key] && status != "up" {
+				criticalHealthy = false
 				break
 			}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		if !isHealthy {
+		if !criticalHealthy {
 			w.WriteHeader(http.StatusServiceUnavailable)
 		} else {
 			w.WriteHeader(http.StatusOK)
@@ -35,9 +48,8 @@ func HealthAPI(checker *health.Checker) http.HandlerFunc {
 
 // HealthPageConfig holds dependencies for the health UI page handler.
 type HealthPageConfig struct {
-	Checker   *health.Checker
-	Templates *template.Template
-	AuthFunc  func(r *http.Request) (userID int, username string)
+	Checker  *health.Checker
+	AuthFunc func(r *http.Request) (userID int, username string)
 	// GetUserWithStats returns full user data including stats for template rendering.
 	// If nil, only basic auth info (ID, Username) will be shown.
 	GetUserWithStats func(r *http.Request) map[string]interface{}
@@ -76,9 +88,10 @@ func HealthPage(cfg HealthPageConfig) http.HandlerFunc {
 
 		// Prepare data for the template
 		data := map[string]interface{}{
-			"Title":  "Health Status",
-			"Health": results,
-			"User":   currentUser,
+			"Title":           "Health Status",
+			"HideUserSidebar": true,
+			"Health":          results,
+			"User":            currentUser,
 			// Health page should not show the sidebar even when user is present
 			"ShowSidebar": false,
 		}

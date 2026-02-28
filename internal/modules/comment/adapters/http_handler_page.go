@@ -304,31 +304,70 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 				commentsFromService = commentsFromService[:initialLimit]
 			}
 
+			// Batch: collect unique user IDs and post IDs
+			uniqueUserIDs := make(map[int]struct{})
+			uniquePostIDs := make(map[string]struct{})
 			for _, comment := range commentsFromService {
-				var authorUsername string
 				if comment.UserID != 0 {
-					user, err := h.userService.GetByID(ctx, comment.UserID)
-					if err == nil && user != nil {
-						authorUsername = user.Username
+					uniqueUserIDs[comment.UserID] = struct{}{}
+				}
+				if comment.PublicPostID != "" {
+					uniquePostIDs[comment.PublicPostID] = struct{}{}
+				}
+			}
+
+			// Fetch all users in bulk
+			userCache := make(map[int]string, len(uniqueUserIDs))
+			for uid := range uniqueUserIDs {
+				user, err := h.userService.GetByID(ctx, uid)
+				if err == nil && user != nil {
+					userCache[uid] = user.Username
+				}
+			}
+
+			// Fetch all posts in bulk
+			type postInfo struct {
+				Title          string
+				AuthorUsername string
+				Categories     []string
+			}
+			postCache := make(map[string]postInfo, len(uniquePostIDs))
+			for pid := range uniquePostIDs {
+				post, err := h.postService.GetPost(ctx, pid)
+				if err == nil && post != nil {
+					postCache[pid] = postInfo{
+						Title:          post.Title,
+						AuthorUsername: post.AuthorUsername,
+						Categories:     post.Categories,
 					}
 				}
+			}
 
-				var postTitle string
-				var postAuthorUsername string
+			// Batch: collect unique comment IDs for reaction counts
+			type reactionCounts struct {
+				likes    int
+				dislikes int
+			}
+			reactionCache := make(map[string]reactionCounts, len(commentsFromService))
+			if h.reactionService != nil {
+				for _, comment := range commentsFromService {
+					likes, dislikes, _ := h.reactionService.CountReactions(ctx, comment.PublicID, "comment")
+					reactionCache[comment.PublicID] = reactionCounts{likes: likes, dislikes: dislikes}
+				}
+			}
+
+			for _, comment := range commentsFromService {
+				authorUsername := userCache[comment.UserID]
+
+				postTitle := "Post not found"
+				postAuthorUsername := "Unknown"
 				var postCategories []string
-				if comment.PublicPostID != "" {
-					post, err := h.postService.GetPost(ctx, comment.PublicPostID)
-					if err == nil && post != nil {
-						postTitle = post.Title
-						postAuthorUsername = post.AuthorUsername
-						postCategories = post.Categories
-					} else {
-						postTitle = "Post not found"
-						postAuthorUsername = "Unknown"
-					}
-				} else {
+				if pi, ok := postCache[comment.PublicPostID]; ok {
+					postTitle = pi.Title
+					postAuthorUsername = pi.AuthorUsername
+					postCategories = pi.Categories
+				} else if comment.PublicPostID == "" {
 					postTitle = "Post ID unknown"
-					postAuthorUsername = "Unknown"
 				}
 
 				// Apply category filter - skip if doesn't match
@@ -362,11 +401,7 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 
-				// Get reaction counts for this comment
-				likes, dislikes := 0, 0
-				if h.reactionService != nil {
-					likes, dislikes, _ = h.reactionService.CountReactions(ctx, comment.PublicID, "comment")
-				}
+				rc := reactionCache[comment.PublicID]
 
 				commentData := map[string]interface{}{
 					"PublicID":           comment.PublicID,
@@ -378,8 +413,8 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 					"PostCategories":     postCategories,
 					"CreatedAt":          comment.CreatedAt,
 					"UpdatedAt":          comment.UpdatedAt,
-					"Likes":              likes,
-					"Dislikes":           dislikes,
+					"Likes":              rc.likes,
+					"Dislikes":           rc.dislikes,
 				}
 				comments = append(comments, commentData)
 			}
@@ -397,6 +432,7 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 		"DateFilter":       dateFilter,
 		"HasMoreComments":  hasMoreComments,
 		"Offset":           initialLimit,
+		"LoadMoreID":       "load-more-comments-btn",
 	}
 
 	// Get cached templates (only parses on first request)
@@ -467,31 +503,51 @@ func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Enrich comments with post and user information
+	// Enrich comments with post and user information using batch lookups
 	commentsData := make([]map[string]interface{}, 0, len(comments))
-	for _, comment := range comments {
-		var authorUsername string
-		if comment.UserID != 0 {
-			user, err := h.userService.GetByID(ctx, comment.UserID)
-			if err == nil && user != nil {
-				authorUsername = user.Username
-			}
-		}
 
-		var postTitle string
-		var postAuthorUsername string
+	// Batch: collect unique user IDs and post IDs
+	uniqueUserIDs := make(map[int]struct{})
+	uniquePostIDs := make(map[string]struct{})
+	for _, comment := range comments {
+		if comment.UserID != 0 {
+			uniqueUserIDs[comment.UserID] = struct{}{}
+		}
 		if comment.PublicPostID != "" {
-			post, err := h.postService.GetPost(ctx, comment.PublicPostID)
-			if err == nil && post != nil {
-				postTitle = post.Title
-				postAuthorUsername = post.AuthorUsername
-			} else {
-				postTitle = "Post not found"
-				postAuthorUsername = "Unknown"
-			}
-		} else {
+			uniquePostIDs[comment.PublicPostID] = struct{}{}
+		}
+	}
+
+	userCache := make(map[int]string, len(uniqueUserIDs))
+	for uid := range uniqueUserIDs {
+		user, err := h.userService.GetByID(ctx, uid)
+		if err == nil && user != nil {
+			userCache[uid] = user.Username
+		}
+	}
+
+	type postInfo struct {
+		Title          string
+		AuthorUsername string
+	}
+	postCache := make(map[string]postInfo, len(uniquePostIDs))
+	for pid := range uniquePostIDs {
+		post, err := h.postService.GetPost(ctx, pid)
+		if err == nil && post != nil {
+			postCache[pid] = postInfo{Title: post.Title, AuthorUsername: post.AuthorUsername}
+		}
+	}
+
+	for _, comment := range comments {
+		authorUsername := userCache[comment.UserID]
+
+		postTitle := "Post not found"
+		postAuthorUsername := "Unknown"
+		if pi, ok := postCache[comment.PublicPostID]; ok {
+			postTitle = pi.Title
+			postAuthorUsername = pi.AuthorUsername
+		} else if comment.PublicPostID == "" {
 			postTitle = "Post ID unknown"
-			postAuthorUsername = "Unknown"
 		}
 
 		// Get reaction counts for this comment
@@ -572,17 +628,30 @@ func (h *HTTPHandler) aggregateUserActivity(ctx context.Context, userPublicID st
 	}
 
 	commentItems := make([]map[string]interface{}, 0, len(commentsFromService))
+
+	// Collect unique post IDs and fetch all posts in bulk to avoid N+1 queries
+	uniquePostIDs := make(map[string]struct{})
+	for _, comment := range commentsFromService {
+		if comment.PublicPostID != "" {
+			uniquePostIDs[comment.PublicPostID] = struct{}{}
+		}
+	}
+	postCache := make(map[string]*postDomain.Post, len(uniquePostIDs))
+	for postID := range uniquePostIDs {
+		post, err := h.postService.GetPost(ctx, postID)
+		if err == nil && post != nil {
+			postCache[postID] = post
+		}
+	}
+
 	for _, comment := range commentsFromService {
 		postTitle := "Post not found"
 		postPublicID := comment.PublicPostID
 		postCategories := []string{}
-		if comment.PublicPostID != "" {
-			post, err := h.postService.GetPost(ctx, comment.PublicPostID)
-			if err == nil && post != nil {
-				postTitle = post.Title
-				postPublicID = post.PublicID
-				postCategories = post.Categories
-			}
+		if post, ok := postCache[comment.PublicPostID]; ok {
+			postTitle = post.Title
+			postPublicID = post.PublicID
+			postCategories = post.Categories
 		}
 
 		commentItems = append(commentItems, map[string]interface{}{

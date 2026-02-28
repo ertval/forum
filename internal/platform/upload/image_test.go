@@ -273,9 +273,14 @@ func TestImageHandler_Delete_PathTraversal(t *testing.T) {
 }
 
 func TestImageHandler_Save_CreatesDirectory(t *testing.T) {
-	// Use a path that doesn't exist yet
+	// Use a path that doesn't exist yet — NewImageHandler creates it
 	tmpDir := filepath.Join(t.TempDir(), "nested", "uploads")
 	handler := NewImageHandler(tmpDir, testMaxImageSize)
+
+	// Verify the directory was created by the constructor
+	if _, err := os.Stat(tmpDir); os.IsNotExist(err) {
+		t.Fatalf("NewImageHandler() should have created the upload directory")
+	}
 
 	filename, err := handler.Save(jpegMagic)
 	if err != nil {
@@ -330,7 +335,7 @@ func TestValidateImage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateImage(tt.data, testMaxImageSize)
+			_, err := ValidateImage(tt.data, testMaxImageSize)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateImage() error = %v, wantErr %v", err, tt.wantErr)
 			}

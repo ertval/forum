@@ -83,17 +83,17 @@ func ValidateImageSize(size int64, maxSize int64) error {
 }
 
 // ValidateImage validates image data for type and size.
-func ValidateImage(data []byte, maxSize int64) error {
+// Returns the detected MIME type on success.
+func ValidateImage(data []byte, maxSize int64) (string, error) {
 	if len(data) == 0 {
-		return ErrEmptyImage
+		return "", ErrEmptyImage
 	}
 
 	if err := ValidateImageSize(int64(len(data)), maxSize); err != nil {
-		return err
+		return "", err
 	}
 
-	_, err := DetectImageType(data)
-	return err
+	return DetectImageType(data)
 }
 
 // ImageHandler handles image file operations.
@@ -103,7 +103,10 @@ type ImageHandler struct {
 }
 
 // NewImageHandler creates a new ImageHandler with the specified upload directory and max size.
+// The upload directory is created if it does not already exist.
 func NewImageHandler(uploadDir string, maxSize int64) *ImageHandler {
+	// Ensure the upload directory exists once at construction time.
+	_ = os.MkdirAll(uploadDir, 0755)
 	return &ImageHandler{
 		uploadDir: uploadDir,
 		maxSize:   maxSize,
@@ -113,18 +116,13 @@ func NewImageHandler(uploadDir string, maxSize int64) *ImageHandler {
 // Save saves image data to disk and returns the filename (not full path).
 // The filename is a UUID with the appropriate extension based on the image type.
 func (h *ImageHandler) Save(data []byte) (string, error) {
-	// Validate image
-	if err := ValidateImage(data, h.maxSize); err != nil {
-		return "", err
-	}
-
-	// Detect MIME type
-	mimeType, err := DetectImageType(data)
+	// Validate image and get MIME type in one pass
+	mimeType, err := ValidateImage(data, h.maxSize)
 	if err != nil {
 		return "", err
 	}
 
-	// Get extension
+	// Get extension from already-detected MIME type (no second DetectImageType call)
 	ext, err := MIMEToExtension(mimeType)
 	if err != nil {
 		return "", err
@@ -137,13 +135,14 @@ func (h *ImageHandler) Save(data []byte) (string, error) {
 	}
 	filename := id.String() + ext
 
-	// Ensure upload directory exists
-	if err := os.MkdirAll(h.uploadDir, 0755); err != nil {
-		return "", err
-	}
-
 	// Build full path
 	fullPath := filepath.Join(h.uploadDir, filename)
+
+	// Verify the final path is within the upload directory (prevent path traversal)
+	rel, err := filepath.Rel(h.uploadDir, fullPath)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return "", errors.New("invalid upload path")
+	}
 
 	// Write file atomically using temp file + rename
 	tmpPath := fullPath + ".tmp"

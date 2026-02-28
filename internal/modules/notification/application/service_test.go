@@ -11,7 +11,7 @@ import (
 type MockNotificationRepository struct {
 	notifications map[string]*domain.Notification
 	getByUserFn   func(ctx context.Context, userID int) ([]*domain.Notification, error)
-	markAsReadFn  func(ctx context.Context, notificationPublicID string) error
+	markAsReadFn  func(ctx context.Context, userID int, notificationPublicID string) error
 	createFn      func(ctx context.Context, notification *domain.Notification) error
 }
 
@@ -29,9 +29,9 @@ func (m *MockNotificationRepository) GetByUserID(ctx context.Context, userID int
 	return result, nil
 }
 
-func (m *MockNotificationRepository) MarkAsReadByPublicID(ctx context.Context, notificationPublicID string) error {
+func (m *MockNotificationRepository) MarkAsReadByPublicID(ctx context.Context, userID int, notificationPublicID string) error {
 	if m.markAsReadFn != nil {
-		return m.markAsReadFn(ctx, notificationPublicID)
+		return m.markAsReadFn(ctx, userID, notificationPublicID)
 	}
 
 	if m.notifications != nil {
@@ -49,6 +49,16 @@ func (m *MockNotificationRepository) MarkAllAsReadByUserID(ctx context.Context, 
 		}
 	}
 	return nil
+}
+
+func (m *MockNotificationRepository) CountUnread(ctx context.Context, userID int) (int, error) {
+	count := 0
+	for _, n := range m.notifications {
+		if n.UserID == userID && !n.IsRead {
+			count++
+		}
+	}
+	return count, nil
 }
 
 func (m *MockNotificationRepository) Create(ctx context.Context, notification *domain.Notification) error {
@@ -168,7 +178,7 @@ func TestService_MarkAsRead(t *testing.T) {
 		t.Error("Expected notification to be unread initially")
 	}
 
-	err := service.MarkAsRead(ctx, "pub-1")
+	err := service.MarkAsRead(ctx, 5, "pub-1")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}

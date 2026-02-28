@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"forum/internal/modules/post/domain"
 	userDomain "forum/internal/modules/user/domain"
 	"testing"
@@ -70,11 +71,12 @@ func (m *mockPostRepository) GetImagePath(ctx context.Context, postID string) (s
 }
 
 type mockCategoryRepository struct {
-	createFunc    func(ctx context.Context, category *domain.Category) error
-	getByIDFunc   func(ctx context.Context, categoryID string) (*domain.Category, error)
-	getByNameFunc func(ctx context.Context, name string) (*domain.Category, error)
-	listFunc      func(ctx context.Context) ([]*domain.Category, error)
-	deleteFunc    func(ctx context.Context, categoryID string) error
+	createFunc     func(ctx context.Context, category *domain.Category) error
+	getByIDFunc    func(ctx context.Context, categoryID string) (*domain.Category, error)
+	getByNameFunc  func(ctx context.Context, name string) (*domain.Category, error)
+	getByNamesFunc func(ctx context.Context, names []string) ([]domain.Category, error)
+	listFunc       func(ctx context.Context) ([]*domain.Category, error)
+	deleteFunc     func(ctx context.Context, categoryID string) error
 }
 
 func (m *mockCategoryRepository) Create(ctx context.Context, category *domain.Category) error {
@@ -96,6 +98,18 @@ func (m *mockCategoryRepository) GetByName(ctx context.Context, name string) (*d
 		return m.getByNameFunc(ctx, name)
 	}
 	return nil, nil
+}
+
+func (m *mockCategoryRepository) GetByNames(ctx context.Context, names []string) ([]domain.Category, error) {
+	if m.getByNamesFunc != nil {
+		return m.getByNamesFunc(ctx, names)
+	}
+	// Default: return one category per name
+	cats := make([]domain.Category, len(names))
+	for i, name := range names {
+		cats[i] = domain.Category{ID: i + 1, PublicID: fmt.Sprintf("cat-%d-uuid", i+1), Name: name}
+	}
+	return cats, nil
 }
 
 func (m *mockCategoryRepository) List(ctx context.Context) ([]*domain.Category, error) {
@@ -228,8 +242,12 @@ func TestService_CreatePost(t *testing.T) {
 			categories: []string{"tests"},
 			image:      nil,
 			setupMocks: func(mpr *mockPostRepository, mcr *mockCategoryRepository) {
-				mcr.getByNameFunc = func(ctx context.Context, name string) (*domain.Category, error) {
-					return &domain.Category{ID: 1, PublicID: "cat-1-uuid", Name: name}, nil
+				mcr.getByNamesFunc = func(ctx context.Context, names []string) ([]domain.Category, error) {
+					cats := make([]domain.Category, len(names))
+					for i, name := range names {
+						cats[i] = domain.Category{ID: i + 1, PublicID: "cat-1-uuid", Name: name}
+					}
+					return cats, nil
 				}
 				mpr.createFunc = func(ctx context.Context, post *domain.Post) error {
 					return nil
@@ -278,7 +296,7 @@ func TestService_CreatePost(t *testing.T) {
 			categories: []string{"nonexistent"},
 			image:      nil,
 			setupMocks: func(mpr *mockPostRepository, mcr *mockCategoryRepository) {
-				mcr.getByNameFunc = func(ctx context.Context, name string) (*domain.Category, error) {
+				mcr.getByNamesFunc = func(ctx context.Context, names []string) ([]domain.Category, error) {
 					return nil, domain.ErrCategoryNotFound
 				}
 			},
@@ -409,9 +427,13 @@ func TestService_UpdatePost(t *testing.T) {
 			mockCategoryRepo := &mockCategoryRepository{}
 			mockUserSvc := &mockUserService{}
 
-			// Default category repo returns a category for any name unless overridden by setup
-			mockCategoryRepo.getByNameFunc = func(ctx context.Context, name string) (*domain.Category, error) {
-				return &domain.Category{ID: 1, PublicID: "cat-1-uuid", Name: name}, nil
+			// Default category repo returns categories for any names unless overridden by setup
+			mockCategoryRepo.getByNamesFunc = func(ctx context.Context, names []string) ([]domain.Category, error) {
+				cats := make([]domain.Category, len(names))
+				for i, name := range names {
+					cats[i] = domain.Category{ID: i + 1, PublicID: "cat-1-uuid", Name: name}
+				}
+				return cats, nil
 			}
 
 			if tt.setupMocks != nil {

@@ -92,7 +92,7 @@ func (h *HTTPHandler) updateCurrentUserSettings(r *http.Request, userPublicID st
 		avatarPath = ""
 		deleteOldAvatar = true
 	} else if input.HasAvatarFile {
-		if err := upload.ValidateImage(input.AvatarData, h.maxAvatarSize); err != nil {
+		if _, err := upload.ValidateImage(input.AvatarData, h.maxAvatarSize); err != nil {
 			if errors.Is(err, upload.ErrImageTooLarge) {
 				return currentUser, http.StatusRequestEntityTooLarge, upload.FormatImageSizeError(h.maxAvatarSize)
 			}

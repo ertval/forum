@@ -24,11 +24,20 @@ func (m *mockNotificationService) CreateNotification(ctx context.Context, userID
 func (m *mockNotificationService) GetUserNotifications(ctx context.Context, userID int) ([]*domain.Notification, error) {
 	return m.notifications, nil
 }
-func (m *mockNotificationService) MarkAsRead(ctx context.Context, notificationPublicID string) error {
+func (m *mockNotificationService) MarkAsRead(ctx context.Context, userID int, notificationPublicID string) error {
 	return m.markErr
 }
 func (m *mockNotificationService) MarkAllAsRead(ctx context.Context, userID int) error {
 	return nil
+}
+func (m *mockNotificationService) CountUnread(ctx context.Context, userID int) (int, error) {
+	count := 0
+	for _, n := range m.notifications {
+		if n != nil && !n.IsRead {
+			count++
+		}
+	}
+	return count, nil
 }
 
 type mockUserService struct{}
@@ -123,6 +132,7 @@ func TestMarkAsReadAPI_NotFound(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPut, "/api/notifications/notif-404/read", nil)
 	req.SetPathValue("id", "notif-404")
+	req = req.WithContext(context.WithValue(req.Context(), authPorts.UserIDKey, "user-public-id"))
 	rr := httptest.NewRecorder()
 
 	h.MarkAsReadAPI(rr, req)

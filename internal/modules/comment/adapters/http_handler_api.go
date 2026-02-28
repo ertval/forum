@@ -139,12 +139,7 @@ func (h *HTTPHandler) GetCommentAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	commentAuthor, err := h.userService.GetByID(r.Context(), comment.UserID)
-	if err != nil {
-		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve comment author")
-		return
-	}
-	comment.PublicUserID = commentAuthor.PublicID
+	// Author public ID is already populated by the repository JOIN query
 
 	// Return success response
 	resp := struct {
@@ -304,14 +299,8 @@ func (h *HTTPHandler) DeleteCommentAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return success response
-	resp := struct {
-		Message string `json:"message"`
-	}{
-		Message: "Comment deleted successfully",
-	}
-
-	h.writeJSON(w, http.StatusOK, resp)
+	// Return 204 No Content on successful deletion
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // ListCommentsByPostAPI handles listing comments for a post.
@@ -330,32 +319,17 @@ func (h *HTTPHandler) ListCommentsByPostAPI(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	userPublicIDs := make(map[int]string, len(comments))
-	for _, comment := range comments {
-		if publicID, exists := userPublicIDs[comment.UserID]; exists {
-			comment.PublicUserID = publicID
-			continue
-		}
+	// Author public IDs are already populated by the repository JOIN query
 
-		author, err := h.userService.GetByID(r.Context(), comment.UserID)
-		if err != nil {
-			platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve comment author")
-			return
-		}
-
-		userPublicIDs[comment.UserID] = author.PublicID
-		comment.PublicUserID = author.PublicID
-	}
-
-	// Prepare response
-	var commentsResp []struct {
+	// Prepare response - initialize as empty slice to avoid null in JSON
+	commentsResp := make([]struct {
 		ID        string `json:"id"`
 		PostID    string `json:"post_id"`
 		UserID    string `json:"user_id"`
 		Content   string `json:"content"`
 		CreatedAt string `json:"created_at"`
 		UpdatedAt string `json:"updated_at"`
-	}
+	}, 0)
 
 	for _, comment := range comments {
 		commentResp := struct {

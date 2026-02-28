@@ -1668,9 +1668,11 @@ func TestHTTPHandler_RegisterRoutes(t *testing.T) {
 	}
 
 	container := &mockServiceContainer{
-		postService: &mockPostService{},
-		authService: authSvc,
-		userService: &mockUserService{},
+		postService:       &mockPostService{},
+		filterService:     &mockFilterService{},
+		authService:       authSvc,
+		userService:       &mockUserService{},
+		middlewareProvider: &mockMiddlewareProvider{},
 	}
 
 	handler := NewHTTPHandler(container, nil)

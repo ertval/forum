@@ -10,6 +10,7 @@ import (
 	"html/template"
 	"net/http"
 	"os"
+	"strings"
 
 	authPorts "forum/internal/modules/auth/ports"
 	commentPorts "forum/internal/modules/comment/ports"
@@ -166,7 +167,8 @@ func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interfac
 // parseJSON parses JSON request body.
 func (h *HTTPHandler) parseJSON(r *http.Request, v interface{}) error {
 	// Check if content type is JSON
-	if r.Header.Get("Content-Type") != "application/json" {
+	ct := r.Header.Get("Content-Type")
+	if !strings.HasPrefix(ct, "application/json") {
 		return fmt.Errorf("content type is not application/json")
 	}
 

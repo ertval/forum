@@ -156,7 +156,6 @@ func (r *SQLitePostRepository) GetByID(ctx context.Context, postID string) (*dom
 	}
 	if username.Valid {
 		post.AuthorUsername = username.String
-		post.Author = username.String // Set both fields for compatibility
 	}
 	if userPublicID.Valid {
 		post.UserPublicID = userPublicID.String
@@ -449,24 +448,31 @@ func (r *SQLitePostRepository) List(ctx context.Context, filter domain.PostFilte
 		}
 		if username.Valid {
 			post.AuthorUsername = username.String
-			post.Author = username.String // Set both fields for compatibility
 		}
 		if userPublicID.Valid {
 			post.UserPublicID = userPublicID.String
 		}
-
-		// Load categories for this post
-		categories, err := r.getPostCategories(ctx, post.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get categories for post %d: %w", post.ID, err)
-		}
-		post.Categories = categories
 
 		posts = append(posts, &post)
 	}
 
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating posts: %w", err)
+	}
+
+	// Batch-load categories for all posts (avoids N+1 queries)
+	if len(posts) > 0 {
+		ids := make([]int, len(posts))
+		for i, p := range posts {
+			ids[i] = p.ID
+		}
+		cats, err := r.getCategoriesForPosts(ctx, ids)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get categories for posts: %w", err)
+		}
+		for _, p := range posts {
+			p.Categories = cats[p.ID]
+		}
 	}
 
 	return posts, nil
@@ -498,6 +504,45 @@ func (r *SQLitePostRepository) getPostCategories(ctx context.Context, postID int
 	}
 
 	return categories, rows.Err()
+}
+
+// getCategoriesForPosts retrieves category names for multiple posts in a single query.
+func (r *SQLitePostRepository) getCategoriesForPosts(ctx context.Context, postIDs []int) (map[int][]string, error) {
+	if len(postIDs) == 0 {
+		return map[int][]string{}, nil
+	}
+
+	placeholders := "?" + strings.Repeat(", ?", len(postIDs)-1)
+	query := fmt.Sprintf(`
+		SELECT pc.post_id, c.name
+		FROM categories c
+		INNER JOIN post_categories pc ON c.id = pc.category_id
+		WHERE pc.post_id IN (%s)
+		ORDER BY pc.post_id, c.name
+	`, placeholders)
+
+	args := make([]interface{}, len(postIDs))
+	for i, id := range postIDs {
+		args[i] = id
+	}
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query categories for posts: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[int][]string)
+	for rows.Next() {
+		var postID int
+		var name string
+		if err := rows.Scan(&postID, &name); err != nil {
+			return nil, fmt.Errorf("failed to scan category: %w", err)
+		}
+		result[postID] = append(result[postID], name)
+	}
+
+	return result, rows.Err()
 }
 
 // repeatPlaceholders returns a string of comma-separated question marks.
@@ -621,6 +666,42 @@ func (r *SQLiteCategoryRepository) GetByName(ctx context.Context, name string) (
 	}
 
 	return &category, nil
+}
+
+// GetByNames retrieves multiple categories by their names in a single query (case-insensitive).
+func (r *SQLiteCategoryRepository) GetByNames(ctx context.Context, names []string) ([]domain.Category, error) {
+	if len(names) == 0 {
+		return nil, nil
+	}
+
+	placeholders := "?" + strings.Repeat(", ?", len(names)-1)
+	query := fmt.Sprintf("SELECT id, public_id, name, description FROM categories WHERE LOWER(name) IN (%s)", placeholders)
+
+	args := make([]interface{}, len(names))
+	for i, name := range names {
+		args[i] = strings.ToLower(name)
+	}
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query categories by names: %w", err)
+	}
+	defer rows.Close()
+
+	var categories []domain.Category
+	for rows.Next() {
+		var cat domain.Category
+		var description sql.NullString
+		if err := rows.Scan(&cat.ID, &cat.PublicID, &cat.Name, &description); err != nil {
+			return nil, fmt.Errorf("failed to scan category: %w", err)
+		}
+		if description.Valid {
+			cat.Description = description.String
+		}
+		categories = append(categories, cat)
+	}
+
+	return categories, rows.Err()
 }
 
 // List retrieves all categories.

@@ -7,10 +7,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Title}} - Forum</title>
     <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/layout.css">
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/footer.css">
+    <link rel="stylesheet" href="/static/css/buttons.css">
+    <link rel="stylesheet" href="/static/css/forms.css">
+    <link rel="stylesheet" href="/static/css/cards.css">
+    <link rel="stylesheet" href="/static/css/posts.css">
+    <link rel="stylesheet" href="/static/css/post-detail.css">
+    <link rel="stylesheet" href="/static/css/home.css">
+    <link rel="stylesheet" href="/static/css/comments.css">
+    <link rel="stylesheet" href="/static/css/auth.css">
+    <link rel="stylesheet" href="/static/css/health.css">
+    <link rel="stylesheet" href="/static/css/modal.css">
+    <link rel="stylesheet" href="/static/css/error.css">
 </head>
 
-{{ $showUserSidebar := and .User (not (or (eq .Title "Home") (eq .Title "Health Status"))) }}
+{{ $showUserSidebar := and .User (not .HideUserSidebar) }}
 <body{{if and .User (not $showUserSidebar)}} data-page="no-user-sidebar" {{end}}>
     <header>
         <nav>
@@ -86,7 +100,7 @@
             {{/* Determine layout based on page type and user status */}}
             {{/* $showUserSidebar already declared in body tag section (line 13) */}}
             {{ $showLeftSidebar := .ShowFilter }}
-            {{ $isPostFormPage := or (eq .Title "Create Post") (eq .Title "Edit Post") }}
+            {{ $isPostFormPage := .ShowPostSidebar }}
 
             {{/* Three-column layout: filter left, content center, user right */}}
             {{ if and $showLeftSidebar $showUserSidebar }}
@@ -161,7 +175,7 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 Ertval Karameta & Magnus Edvall.</p>
+            <p>&copy; Forum Authors.</p>
             <p><a href="/health" class="category-tag">Health Status</a></p>
         </div>
     </footer>
@@ -170,7 +184,62 @@
     <script src="/static/js/modal.js"></script>
     <script src="/static/js/main.js"></script>
     {{block "scripts" .}}{{end}}
+
+    <!-- HTML Templates for JS dynamic content (6.1) -->
+    <template id="post-card-template">
+        <article class="post-card clickable-card">
+            <div class="post-header">
+                <h3><a data-field="link"></a></h3>
+                <div class="post-meta">
+                    <span class="author" data-field="author"></span>
+                    <span class="date" data-field="date"></span>
+                </div>
+            </div>
+            <div class="post-image" data-field="image-container" style="display:none">
+                <img data-field="image" src="" alt="">
+            </div>
+            <div class="post-content">
+                <p data-field="content"></p>
+            </div>
+            <div class="post-footer">
+                <div class="categories" data-field="categories"></div>
+                <div class="post-actions">
+                    <button class="btn-like" data-field="like-btn" aria-label="Like this post" title="Like">👍 0</button>
+                    <button class="btn-dislike" data-field="dislike-btn" aria-label="Dislike this post" title="Dislike">👎 0</button>
+                    <span class="comments" data-field="comment-count">💬 0</span>
+                </div>
+            </div>
+        </article>
+    </template>
+
+    <template id="post-card-compact-template">
+        <article class="post-card-compact clickable-card">
+            <div class="post-header-compact">
+                <h3><a data-field="link"></a></h3>
+                <div class="post-meta-compact">
+                    <span class="author-compact" data-field="author"></span>
+                    <span class="date-compact" data-field="date"></span>
+                </div>
+            </div>
+            <div class="post-image-compact" data-field="image-container" style="display:none">
+                <img data-field="image" src="" alt="">
+            </div>
+            <div class="post-content-compact">
+                <p data-field="content"></p>
+            </div>
+            <div class="post-footer-compact">
+                <div class="categories-compact" data-field="categories"></div>
+                <div class="post-actions-compact">
+                    <button class="btn-like" data-field="like-btn" aria-label="Like this post" title="Like">👍 0</button>
+                    <button class="btn-dislike" data-field="dislike-btn" aria-label="Dislike this post" title="Dislike">👎 0</button>
+                    <span class="comments-compact" data-field="comment-count">💬 0</span>
+                </div>
+            </div>
+        </article>
+    </template>
+
     </body>
+
 
 </html>
 {{end}}
@@ -331,7 +400,7 @@
 </div>
 {{end}}
 
-{{/* Post Card Component - Displays a single post card */}}
+{{/* Post Card Component - Displays a single post card (board layout) */}}
 {{define "post-card"}}
 <article class="post-card clickable-card" data-href="/posts/{{.PublicID}}">
     <div class="post-header">
@@ -355,17 +424,70 @@
     <div class="post-footer">
         <div class="categories">
             {{range .Categories}}
-            <a class="category-tag" href="{{$.BaseURL}}?category={{urlquery .}}">{{.}}</a>
+            <a class="category-tag" href="/board?category={{urlquery .}}">{{.}}</a>
             {{end}}
         </div>
 
         <div class="post-actions">
-            <span class="likes">👍 {{.LikeCount}}</span>
-            <span class="dislikes">👎 {{.DislikeCount}}</span>
-            <span class="comments">💬 {{.CommentCount}}</span>
+            <button class="btn-like" data-post-id="{{$.PublicID}}" aria-label="Like this post" title="Like">👍 {{$.LikeCount}}</button>
+            <button class="btn-dislike" data-post-id="{{$.PublicID}}" aria-label="Dislike this post" title="Dislike">👎 {{$.DislikeCount}}</button>
+            <span class="comments">💬 {{$.CommentCount}}</span>
         </div>
     </div>
 </article>
+{{end}}
+
+{{/* Post Card Compact Component - Displays a compact post card (home layout) */}}
+{{define "post-card-compact"}}
+<article class="post-card-compact clickable-card" data-href="/posts/{{.PublicID}}">
+    <div class="post-header-compact">
+        <h3><a href="/posts/{{.PublicID}}">{{.Title}}</a></h3>
+        <div class="post-meta-compact">
+            <span class="author-compact">by {{.AuthorUsername}}</span>
+            <span class="date-compact">{{.CreatedAt.Format "Jan 02, 2006"}}</span>
+        </div>
+    </div>
+
+    {{if .ImageURL}}
+    <div class="post-image-compact">
+        <img src="{{.ImageURL}}" alt="{{.Title}}">
+    </div>
+    {{end}}
+
+    <div class="post-content-compact">
+        <p>{{.Content}}</p>
+    </div>
+
+    <div class="post-footer-compact">
+        <div class="categories-compact">
+            {{range .Categories}}
+            <a class="category-tag-compact" href="?category={{urlquery .}}">{{.}}</a>
+            {{end}}
+        </div>
+
+        <div class="post-actions-compact">
+            <button class="btn-like" data-post-id="{{$.PublicID}}" aria-label="Like this post" title="Like">👍 {{$.LikeCount}}</button>
+            <button class="btn-dislike" data-post-id="{{$.PublicID}}" aria-label="Dislike this post" title="Dislike">👎 {{$.DislikeCount}}</button>
+            <span class="comments-compact">💬 {{$.CommentCount}}</span>
+        </div>
+    </div>
+</article>
+{{end}}
+
+{{/* Load More Button Component - Shared button for pagination */}}
+{{define "load-more-button"}}
+<button id="{{if .LoadMoreID}}{{.LoadMoreID}}{{else}}load-more-btn{{end}}"
+        class="btn btn-primary"
+        data-offset="{{if .Offset}}{{.Offset}}{{else if .Posts}}{{len .Posts}}{{else}}0{{end}}"
+        data-category="{{if .SelectedCategory}}{{.SelectedCategory}}{{end}}"
+        data-activity-type="{{if .ActivityType}}{{.ActivityType}}{{else}}all{{end}}"
+        data-reaction-type="{{if .SelectedReaction}}{{.SelectedReaction}}{{else}}all{{end}}"
+        data-my-posts="{{if .MyPosts}}true{{end}}"
+        data-liked-posts="{{if .LikedPosts}}true{{end}}"
+        data-disliked-posts="{{if .DislikedPosts}}true{{end}}"
+        data-commented-posts="{{if .CommentedPosts}}true{{end}}"
+        data-commenter="{{if .Commenter}}{{.Commenter}}{{end}}"
+        data-date-filter="{{if .DateFilter}}{{.DateFilter}}{{end}}">Show More</button>
 {{end}}
 
 {{/* Post Edit Page Side Cards*/}}

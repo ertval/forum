@@ -24,17 +24,13 @@ type Service struct {
 }
 
 // NewService creates a new comment service.
-func NewService(commentRepo ports.CommentRepository, postService postPorts.PostService, userService userPorts.UserService) *Service {
+func NewService(commentRepo ports.CommentRepository, postService postPorts.PostService, userService userPorts.UserService, notificationService notificationPorts.NotificationService) *Service {
 	return &Service{
-		commentRepo: commentRepo,
-		postService: postService,
-		userService: userService,
+		commentRepo:         commentRepo,
+		postService:         postService,
+		userService:         userService,
+		notificationService: notificationService,
 	}
-}
-
-// SetNotificationService injects notification capability as an optional cross-module dependency.
-func (s *Service) SetNotificationService(notificationService notificationPorts.NotificationService) {
-	s.notificationService = notificationService
 }
 
 // CreateComment creates a new comment.

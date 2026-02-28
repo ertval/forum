@@ -149,7 +149,7 @@ func TestSQLiteNotificationRepository_MarkAsRead(t *testing.T) {
 		t.Fatalf("Create returned error: %v", err)
 	}
 
-	if err := repo.MarkAsReadByPublicID(context.Background(), notification.PublicID); err != nil {
+	if err := repo.MarkAsReadByPublicID(context.Background(), 1, notification.PublicID); err != nil {
 		t.Fatalf("MarkAsReadByPublicID returned error: %v", err)
 	}
 

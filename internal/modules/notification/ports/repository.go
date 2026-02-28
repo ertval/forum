@@ -19,8 +19,12 @@ type NotificationRepository interface {
 	GetByUserID(ctx context.Context, userID int) ([]*domain.Notification, error)
 
 	// MarkAsReadByPublicID marks a notification as read by its public UUID.
-	MarkAsReadByPublicID(ctx context.Context, notificationPublicID string) error
+	// userID scopes the update to the notification owner for security.
+	MarkAsReadByPublicID(ctx context.Context, userID int, notificationPublicID string) error
 
 	// MarkAllAsReadByUserID marks all notifications as read for a user.
 	MarkAllAsReadByUserID(ctx context.Context, userID int) error
+
+	// CountUnread returns the number of unread notifications for a user.
+	CountUnread(ctx context.Context, userID int) (int, error)
 }

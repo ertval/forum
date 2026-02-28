@@ -54,8 +54,9 @@ func (s *Service) GetUserNotifications(ctx context.Context, userID int) ([]*doma
 }
 
 // MarkAsRead marks a notification as read by its public UUID.
-func (s *Service) MarkAsRead(ctx context.Context, notificationPublicID string) error {
-	return s.notificationRepo.MarkAsReadByPublicID(ctx, notificationPublicID)
+// userID scopes the update to the notification owner for security.
+func (s *Service) MarkAsRead(ctx context.Context, userID int, notificationPublicID string) error {
+	return s.notificationRepo.MarkAsReadByPublicID(ctx, userID, notificationPublicID)
 }
 
 // MarkAllAsRead marks all notifications as read for a user.
@@ -64,4 +65,12 @@ func (s *Service) MarkAllAsRead(ctx context.Context, userID int) error {
 		return domain.ErrInvalidUserID
 	}
 	return s.notificationRepo.MarkAllAsReadByUserID(ctx, userID)
+}
+
+// CountUnread returns the number of unread notifications for a user.
+func (s *Service) CountUnread(ctx context.Context, userID int) (int, error) {
+	if userID <= 0 {
+		return 0, domain.ErrInvalidUserID
+	}
+	return s.notificationRepo.CountUnread(ctx, userID)
 }

@@ -5,33 +5,7 @@
 
 /* 
    CSS Architecture Overview:
-   - base.css      : Core resets, typography, and foundation styles
-   - layout.css    : Page structure, grid systems, responsive layouts
-   - header.css    : Navigation and header components
-   - footer.css    : Footer component
-   - buttons.css   : All button variants and states
-   - forms.css     : Input fields, textareas, and form layouts
-   - cards.css     : User card, filter card, sidebar components
-   - posts.css     : Post cards, post listings, board page
-   - post-detail.css : Single post view, full content display
-   - home.css      : Homepage compact post cards
-   - comments.css  : Comment display, forms, and interactions
-   - auth.css      : Login, register, authentication pages
-   - health.css    : System health status display
+   Individual stylesheets are loaded via <link> tags in base.html
+   for parallel loading instead of serial @import chains.
+   See base.html <head> for the complete list of stylesheets.
 */
-
-@import url('base.css');
-@import url('layout.css');
-@import url('header.css');
-@import url('footer.css');
-@import url('buttons.css');
-@import url('forms.css');
-@import url('cards.css');
-@import url('posts.css');
-@import url('post-detail.css');
-@import url('home.css');
-@import url('comments.css');
-@import url('auth.css');
-@import url('health.css');
-@import url('modal.css');
-@import url('error.css');

@@ -30,18 +30,15 @@ func NewService(
 	postRepo postPorts.PostRepository,
 	commentRepo commentPorts.CommentRepository,
 	userService userPorts.UserService,
+	notificationService notificationPorts.NotificationService,
 ) *Service {
 	return &Service{
-		reactionRepo: reactionRepo,
-		postRepo:     postRepo,
-		commentRepo:  commentRepo,
-		userService:  userService,
+		reactionRepo:        reactionRepo,
+		postRepo:            postRepo,
+		commentRepo:         commentRepo,
+		userService:         userService,
+		notificationService: notificationService,
 	}
-}
-
-// SetNotificationService injects notification capability as an optional cross-module dependency.
-func (s *Service) SetNotificationService(notificationService notificationPorts.NotificationService) {
-	s.notificationService = notificationService
 }
 
 // React adds or updates a user's reaction to a target.

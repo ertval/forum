@@ -96,7 +96,7 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 		previewPost["UserID"] = post.UserPublicID
 		previewPost["UserPublicID"] = post.UserPublicID
 		previewPost["AuthorUsername"] = post.AuthorUsername
-		previewPost["Author"] = post.Author
+		previewPost["Author"] = post.AuthorUsername
 		previewPost["Title"] = post.Title
 		previewPost["Content"] = createPostPreview(post.Content)
 		previewPost["ImageURL"] = post.ImageURL
@@ -122,6 +122,7 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 	// Prepare template data for home page
 	data := map[string]interface{}{
 		"Title":            "Home",
+		"HideUserSidebar":  true,
 		"Posts":            previewPosts,
 		"Categories":       categories,
 		"SelectedCategory": filterParams.Category,
@@ -224,7 +225,7 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 		previewPost["UserID"] = post.UserPublicID
 		previewPost["UserPublicID"] = post.UserPublicID
 		previewPost["AuthorUsername"] = post.AuthorUsername
-		previewPost["Author"] = post.Author
+		previewPost["Author"] = post.AuthorUsername
 		previewPost["Title"] = post.Title
 		previewPost["Content"] = createPostPreview(post.Content)
 		previewPost["ImageURL"] = post.ImageURL

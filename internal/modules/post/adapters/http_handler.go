@@ -10,6 +10,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	authPorts "forum/internal/modules/auth/ports"
@@ -18,6 +19,7 @@ import (
 	postPorts "forum/internal/modules/post/ports"
 	reactionPorts "forum/internal/modules/reaction/ports"
 	userPorts "forum/internal/modules/user/ports"
+	logger "forum/internal/platform/logger"
 )
 
 // HTTPHandler handles HTTP requests for posts.
@@ -31,6 +33,7 @@ type HTTPHandler struct {
 	commentService     commentPorts.CommentService
 	reactionService    reactionPorts.ReactionService
 	templates          *template.Template
+	logger             *logger.Logger
 }
 
 // ServiceContainer defines the minimal interface needed by this handler.
@@ -57,6 +60,7 @@ func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HT
 		commentService:     services.Comment(),
 		reactionService:    services.Reaction(),
 		templates:          templates,
+		logger:             logger.New(logger.InfoLevel, os.Stderr),
 	}
 }
 

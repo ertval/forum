@@ -36,8 +36,8 @@ func (r *SQLiteCommentRepository) Create(ctx context.Context, comment *domain.Co
 	// Execute the insert query
 	_, err = r.db.ExecContext(ctx, `
 		INSERT INTO comments (public_id, post_id, author_id, content, created_at, updated_at)
-		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-	`, publicID, comment.PostID, comment.UserID, comment.Content)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, publicID, comment.PostID, comment.UserID, comment.Content, comment.CreatedAt, comment.UpdatedAt)
 
 	return err
 }
@@ -45,12 +45,16 @@ func (r *SQLiteCommentRepository) Create(ctx context.Context, comment *domain.Co
 // GetByPublicID retrieves a comment by its public UUID.
 func (r *SQLiteCommentRepository) GetByPublicID(ctx context.Context, commentPublicID string) (*domain.Comment, error) {
 	row := r.db.QueryRowContext(ctx, `
-		SELECT id, public_id, post_id, author_id, content, created_at, updated_at
-		FROM comments
-		WHERE public_id = ?
+		SELECT c.id, c.public_id, c.post_id, c.author_id, c.content, c.created_at, c.updated_at,
+		       p.public_id AS post_public_id, u.public_id AS user_public_id
+		FROM comments c
+		LEFT JOIN posts p ON c.post_id = p.id
+		LEFT JOIN users u ON c.author_id = u.id
+		WHERE c.public_id = ?
 	`, commentPublicID)
 
 	var comment domain.Comment
+	var postPublicID, userPublicID sql.NullString
 	err := row.Scan(
 		&comment.ID,
 		&comment.PublicID,
@@ -59,12 +63,21 @@ func (r *SQLiteCommentRepository) GetByPublicID(ctx context.Context, commentPubl
 		&comment.Content,
 		&comment.CreatedAt,
 		&comment.UpdatedAt,
+		&postPublicID,
+		&userPublicID,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, domain.ErrCommentNotFound
 		}
 		return nil, err
+	}
+
+	if postPublicID.Valid {
+		comment.PublicPostID = postPublicID.String
+	}
+	if userPublicID.Valid {
+		comment.PublicUserID = userPublicID.String
 	}
 
 	return &comment, nil
@@ -92,9 +105,11 @@ func (r *SQLiteCommentRepository) DeleteByPublicID(ctx context.Context, commentP
 // ListByPostPublicID retrieves all comments for a post by the post's public UUID.
 func (r *SQLiteCommentRepository) ListByPostPublicID(ctx context.Context, postPublicID string) ([]*domain.Comment, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT c.id, c.public_id, c.post_id, c.author_id, c.content, c.created_at, c.updated_at
+		SELECT c.id, c.public_id, c.post_id, c.author_id, c.content, c.created_at, c.updated_at,
+		       p.public_id AS post_public_id, u.public_id AS user_public_id
 		FROM comments c
 		JOIN posts p ON c.post_id = p.id
+		LEFT JOIN users u ON c.author_id = u.id
 		WHERE p.public_id = ?
 		ORDER BY c.created_at ASC
 	`, postPublicID)
@@ -103,9 +118,10 @@ func (r *SQLiteCommentRepository) ListByPostPublicID(ctx context.Context, postPu
 	}
 	defer rows.Close()
 
-	var comments []*domain.Comment
+	comments := make([]*domain.Comment, 0)
 	for rows.Next() {
 		var comment domain.Comment
+		var postPublicID, userPublicID string
 		err := rows.Scan(
 			&comment.ID,
 			&comment.PublicID,
@@ -114,10 +130,14 @@ func (r *SQLiteCommentRepository) ListByPostPublicID(ctx context.Context, postPu
 			&comment.Content,
 			&comment.CreatedAt,
 			&comment.UpdatedAt,
+			&postPublicID,
+			&userPublicID,
 		)
 		if err != nil {
 			return nil, err
 		}
+		comment.PublicPostID = postPublicID
+		comment.PublicUserID = userPublicID
 		comments = append(comments, &comment)
 	}
 

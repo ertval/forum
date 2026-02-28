@@ -45,11 +45,10 @@ func (h *HTTPHandler) GetNotificationsAPI(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	unreadCount := 0
-	for _, notification := range notifications {
-		if notification != nil && !notification.IsRead {
-			unreadCount++
-		}
+	unreadCount, err := h.notificationService.CountUnread(r.Context(), user.ID)
+	if err != nil {
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to count unread notifications")
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -70,7 +69,19 @@ func (h *HTTPHandler) MarkAsReadAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.notificationService.MarkAsRead(r.Context(), notificationPublicID); err != nil {
+	userPublicID := authPorts.GetUserID(r.Context())
+	if userPublicID == "" {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	user, err := h.userService.GetByPublicID(r.Context(), userPublicID)
+	if err != nil || user == nil {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
+		return
+	}
+
+	if err := h.notificationService.MarkAsRead(r.Context(), user.ID, notificationPublicID); err != nil {
 		if err == domain.ErrNotificationNotFound {
 			platformErrors.WriteErrorJSON(w, http.StatusNotFound, "Notification not found")
 			return

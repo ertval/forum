@@ -125,8 +125,9 @@ func (r *SQLiteNotificationRepository) GetByUserID(ctx context.Context, userID i
 }
 
 // MarkAsReadByPublicID marks a notification as read by its public UUID.
-func (r *SQLiteNotificationRepository) MarkAsReadByPublicID(ctx context.Context, notificationPublicID string) error {
-	result, err := r.db.ExecContext(ctx, `UPDATE notifications SET read = 1 WHERE public_id = ?`, notificationPublicID)
+// userID scopes the update to the notification owner for security.
+func (r *SQLiteNotificationRepository) MarkAsReadByPublicID(ctx context.Context, userID int, notificationPublicID string) error {
+	result, err := r.db.ExecContext(ctx, `UPDATE notifications SET read = 1 WHERE public_id = ? AND user_id = ?`, notificationPublicID, userID)
 	if err != nil {
 		return fmt.Errorf("mark notification as read: %w", err)
 	}
@@ -149,4 +150,14 @@ func (r *SQLiteNotificationRepository) MarkAllAsReadByUserID(ctx context.Context
 		return fmt.Errorf("mark all notifications as read: %w", err)
 	}
 	return nil
+}
+
+// CountUnread returns the number of unread notifications for a user.
+func (r *SQLiteNotificationRepository) CountUnread(ctx context.Context, userID int) (int, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM notifications WHERE user_id = ? AND read = 0`, userID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count unread notifications: %w", err)
+	}
+	return count, nil
 }

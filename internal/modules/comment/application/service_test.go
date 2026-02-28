@@ -31,12 +31,16 @@ func (m *MockNotificationService) GetUserNotifications(ctx context.Context, user
 	return nil, nil
 }
 
-func (m *MockNotificationService) MarkAsRead(ctx context.Context, notificationPublicID string) error {
+func (m *MockNotificationService) MarkAsRead(ctx context.Context, userID int, notificationPublicID string) error {
 	return nil
 }
 
 func (m *MockNotificationService) MarkAllAsRead(ctx context.Context, userID int) error {
 	return nil
+}
+
+func (m *MockNotificationService) CountUnread(ctx context.Context, userID int) (int, error) {
+	return 0, nil
 }
 
 // MockCommentRepository implements CommentRepository for testing
@@ -587,8 +591,7 @@ func TestService_CreateComment_SendsNotificationToPostOwner(t *testing.T) {
 	mockUserService := &MockUserService{}
 	notificationService := &MockNotificationService{}
 
-	service := NewService(mockRepo, mockPostService, mockUserService)
-	service.SetNotificationService(notificationService)
+	service := NewService(mockRepo, mockPostService, mockUserService, notificationService)
 
 	_, err := service.CreateComment(ctx, "post-uuid-10", 5, "Test content")
 	if err != nil {

@@ -22,9 +22,9 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// 2. Initialize Logger (level from config)
+	// 2. Initialize Logger (level from LOG_LEVEL env var)
 	logLevel := logger.InfoLevel
-	if cfg.Logger.Level == "DEBUG" {
+	if os.Getenv("LOG_LEVEL") == "DEBUG" {
 		logLevel = logger.DebugLevel
 	}
 	lgr := logger.New(logLevel, os.Stdout)

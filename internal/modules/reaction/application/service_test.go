@@ -33,12 +33,16 @@ func (m *MockNotificationService) GetUserNotifications(ctx context.Context, user
 	return nil, nil
 }
 
-func (m *MockNotificationService) MarkAsRead(ctx context.Context, notificationPublicID string) error {
+func (m *MockNotificationService) MarkAsRead(ctx context.Context, userID int, notificationPublicID string) error {
 	return nil
 }
 
 func (m *MockNotificationService) MarkAllAsRead(ctx context.Context, userID int) error {
 	return nil
+}
+
+func (m *MockNotificationService) CountUnread(ctx context.Context, userID int) (int, error) {
+	return 0, nil
 }
 
 // MockReactionRepository implements ReactionRepository for testing
@@ -123,6 +127,28 @@ func (m *MockReactionRepository) CountByUserID(ctx context.Context, userID int) 
 		}
 	}
 	return count, nil
+}
+
+func (m *MockReactionRepository) ToggleReaction(ctx context.Context, reaction *domain.Reaction) (bool, error) {
+	if m.reactions == nil {
+		m.reactions = make(map[string]*domain.Reaction)
+	}
+	key := fmt.Sprintf("%d:%s:%s", reaction.UserID, reaction.PublicTargetID, reaction.TargetType)
+
+	if existing, ok := m.reactions[key]; ok {
+		if existing.Type == reaction.Type {
+			// Same type — toggle off (delete)
+			delete(m.reactions, key)
+			return true, nil
+		}
+		// Different type — update in place
+		existing.Type = reaction.Type
+		return false, nil
+	}
+
+	// New reaction — create
+	m.reactions[key] = reaction
+	return false, nil
 }
 
 // MockPostRepository implements PostRepository for testing
@@ -468,8 +494,7 @@ func TestService_React_SendsLikeNotification(t *testing.T) {
 	mockUserService := &MockUserService{}
 	notificationService := &MockNotificationService{}
 
-	service := NewService(mockRepo, mockPostRepo, mockCommentRepo, mockUserService)
-	service.SetNotificationService(notificationService)
+	service := NewService(mockRepo, mockPostRepo, mockCommentRepo, mockUserService, notificationService)
 
 	if err := service.React(ctx, 2, "public-10", "post", domain.ReactionLike); err != nil {
 		t.Fatalf("React returned error: %v", err)
@@ -493,8 +518,7 @@ func TestService_React_SendsDislikeNotification(t *testing.T) {
 	mockUserService := &MockUserService{}
 	notificationService := &MockNotificationService{}
 
-	service := NewService(mockRepo, mockPostRepo, mockCommentRepo, mockUserService)
-	service.SetNotificationService(notificationService)
+	service := NewService(mockRepo, mockPostRepo, mockCommentRepo, mockUserService, notificationService)
 
 	if err := service.React(ctx, 2, "public-10", "post", domain.ReactionDislike); err != nil {
 		t.Fatalf("React returned error: %v", err)

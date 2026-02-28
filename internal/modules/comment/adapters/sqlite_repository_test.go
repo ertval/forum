@@ -37,6 +37,13 @@ func setupCommentTestDB(t *testing.T) *sql.DB {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			public_id TEXT UNIQUE NOT NULL
 		);
+		
+		-- Create users table for join queries
+		CREATE TABLE users (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			public_id TEXT UNIQUE NOT NULL,
+			username TEXT
+		);
 	`)
 	if err != nil {
 		t.Fatalf("Failed to create tables: %v", err)

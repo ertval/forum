@@ -126,7 +126,7 @@ func (c *Checker) checkAPIEndpoints(ctx context.Context, results map[string]stri
 		{"PUT", "/api/moderation/reports/{id}"},
 	}
 	moderationAllUp := c.areAllRoutesRegistered(ctx, moderationEndpoints)
-	results["moderation_api"] = map[bool]string{true: "down", false: "down"}[moderationAllUp] // TODO: change to "up" when implemented
+	results["moderation_api"] = map[bool]string{true: "up", false: "down"}[moderationAllUp]
 
 	// Notification module endpoints
 	notificationEndpoints := []struct{ method, path string }{
