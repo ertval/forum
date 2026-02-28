@@ -101,8 +101,9 @@
 .notification-link {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     gap: 0.5rem;
+    position: relative;
 }
 
 .notification-link-label {
@@ -125,6 +126,10 @@
     background: var(--gradient-green-blue);
     border: 1px solid var(--color-border-blue);
     line-height: 1;
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
 }
 
 .notification-badge[hidden] {

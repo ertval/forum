@@ -26,10 +26,10 @@ make test-fail     # Show only failures
 | Script | Audit File | Questions | Status |
 |--------|------------|-----------|--------|
 | `test_audit.sh` | `audit.md` | 82 | ✅ All Pass |
-| `test_audit_advanced.sh` | `audit-advanced.md` | 25 | ⚠️ Partial (optional features) |
-| `test_audit_authentication.sh` | `audit-authentication.md` | 19 | ⚠️ Partial (OAuth not impl) |
+| `test_audit_advanced.sh` | `audit-advanced.md` | 25 | ✅ Pass |
+| `test_audit_authentication.sh` | `audit-authentication.md` | 19 | ⚠️ Partial (OAuth not implemented) |
 | `test_audit_image.sh` | `audit-image.md` | 16 | ✅ All Pass |
-| `test_audit_moderation.sh` | `audit-moderation.md` | 25 | ⚠️ Partial (optional features) |
+| `test_audit_moderation.sh` | `audit-moderation.md` | 25 | ⚠️ Partial (optional feature) |
 | `test_audit_security.sh` | `audit-security.md` | 21 | ✅ All Pass |
 
 **Total:** 188 audit questions with automated verification
@@ -206,5 +206,5 @@ sqlite3 data/forum.db "SELECT * FROM posts;"
 - Tests assume database is seeded (`make seed`)
 - Each test is self-contained (starts/stops server)
 - Cleanup is automatic (trap EXIT)
-- Optional features may fail (OAuth, activity page)
+- Expected pending scripts are moderation and authentication (OAuth extensions)
 - Test scripts are the source of truth for requirements

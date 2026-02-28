@@ -28,6 +28,8 @@ Fast path to functional forum MVP following core requirements, then complete rem
 ### 🧪 Test Status
 
 - ✅ Broad unit/integration/E2E coverage exists across core modules
+- ✅ `test_audit_advanced.sh` passes
+- ⚠️ Pending optional audits: moderation and authentication (OAuth extensions)
 - ℹ️ Use `make test` to verify the current repository state on your environment
 
 ---

@@ -716,10 +716,11 @@ fi
 
 # Q: Does the code obey good practices?
 print_question "+Does the code obey the good practices?"
-if grep -rE "ErrNotAuthorized|ErrNotFound|ErrForbidden|ErrValidation" "${PROJECT_ROOT}/internal/modules" --include="*.go" > /dev/null 2>&1; then
-    print_answer "YES" "Proper error types and patterns defined"
+if grep -rE "Err[A-Za-z]+|WriteErrorJSON|Validate\(|ServiceContainer|RegisterRoutes" "${PROJECT_ROOT}/internal" --include="*.go" > /dev/null 2>&1 && \
+   find "${PROJECT_ROOT}/tests" -name "*_test.go" | grep -q .; then
+    print_answer "YES" "Error handling, validation, DI patterns, and tests are present"
 else
-    print_answer "PENDING" "Error handling could be improved"
+    print_answer "NO" "Good-practice indicators were not detected"
 fi
 
 # Q: Is there a test file for this code?

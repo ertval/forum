@@ -62,6 +62,7 @@
                                 </div>
                             </div>
                             <div class="user-actions">
+                                <a href="/posts/new" class="btn btn-primary btn-small">Create Post</a>
                                 <a href="/activity" class="btn btn-primary btn-small notification-link">
                                     <span class="notification-link-label">🔔 My Activity</span>
                                     <span class="notification-badge" data-notification-badge="true" hidden>0</span>
@@ -322,7 +323,7 @@
         {{if .CommentedPosts}}
         <input type="hidden" name="commented_posts" value="true">
         {{end}}
-    {{end}}
+        {{end}}
 
         <button type="submit" class="btn btn-primary btn-small btn-filter-apply">Apply Filters</button>
         <a href="{{.FilterAction}}" class="btn btn-primary btn-small btn-filter-reset">Reset</a>

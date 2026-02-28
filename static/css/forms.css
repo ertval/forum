@@ -311,3 +311,18 @@
 .post-meta .date-right {
     margin-left: auto;
 }
+
+/* Settings page form layout */
+.settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.settings-form .form-actions {
+    margin-top: 0.5rem;
+}
+
+.settings-form .user-avatar {
+    margin-top: 0.5rem;
+}

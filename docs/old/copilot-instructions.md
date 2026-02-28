@@ -4,7 +4,7 @@
 
 **Architecture**: Modular Monolith with Hexagonal Architecture (Ports & Adapters)  
 **Language**: Go 1.24+ with minimal dependencies (SQLite driver, bcrypt, UUID only)  
-**Status**: 85% Complete - Auth, Posts, Categories fully implemented with tests, ID security hardened  
+**Status**: Core + advanced complete (including notifications and user settings/avatar); moderation and OAuth remain optional/pending  
 **Entry Point**: `cmd/forum/main.go` → `cmd/forum/wire/` for all DI wiring  
 **Critical Files**: `docs/ARCHITECTURE.md`, `docs/IMPLEMENTATION_ROADMAP.md`, `docs/UNIFIED_DI_PATTERN.md`, `docs/ID_SECURITY_AUDIT.md`
 
@@ -268,6 +268,11 @@ Always return JSON: `{error: "message"}` for errors.
 
 **Run tests**: `make test` (runs `scripts/tests/run_all_tests.sh`)  
 **Coverage**: `make test-coverage` (generates `coverage.html`)
+
+Current script-audit expectation:
+- `test_audit_advanced.sh` passes
+- `test_audit_moderation.sh` pending (optional)
+- `test_audit_authentication.sh` pending (OAuth extensions not implemented)
 
 ```
 tests/

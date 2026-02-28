@@ -51,9 +51,9 @@ func TestBaseTemplateRendering(t *testing.T) {
 		dropdownHTML := html[start : start+end+len(`href="/logout"`)]
 
 		helper.AssertContains(t, dropdownHTML, `href="/activity"`)
+		helper.AssertContains(t, dropdownHTML, `href="/posts/new"`)
 		helper.AssertContains(t, dropdownHTML, `href="/settings"`)
 		helper.AssertContains(t, dropdownHTML, `href="/logout"`)
-		helper.AssertNotContains(t, dropdownHTML, `href="/posts/new"`)
 		helper.AssertNotContains(t, dropdownHTML, `href="/board?my_posts=true"`)
 		helper.AssertNotContains(t, dropdownHTML, `href="/board?liked_posts=true"`)
 		helper.AssertNotContains(t, dropdownHTML, `href="/comments"`)
