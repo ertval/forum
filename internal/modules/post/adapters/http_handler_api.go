@@ -4,6 +4,7 @@
 package adapters
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -423,44 +424,41 @@ func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse query parameters
-	filter := postDomain.PostFilter{
-		Limit:  50, // Default limit
-		Offset: 0,
-	}
+	currentUserPublicID := authPorts.GetUserID(r.Context())
+	limit := 50
+	offset := 0
 
-	// Category filter
-	if category := r.URL.Query().Get("category"); category != "" {
-		filter.Categories = []string{category}
-	}
-
-	// User's own posts filter (requires auth)
-	if r.URL.Query().Get("my_posts") == "true" {
-		userPublicID := authPorts.GetUserID(r.Context())
-		if userPublicID != "" {
-			filter.UserID = userPublicID
-		}
-	}
-
-	// Liked posts filter (requires auth)
-	if r.URL.Query().Get("liked_posts") == "true" {
-		userPublicID := authPorts.GetUserID(r.Context())
-		if userPublicID != "" {
-			filter.LikedByUserID = userPublicID
-		}
-	}
-
-	// Pagination
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
-		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
-			filter.Limit = limit
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
 		}
 	}
 	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
-		if offset, err := strconv.Atoi(offsetStr); err == nil && offset >= 0 {
-			filter.Offset = offset
+		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
 		}
 	}
+
+	filterParams := postDomain.FilterParams{
+		Category:       r.URL.Query().Get("category"),
+		UserID:         r.URL.Query().Get("user"),
+		ActivityType:   r.URL.Query().Get("activity_type"),
+		ReactionType:   r.URL.Query().Get("reaction_type"),
+		MyPosts:        r.URL.Query().Get("my_posts") == "true",
+		LikedPosts:     r.URL.Query().Get("liked_posts") == "true",
+		DislikedPosts:  r.URL.Query().Get("disliked_posts") == "true",
+		CommentedPosts: r.URL.Query().Get("commented_posts") == "true",
+		Commenter:      r.URL.Query().Get("commenter"),
+		DateFilter:     r.URL.Query().Get("date_filter"),
+		Limit:          limit,
+		Offset:         offset,
+		CurrentUserID:  currentUserPublicID,
+	}
+	if filterParams.Commenter == "" && filterParams.CommentedPosts && currentUserPublicID != "" {
+		filterParams.Commenter = currentUserPublicID
+	}
+
+	filter := h.buildFilter(r.Context(), filterParams)
 
 	// Get posts
 	posts, err := h.postService.ListPosts(r.Context(), filter)
@@ -497,42 +495,41 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Parse query parameters
-	filter := postDomain.PostFilter{
-		Limit:  20, // Load 20 posts at a time
-		Offset: 0,
-	}
+	limit := 20 // Load 20 posts at a time
+	offset := 0
 
-	// Category filter
-	if category := r.URL.Query().Get("category"); category != "" {
-		filter.Categories = []string{category}
-	}
-
-	// User's own posts filter (requires auth)
-	if r.URL.Query().Get("my_posts") == "true" {
-		if userPublicID != "" {
-			filter.UserID = userPublicID
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
 		}
 	}
 
-	// Liked posts filter (requires auth)
-	if r.URL.Query().Get("liked_posts") == "true" {
-		if userPublicID != "" {
-			filter.LikedByUserID = userPublicID
-		}
-	}
-
-	// Pagination
 	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
-		if offset, err := strconv.Atoi(offsetStr); err == nil && offset >= 0 {
-			filter.Offset = offset
+		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
 		}
 	}
 
-	// Date filter
-	if dateFilter := r.URL.Query().Get("date_filter"); dateFilter != "" {
-		filter.DateFilter = dateFilter
+	filterParams := postDomain.FilterParams{
+		Category:       r.URL.Query().Get("category"),
+		UserID:         r.URL.Query().Get("user"),
+		ActivityType:   r.URL.Query().Get("activity_type"),
+		ReactionType:   r.URL.Query().Get("reaction_type"),
+		MyPosts:        r.URL.Query().Get("my_posts") == "true",
+		LikedPosts:     r.URL.Query().Get("liked_posts") == "true",
+		DislikedPosts:  r.URL.Query().Get("disliked_posts") == "true",
+		CommentedPosts: r.URL.Query().Get("commented_posts") == "true",
+		Commenter:      r.URL.Query().Get("commenter"),
+		DateFilter:     r.URL.Query().Get("date_filter"),
+		Limit:          limit,
+		Offset:         offset,
+		CurrentUserID:  userPublicID,
 	}
+	if filterParams.Commenter == "" && filterParams.CommentedPosts && userPublicID != "" {
+		filterParams.Commenter = userPublicID
+	}
+
+	filter := h.buildFilter(r.Context(), filterParams)
 
 	// Get posts
 	posts, err := h.postService.ListPosts(r.Context(), filter)
@@ -566,4 +563,59 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.writeJSON(w, http.StatusOK, previewPosts)
+}
+
+func (h *HTTPHandler) buildFilter(ctx context.Context, params postDomain.FilterParams) postDomain.PostFilter {
+	if h.filterService != nil {
+		return h.filterService.BuildFilter(ctx, params)
+	}
+
+	filter := postDomain.PostFilter{
+		Limit:      params.Limit,
+		Offset:     params.Offset,
+		DateFilter: params.DateFilter,
+	}
+
+	if filter.DateFilter == "" {
+		filter.DateFilter = "all"
+	}
+	if params.Category != "" {
+		filter.Categories = []string{params.Category}
+	}
+	if params.UserID != "" {
+		filter.UserID = params.UserID
+	}
+	if params.MyPosts && params.CurrentUserID != "" {
+		filter.UserID = params.CurrentUserID
+	}
+	if params.LikedPosts && params.CurrentUserID != "" {
+		filter.LikedByUserID = params.CurrentUserID
+	}
+	if params.DislikedPosts && params.CurrentUserID != "" {
+		filter.DislikedByUserID = params.CurrentUserID
+	}
+	if params.Commenter != "" {
+		filter.CommenterID = params.Commenter
+	} else if params.CommentedPosts && params.CurrentUserID != "" {
+		filter.CommenterID = params.CurrentUserID
+	}
+
+	if params.ActivityType == "reactions" {
+		switch params.ReactionType {
+		case "like":
+			if params.CurrentUserID != "" {
+				filter.LikedByUserID = params.CurrentUserID
+			}
+		case "dislike":
+			if params.CurrentUserID != "" {
+				filter.DislikedByUserID = params.CurrentUserID
+			}
+		default:
+			if params.CurrentUserID != "" {
+				filter.ReactedByUserID = params.CurrentUserID
+			}
+		}
+	}
+
+	return filter
 }

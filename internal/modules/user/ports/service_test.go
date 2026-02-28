@@ -72,6 +72,10 @@ func (m *mockUserService) GetByPublicID(ctx context.Context, publicID string) (*
 	return nil, nil
 }
 
+func (m *mockUserService) UpdateSettings(ctx context.Context, publicID, username, email, newPassword, avatarPath string) (*domain.User, error) {
+	return nil, nil
+}
+
 type mockUserRepository struct{}
 
 func (m *mockUserRepository) Create(ctx context.Context, user *domain.User) error {

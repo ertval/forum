@@ -61,4 +61,7 @@ type UserService interface {
 
 	// DecrementReactionCount atomically decrements the user's reaction count.
 	DecrementReactionCount(ctx context.Context, userID int) error
+
+	// UpdateSettings updates profile fields for the authenticated user identified by public UUID.
+	UpdateSettings(ctx context.Context, publicID, username, email, newPassword, avatarPath string) (*domain.User, error)
 }

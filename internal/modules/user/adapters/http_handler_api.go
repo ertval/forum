@@ -28,6 +28,8 @@ func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
 	router.Handle("PUT /api/users/{id}/deactivate", authMiddleware(http.HandlerFunc(h.DeactivateUserAPI)))
 	// PUT /api/users/{id}/activate - Activate user
 	router.Handle("PUT /api/users/{id}/activate", authMiddleware(http.HandlerFunc(h.ActivateUserAPI)))
+	// POST /api/users/settings - Update current user settings
+	router.Handle("POST /api/users/settings", authMiddleware(http.HandlerFunc(h.UpdateSettingsAPI)))
 }
 
 // GetUserAPI handles user retrieval requests.

@@ -1,16 +1,53 @@
 {{define "content"}}
 <div class="posts">
     <h2>Account Settings</h2>
-    <p>Review your account details and core security information.</p>
+    <p>Update your profile, email, password, and avatar image.</p>
+
+    {{if .Updated}}
+    <article class="comment">
+        <div class="comment-content">
+            <p><strong>Success:</strong> Your account settings were updated.</p>
+        </div>
+    </article>
+    {{end}}
+
+    {{if .ErrorMessage}}
+    <article class="comment">
+        <div class="comment-content">
+            <p><strong>Error:</strong> {{.ErrorMessage}}</p>
+        </div>
+    </article>
+    {{end}}
 
     <article class="comment">
         <div class="comment-content">
-            <p><strong>Public UUID:</strong> {{.User.PublicID}}</p>
-            <p><strong>Username:</strong> {{.User.Username}}</p>
-            <p><strong>Email:</strong> {{.User.Email}}</p>
-            {{if .User.Role}}
-            <p><strong>Role:</strong> {{.User.Role}}</p>
-            {{end}}
+            <form action="/settings" method="POST" enctype="multipart/form-data">
+                <p><strong>Public UUID:</strong> {{.User.PublicID}}</p>
+
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required value="{{.User.Username}}" maxlength="50">
+
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required value="{{.User.Email}}" maxlength="255">
+
+                <label for="new_password">New password</label>
+                <input type="password" id="new_password" name="new_password" minlength="8" autocomplete="new-password">
+
+                <label for="confirm_password">Confirm new password</label>
+                <input type="password" id="confirm_password" name="confirm_password" minlength="8" autocomplete="new-password">
+
+                <label for="avatar">Avatar image (max {{.MaxAvatarSizeMB}}MB)</label>
+                <input type="file" id="avatar" name="avatar" accept="image/jpeg,image/png,image/gif,image/webp">
+
+                {{if .User.AvatarURL}}
+                <p><strong>Current avatar:</strong></p>
+                <div class="user-avatar">
+                    <img src="{{.User.AvatarURL}}" alt="Current avatar" class="avatar-image">
+                </div>
+                {{end}}
+
+                <button type="submit" class="btn btn-primary">Save settings</button>
+            </form>
         </div>
     </article>
 

@@ -4,7 +4,6 @@ package adapters
 
 import (
 	authPorts "forum/internal/modules/auth/ports"
-	"forum/internal/platform/templates"
 	"net/http"
 )
 
@@ -13,6 +12,7 @@ func (h *HTTPHandler) RegisterPageRoutes(router *http.ServeMux) {
 	// Protected page routes (require authentication)
 	authMiddleware := h.middlewareProvider.RequireAuth()
 	router.Handle("GET /settings", authMiddleware(http.HandlerFunc(h.SettingsPage)))
+	router.Handle("POST /settings", authMiddleware(http.HandlerFunc(h.UpdateSettingsPage)))
 }
 
 // SettingsPage handles rendering the account settings page.
@@ -32,21 +32,5 @@ func (h *HTTPHandler) SettingsPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := map[string]interface{}{
-		"Title":       "Settings",
-		"User":        currentUser,
-		"ShowFilter":  false,
-		"ShowSidebar": false,
-	}
-
-	tmpl, err := templates.Get("settings", "templates/base.html", "templates/settings.html")
-	if err != nil {
-		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
-	}
+	h.renderSettingsPage(w, http.StatusOK, currentUser, "", r.URL.Query().Get("updated") == "1")
 }

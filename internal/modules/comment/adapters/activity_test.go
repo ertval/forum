@@ -78,11 +78,11 @@ func TestAggregateUserActivity_IncludesCreatedLikedDislikedAndComments(t *testin
 	now := time.Now()
 	h := &HTTPHandler{
 		postService: &activityMockPostService{
-			created:  []*postDomain.Post{{PublicID: "post-created", Title: "Created", CreatedAt: now}},
-			liked:    []*postDomain.Post{{PublicID: "post-liked", Title: "Liked Post", CreatedAt: now}},
-			disliked: []*postDomain.Post{{PublicID: "post-disliked", Title: "Disliked Post", CreatedAt: now}},
+			created:  []*postDomain.Post{{PublicID: "post-created", Title: "Created", Categories: []string{"Go"}, CreatedAt: now}},
+			liked:    []*postDomain.Post{{PublicID: "post-liked", Title: "Liked Post", Categories: []string{"Go"}, CreatedAt: now}},
+			disliked: []*postDomain.Post{{PublicID: "post-disliked", Title: "Disliked Post", Categories: []string{"General"}, CreatedAt: now}},
 			byID: map[string]*postDomain.Post{
-				"post-commented": {PublicID: "post-commented", Title: "Commented Post", CreatedAt: now},
+				"post-commented": {PublicID: "post-commented", Title: "Commented Post", Categories: []string{"Go"}, CreatedAt: now},
 			},
 		},
 		commentService: &activityMockCommentService{comments: []*commentDomain.Comment{{
@@ -93,7 +93,7 @@ func TestAggregateUserActivity_IncludesCreatedLikedDislikedAndComments(t *testin
 		}}},
 	}
 
-	activity, err := h.aggregateUserActivity(context.Background(), "user-123")
+	activity, err := h.aggregateUserActivity(context.Background(), "user-123", activityFilters{ActivityType: "all", Time: "all", ReactionType: "all"})
 	if err != nil {
 		t.Fatalf("aggregateUserActivity returned error: %v", err)
 	}
@@ -129,5 +129,72 @@ func TestAggregateUserActivity_IncludesCreatedLikedDislikedAndComments(t *testin
 	}
 	if comments[0]["PostTitle"] != "Commented Post" {
 		t.Fatalf("expected comment post context title 'Commented Post', got %#v", comments[0]["PostTitle"])
+	}
+	if comments[0]["PostCategories"] == nil {
+		t.Fatalf("expected comment post categories to be included")
+	}
+}
+
+func TestAggregateUserActivity_AppliesCategoryTimeAndReactionTypeFilters(t *testing.T) {
+	now := time.Now()
+	old := now.AddDate(0, -2, 0)
+
+	h := &HTTPHandler{
+		postService: &activityMockPostService{
+			created: []*postDomain.Post{
+				{PublicID: "post-created-go", Title: "Created Go", Categories: []string{"Go"}, CreatedAt: now},
+				{PublicID: "post-created-old", Title: "Created Old", Categories: []string{"Go"}, CreatedAt: old},
+			},
+			liked: []*postDomain.Post{
+				{PublicID: "post-liked-go", Title: "Liked Go", Categories: []string{"Go"}, CreatedAt: now},
+			},
+			disliked: []*postDomain.Post{
+				{PublicID: "post-disliked-general", Title: "Disliked General", Categories: []string{"General"}, CreatedAt: now},
+			},
+			byID: map[string]*postDomain.Post{
+				"post-commented-go":      {PublicID: "post-commented-go", Title: "Commented Go", Categories: []string{"Go"}, CreatedAt: now},
+				"post-commented-general": {PublicID: "post-commented-general", Title: "Commented General", Categories: []string{"General"}, CreatedAt: now},
+			},
+		},
+		commentService: &activityMockCommentService{comments: []*commentDomain.Comment{
+			{PublicID: "comment-go", PublicPostID: "post-commented-go", Content: "hello go", CreatedAt: now},
+			{PublicID: "comment-general", PublicPostID: "post-commented-general", Content: "hello general", CreatedAt: now},
+		}},
+	}
+
+	filters := activityFilters{
+		ActivityType: "all",
+		Category:     "Go",
+		Time:         "month",
+		ReactionType: "like",
+	}
+
+	activity, err := h.aggregateUserActivity(context.Background(), "user-123", filters)
+	if err != nil {
+		t.Fatalf("aggregateUserActivity returned error: %v", err)
+	}
+
+	createdPosts, ok := activity["created_posts"].([]map[string]interface{})
+	if !ok || len(createdPosts) != 1 {
+		t.Fatalf("expected one filtered created post, got %#v", activity["created_posts"])
+	}
+	if createdPosts[0]["PublicID"] != "post-created-go" {
+		t.Fatalf("expected post-created-go after filtering, got %#v", createdPosts[0]["PublicID"])
+	}
+
+	reactions, ok := activity["reactions"].([]map[string]interface{})
+	if !ok || len(reactions) != 1 {
+		t.Fatalf("expected one filtered reaction, got %#v", activity["reactions"])
+	}
+	if reactions[0]["ReactionType"] != "like" {
+		t.Fatalf("expected only like reactions, got %#v", reactions[0]["ReactionType"])
+	}
+
+	comments, ok := activity["comments"].([]map[string]interface{})
+	if !ok || len(comments) != 1 {
+		t.Fatalf("expected one filtered comment, got %#v", activity["comments"])
+	}
+	if comments[0]["CommentPublicID"] != "comment-go" {
+		t.Fatalf("expected only Go comment, got %#v", comments[0]["CommentPublicID"])
 	}
 }

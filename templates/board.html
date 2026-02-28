@@ -53,8 +53,13 @@
                     class="btn btn-primary"
                     data-offset="{{len .Posts}}"
                     data-category="{{if .SelectedCategory}}{{.SelectedCategory}}{{end}}"
+                    data-activity-type="{{if .ActivityType}}{{.ActivityType}}{{else}}all{{end}}"
+                    data-reaction-type="{{if .SelectedReaction}}{{.SelectedReaction}}{{else}}all{{end}}"
                     data-my-posts="{{.MyPosts}}"
                     data-liked-posts="{{.LikedPosts}}"
+                    data-disliked-posts="{{.DislikedPosts}}"
+                    data-commented-posts="{{.CommentedPosts}}"
+                    data-commenter="{{if .Commenter}}{{.Commenter}}{{end}}"
                     data-date-filter="{{if .DateFilter}}{{.DateFilter}}{{end}}">Show More</button>
         </div>
     {{end}}

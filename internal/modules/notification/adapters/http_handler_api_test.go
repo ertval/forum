@@ -65,15 +65,28 @@ func (m *mockUserService) ExistsByUsername(ctx context.Context, username string)
 }
 func (m *mockUserService) IncrementReactionCount(ctx context.Context, userID int) error { return nil }
 func (m *mockUserService) DecrementReactionCount(ctx context.Context, userID int) error { return nil }
+func (m *mockUserService) UpdateSettings(ctx context.Context, publicID, username, email, newPassword, avatarPath string) (*userDomain.User, error) {
+	return nil, nil
+}
 
 func TestGetNotificationsAPI(t *testing.T) {
 	h := &HTTPHandler{
-		notificationService: &mockNotificationService{notifications: []*domain.Notification{{
-			PublicID:  "notif-1",
-			Type:      domain.TypeComment,
-			Message:   "Someone commented",
-			CreatedAt: time.Now(),
-		}}},
+		notificationService: &mockNotificationService{notifications: []*domain.Notification{
+			{
+				PublicID:  "notif-1",
+				Type:      domain.TypeComment,
+				Message:   "Someone commented",
+				IsRead:    false,
+				CreatedAt: time.Now(),
+			},
+			{
+				PublicID:  "notif-2",
+				Type:      domain.TypeLike,
+				Message:   "Someone liked",
+				IsRead:    true,
+				CreatedAt: time.Now(),
+			},
+		}},
 		userService: &mockUserService{},
 	}
 
@@ -91,8 +104,11 @@ func TestGetNotificationsAPI(t *testing.T) {
 	if err := json.Unmarshal(rr.Body.Bytes(), &payload); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if payload["count"].(float64) != 1 {
-		t.Fatalf("expected count 1, got %v", payload["count"])
+	if payload["count"].(float64) != 2 {
+		t.Fatalf("expected count 2, got %v", payload["count"])
+	}
+	if payload["unread_count"].(float64) != 1 {
+		t.Fatalf("expected unread_count 1, got %v", payload["unread_count"])
 	}
 }
 

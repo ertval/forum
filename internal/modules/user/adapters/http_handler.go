@@ -5,6 +5,7 @@ package adapters
 import (
 	authPorts "forum/internal/modules/auth/ports"
 	"forum/internal/modules/user/ports"
+	"forum/internal/platform/upload"
 	"html/template"
 	"net/http"
 )
@@ -14,6 +15,8 @@ type HTTPHandler struct {
 	userService        ports.UserService
 	middlewareProvider authPorts.AuthMiddleware
 	templates          *template.Template
+	avatarImageHandler *upload.ImageHandler
+	maxAvatarSize      int64
 }
 
 // ServiceContainer defines the minimal interface needed by this handler.
@@ -23,11 +26,18 @@ type ServiceContainer interface {
 }
 
 // NewHTTPHandler creates a new HTTP handler for users with unified dependency injection.
-func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
+func NewHTTPHandler(services ServiceContainer, templates *template.Template, uploadDir ...string) *HTTPHandler {
+	dir := "./static/uploads"
+	if len(uploadDir) > 0 && uploadDir[0] != "" {
+		dir = uploadDir[0]
+	}
+
 	return &HTTPHandler{
 		userService:        services.User(),
 		middlewareProvider: services.AuthMiddleware(),
 		templates:          templates,
+		avatarImageHandler: upload.NewImageHandler(dir, maxAvatarImageSize),
+		maxAvatarSize:      maxAvatarImageSize,
 	}
 }
 

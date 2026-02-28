@@ -308,6 +308,10 @@ func (m *MockUserService) ExistsByUsername(ctx context.Context, username string)
 	return false, nil
 }
 
+func (m *MockUserService) UpdateSettings(ctx context.Context, publicID, username, email, newPassword, avatarPath string) (*userDomain.User, error) {
+	return nil, nil
+}
+
 func TestService_React(t *testing.T) {
 	ctx := context.Background()
 	mockRepo := &MockReactionRepository{}

@@ -211,6 +211,10 @@ func (m *MockUserService) DecrementReactionCount(ctx context.Context, userID int
 	return nil
 }
 
+func (m *MockUserService) UpdateSettings(ctx context.Context, publicID, username, email, newPassword, avatarPath string) (*userDomain.User, error) {
+	return nil, nil
+}
+
 // MockPostService implements PostService for testing
 type MockPostService struct{}
 

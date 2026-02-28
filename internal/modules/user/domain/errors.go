@@ -19,4 +19,19 @@ var (
 
 	// ErrCannotDemoteAdmin is returned when trying to demote the last admin.
 	ErrCannotDemoteAdmin = errors.New("cannot demote the last administrator")
+
+	// ErrInvalidEmail is returned when email format is invalid.
+	ErrInvalidEmail = errors.New("invalid email")
+
+	// ErrInvalidUsername is returned when username format is invalid.
+	ErrInvalidUsername = errors.New("invalid username")
+
+	// ErrWeakPassword is returned when password does not meet requirements.
+	ErrWeakPassword = errors.New("password must be at least 8 characters")
+
+	// ErrEmailAlreadyExists is returned when another user already has the email.
+	ErrEmailAlreadyExists = errors.New("email already exists")
+
+	// ErrUsernameAlreadyExists is returned when another user already has the username.
+	ErrUsernameAlreadyExists = errors.New("username already exists")
 )

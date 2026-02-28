@@ -119,14 +119,51 @@ func (m *mockCategoryService) Delete(ctx context.Context, categoryID string) err
 type mockFilterService struct{}
 
 func (m *mockFilterService) BuildFilter(ctx context.Context, params postDomain.FilterParams) postDomain.PostFilter {
-	return postDomain.PostFilter{
-		Categories:    []string{params.Category},
-		UserID:        params.UserID,
-		LikedByUserID: "",
-		DateFilter:    params.DateFilter,
-		Limit:         params.Limit,
-		Offset:        params.Offset,
+	filter := postDomain.PostFilter{
+		UserID:      params.UserID,
+		CommenterID: params.Commenter,
+		DateFilter:  params.DateFilter,
+		Limit:       params.Limit,
+		Offset:      params.Offset,
 	}
+	if params.Category != "" {
+		filter.Categories = []string{params.Category}
+	}
+	if params.MyPosts && params.CurrentUserID != "" {
+		filter.UserID = params.CurrentUserID
+	}
+	if params.LikedPosts && params.CurrentUserID != "" {
+		filter.LikedByUserID = params.CurrentUserID
+	}
+	if params.DislikedPosts && params.CurrentUserID != "" {
+		filter.DislikedByUserID = params.CurrentUserID
+	}
+	if params.CommentedPosts && params.CurrentUserID != "" {
+		filter.CommenterID = params.CurrentUserID
+	}
+	if params.ActivityType == "reactions" && params.ReactionType == "all" && params.CurrentUserID != "" {
+		filter.ReactedByUserID = params.CurrentUserID
+	}
+	if params.ActivityType == "reactions" && params.CurrentUserID != "" {
+		switch params.ReactionType {
+		case "like":
+			filter.LikedByUserID = params.CurrentUserID
+		case "dislike":
+			filter.DislikedByUserID = params.CurrentUserID
+		case "", "all":
+			filter.ReactedByUserID = params.CurrentUserID
+		}
+	}
+	if params.ActivityType == "my_posts" && params.CurrentUserID != "" {
+		filter.UserID = params.CurrentUserID
+	}
+	if params.ActivityType == "commented_posts" && params.CurrentUserID != "" {
+		filter.CommenterID = params.CurrentUserID
+	}
+	if filter.DateFilter == "" {
+		filter.DateFilter = "all"
+	}
+	return filter
 }
 
 func (m *mockFilterService) ApplyDateFilter(filter *postDomain.PostFilter, dateFilter string) {
@@ -253,6 +290,10 @@ func (m *mockUserService) IncrementReactionCount(ctx context.Context, userID int
 
 func (m *mockUserService) DecrementReactionCount(ctx context.Context, userID int) error {
 	return nil
+}
+
+func (m *mockUserService) UpdateSettings(ctx context.Context, publicID, username, email, newPassword, avatarPath string) (*userDomain.User, error) {
+	return nil, nil
 }
 
 // Mock middleware provider for testing
@@ -923,8 +964,10 @@ func TestHTTPHandler_LoadMorePostsAPI_MethodNotAllowed(t *testing.T) {
 }
 
 func TestHTTPHandler_LoadMorePostsAPI_WithFilters(t *testing.T) {
+	var gotFilter postDomain.PostFilter
 	postSvc := &mockPostService{
 		listFunc: func(ctx context.Context, filter postDomain.PostFilter) ([]*postDomain.Post, error) {
+			gotFilter = filter
 			return []*postDomain.Post{}, nil
 		},
 	}
@@ -941,7 +984,7 @@ func TestHTTPHandler_LoadMorePostsAPI_WithFilters(t *testing.T) {
 
 	handler := createTestHandler(postSvc, nil, authSvc, userSvc)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/posts/load-more?category=tech&my_posts=true&liked_posts=true&date_filter=today", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/posts/load-more?category=tech&activity_type=reactions&reaction_type=dislike&commented_posts=true&date_filter=today", nil)
 	req.AddCookie(&http.Cookie{Name: "session_token", Value: "valid-token"})
 	w := httptest.NewRecorder()
 
@@ -949,6 +992,18 @@ func TestHTTPHandler_LoadMorePostsAPI_WithFilters(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+	if gotFilter.DislikedByUserID != "user-uuid-1" {
+		t.Errorf("Expected disliked filter to use current user, got %q", gotFilter.DislikedByUserID)
+	}
+	if gotFilter.CommenterID != "user-uuid-1" {
+		t.Errorf("Expected commenter filter to use current user, got %q", gotFilter.CommenterID)
+	}
+	if len(gotFilter.Categories) != 1 || gotFilter.Categories[0] != "tech" {
+		t.Errorf("Expected category filter tech, got %+v", gotFilter.Categories)
+	}
+	if gotFilter.DateFilter != "today" {
+		t.Errorf("Expected date filter today, got %q", gotFilter.DateFilter)
 	}
 }
 
@@ -978,6 +1033,28 @@ func TestHTTPHandler_buildPageTitle(t *testing.T) {
 				LikedPosts: true,
 			},
 			want: "My Liked Posts",
+		},
+		{
+			name: "disliked posts",
+			params: postDomain.FilterParams{
+				DislikedPosts: true,
+			},
+			want: "My Disliked Posts",
+		},
+		{
+			name: "activity commented posts",
+			params: postDomain.FilterParams{
+				ActivityType: "commented_posts",
+			},
+			want: "Commented Posts",
+		},
+		{
+			name: "activity reactions dislike",
+			params: postDomain.FilterParams{
+				ActivityType: "reactions",
+				ReactionType: "dislike",
+			},
+			want: "My Disliked Posts",
 		},
 		{
 			name: "category filter",

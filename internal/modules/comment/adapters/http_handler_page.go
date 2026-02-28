@@ -16,6 +16,13 @@ import (
 	"forum/internal/platform/templates"
 )
 
+type activityFilters struct {
+	ActivityType string
+	Category     string
+	Time         string
+	ReactionType string
+}
+
 // RegisterPageRoutes registers all comment page routes with the router.
 func (h *HTTPHandler) RegisterPageRoutes(router *http.ServeMux) {
 	// Protected page routes (require authentication)
@@ -51,20 +58,41 @@ func (h *HTTPHandler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	activity, err := h.aggregateUserActivity(ctx, userPublicID)
+	filters := parseActivityFilters(r)
+
+	categories, err := h.categoryService.List(ctx)
+	if err != nil {
+		log.Printf("Error fetching categories for activity filters: %v", err)
+	}
+
+	activity, err := h.aggregateUserActivity(ctx, userPublicID, filters)
 	if err != nil {
 		http.Error(w, "Failed to load activity", http.StatusInternalServerError)
 		return
 	}
 
+	showCreatedPosts := filters.ActivityType == "all" || filters.ActivityType == "created_posts"
+	showReactions := filters.ActivityType == "all" || filters.ActivityType == "reactions"
+	showComments := filters.ActivityType == "all" || filters.ActivityType == "comments"
+
 	data := map[string]interface{}{
-		"Title":        "My Activity",
-		"User":         currentUser,
-		"ShowFilter":   false,
-		"ShowSidebar":  false,
-		"CreatedPosts": activity["created_posts"],
-		"Reactions":    activity["reactions"],
-		"Comments":     activity["comments"],
+		"Title":            "My Activity",
+		"User":             currentUser,
+		"ShowFilter":       true,
+		"ShowFilterRight":  false,
+		"ShowSidebar":      false,
+		"FilterAction":     "/activity",
+		"Categories":       categories,
+		"SelectedCategory": filters.Category,
+		"SelectedTime":     filters.Time,
+		"ActivityType":     filters.ActivityType,
+		"SelectedReaction": filters.ReactionType,
+		"HideCreatedPosts": !showCreatedPosts,
+		"HideReactions":    !showReactions,
+		"HideComments":     !showComments,
+		"CreatedPosts":     activity["created_posts"],
+		"Reactions":        activity["reactions"],
+		"Comments":         activity["comments"],
 	}
 
 	tmpl, err := templates.Get("activity", "templates/base.html", "templates/activity.html")
@@ -78,6 +106,141 @@ func (h *HTTPHandler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to render page", http.StatusInternalServerError)
 		return
 	}
+}
+
+func parseActivityFilters(r *http.Request) activityFilters {
+	activityType := r.URL.Query().Get("activity_type")
+	switch activityType {
+	case "", "all":
+		activityType = "all"
+	case "created_posts", "posts":
+		activityType = "created_posts"
+	case "reactions", "comments":
+	default:
+		activityType = "all"
+	}
+
+	timeFilter := r.URL.Query().Get("time")
+	if timeFilter == "" {
+		timeFilter = r.URL.Query().Get("date_filter")
+	}
+	switch timeFilter {
+	case "", "all":
+		timeFilter = "all"
+	case "today", "week", "month":
+	default:
+		timeFilter = "all"
+	}
+
+	reactionType := r.URL.Query().Get("reaction_type")
+	switch reactionType {
+	case "", "all":
+		reactionType = "all"
+	case "like", "dislike":
+	default:
+		reactionType = "all"
+	}
+
+	return activityFilters{
+		ActivityType: activityType,
+		Category:     r.URL.Query().Get("category"),
+		Time:         timeFilter,
+		ReactionType: reactionType,
+	}
+}
+
+func cutoffForTimeFilter(now time.Time, timeFilter string) (time.Time, bool) {
+	switch timeFilter {
+	case "today":
+		return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()), true
+	case "week":
+		return now.AddDate(0, 0, -7), true
+	case "month":
+		return now.AddDate(0, -1, 0), true
+	default:
+		return time.Time{}, false
+	}
+}
+
+func matchesTimeFilter(createdAt time.Time, timeFilter string, now time.Time) bool {
+	cutoff, hasCutoff := cutoffForTimeFilter(now, timeFilter)
+	if !hasCutoff {
+		return true
+	}
+	return !createdAt.Before(cutoff)
+}
+
+func categoriesContain(categories []string, selectedCategory string) bool {
+	if selectedCategory == "" {
+		return true
+	}
+	for _, category := range categories {
+		if category == selectedCategory {
+			return true
+		}
+	}
+	return false
+}
+
+func filterCreatedPostItems(items []map[string]interface{}, filters activityFilters, now time.Time) []map[string]interface{} {
+	filtered := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		createdAt, _ := item["CreatedAt"].(time.Time)
+		if !matchesTimeFilter(createdAt, filters.Time, now) {
+			continue
+		}
+
+		categories, _ := item["Categories"].([]string)
+		if !categoriesContain(categories, filters.Category) {
+			continue
+		}
+
+		filtered = append(filtered, item)
+	}
+	return filtered
+}
+
+func filterReactionItems(items []map[string]interface{}, filters activityFilters, now time.Time) []map[string]interface{} {
+	filtered := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		if filters.ReactionType != "all" {
+			reactionType, _ := item["ReactionType"].(string)
+			if reactionType != filters.ReactionType {
+				continue
+			}
+		}
+
+		createdAt, _ := item["CreatedAt"].(time.Time)
+		if !matchesTimeFilter(createdAt, filters.Time, now) {
+			continue
+		}
+
+		postCategories, _ := item["PostCategories"].([]string)
+		if !categoriesContain(postCategories, filters.Category) {
+			continue
+		}
+
+		filtered = append(filtered, item)
+	}
+	return filtered
+}
+
+func filterCommentItems(items []map[string]interface{}, filters activityFilters, now time.Time) []map[string]interface{} {
+	filtered := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		createdAt, _ := item["CreatedAt"].(time.Time)
+		if !matchesTimeFilter(createdAt, filters.Time, now) {
+			continue
+		}
+
+		postCategories, _ := item["PostCategories"].([]string)
+		if !categoriesContain(postCategories, filters.Category) {
+			continue
+		}
+
+		filtered = append(filtered, item)
+	}
+	return filtered
 }
 
 // MyCommentsPage handles the page that displays all comments made by the current user.
@@ -355,7 +518,7 @@ func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request
 	h.writeJSON(w, http.StatusOK, commentsData)
 }
 
-func (h *HTTPHandler) aggregateUserActivity(ctx context.Context, userPublicID string) (map[string]interface{}, error) {
+func (h *HTTPHandler) aggregateUserActivity(ctx context.Context, userPublicID string, filters activityFilters) (map[string]interface{}, error) {
 	createdPosts, err := h.postService.ListPosts(ctx, postDomain.PostFilter{
 		UserID: userPublicID,
 		Limit:  50,
@@ -391,18 +554,20 @@ func (h *HTTPHandler) aggregateUserActivity(ctx context.Context, userPublicID st
 	reactionItems := make([]map[string]interface{}, 0, len(likedPosts)+len(dislikedPosts))
 	for _, post := range likedPosts {
 		reactionItems = append(reactionItems, map[string]interface{}{
-			"PostPublicID": post.PublicID,
-			"PostTitle":    post.Title,
-			"ReactionType": "like",
-			"CreatedAt":    post.CreatedAt,
+			"PostPublicID":   post.PublicID,
+			"PostTitle":      post.Title,
+			"PostCategories": post.Categories,
+			"ReactionType":   "like",
+			"CreatedAt":      post.CreatedAt,
 		})
 	}
 	for _, post := range dislikedPosts {
 		reactionItems = append(reactionItems, map[string]interface{}{
-			"PostPublicID": post.PublicID,
-			"PostTitle":    post.Title,
-			"ReactionType": "dislike",
-			"CreatedAt":    post.CreatedAt,
+			"PostPublicID":   post.PublicID,
+			"PostTitle":      post.Title,
+			"PostCategories": post.Categories,
+			"ReactionType":   "dislike",
+			"CreatedAt":      post.CreatedAt,
 		})
 	}
 
@@ -410,11 +575,13 @@ func (h *HTTPHandler) aggregateUserActivity(ctx context.Context, userPublicID st
 	for _, comment := range commentsFromService {
 		postTitle := "Post not found"
 		postPublicID := comment.PublicPostID
+		postCategories := []string{}
 		if comment.PublicPostID != "" {
 			post, err := h.postService.GetPost(ctx, comment.PublicPostID)
 			if err == nil && post != nil {
 				postTitle = post.Title
 				postPublicID = post.PublicID
+				postCategories = post.Categories
 			}
 		}
 
@@ -423,6 +590,7 @@ func (h *HTTPHandler) aggregateUserActivity(ctx context.Context, userPublicID st
 			"Content":         comment.Content,
 			"PostPublicID":    postPublicID,
 			"PostTitle":       postTitle,
+			"PostCategories":  postCategories,
 			"CreatedAt":       comment.CreatedAt,
 		})
 	}
@@ -432,12 +600,18 @@ func (h *HTTPHandler) aggregateUserActivity(ctx context.Context, userPublicID st
 		createdPostItems = append(createdPostItems, map[string]interface{}{
 			"PublicID":     post.PublicID,
 			"Title":        post.Title,
+			"Categories":   post.Categories,
 			"CreatedAt":    post.CreatedAt,
 			"LikeCount":    post.LikeCount,
 			"DislikeCount": post.DislikeCount,
 			"CommentCount": post.CommentCount,
 		})
 	}
+
+	now := time.Now()
+	createdPostItems = filterCreatedPostItems(createdPostItems, filters, now)
+	reactionItems = filterReactionItems(reactionItems, filters, now)
+	commentItems = filterCommentItems(commentItems, filters, now)
 
 	return map[string]interface{}{
 		"created_posts": createdPostItems,

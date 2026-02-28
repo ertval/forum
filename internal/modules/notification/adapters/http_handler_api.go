@@ -43,10 +43,18 @@ func (h *HTTPHandler) GetNotificationsAPI(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	unreadCount := 0
+	for _, notification := range notifications {
+		if notification != nil && !notification.IsRead {
+			unreadCount++
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"notifications": notifications,
 		"count":         len(notifications),
+		"unread_count":  unreadCount,
 	}); err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to encode notifications")
 	}

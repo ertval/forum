@@ -57,16 +57,24 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 
 	// Build filter using FilterService
 	filterParams := postDomain.FilterParams{
-		Category:      r.URL.Query().Get("category"),
-		UserID:        r.URL.Query().Get("user"),
-		MyPosts:       r.URL.Query().Get("my_posts") == "true",
-		LikedPosts:    r.URL.Query().Get("liked_posts") == "true",
-		Commenter:     r.URL.Query().Get("commenter"),
-		DateFilter:    r.URL.Query().Get("date_filter"),
-		Limit:         12,
-		Offset:        0,
-		CurrentUserID: currentUserPublicID,
+		Category:       r.URL.Query().Get("category"),
+		UserID:         r.URL.Query().Get("user"),
+		ActivityType:   r.URL.Query().Get("activity_type"),
+		ReactionType:   r.URL.Query().Get("reaction_type"),
+		MyPosts:        r.URL.Query().Get("my_posts") == "true",
+		LikedPosts:     r.URL.Query().Get("liked_posts") == "true",
+		DislikedPosts:  r.URL.Query().Get("disliked_posts") == "true",
+		CommentedPosts: r.URL.Query().Get("commented_posts") == "true",
+		Commenter:      r.URL.Query().Get("commenter"),
+		DateFilter:     r.URL.Query().Get("date_filter"),
+		Limit:          12,
+		Offset:         0,
+		CurrentUserID:  currentUserPublicID,
 	}
+	if filterParams.Commenter == "" && filterParams.CommentedPosts && currentUserPublicID != "" {
+		filterParams.Commenter = currentUserPublicID
+	}
+	activityType, reactionType := resolveBoardActivityFilters(filterParams)
 
 	filter := h.filterService.BuildFilter(ctx, filterParams)
 
@@ -119,7 +127,12 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 		"DateFilter":       filterParams.DateFilter,
 		"MyPosts":          filterParams.MyPosts,
 		"LikedPosts":       filterParams.LikedPosts,
+		"DislikedPosts":    filterParams.DislikedPosts,
+		"CommentedPosts":   filterParams.CommentedPosts,
+		"ActivityType":     activityType,
+		"SelectedReaction": reactionType,
 		"UserFilter":       filterParams.UserID,
+		"Commenter":        filterParams.Commenter,
 		"User":             currentUser,
 		"FilterAction":     "/",
 		"ShowFilter":       false,
@@ -172,16 +185,24 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 
 	// Build filter using FilterService
 	filterParams := postDomain.FilterParams{
-		Category:      r.URL.Query().Get("category"),
-		UserID:        r.URL.Query().Get("user"),
-		MyPosts:       r.URL.Query().Get("my_posts") == "true",
-		LikedPosts:    r.URL.Query().Get("liked_posts") == "true",
-		Commenter:     r.URL.Query().Get("commenter"),
-		DateFilter:    r.URL.Query().Get("date_filter"),
-		Limit:         10,
-		Offset:        0,
-		CurrentUserID: currentUserPublicID,
+		Category:       r.URL.Query().Get("category"),
+		UserID:         r.URL.Query().Get("user"),
+		ActivityType:   r.URL.Query().Get("activity_type"),
+		ReactionType:   r.URL.Query().Get("reaction_type"),
+		MyPosts:        r.URL.Query().Get("my_posts") == "true",
+		LikedPosts:     r.URL.Query().Get("liked_posts") == "true",
+		DislikedPosts:  r.URL.Query().Get("disliked_posts") == "true",
+		CommentedPosts: r.URL.Query().Get("commented_posts") == "true",
+		Commenter:      r.URL.Query().Get("commenter"),
+		DateFilter:     r.URL.Query().Get("date_filter"),
+		Limit:          10,
+		Offset:         0,
+		CurrentUserID:  currentUserPublicID,
 	}
+	if filterParams.Commenter == "" && filterParams.CommentedPosts && currentUserPublicID != "" {
+		filterParams.Commenter = currentUserPublicID
+	}
+	activityType, reactionType := resolveBoardActivityFilters(filterParams)
 
 	filter := h.filterService.BuildFilter(ctx, filterParams)
 
@@ -241,7 +262,12 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 		"ShowSidebar":      true,
 		"MyPosts":          filterParams.MyPosts,
 		"LikedPosts":       filterParams.LikedPosts,
+		"DislikedPosts":    filterParams.DislikedPosts,
+		"CommentedPosts":   filterParams.CommentedPosts,
+		"ActivityType":     activityType,
+		"SelectedReaction": reactionType,
 		"UserFilter":       filterParams.UserID,
+		"Commenter":        filterParams.Commenter,
 		"User":             currentUser,
 	}
 

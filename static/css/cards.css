@@ -42,6 +42,13 @@
     font-size: 1.8rem;
 }
 
+.avatar-image {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
 .user-details {
     flex: 1;
 }
@@ -89,6 +96,39 @@
     flex-direction: column;
     gap: 0.5rem;
     justify-content: flex-start;
+}
+
+.notification-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.notification-link-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.notification-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.4rem;
+    height: 1.4rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text);
+    background: var(--gradient-green-blue);
+    border: 1px solid var(--color-border-blue);
+    line-height: 1;
+}
+
+.notification-badge[hidden] {
+    display: none;
 }
 
 /* Filters Card */

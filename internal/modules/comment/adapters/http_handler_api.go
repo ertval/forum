@@ -38,7 +38,9 @@ func (h *HTTPHandler) GetActivityAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	activity, err := h.aggregateUserActivity(r.Context(), userPublicID)
+	filters := parseActivityFilters(r)
+
+	activity, err := h.aggregateUserActivity(r.Context(), userPublicID, filters)
 	if err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve activity")
 		return

@@ -17,6 +17,11 @@
         const category = sourceBtn ? sourceBtn.getAttribute('data-category') || '' : '';
         const myPosts = sourceBtn ? sourceBtn.getAttribute('data-my-posts') === 'true' : false;
         const likedPosts = sourceBtn ? sourceBtn.getAttribute('data-liked-posts') === 'true' : false;
+        const dislikedPosts = sourceBtn ? sourceBtn.getAttribute('data-disliked-posts') === 'true' : false;
+        const commentedPosts = sourceBtn ? sourceBtn.getAttribute('data-commented-posts') === 'true' : false;
+        const activityType = sourceBtn ? sourceBtn.getAttribute('data-activity-type') || 'all' : 'all';
+        const reactionType = sourceBtn ? sourceBtn.getAttribute('data-reaction-type') || 'all' : 'all';
+        const commenter = sourceBtn ? sourceBtn.getAttribute('data-commenter') || '' : '';
         const dateFilter = sourceBtn ? sourceBtn.getAttribute('data-date-filter') || '' : '';
 
         // Detect whether we're on the home page (compact layout)
@@ -142,8 +147,13 @@
                 params.append('offset', offset);
                 params.append('limit', BATCH_SIZE);
                 if (category) params.append('category', category);
+                if (activityType && activityType !== 'all') params.append('activity_type', activityType);
+                if (reactionType && reactionType !== 'all') params.append('reaction_type', reactionType);
                 if (myPosts) params.append('my_posts', 'true');
                 if (likedPosts) params.append('liked_posts', 'true');
+                if (dislikedPosts) params.append('disliked_posts', 'true');
+                if (commentedPosts) params.append('commented_posts', 'true');
+                if (commenter) params.append('commenter', commenter);
                 if (dateFilter) params.append('date_filter', dateFilter);
 
                 const posts = await fetchPosts(params);

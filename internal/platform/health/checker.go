@@ -128,13 +128,13 @@ func (c *Checker) checkAPIEndpoints(ctx context.Context, results map[string]stri
 	moderationAllUp := c.areAllRoutesRegistered(ctx, moderationEndpoints)
 	results["moderation_api"] = map[bool]string{true: "down", false: "down"}[moderationAllUp] // TODO: change to "up" when implemented
 
-	// Notification module endpoints - NOT YET IMPLEMENTED
+	// Notification module endpoints
 	notificationEndpoints := []struct{ method, path string }{
 		{"GET", "/api/notifications"},
 		{"PUT", "/api/notifications/{id}/read"},
 	}
 	notificationAllUp := c.areAllRoutesRegistered(ctx, notificationEndpoints)
-	results["notification_api"] = map[bool]string{true: "down", false: "down"}[notificationAllUp] // TODO: change to "up" when implemented
+	results["notification_api"] = map[bool]string{true: "up", false: "down"}[notificationAllUp]
 }
 
 // areAllRoutesRegistered checks if all routes in the list are registered in the router
