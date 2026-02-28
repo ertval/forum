@@ -14,7 +14,7 @@ import (
 
 // Errors for image handling.
 var (
-	ErrInvalidImageType = errors.New("invalid image type, must be JPEG, PNG, or GIF")
+	ErrInvalidImageType = errors.New("invalid image type, must be JPEG, PNG, GIF, or WebP")
 	ErrEmptyImage       = errors.New("image data is empty")
 	ErrPathTraversal    = errors.New("invalid filename: path traversal detected")
 	ErrImageTooLarge    = errors.New("image file too large")
@@ -30,6 +30,7 @@ var allowedMIMETypes = map[string]string{
 	"image/jpeg": ".jpg",
 	"image/png":  ".png",
 	"image/gif":  ".gif",
+	"image/webp": ".webp",
 }
 
 // DetectImageType detects the image type from file data using magic bytes.
@@ -37,6 +38,10 @@ var allowedMIMETypes = map[string]string{
 func DetectImageType(data []byte) (string, error) {
 	if len(data) == 0 {
 		return "", ErrEmptyImage
+	}
+
+	if isWebP(data) {
+		return "image/webp", nil
 	}
 
 	// Use http.DetectContentType to detect MIME type from magic bytes
@@ -48,6 +53,13 @@ func DetectImageType(data []byte) (string, error) {
 	}
 
 	return "", ErrInvalidImageType
+}
+
+func isWebP(data []byte) bool {
+	if len(data) < 12 {
+		return false
+	}
+	return string(data[0:4]) == "RIFF" && string(data[8:12]) == "WEBP"
 }
 
 // MIMEToExtension converts a MIME type to a file extension.

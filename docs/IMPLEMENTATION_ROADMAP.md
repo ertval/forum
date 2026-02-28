@@ -4,37 +4,44 @@ Fast path to functional forum MVP following core requirements, then complete rem
 
 ## Current Status
 
-**Project Phase**: Production-ready MVP — core features complete, all tests pass.
+**Project Phase**: Production-ready MVP — core features complete, optional modules scaffolded, and test coverage is broad with occasional regressions under active maintenance.
 
 ### ✅ Completed Features
+
 - **Platform layer**: config, database (SQLite), logger, httpserver, errors, validator, upload
 - **Auth module**: Registration, login, sessions (one per user), logout, session validation
 - **User module**: Domain, repository, stats (post/comment counts cached in users table)
 - **Post module**: Full CRUD, categories, filtering (category, user, liked posts, date range)
 - **Comment module**: Full CRUD with ownership validation, pagination for "My Comments" page
+- **Reaction module**: Full implementation for posts and comments (like/dislike toggles)
+- **Activity**: Unified `/activity` page and `/api/activity` endpoint for created posts, likes/dislikes, and comments with post context
+- **Notification module**: End-to-end notifications for post owner on comment/like/dislike with list/read API
 - **Image upload**: PNG/JPEG/GIF support, 20MB limit, validation, persistence
 - **Filtering**: By category, My Posts, Liked Posts, date range (today/week/month/all)
 - **UI Enhancements**: Hover effects on reaction buttons, "Show More" pagination for comments
+- **Settings page**: Protected `GET /settings` page added and linked from existing navigation
 
 ### ⚠️ Scaffolded (Needs Implementation)
-- **Reaction module**: Routes defined, but handlers return 501 Not Implemented
+
 - **Moderation module**: Domain/ports/adapters structure exists, minimal implementation
-- **Notification module**: Domain/ports/adapters structure exists, minimal implementation
 
 ### 🧪 Test Status
-- ✅ All Go unit tests pass
-- ✅ All integration tests pass
-- ✅ All E2E test scripts pass (API, audit, image upload, pages)
+
+- ✅ Broad unit/integration/E2E coverage exists across core modules
+- ✅ `test_audit_advanced.sh` passes
+- ⚠️ Pending optional audits: moderation and authentication (OAuth extensions)
+- ℹ️ Use `make test` to verify the current repository state on your environment
 
 ---
 
 ## PART 1: MVP - CORE REQUIREMENTS ✅ COMPLETE
 
 ### Phase 1: Platform Basics ✅
+
 - [x] Config loading from environment variables
 - [x] Database connection (SQLite with mattn/go-sqlite3)
 - [x] Database migrator - auto-apply migrations on startup
-- [x] Manual migration script (`make migrate` / `scripts/run_migrations.sh`)
+- [x] Manual migration script (`make migrate` / `scripts/seed/run_migrations.sh`)
 - [x] HTTP server with standard lib http.ServeMux
 - [x] Structured logger with levels
 - [x] Logger middleware (request logging)
@@ -42,6 +49,7 @@ Fast path to functional forum MVP following core requirements, then complete rem
 - [x] Input validator (email, password)
 
 ### Phase 2: Authentication ✅
+
 - [x] Session entity with validation
 - [x] SQLite session repository (create, get, delete, delete expired)
 - [x] SQLite user repository (create, get by email, exists checks)
@@ -53,6 +61,7 @@ Fast path to functional forum MVP following core requirements, then complete rem
 - [x] RequireAuth and OptionalAuth middleware
 
 ### Phase 3: Posts & Categories ✅
+
 - [x] Post entity with validation (title max 300, content max 50000)
 - [x] Category entity with validation
 - [x] SQLite post repository (full CRUD with categories)
@@ -63,6 +72,7 @@ Fast path to functional forum MVP following core requirements, then complete rem
 - [x] Templates (home, board, post_create, post_detail, post_edit)
 
 ### Phase 4: Comments ✅
+
 - [x] Comment entity with validation
 - [x] SQLite comment repository
 - [x] Comment service (create, get, update, delete, list by post/user)
@@ -70,6 +80,7 @@ Fast path to functional forum MVP following core requirements, then complete rem
 - [x] User comment count tracking (async updates)
 
 ### Phase 5: Filtering ✅
+
 - [x] Filter by category
 - [x] Filter by user (My Posts)
 - [x] Filter by liked posts
@@ -78,6 +89,7 @@ Fast path to functional forum MVP following core requirements, then complete rem
 - [x] Filter state preservation in UI
 
 ### Phase 6: Image Upload ✅ (Bonus - Implemented Early)
+
 - [x] Magic bytes validation (PNG, JPEG, GIF only)
 - [x] Size validation (max 20MB)
 - [x] Secure filename generation (UUID-based)
@@ -87,44 +99,45 @@ Fast path to functional forum MVP following core requirements, then complete rem
 - [x] E2E tests for all image scenarios
 
 ### Phase 7: Docker ✅
+
 - [x] Dockerfile with multi-stage build (CGO_ENABLED=1)
 - [x] docker-compose.yml for deployment
 - [x] Proper SQLite support in container
 
 ---
 
-## PART 2: REMAINING FEATURES
+## PART 2: REMAINING FEATURES ✅ COMPLETE
 
-### Phase 8: Reactions ⚠️ SCAFFOLDED
-**Status**: Routes defined, handlers return 501 Not Implemented
+### Phase 8: Reactions ✅ COMPLETE
 
-**Remaining Work**:
-- [ ] Implement React service method (toggle logic)
-- [ ] Implement CountReactions service method
-- [ ] Implement AddReactionAPI handler
-- [ ] Implement RemoveReactionAPI handler
-- [ ] Implement GetReactionsAPI handler
-- [ ] Implement CountReactionsAPI handler
-- [ ] Add reaction buttons to post detail template
-- [ ] Add reaction buttons to comments
+**Status**: Fully implemented and tested.
 
-**Time Estimate**: 1-2 days
+- [x] Implement React service method (toggle logic)
+- [x] Implement CountReactions service method
+- [x] Implement AddReactionAPI handler
+- [x] Implement RemoveReactionAPI handler
+- [x] Implement GetReactionsAPI handler
+- [x] Implement CountReactionsAPI handler
+- [x] Add reaction buttons to post detail template
+- [x] Add reaction buttons to comments
 
-### Phase 9: Testing & Polish
+### Phase 9: Testing & Polish ✅ COMPLETE
+
 - [x] Domain layer tests
 - [x] Application service tests
 - [x] Repository tests
 - [x] HTTP handler tests
 - [x] Integration tests
 - [x] E2E test scripts
-- [ ] Additional edge case coverage
-- [ ] Performance optimization
+- [x] Additional edge case coverage
+- [x] Performance optimization
 
 ---
 
 ## PART 3: OPTIONAL MODULES
 
 ### Phase 10: Moderation [OPTIONAL]
+
 **Status**: Scaffolded, minimal implementation
 
 - [ ] Report entity and repository
@@ -134,41 +147,45 @@ Fast path to functional forum MVP following core requirements, then complete rem
 - [ ] Content deletion by moderators
 
 ### Phase 11: Notifications [OPTIONAL]
-**Status**: Scaffolded, minimal implementation
 
-- [ ] Notification entity and repository
-- [ ] Notification on comment reply
-- [ ] Notification on post reaction
-- [ ] Mark as read functionality
-- [ ] Notification list endpoint
+**Status**: Complete for advanced objective requirements
+
+- [x] Notification entity and repository
+- [x] Notification on post comment
+- [x] Notification on post like/dislike
+- [x] Mark as read functionality
+- [x] Notification list endpoint
 
 ### Phase 12: Security Hardening ✅
+
 - [x] HTTPS/TLS configuration (TLS 1.2+, strong cipher suites)
 - [x] Rate limiting middleware (per-IP/per-user)
 - [x] Security headers (CSP, HSTS, X-Frame-Options, X-XSS-Protection, Referrer-Policy)
-- [x] Certificate generation script (`scripts/generate_certs.sh`)
+- [x] Certificate generation script (`scripts/seed/generate_certs.sh`)
+- [x] UUID-format session cookie token generation (SEC-07)
+- [x] UUID-only outward ID exposure in API responses for security-sensitive entities
+- [x] Unified JSON API error schema via `platform/errors.WriteErrorJSON`
 - [x] Security headers tests
 
 ---
 
 ## Module Status Summary
 
-| Module | Domain | Ports | Application | Adapters | Tests | Status |
-|--------|--------|-------|-------------|----------|-------|--------|
-| auth | ✅ | ✅ | ✅ | ✅ | ✅ | Complete |
-| user | ✅ | ✅ | ✅ | ✅ | ✅ | Complete |
-| post | ✅ | ✅ | ✅ | ✅ | ✅ | Complete |
-| comment | ✅ | ✅ | ✅ | ✅ | ✅ | Complete |
-| reaction | ✅ | ✅ | ⚠️ | ⚠️ | ⚠️ | Scaffolded |
-| moderation | ✅ | ✅ | ⚠️ | ⚠️ | ⚠️ | Scaffolded |
-| notification | ✅ | ✅ | ⚠️ | ⚠️ | ⚠️ | Scaffolded |
+| Module       | Domain | Ports | Application | Adapters | Tests | Status     |
+| ------------ | ------ | ----- | ----------- | -------- | ----- | ---------- |
+| auth         | ✅     | ✅    | ✅          | ✅       | ✅    | Complete   |
+| user         | ✅     | ✅    | ✅          | ✅       | ✅    | Complete   |
+| post         | ✅     | ✅    | ✅          | ✅       | ✅    | Complete   |
+| comment      | ✅     | ✅    | ✅          | ✅       | ✅    | Complete   |
+| reaction     | ✅     | ✅    | ✅          | ✅       | ✅    | Complete   |
+| moderation   | ✅     | ✅    | ⚠️          | ⚠️       | ⚠️    | Scaffolded |
+| notification | ✅     | ✅    | ✅          | ✅       | ✅    | Complete   |
 
 ---
 
 ## Technical Debt & Known Issues
 
-1. **Reaction module incomplete**: Handlers return 501, needs full implementation
-2. **CSRF protection**: Should add CSRF tokens for state-changing operations (optional enhancement)
+1. **CSRF protection**: Should add CSRF tokens for state-changing operations (optional enhancement)
 
 ---
 
@@ -198,13 +215,13 @@ docker-compose up --build
 
 ## File Locations
 
-| Purpose | Location |
-|---------|----------|
-| Entry point | `cmd/forum/main.go` |
-| DI wiring | `cmd/forum/wire/` |
-| Modules | `internal/modules/{module}/` |
-| Platform | `internal/platform/` |
-| Migrations | `migrations/*.sql` |
-| Templates | `templates/*.html` |
-| Static assets | `static/` |
-| Tests | `tests/`, `scripts/tests/` |
+| Purpose       | Location                     |
+| ------------- | ---------------------------- |
+| Entry point   | `cmd/forum/main.go`          |
+| DI wiring     | `cmd/forum/wire/`            |
+| Modules       | `internal/modules/{module}/` |
+| Platform      | `internal/platform/`         |
+| Migrations    | `migrations/*.sql`           |
+| Templates     | `templates/*.html`           |
+| Static assets | `static/`                    |
+| Tests         | `tests/`, `scripts/tests/`   |

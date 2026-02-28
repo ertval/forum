@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
+	"strings"
 
 	authPorts "forum/internal/modules/auth/ports"
 	commentPorts "forum/internal/modules/comment/ports"
@@ -74,6 +76,7 @@ func (h *HTTPHandler) buildCurrentUser(ctx context.Context, userID int) map[stri
 			"PublicID":      "",
 			"Username":      "",
 			"Email":         "",
+			"AvatarURL":     "",
 			"PostCount":     0,
 			"CommentCount":  0,
 			"ReactionCount": 0,
@@ -92,6 +95,7 @@ func (h *HTTPHandler) buildCurrentUser(ctx context.Context, userID int) map[stri
 		"PublicID":      user.PublicID,
 		"Username":      user.Username,
 		"Email":         user.Email,
+		"AvatarURL":     user.AvatarURL,
 		"PostCount":     user.PostCount,
 		"CommentCount":  user.CommentCount,
 		"ReactionCount": reactionCount,
@@ -136,12 +140,26 @@ func (h *HTTPHandler) getInternalUserID(ctx context.Context, userPublicID string
 func (h *HTTPHandler) buildPageTitle(filterParams postDomain.FilterParams) string {
 	// Build title parts: [My] [Category] Posts [TimePeriod]
 	var parts []string
+	activityType, reactionType := resolveBoardActivityFilters(filterParams)
 
-	// Add "My" if showing user's own posts or liked posts
-	if filterParams.MyPosts || filterParams.UserID != "" {
+	// Add activity-specific prefix
+	if activityType == "my_posts" || filterParams.MyPosts || filterParams.UserID != "" {
 		parts = append(parts, "My")
+	} else if activityType == "reactions" {
+		switch reactionType {
+		case "dislike":
+			parts = append(parts, "My Disliked")
+		case "like":
+			parts = append(parts, "My Liked")
+		default:
+			parts = append(parts, "My Reacted")
+		}
 	} else if filterParams.LikedPosts {
 		parts = append(parts, "My Liked")
+	} else if filterParams.DislikedPosts {
+		parts = append(parts, "My Disliked")
+	} else if activityType == "commented_posts" || filterParams.CommentedPosts || filterParams.Commenter != "" {
+		parts = append(parts, "Commented")
 	}
 
 	// Add category if selected
@@ -167,16 +185,54 @@ func (h *HTTPHandler) buildPageTitle(filterParams postDomain.FilterParams) strin
 		return "All Posts"
 	}
 
-	// Join parts with spaces
-	title := ""
-	for i, part := range parts {
-		if i > 0 {
-			title += " "
+	return strings.Join(parts, " ")
+}
+
+func normalizeBoardActivityType(activityType string) string {
+	normalized := strings.ToLower(strings.TrimSpace(activityType))
+	switch normalized {
+	case "my_posts", "reactions", "commented_posts":
+		return normalized
+	default:
+		return "all"
+	}
+}
+
+func normalizeReactionType(reactionType string) string {
+	normalized := strings.ToLower(strings.TrimSpace(reactionType))
+	switch normalized {
+	case "like", "dislike":
+		return normalized
+	default:
+		return "all"
+	}
+}
+
+func resolveBoardActivityFilters(params postDomain.FilterParams) (string, string) {
+	activityType := normalizeBoardActivityType(params.ActivityType)
+	reactionType := normalizeReactionType(params.ReactionType)
+
+	if activityType == "all" {
+		switch {
+		case params.MyPosts || params.UserID != "":
+			activityType = "my_posts"
+		case params.CommentedPosts || params.Commenter != "":
+			activityType = "commented_posts"
+		case params.LikedPosts || params.DislikedPosts:
+			activityType = "reactions"
 		}
-		title += part
 	}
 
-	return title
+	if activityType == "reactions" && reactionType == "all" {
+		switch {
+		case params.LikedPosts && !params.DislikedPosts:
+			reactionType = "like"
+		case params.DislikedPosts && !params.LikedPosts:
+			reactionType = "dislike"
+		}
+	}
+
+	return activityType, reactionType
 }
 
 // RegisterRoutes registers all post routes.
@@ -192,15 +248,9 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
-}
-
-// min returns the minimum of two integers.
-func min(a, b int) int {
-	if a < b {
-		return a
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		log.Printf("Error encoding JSON response: %v", err)
 	}
-	return b
 }
 
 // createPostPreview creates a preview of the post content with a fixed length.

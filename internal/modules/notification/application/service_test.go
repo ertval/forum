@@ -60,11 +60,29 @@ func TestService_CreateNotification(t *testing.T) {
 	mockRepo := &MockNotificationRepository{}
 	service := NewService(mockRepo)
 
-	// Test the current implementation (returns nil since it's a placeholder)
-	// Use a public target ID string as the service expects a public target identifier
-	err := service.CreateNotification(ctx, 1, domain.TypeLike, "Someone liked your post", "target-10")
+	err := service.CreateNotification(ctx, 1, 2, domain.TypeLike, "Someone liked your post", "target-10")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
+	}
+
+	err = service.CreateNotification(ctx, 1, 2, domain.TypeDislike, "Someone disliked your post", "target-10")
+	if err != nil {
+		t.Errorf("Expected no error for dislike, got %v", err)
+	}
+
+	err = service.CreateNotification(ctx, 0, 2, domain.TypeLike, "Someone liked your post", "target-10")
+	if err == nil {
+		t.Error("Expected error for invalid user id")
+	}
+
+	err = service.CreateNotification(ctx, 1, 0, domain.TypeLike, "Someone liked your post", "target-10")
+	if err == nil {
+		t.Error("Expected error for invalid actor id")
+	}
+
+	err = service.CreateNotification(ctx, 1, 2, "invalid", "message", "target-10")
+	if err == nil {
+		t.Error("Expected error for invalid notification type")
 	}
 }
 
@@ -124,6 +142,7 @@ func TestService_MarkAsRead(t *testing.T) {
 		ID:             1,
 		PublicID:       "pub-1",
 		UserID:         5,
+		ActorID:        6,
 		Type:           domain.TypeLike,
 		Message:        "Someone liked your post",
 		TargetID:       10,

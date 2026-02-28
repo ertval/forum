@@ -17,7 +17,7 @@ During a verification run the following items referenced by the `Makefile` were 
 ## ✅ RESOLVED: Missing file `scripts/run_migrations.go`
 
 - **Description**: The `make migrate` target ran `go run ./scripts/run_migrations.go` but the file didn't exist.
-- **Resolution**: Created `scripts/run_migrations.sh` - a bash script that applies SQL migrations from the `migrations/` directory, tracks applied migrations in a `schema_migrations` table, and skips already-applied migrations. Updated Makefile to call this script: `bash ./scripts/run_migrations.sh`
+- **Resolution**: Created `scripts/seed/run_migrations.sh` - a bash script that applies SQL migrations from the `migrations/` directory, tracks applied migrations in a `schema_migrations` table, and skips already-applied migrations. Updated Makefile to call this script: `bash ./scripts/seed/run_migrations.sh`
 
 ## Additional Improvements
 

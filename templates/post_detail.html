@@ -6,7 +6,7 @@
             <h1>{{.Post.Title}}</h1>
             <div class="post-meta">
                 <span class="author">by {{.Post.AuthorUsername}}</span>
-                <span class="date" style="margin-left: auto;">{{.Post.CreatedAt.Format "Jan 02, 2006 at 3:04 PM"}}</span>
+                <span class="date date-right">{{.Post.CreatedAt.Format "Jan 02, 2006 at 3:04 PM"}}</span>
             </div>
             
             {{if .Post.Categories}}
@@ -30,10 +30,10 @@
 
         <div class="post-actions">
             <div class="reactions">
-                <button class="btn-like" data-post-id="{{.Post.PublicID}}">
+                <button class="btn-like" data-post-id="{{.Post.PublicID}}" aria-label="Like this post, current count: {{.Post.LikeCount}}" title="Like">
                     👍 Like ({{.Post.LikeCount}})
                 </button>
-                <button class="btn-dislike" data-post-id="{{.Post.PublicID}}">
+                <button class="btn-dislike" data-post-id="{{.Post.PublicID}}" aria-label="Dislike this post, current count: {{.Post.DislikeCount}}" title="Dislike">
                     👎 Dislike ({{.Post.DislikeCount}})
                 </button>
             </div>
@@ -79,10 +79,10 @@
                     </div>
                     <div class="comment-actions">
                         <div class="comment-reactions">
-                            <button class="btn-like-comment" data-comment-id="{{.PublicID}}">
+                            <button class="btn-like-comment" data-comment-id="{{.PublicID}}" aria-label="Like this comment, current count: {{.Likes}}" title="Like">
                                 👍 ({{.Likes}})
                             </button>
-                            <button class="btn-dislike-comment" data-comment-id="{{.PublicID}}">
+                            <button class="btn-dislike-comment" data-comment-id="{{.PublicID}}" aria-label="Dislike this comment, current count: {{.Dislikes}}" title="Dislike">
                                 👎 ({{.Dislikes}})
                             </button>
                         </div>
@@ -106,5 +106,6 @@
 {{end}}
 
 {{define "scripts"}}
+<script src="/static/js/reactions.js"></script>
 <script src="/static/js/post-detail.js"></script>
 {{end}}

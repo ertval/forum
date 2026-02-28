@@ -3,6 +3,7 @@ package application
 
 import (
 	"context"
+	"strings"
 
 	"forum/internal/modules/post/domain"
 )
@@ -17,9 +18,41 @@ func NewFilterService() *FilterService {
 
 // BuildFilter creates a PostFilter from query parameters and context.
 func (s *FilterService) BuildFilter(ctx context.Context, params domain.FilterParams) domain.PostFilter {
+	_ = ctx
+
 	filter := domain.PostFilter{
 		Offset: params.Offset,
 		Limit:  params.Limit,
+	}
+
+	activityType := strings.ToLower(strings.TrimSpace(params.ActivityType))
+	reactionType := strings.ToLower(strings.TrimSpace(params.ReactionType))
+
+	if activityType == "my_posts" {
+		params.MyPosts = true
+	}
+
+	if activityType == "commented_posts" {
+		params.CommentedPosts = true
+	}
+
+	if activityType == "reactions" {
+		switch reactionType {
+		case "like":
+			params.LikedPosts = true
+		case "dislike":
+			params.DislikedPosts = true
+		default:
+			if params.CurrentUserID != "" {
+				filter.ReactedByUserID = params.CurrentUserID
+			}
+		}
+	}
+
+	if params.LikedPosts && params.DislikedPosts && params.CurrentUserID != "" {
+		filter.ReactedByUserID = params.CurrentUserID
+		params.LikedPosts = false
+		params.DislikedPosts = false
 	}
 
 	// Apply category filter
@@ -39,9 +72,16 @@ func (s *FilterService) BuildFilter(ctx context.Context, params domain.FilterPar
 		filter.LikedByUserID = params.CurrentUserID
 	}
 
+	// Apply disliked posts filter
+	if params.DislikedPosts && params.CurrentUserID != "" {
+		filter.DislikedByUserID = params.CurrentUserID
+	}
+
 	// Apply commenter filter
 	if params.Commenter != "" {
 		filter.CommenterID = params.Commenter
+	} else if params.CommentedPosts && params.CurrentUserID != "" {
+		filter.CommenterID = params.CurrentUserID
 	}
 
 	// Apply date filter

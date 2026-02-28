@@ -13,12 +13,12 @@
 - **Created**: `scripts/tests/run_failed_tests.sh` - captures and displays full output for failed tests only
 
 ### Database Migrations
-- **Created**: `scripts/run_migrations.sh` - proper bash-based migration runner
+- **Created**: `scripts/seed/run_migrations.sh` - proper bash-based migration runner
   - Automatically applies pending SQL migrations
   - Tracks applied migrations in `schema_migrations` table
   - Skips already-applied migrations
   - Supports transaction-based application
-- **Updated**: `make migrate` now calls `bash ./scripts/run_migrations.sh` instead of non-existent Go file
+- **Updated**: `make migrate` now calls `bash ./scripts/seed/run_migrations.sh` instead of non-existent Go file
 
 ### Makefile Cleanup
 - **Fixed**: Moved all `.PHONY` declarations to **after** their corresponding comment (not before)
@@ -58,7 +58,7 @@ All documentation updated with migration information:
 ## Files Changed
 
 **New Files:**
-- `scripts/run_migrations.sh` - Migration runner script
+- `scripts/seed/run_migrations.sh` - Migration runner script
 - `scripts/tests/run_failed_tests.sh` - Failed tests output script
 - `docs/CHANGELOG_2024-12-06.md` - This file
 

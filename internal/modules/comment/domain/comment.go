@@ -22,13 +22,8 @@ type Comment struct {
 
 // Validate checks if the comment is valid.
 func (c *Comment) Validate() error {
-	// Check content is not empty
-	if c.Content == "" {
-		return ErrEmptyContent
-	}
-
-	// Check content is not just whitespace
-	if len(c.Content) == 0 || len([]rune(c.Content)) == 0 || len(strings.TrimSpace(c.Content)) == 0 {
+	// Check content is not empty or just whitespace
+	if strings.TrimSpace(c.Content) == "" {
 		return ErrEmptyContent
 	}
 

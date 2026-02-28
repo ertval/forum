@@ -24,7 +24,7 @@ forum/
 │   ├── shared/                        # Cross-cutting concerns (kernel)
 │   │   ├── database/
 │   │   │   ├── db.go                  # DB connection pool
-│   │   │   ├── migrations.go          # Migration runner
+│   │   │   ├── migrator.go            # Migration runner
 │   │   │   └── tx.go                  # Transaction helper
 │   │   ├── errors/
 │   │   │   └── errors.go              # Domain error types
@@ -364,7 +364,7 @@ Adapters ← Ports (interfaces)
 ### 5. **Migrations**
 
 - Flat directory: `migrations/001_xxx.sql`
-- Executed sequentially by `shared/database/migrations.go`
+- Executed sequentially by `shared/database/migrator.go`
 - Each module contributes its schema changes
 
 ### 6. **Testing Strategy**

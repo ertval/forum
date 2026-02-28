@@ -4,6 +4,7 @@ package application
 
 import (
 	"context"
+	"log"
 	"strings"
 	"time"
 
@@ -144,10 +145,8 @@ func (s *Service) Login(ctx context.Context, email, password string) (*domain.Se
 	}
 
 	// 4. If valid, delete any existing sessions for this user (one session per user)
-	err = s.sessionRepo.DeleteByUserID(ctx, user.ID)
-	if err != nil {
-		// If we can't delete existing sessions, continue anyway
-		// This might result in multiple active sessions, but login should still work
+	if err := s.sessionRepo.DeleteByUserID(ctx, user.ID); err != nil {
+		log.Printf("WARNING: failed to delete existing sessions for user %d: %v", user.ID, err)
 	}
 
 	// 5. Create new session
@@ -191,7 +190,9 @@ func (s *Service) ValidateSession(ctx context.Context, sessionToken string) (*do
 	// 2. Check if session is expired
 	if session.IsExpired() {
 		// Clean up expired session
-		_ = s.sessionRepo.Delete(ctx, sessionToken) // Best effort cleanup
+		if err := s.sessionRepo.Delete(ctx, sessionToken); err != nil {
+			log.Printf("WARNING: failed to delete expired session: %v", err)
+		}
 		return nil, domain.ErrSessionExpired
 	}
 
@@ -210,7 +211,9 @@ func (s *Service) RefreshSession(ctx context.Context, sessionToken string) (*dom
 	// 2. Check if session is expired
 	if session.IsExpired() {
 		// Clean up expired session
-		_ = s.sessionRepo.Delete(ctx, sessionToken) // Best effort cleanup
+		if err := s.sessionRepo.Delete(ctx, sessionToken); err != nil {
+			log.Printf("WARNING: failed to delete expired session: %v", err)
+		}
 		return nil, domain.ErrSessionExpired
 	}
 
@@ -238,20 +241,22 @@ func (s *Service) GetSession(ctx context.Context, sessionToken string) (*domain.
 	// 2. Check if session is expired
 	if session.IsExpired() {
 		// Clean up expired session
-		_ = s.sessionRepo.Delete(ctx, sessionToken) // Best effort cleanup
+		if err := s.sessionRepo.Delete(ctx, sessionToken); err != nil {
+			log.Printf("WARNING: failed to delete expired session: %v", err)
+		}
 		return nil, domain.ErrSessionExpired
 	}
 
 	return session, nil
 }
 
-// generateSessionToken generates a unique session token.
+// generateSessionToken generates a cryptographically secure UUID v4 session token.
 func (s *Service) generateSessionToken() (string, error) {
-	token, err := uuid.NewV4()
+	u, err := uuid.NewV4()
 	if err != nil {
 		return "", err
 	}
-	return token.String(), nil
+	return u.String(), nil
 }
 
 // hashPassword hashes a plaintext password using bcrypt.
@@ -280,8 +285,8 @@ func ValidateCredentials(c *domain.Credentials) error {
 
 	v.Required("password", c.Password)
 	if c.Password != "" {
-		// Using minimum 6 characters for basic validation, can be increased for production
-		v.Password("password", c.Password, 6)
+		// Minimum 8 characters for secure password validation
+		v.Password("password", c.Password, 8)
 	}
 
 	if !v.Valid() {

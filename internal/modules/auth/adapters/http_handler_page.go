@@ -4,8 +4,9 @@
 package adapters
 
 import (
-	"html/template"
 	"net/http"
+
+	"forum/internal/platform/templates"
 )
 
 // RegisterPageRoutes registers all authentication page routes with the router.
@@ -21,8 +22,8 @@ func (h *HTTPHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
 		"Title": "Login",
 	}
 
-	// Parse base and login templates together for this specific page
-	tmpl, err := template.ParseFiles("templates/base.html", "templates/login.html")
+	// Get cached templates (only parses on first request)
+	tmpl, err := templates.Get("login", "templates/base.html", "templates/login.html")
 	if err != nil {
 		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
 		return
@@ -40,8 +41,8 @@ func (h *HTTPHandler) RegisterPage(w http.ResponseWriter, r *http.Request) {
 		"Title": "Register",
 	}
 
-	// Parse base and register templates together for this specific page
-	tmpl, err := template.ParseFiles("templates/base.html", "templates/register.html")
+	// Get cached templates (only parses on first request)
+	tmpl, err := templates.Get("register", "templates/base.html", "templates/register.html")
 	if err != nil {
 		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
 		return

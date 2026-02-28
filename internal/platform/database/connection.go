@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -28,7 +29,8 @@ func NewConnection(dsn string) (*Connection, error) {
 	// try to extract the file portion up to the first '?' char.
 	dbPath := dsn
 	// If DSN looks like URI with params, strip params for directory creation.
-	if idx := indexOf(dsn, '?'); idx != -1 {
+	// KISS-1: Use strings.IndexByte instead of custom indexOf
+	if idx := strings.IndexByte(dsn, '?'); idx != -1 {
 		dbPath = dsn[:idx]
 	}
 
@@ -56,14 +58,13 @@ func NewConnection(dsn string) (*Connection, error) {
 		return nil, fmt.Errorf("failed to ping sqlite database: %w", err)
 	}
 
-	// Prefer MEMORY journal for tests and local runs to avoid creating
-	// transient on-disk rollback journal files. This keeps the journal in
-	// memory and avoids visible `-journal` files during short-lived runs.
-	// Note: MEMORY journal sacrifices some durability on crashes; do not
-	// use for production-critical persistence without considering tradeoffs.
-	if _, err := db.Exec("PRAGMA journal_mode = MEMORY;"); err != nil {
+	// Use WAL (Write-Ahead Logging) journal mode for better concurrency and
+	// durability compared to MEMORY mode. WAL allows readers and writers to
+	// operate concurrently and provides crash recovery.
+	// NIT-6: Changed from MEMORY to WAL for better durability
+	if _, err := db.Exec("PRAGMA journal_mode = WAL;"); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("failed to set journal_mode=MEMORY: %w", err)
+		return nil, fmt.Errorf("failed to set journal_mode=WAL: %w", err)
 	}
 
 	return &Connection{db: db}, nil
@@ -90,14 +91,4 @@ func (c *Connection) Ping() error {
 		return c.db.Ping()
 	}
 	return nil
-}
-
-// indexOf returns the index of ch in s or -1 if not present.
-func indexOf(s string, ch byte) int {
-	for i := 0; i < len(s); i++ {
-		if s[i] == ch {
-			return i
-		}
-	}
-	return -1
 }

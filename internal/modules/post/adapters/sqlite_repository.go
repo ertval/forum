@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"forum/internal/modules/post/domain"
 	"forum/internal/modules/post/ports"
+	"strings"
 	"time"
 
 	"github.com/gofrs/uuid/v5"
@@ -148,7 +149,10 @@ func (r *SQLitePostRepository) GetByID(ctx context.Context, postID string) (*dom
 	}
 
 	if imageURL.Valid {
-		post.ImageURL = "/static/uploads/" + imageURL.String
+		normalized := normalizeImagePath(imageURL.String)
+		if normalized != "" {
+			post.ImageURL = "/static/uploads/" + normalized
+		}
 	}
 	if username.Valid {
 		post.AuthorUsername = username.String
@@ -342,6 +346,26 @@ func (r *SQLitePostRepository) List(ctx context.Context, filter domain.PostFilte
 		args = append(args, filter.LikedByUserID)
 	}
 
+	// Filter by reacted posts (any reaction type)
+	if filter.ReactedByUserID != "" {
+		query += `
+		INNER JOIN reactions rr ON p.id = rr.target_id
+		INNER JOIN users reacted_user ON rr.user_id = reacted_user.id
+		`
+		conditions = append(conditions, "reacted_user.public_id = ? AND rr.target_type = 'post'")
+		args = append(args, filter.ReactedByUserID)
+	}
+
+	// Filter by disliked posts
+	if filter.DislikedByUserID != "" {
+		query += `
+		INNER JOIN reactions dr ON p.id = dr.target_id
+		INNER JOIN users disliked_user ON dr.user_id = disliked_user.id
+		`
+		conditions = append(conditions, "disliked_user.public_id = ? AND dr.target_type = 'post' AND dr.type = 'dislike'")
+		args = append(args, filter.DislikedByUserID)
+	}
+
 	// Filter by posts where user has commented
 	if filter.CommenterID != "" {
 		query += `
@@ -418,7 +442,10 @@ func (r *SQLitePostRepository) List(ctx context.Context, filter domain.PostFilte
 		}
 
 		if imageURL.Valid {
-			post.ImageURL = "/static/uploads/" + imageURL.String
+			normalized := normalizeImagePath(imageURL.String)
+			if normalized != "" {
+				post.ImageURL = "/static/uploads/" + normalized
+			}
 		}
 		if username.Valid {
 			post.AuthorUsername = username.String
@@ -483,6 +510,24 @@ func repeatPlaceholders(count int) string {
 		result += ", ?"
 	}
 	return result
+}
+
+func normalizeImagePath(path string) string {
+	normalized := strings.TrimSpace(path)
+	if normalized == "" {
+		return ""
+	}
+
+	normalized = strings.TrimPrefix(normalized, "./")
+	normalized = strings.TrimPrefix(normalized, "/")
+	normalized = strings.TrimPrefix(normalized, "static/uploads/")
+	normalized = strings.TrimPrefix(normalized, "uploads/")
+
+	if strings.Contains(strings.ToLower(normalized), "seed-placeholder") {
+		return ""
+	}
+
+	return normalized
 }
 
 // SQLiteCategoryRepository implements the CategoryRepository interface.

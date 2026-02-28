@@ -19,12 +19,12 @@
             </div>
             <div class="comment-actions">
                 <div class="comment-reactions">
-                    <button class="btn-like-comment" data-comment-id="{{.PublicID}}">
-                        👍 ({{.Likes}})
-                    </button>
-                    <button class="btn-dislike-comment" data-comment-id="{{.PublicID}}">
-                        👎 ({{.Dislikes}})
-                    </button>
+                <button class="btn-like-comment" data-comment-id="{{.PublicID}}" aria-label="Like this comment, current count: {{.Likes}}" title="Like">
+                    👍 ({{.Likes}})
+                </button>
+                <button class="btn-dislike-comment" data-comment-id="{{.PublicID}}" aria-label="Dislike this comment, current count: {{.Dislikes}}" title="Dislike">
+                    👎 ({{.Dislikes}})
+                </button>
                 </div>
                 <div class="comment-owner-actions">
                     <button class="btn btn-secondary btn-edit-comment" data-comment-id="{{.PublicID}}">Edit</button>

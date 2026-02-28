@@ -3,11 +3,34 @@
 package adapters
 
 import (
+	authPorts "forum/internal/modules/auth/ports"
 	"net/http"
 )
 
 // RegisterPageRoutes registers all user page routes with the router.
 func (h *HTTPHandler) RegisterPageRoutes(router *http.ServeMux) {
-	// TODO: Add user profile page routes when implemented
-	// router.HandleFunc("GET /users/{id}", h.UserProfilePage)
+	// Protected page routes (require authentication)
+	authMiddleware := h.middlewareProvider.RequireAuth()
+	router.Handle("GET /settings", authMiddleware(http.HandlerFunc(h.SettingsPage)))
+	router.Handle("POST /settings", authMiddleware(http.HandlerFunc(h.UpdateSettingsPage)))
+}
+
+// SettingsPage handles rendering the account settings page.
+func (h *HTTPHandler) SettingsPage(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get user PUBLIC ID (UUID) from context (set by RequireAuth middleware)
+	userPublicID := authPorts.GetUserID(ctx)
+	if userPublicID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	currentUser, err := h.userService.GetByPublicID(ctx, userPublicID)
+	if err != nil || currentUser == nil {
+		http.Error(w, "Failed to load user settings", http.StatusInternalServerError)
+		return
+	}
+
+	h.renderSettingsPage(w, http.StatusOK, currentUser, "", r.URL.Query().Get("updated") == "1")
 }

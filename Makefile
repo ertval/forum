@@ -66,7 +66,7 @@ test:
 	@$(GOTEST) ./tests/... > /dev/null 2>&1 && echo "$(GREEN)✓ All Integration Tests directory passed$(NC)" || (echo "$(RED)✗ Tests directory failed$(NC)" && $(GOTEST) ./tests/... && exit 1)
 	@echo ""
 	@echo "$(BLUE)Step 3/3: Running E2E Audit Test scripts...$(NC)"
-	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh --quiet
+	@bash $(TEST_SCRIPTS_DIR)/run_all_tests.sh --quiet
 	@echo ""
 	@echo "$(GREEN)=========================================$(NC)"
 	@echo "$(GREEN)All tests complete!$(NC)"
@@ -88,7 +88,7 @@ tests:
 	@echo "$(GREEN)Tests directory complete$(NC)"
 	@echo ""
 	@echo "$(BLUE)Step 3/3: Running E2E Audit Test scripts...$(NC)"
-	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh
+	@bash $(TEST_SCRIPTS_DIR)/run_all_tests.sh
 	@echo "$(GREEN)E2E Audit Integration test scripts complete$(NC)"
 	@echo ""
 	@echo "$(GREEN)=========================================$(NC)"
@@ -105,23 +105,37 @@ test-go:
 # Run all test scripts (e2e)
 test-script:
 	@echo "$(BLUE)Running all test scripts (scripts/tests/run_all_tests.sh)...$(NC)"
-	@$(TEST_SCRIPTS_DIR)/run_all_tests.sh
+	@bash $(TEST_SCRIPTS_DIR)/run_all_tests.sh
 .PHONY: test-script
 
 # Run API test script
 test-script-api:
 	@echo "$(BLUE)Running API test script (scripts/tests/test_api.sh)...$(NC)"
-	@$(TEST_SCRIPTS_DIR)/test_api.sh
+	@bash $(TEST_SCRIPTS_DIR)/test_api.sh
 .PHONY: test-script-api
 
 # Run HTML test script
 test-script-html:
 	@echo "$(BLUE)Running HTML test script (scripts/tests/test_pages.sh)...$(NC)"
-	@$(TEST_SCRIPTS_DIR)/test_pages.sh
+	@bash $(TEST_SCRIPTS_DIR)/test_pages.sh
 .PHONY: test-script-html
 
 # Run tests with coverage
 test-coverage:
+	@echo "$(BLUE)Running tests with coverage...$(NC)"
+	CGO_ENABLED=$(CGO_ENABLED) $(GOTEST) -coverprofile=coverage.out ./...
+	$(GOCMD) tool cover -html=coverage.out -o coverage.html
+	@echo "$(GREEN)Coverage report generated: coverage.html$(NC)"
+.PHONY: test-coverage
+
+# Run tests and show only failures
+test-fail:
+	@echo "$(BLUE)Running tests and showing only failures...$(NC)"
+	@$(GOTEST) ./... | grep "FAIL" || echo "$(GREEN)✓ Go tests: No failures$(NC)"
+	@$(GOTEST) ./tests/... | grep "FAIL" || echo "$(GREEN)✓ Integration tests: No failures$(NC)"
+	@bash $(TEST_SCRIPTS_DIR)/run_all_tests.sh --quiet | grep "✗" || echo "$(GREEN)✓ Script tests: No failures$(NC)"
+.PHONY: test-fail
+
 # Clean build artifacts
 clean:
 	@echo "$(BLUE)Cleaning...$(NC)"
@@ -131,12 +145,6 @@ clean:
 	rm -f coverage.out coverage.html
 	@echo "$(GREEN)Clean complete$(NC)"
 .PHONY: clean
-	@echo "$(BLUE)Cleaning...$(NC)"
-	$(GOCLEAN)
-	rm -f $(BINARY_NAME)
-	rm -f $(BINARY_UNIX)
-	rm -f coverage.out coverage.html
-	@echo "$(GREEN)Clean complete$(NC)"
 
 # Format code
 fmt:
@@ -170,7 +178,7 @@ mod:
 # Run database migrations
 migrate:
 	@echo "$(BLUE)Running database migrations...$(NC)"
-	@bash ./scripts/run_migrations.sh
+	@bash ./scripts/seed/run_migrations.sh
 	@echo "$(GREEN)Migrations complete$(NC)"
 .PHONY: migrate
 
@@ -240,6 +248,54 @@ seed:
 	bash ./scripts/seed/seed.sh
 .PHONY: seed
 
+# Generate all audit evidence artifacts
+audit-evidence:
+	@echo "$(BLUE)Generating audit evidence artifacts...$(NC)"
+	bash ./scripts/audit/run_evidence_all.sh
+	@echo "$(GREEN)Audit evidence complete$(NC)"
+.PHONY: audit-evidence
+
+# Docker build/run/health evidence
+audit-evidence-docker:
+	@echo "$(BLUE)Generating Docker health evidence...$(NC)"
+	bash ./scripts/audit/evidence_docker_health.sh
+.PHONY: audit-evidence-docker
+
+# Page sweep evidence
+audit-evidence-pages:
+	@echo "$(BLUE)Generating page sweep evidence...$(NC)"
+	bash ./scripts/audit/evidence_page_sweep.sh
+.PHONY: audit-evidence-pages
+
+# Performance smoke evidence
+audit-evidence-perf:
+	@echo "$(BLUE)Generating performance evidence...$(NC)"
+	bash ./scripts/audit/evidence_performance.sh
+.PHONY: audit-evidence-perf
+
+# Dead reference audit/cleanup (DB + template/static refs)
+dead-refs-dry-run:
+	@echo "$(BLUE)Running dead reference audit (dry-run)...$(NC)"
+	bash ./scripts/audit/clean_dead_refs.sh --dry-run
+.PHONY: dead-refs-dry-run
+
+dead-refs-apply:
+	@echo "$(YELLOW)Applying dead reference cleanup...$(NC)"
+	bash ./scripts/audit/clean_dead_refs.sh --apply
+.PHONY: dead-refs-apply
+
+# Docker cleanup process (safe dry run)
+docker-prune-dry-run:
+	@echo "$(BLUE)Running Docker prune dry-run process...$(NC)"
+	bash ./scripts/audit/docker_cleanup_prune.sh --dry-run
+.PHONY: docker-prune-dry-run
+
+# Docker cleanup process (destructive)
+docker-prune-apply:
+	@echo "$(YELLOW)Applying Docker prune process...$(NC)"
+	bash ./scripts/audit/docker_cleanup_prune.sh --apply
+.PHONY: docker-prune-apply
+
 # Help
 help:
 	@echo "$(BLUE)Available targets:$(NC)"
@@ -270,6 +326,14 @@ help:
 	@echo "  $(GREEN)down$(NC)            - Alias for docker-down"
 	@echo "  $(GREEN)build-linux$(NC)     - Cross compile for Linux"
 	@echo "  $(GREEN)check-schema$(NC)    - Check database schema"
+	@echo "  $(GREEN)audit-evidence$(NC)  - Run all audit evidence scripts"
+	@echo "  $(GREEN)audit-evidence-docker$(NC) - Generate docker build/run/health artifacts"
+	@echo "  $(GREEN)audit-evidence-pages$(NC) - Generate page sweep artifacts"
+	@echo "  $(GREEN)audit-evidence-perf$(NC) - Generate performance artifacts"
+	@echo "  $(GREEN)dead-refs-dry-run$(NC) - Audit dead refs in templates/static/DB without changes"
+	@echo "  $(GREEN)dead-refs-apply$(NC) - Apply safe cleanup of dead DB references"
+	@echo "  $(GREEN)docker-prune-dry-run$(NC) - Show docker cleanup process without deleting"
+	@echo "  $(GREEN)docker-prune-apply$(NC) - Apply docker cleanup process"
 	@echo "  $(GREEN)seed$(NC)            - Seed database"
 	@echo "  $(GREEN)help$(NC)            - Show this help"
 .PHONY: help

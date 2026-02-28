@@ -144,6 +144,10 @@ func (m *MockUserService) DecrementReactionCount(ctx context.Context, userID int
 	return nil
 }
 
+func (m *MockUserService) UpdateSettings(ctx context.Context, publicID, username, email, newPassword, avatarPath string) (*userDomain.User, error) {
+	return nil, nil
+}
+
 // MockSessionRepository implements auth ports SessionRepository for testing
 type MockSessionRepository struct {
 	sessions        map[string]*domain.Session
@@ -658,9 +662,17 @@ func TestService_generateSessionToken(t *testing.T) {
 		t.Error("Generated session token should not be empty")
 	}
 
-	// Try to parse the token as a UUID to verify format
-	_, err = uuid.FromString(token)
+	// Verify the token format (should be UUID v4)
+	if len(token) != 36 {
+		t.Errorf("Expected token length 36, got %d", len(token))
+	}
+
+	parsed, err := uuid.FromString(token)
 	if err != nil {
 		t.Errorf("Generated token is not a valid UUID: %v", err)
+	}
+
+	if parsed.Version() != 4 {
+		t.Errorf("Expected UUID version 4, got %d", parsed.Version())
 	}
 }

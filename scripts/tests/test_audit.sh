@@ -35,6 +35,7 @@ else
 fi
 
 PASSED=0
+PENDING=0
 FAILED=0
 
 # Arrays to track created test data for cleanup
@@ -61,6 +62,9 @@ print_answer() {
     if [ "$status" = "YES" ]; then
         echo -e "${GREEN}A: YES${NC} - $answer"
         PASSED=$((PASSED + 1))
+    elif [ "$status" = "PENDING" ]; then
+        echo -e "${YELLOW}A: PENDING${NC} - $answer"
+        PENDING=$((PENDING + 1))
     else
         echo -e "${RED}A: NO${NC} - $answer"
         FAILED=$((FAILED + 1))
@@ -506,7 +510,7 @@ fi
 print_question "Enter as non-registered user and try to like a post - Are you forbidden?"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/reactions" \
     -H "Content-Type: application/json" \
-    -d '{"target_type":"post","target_id":"test","reaction_type":"like"}')
+    -d '{"target_type":"post","target_id":"test","type":"like"}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ] || [ "$HTTP_CODE" = "501" ]; then
     print_answer "YES" "Non-authenticated users cannot like posts"
@@ -518,7 +522,7 @@ fi
 print_question "Enter as non-registered user and try to dislike a comment - Are you forbidden?"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/reactions" \
     -H "Content-Type: application/json" \
-    -d '{"target_type":"comment","target_id":"test","reaction_type":"dislike"}')
+    -d '{"target_type":"comment","target_id":"test","type":"dislike"}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ] || [ "$HTTP_CODE" = "501" ]; then
     print_answer "YES" "Non-authenticated users cannot dislike comments"
@@ -624,12 +628,14 @@ print_question "Can you like or dislike a post?"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/reactions" \
     -H "Content-Type: application/json" \
     -H "Cookie: session_token=$SESSION_COOKIE" \
-    -d "{\"target_type\":\"post\",\"target_id\":\"$POST_ID\",\"reaction_type\":\"like\"}")
+    -d "{\"target_type\":\"post\",\"target_id\":\"$POST_ID\",\"type\":\"like\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "501" ]; then
-    print_answer "YES" "Reactions on posts work (or feature pending: $HTTP_CODE)"
+if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ]; then
+    print_answer "YES" "Reactions on posts work"
+elif [ "$HTTP_CODE" = "501" ]; then
+    print_answer "PENDING" "Post reactions feature not implemented (HTTP 501)"
 else
-    print_answer "NO" "Could not react to post"
+    print_answer "NO" "Could not react to post (HTTP $HTTP_CODE)"
 fi
 
 # Q: Can like/dislike comment?
@@ -638,12 +644,14 @@ COMMENT_ID=$(sqlite3 "$DB_PATH" "SELECT public_id FROM comments LIMIT 1;" 2>/dev
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/reactions" \
     -H "Content-Type: application/json" \
     -H "Cookie: session_token=$SESSION_COOKIE" \
-    -d "{\"target_type\":\"comment\",\"target_id\":\"$COMMENT_ID\",\"reaction_type\":\"like\"}")
+    -d "{\"target_type\":\"comment\",\"target_id\":\"$COMMENT_ID\",\"type\":\"like\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "501" ]; then
-    print_answer "YES" "Reactions on comments work (or feature pending)"
+if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ]; then
+    print_answer "YES" "Reactions on comments work"
+elif [ "$HTTP_CODE" = "501" ]; then
+    print_answer "PENDING" "Comment reactions feature not implemented (HTTP 501)"
 else
-    print_answer "NO" "Could not react to comment"
+    print_answer "NO" "Could not react to comment (HTTP $HTTP_CODE)"
 fi
 
 # Q: See created posts?
@@ -799,14 +807,18 @@ echo -e "${YELLOW}========================================${NC}"
 echo -e "${YELLOW}AUDIT VERIFICATION SUMMARY${NC}"
 echo -e "${YELLOW}========================================${NC}"
 echo -e "${GREEN}Passed: $PASSED${NC}"
+[ $PENDING -gt 0 ] && echo -e "${YELLOW}Pending: $PENDING${NC}"
 echo -e "${RED}Failed: $FAILED${NC}"
-echo -e "Total: $((PASSED + FAILED))"
+echo -e "Total: $((PASSED + PENDING + FAILED))"
 echo -e "${YELLOW}========================================${NC}"
 
-if [ $FAILED -eq 0 ]; then
-    echo -e "${GREEN}✓ All audit requirements verified!${NC}"
-    exit 0
-else
-    echo -e "${YELLOW}⚠ Some requirements need attention${NC}"
+if [ $FAILED -gt 0 ]; then
+    echo -e "${RED}✗ AUDIT FAILED: Some requirements were not met${NC}"
     exit 1
+elif [ $PENDING -gt 0 ]; then
+    echo -e "${YELLOW}⚠ AUDIT PENDING: Some features are not implemented${NC}"
+    exit 2
+else
+    echo -e "${GREEN}✓ All audit requirements PASSED!${NC}"
+    exit 0
 fi

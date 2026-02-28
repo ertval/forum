@@ -40,7 +40,7 @@
 }
 
 .post-header-compact h3 a:hover {
-    color: #a3d9c5;
+    color: var(--color-primary);
 }
 
 .post-meta-compact {
@@ -130,20 +130,32 @@
     font-size: 0.7rem;
 }
 
-.post-actions-compact span {
-    color: #7a7a7a;
-    background-color: #e0f7e9;
-    padding: 0.1rem 0.35rem;
-    border-radius: 10px;
-    flex: 1;
-    text-align: center;
-    transition: all 0.2s ease;
-    cursor: default;
+.post-actions-compact button {
+  background: #e0f7e9;
+  border: 1px solid #c2e6d6;
+  padding: 0.15rem 0.35rem;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: #5a5a5a;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  flex: 1;
+  font-family: inherit;
 }
 
-.post-actions-compact span:hover {
-    background-color: #c9edd9;
-    color: #5a5a5a;
+.post-actions-compact button:hover {
+  background: #b5ead7;
+  color: #5a5a5a;
+  transform: translateY(-1px);
+}
+
+.post-actions-compact button.active {
+  background: #80cbc4;
+  color: white;
 }
 
 .no-posts-home {
@@ -154,7 +166,7 @@
 }
 
 .no-posts-home a {
-    color: #a3d9c5;
+    color: var(--color-primary);
     text-decoration: none;
     font-weight: 500;
 }

@@ -4,27 +4,78 @@
 package adapters
 
 import (
+	"encoding/json"
+	authPorts "forum/internal/modules/auth/ports"
+	"forum/internal/modules/notification/domain"
 	"net/http"
+
+	platformErrors "forum/internal/platform/errors"
 )
 
 // RegisterAPIRoutes registers all notification API routes with the router.
 func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
+	authMiddleware := h.middlewareProvider.RequireAuth()
+
+	// Protected API routes (require authentication)
 	// GET /api/notifications - Get user's notifications
-	router.HandleFunc("GET /api/notifications", h.GetNotificationsAPI)
+	router.Handle("GET /api/notifications", authMiddleware(http.HandlerFunc(h.GetNotificationsAPI)))
 	// PUT /api/notifications/{id}/read - Mark notification as read
-	router.HandleFunc("PUT /api/notifications/{id}/read", h.MarkAsReadAPI)
+	router.Handle("PUT /api/notifications/{id}/read", authMiddleware(http.HandlerFunc(h.MarkAsReadAPI)))
 }
 
 // GetNotificationsAPI handles retrieving user notifications.
-// TODO: Implement notification retrieval handler.
 func (h *HTTPHandler) GetNotificationsAPI(w http.ResponseWriter, r *http.Request) {
-	// Implementation placeholder
-	http.Error(w, "Not implemented", http.StatusNotImplemented)
+	userPublicID := authPorts.GetUserID(r.Context())
+	if userPublicID == "" {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	user, err := h.userService.GetByPublicID(r.Context(), userPublicID)
+	if err != nil || user == nil {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
+		return
+	}
+
+	notifications, err := h.notificationService.GetUserNotifications(r.Context(), user.ID)
+	if err != nil {
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve notifications")
+		return
+	}
+
+	unreadCount := 0
+	for _, notification := range notifications {
+		if notification != nil && !notification.IsRead {
+			unreadCount++
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"notifications": notifications,
+		"count":         len(notifications),
+		"unread_count":  unreadCount,
+	}); err != nil {
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to encode notifications")
+	}
 }
 
 // MarkAsReadAPI handles marking notifications as read.
-// TODO: Implement mark as read handler.
 func (h *HTTPHandler) MarkAsReadAPI(w http.ResponseWriter, r *http.Request) {
-	// Implementation placeholder
-	http.Error(w, "Not implemented", http.StatusNotImplemented)
+	notificationPublicID := r.PathValue("id")
+	if notificationPublicID == "" {
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Notification id is required")
+		return
+	}
+
+	if err := h.notificationService.MarkAsRead(r.Context(), notificationPublicID); err != nil {
+		if err == domain.ErrNotificationNotFound {
+			platformErrors.WriteErrorJSON(w, http.StatusNotFound, "Notification not found")
+			return
+		}
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to mark notification as read")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

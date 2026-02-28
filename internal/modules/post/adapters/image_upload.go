@@ -113,7 +113,7 @@ func ValidateImageType(data []byte) error {
 func FormatImageError(err error, maxSize int64) string {
 	switch err {
 	case upload.ErrInvalidImageType:
-		return "Invalid image type, must be JPEG, PNG, or GIF"
+		return "Invalid image type, must be JPEG, PNG, GIF, or WebP"
 	case upload.ErrEmptyImage:
 		return "Image data is empty"
 	case upload.ErrImageTooLarge:

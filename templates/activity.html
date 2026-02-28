@@ -1,0 +1,71 @@
+{{define "content"}}
+<div class="posts">
+    <h2>My Activity</h2>
+
+    {{if not .HideCreatedPosts}}
+    <h3><a class="comment-post-link" href="/board?my_posts=true">Created Posts</a></h3>
+    {{if .CreatedPosts}}
+    <div class="comments-list">
+        {{range .CreatedPosts}}
+        <article class="comment">
+            <div class="comment-context">
+                <p><a class="comment-post-link" href="/posts/{{.PublicID}}">{{.Title}}</a></p>
+            </div>
+            <div class="activity-post-footer">
+                <span class="comment-date">{{.CreatedAt.Format "Jan 02, 2006 at 3:04 PM"}}</span>
+                <div class="activity-post-actions">
+                    <span>👍 {{.LikeCount}}</span>
+                    <span>👎 {{.DislikeCount}}</span>
+                    <span>💬 {{.CommentCount}}</span>
+                </div>
+            </div>
+        </article>
+        {{end}}
+    </div>
+    {{else}}
+    <p class="no-posts">You haven't created any posts yet.</p>
+    {{end}}
+    {{end}}
+
+    {{if not .HideReactions}}
+    <h3><a class="comment-post-link" href="/board?liked_posts=true">Post Reactions</a></h3>
+    {{if .Reactions}}
+    <div class="comments-list">
+        {{range .Reactions}}
+        <article class="comment comment-reaction {{if eq .ReactionType "like"}}comment-reaction-like{{else}}comment-reaction-dislike{{end}}">
+            <div class="activity-reaction-row">
+                <div class="comment-context">
+                    <p>{{if eq .ReactionType "like"}}Liked{{else}}Disliked{{end}}: <a class="comment-post-link" href="/posts/{{.PostPublicID}}">{{.PostTitle}}</a></p>
+                </div>
+                <span class="activity-reaction-symbol {{if eq .ReactionType "like"}}activity-reaction-symbol-like{{else}}activity-reaction-symbol-dislike{{end}}" aria-hidden="true">{{if eq .ReactionType "like"}}👍{{else}}👎{{end}}</span>
+            </div>
+        </article>
+        {{end}}
+    </div>
+    {{else}}
+    <p class="no-posts">You haven't liked or disliked any posts yet.</p>
+    {{end}}
+    {{end}}
+
+    {{if not .HideComments}}
+    <h3><a class="comment-post-link" href="/comments">Comments</a></h3>
+    {{if .Comments}}
+    <div class="comments-list">
+        {{range .Comments}}
+        <article class="comment">
+            <div class="comment-context">
+                <p>On post: <a class="comment-post-link" href="/posts/{{.PostPublicID}}">{{.PostTitle}}</a></p>
+            </div>
+            <div class="comment-content">{{.Content}}</div>
+            <div class="comment-header">
+                <span class="comment-date">{{.CreatedAt.Format "Jan 02, 2006 at 3:04 PM"}}</span>
+            </div>
+        </article>
+        {{end}}
+    </div>
+    {{else}}
+    <p class="no-posts">You haven't commented on any posts yet.</p>
+    {{end}}
+    {{end}}
+</div>
+{{end}}

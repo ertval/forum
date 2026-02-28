@@ -18,12 +18,12 @@
 .btn-primary {
     background: linear-gradient(135deg, #b5ead7 0%, #c2f2e9 100%); /* Soft Green */
     color: #5a5a5a;
-    border: 1px solid #a3d9c5;
+    border: 1px solid var(--color-primary);
     box-shadow: 0 2px 6px rgba(181, 234, 215, 0.4);
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #a3d9c5 0%, #b0f0db 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(181, 234, 215, 0.5);
 }

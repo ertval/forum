@@ -11,8 +11,9 @@ import (
 // NotificationService defines notification management use cases.
 type NotificationService interface {
 	// CreateNotification creates a new notification for a user.
-	// userID: internal user ID, targetPublicID: public UUID of related entity
-	CreateNotification(ctx context.Context, userID int, notifType, message string, targetPublicID string) error
+	// userID: recipient internal user ID, actorID: internal user ID that triggered event.
+	// targetPublicID: public UUID of related entity.
+	CreateNotification(ctx context.Context, userID, actorID int, notifType, message string, targetPublicID string) error
 
 	// GetUserNotifications retrieves all notifications for a user.
 	// Uses internal userID from session

@@ -3,6 +3,7 @@ package database
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -171,7 +172,9 @@ func TestConnection_Ping(t *testing.T) {
 	})
 }
 
-func TestIndexOf(t *testing.T) {
+// TestStringsIndexByte tests the standard library function we now use
+// instead of the custom indexOf function
+func TestStringsIndexByte(t *testing.T) {
 	tests := []struct {
 		name     string
 		s        string
@@ -212,9 +215,9 @@ func TestIndexOf(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := indexOf(tt.s, tt.ch)
+			result := strings.IndexByte(tt.s, tt.ch)
 			if result != tt.expected {
-				t.Errorf("indexOf(%q, %q) = %d, want %d", tt.s, tt.ch, result, tt.expected)
+				t.Errorf("strings.IndexByte(%q, %q) = %d, want %d", tt.s, tt.ch, result, tt.expected)
 			}
 		})
 	}
@@ -650,10 +653,10 @@ func TestMigrator_Rollback(t *testing.T) {
 
 	migrator := NewMigrator(conn)
 
-	// Currently returns nil (not implemented)
+	// Rollback now returns an error indicating it's not implemented
 	err = migrator.Rollback()
-	if err != nil {
-		t.Errorf("Rollback() error = %v, expected nil (not yet implemented)", err)
+	if err == nil {
+		t.Error("Rollback() should return an error (not yet implemented)")
 	}
 }
 
@@ -666,13 +669,19 @@ func TestMigrator_Version(t *testing.T) {
 
 	migrator := NewMigrator(conn)
 
-	// Currently returns 0, nil (not implemented)
+	// First run Migrate to create the schema_migrations table
+	tmpDir := t.TempDir()
+	if err := migrator.Migrate(tmpDir); err != nil {
+		t.Fatalf("Migrate() failed: %v", err)
+	}
+
+	// Version should return 0 when no migrations are applied
 	version, err := migrator.Version()
 	if err != nil {
-		t.Errorf("Version() error = %v, expected nil (not yet implemented)", err)
+		t.Errorf("Version() error = %v, expected nil", err)
 	}
 	if version != 0 {
-		t.Errorf("Version() = %d, expected 0 (not yet implemented)", version)
+		t.Errorf("Version() = %d, expected 0 (no migrations applied)", version)
 	}
 }
 

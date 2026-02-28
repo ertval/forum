@@ -1,0 +1,80 @@
+{{define "content"}}
+<div class="posts">
+    <h2>Account Settings</h2>
+    <p>Update your profile, email, password, and avatar image.</p>
+
+    {{if .Updated}}
+    <article class="comment">
+        <div class="comment-content">
+            <p><strong>Success:</strong> Your account settings were updated.</p>
+        </div>
+    </article>
+    {{end}}
+
+    {{if .ErrorMessage}}
+    <article class="comment">
+        <div class="comment-content">
+            <p><strong>Error:</strong> {{.ErrorMessage}}</p>
+        </div>
+    </article>
+    {{end}}
+
+    <article class="comment">
+        <div class="comment-content">
+            <form class="settings-form" action="/settings" method="POST" enctype="multipart/form-data">
+                <p><strong>Public UUID:</strong> {{.User.PublicID}}</p>
+
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required value="{{.User.Username}}" maxlength="50">
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required value="{{.User.Email}}" maxlength="255">
+                </div>
+
+                <div class="form-group">
+                    <label for="new_password">New password</label>
+                    <input type="password" id="new_password" name="new_password" minlength="8" autocomplete="new-password">
+                    <small class="form-hint">Leave blank to keep your current password.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm_password">Confirm new password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" minlength="8" autocomplete="new-password">
+                </div>
+
+                <div class="form-group">
+                    <label for="avatar">Avatar image (max {{.MaxAvatarSizeMB}}MB)</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="avatar" name="avatar" accept="image/jpeg,image/png,image/gif,image/webp">
+                        <label for="avatar" class="file-input-label">Choose avatar image</label>
+                        <span class="file-name">JPG, PNG, GIF, or WebP</span>
+                    </div>
+                </div>
+
+                {{if .User.AvatarURL}}
+                <div class="form-group">
+                    <p><strong>Current avatar:</strong></p>
+                    <div class="user-avatar">
+                        <img src="{{.User.AvatarURL}}" alt="Current avatar" class="avatar-image">
+                    </div>
+                </div>
+                {{end}}
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save settings</button>
+                </div>
+            </form>
+        </div>
+    </article>
+
+    <article class="comment">
+        <div class="comment-content">
+            <p><strong>Security:</strong> Your password is securely stored as a hash and your account access is protected by an authenticated session.</p>
+            <p>Use the Logout action from the user menu to end your current session on this device.</p>
+        </div>
+    </article>
+</div>
+{{end}}

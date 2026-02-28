@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -17,10 +18,15 @@ import (
 
 // RegisterAPIRoutes registers all authentication API routes with the router.
 func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
+	authMiddleware := h.middlewareProvider.RequireAuth()
+
+	// Public API routes (no authentication required)
 	router.HandleFunc("POST /api/auth/register", h.RegisterAPI)
 	router.HandleFunc("POST /api/auth/login", h.LoginAPI)
-	router.HandleFunc("POST /api/auth/logout", h.LogoutAPI)
-	router.HandleFunc("GET /api/auth/session", h.GetSessionAPI)
+
+	// Protected API routes (require authentication)
+	router.Handle("POST /api/auth/logout", authMiddleware(http.HandlerFunc(h.LogoutAPI)))
+	router.Handle("GET /api/auth/session", authMiddleware(http.HandlerFunc(h.GetSessionAPI)))
 }
 
 // RegisterAPI handles user registration API requests.
@@ -71,7 +77,7 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		Expires:  session.ExpiresAt,
 		HttpOnly: true,
-		Secure:   false, // Set to true in production with HTTPS
+		Secure:   h.secureCookies,
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -126,7 +132,7 @@ func (h *HTTPHandler) LoginAPI(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		Expires:  session.ExpiresAt,
 		HttpOnly: true,
-		Secure:   false, // Set to true in production with HTTPS
+		Secure:   h.secureCookies,
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -178,7 +184,7 @@ func (h *HTTPHandler) LogoutAPI(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   -1, // Delete the cookie
 		HttpOnly: true,
-		Secure:   false, // Set to true in production with HTTPS
+		Secure:   h.secureCookies,
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -234,7 +240,7 @@ func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interfac
 
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		// Log the error, but don't send it to the client
-		fmt.Printf("Error encoding JSON response: %v\n", err)
+		log.Printf("Error encoding JSON response: %v", err)
 	}
 }
 

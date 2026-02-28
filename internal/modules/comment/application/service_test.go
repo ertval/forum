@@ -3,11 +3,37 @@ package application
 import (
 	"context"
 	"forum/internal/modules/comment/domain"
+	notificationDomain "forum/internal/modules/notification/domain"
 	postDomain "forum/internal/modules/post/domain"
 	userDomain "forum/internal/modules/user/domain"
 	"testing"
 	"time"
 )
+
+type MockNotificationService struct {
+	called         bool
+	userID         int
+	actorID        int
+	notifType      string
+	targetPublicID string
+}
+
+func (m *MockNotificationService) CreateNotification(ctx context.Context, userID, actorID int, notifType, message string, targetPublicID string) error {
+	m.called = true
+	m.userID = userID
+	m.actorID = actorID
+	m.notifType = notifType
+	m.targetPublicID = targetPublicID
+	return nil
+}
+
+func (m *MockNotificationService) GetUserNotifications(ctx context.Context, userID int) ([]*notificationDomain.Notification, error) {
+	return nil, nil
+}
+
+func (m *MockNotificationService) MarkAsRead(ctx context.Context, notificationPublicID string) error {
+	return nil
+}
 
 // MockCommentRepository implements CommentRepository for testing
 type MockCommentRepository struct {
@@ -183,6 +209,10 @@ func (m *MockUserService) IncrementReactionCount(ctx context.Context, userID int
 
 func (m *MockUserService) DecrementReactionCount(ctx context.Context, userID int) error {
 	return nil
+}
+
+func (m *MockUserService) UpdateSettings(ctx context.Context, publicID, username, email, newPassword, avatarPath string) (*userDomain.User, error) {
+	return nil, nil
 }
 
 // MockPostService implements PostService for testing
@@ -543,5 +573,37 @@ func TestService_DeleteComment_NotFound(t *testing.T) {
 	err := service.DeleteComment(ctx, "non-existent-comment")
 	if err == nil {
 		t.Error("Expected error for non-existent comment, got nil")
+	}
+}
+
+func TestService_CreateComment_SendsNotificationToPostOwner(t *testing.T) {
+	ctx := context.Background()
+	mockRepo := &MockCommentRepository{}
+	mockPostService := &MockPostService{}
+	mockUserService := &MockUserService{}
+	notificationService := &MockNotificationService{}
+
+	service := NewService(mockRepo, mockPostService, mockUserService)
+	service.SetNotificationService(notificationService)
+
+	_, err := service.CreateComment(ctx, "post-uuid-10", 5, "Test content")
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if !notificationService.called {
+		t.Fatal("expected notification service to be called")
+	}
+	if notificationService.userID != 1 {
+		t.Fatalf("expected recipient user id 1, got %d", notificationService.userID)
+	}
+	if notificationService.actorID != 5 {
+		t.Fatalf("expected actor id 5, got %d", notificationService.actorID)
+	}
+	if notificationService.notifType != notificationDomain.TypeComment {
+		t.Fatalf("expected type %s, got %s", notificationDomain.TypeComment, notificationService.notifType)
+	}
+	if notificationService.targetPublicID != "post-uuid-10" {
+		t.Fatalf("expected target post-uuid-10, got %s", notificationService.targetPublicID)
 	}
 }

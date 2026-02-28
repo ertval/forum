@@ -8,27 +8,17 @@ import (
 
 // This test file verifies that the interfaces are properly defined and can be implemented
 func TestNotificationServiceInterface(t *testing.T) {
-	// This test ensures that the NotificationService interface is properly defined
-	// and that we can create a variable of the interface type
-
-	var notificationService NotificationService
-	if notificationService != nil {
-		t.Error("NotificationService interface should be usable as a nil variable")
-	}
+	var _ NotificationService = (*mockNotificationService)(nil)
 }
 
 func TestNotificationRepositoryInterface(t *testing.T) {
-	// This test ensures that the NotificationRepository interface is properly defined
-	var notificationRepo NotificationRepository
-	if notificationRepo != nil {
-		t.Error("NotificationRepository interface should be usable as a nil variable")
-	}
+	var _ NotificationRepository = (*mockNotificationRepository)(nil)
 }
 
 // Mock implementations for interface compatibility testing
 type mockNotificationService struct{}
 
-func (m *mockNotificationService) CreateNotification(ctx context.Context, userID int, notifType, message string, targetPublicID string) error {
+func (m *mockNotificationService) CreateNotification(ctx context.Context, userID, actorID int, notifType, message string, targetPublicID string) error {
 	return nil
 }
 
@@ -63,7 +53,7 @@ func TestNotificationServiceInterfaceMethods(t *testing.T) {
 
 	// Test each method signature
 	// Use public target id string
-	err := service.CreateNotification(ctx, 1, "type", "message", "target-1")
+	err := service.CreateNotification(ctx, 1, 2, "type", "message", "target-1")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}

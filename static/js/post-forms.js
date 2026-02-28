@@ -1,4 +1,5 @@
 // JavaScript functions for post creation and editing
+'use strict';
 
 document.addEventListener('DOMContentLoaded', function() {
     // Track if image should be removed on form submission
@@ -41,6 +42,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (file.size > maxImageSize) {
                     const formErrors = document.getElementById('form-errors');
                     if (formErrors) formErrors.innerHTML = `<p class="error">Image must be less than ${maxImageSizeMB}MB</p>`;
+                    e.target.value = '';
+                    if (preview) preview.innerHTML = '';
+                    if (fileNameDisplay) fileNameDisplay.textContent = 'No file chosen';
+                    return;
+                }
+
+                // SEC-2 fix: Validate file type to prevent upload of non-image files
+                const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+                if (!allowedTypes.includes(file.type)) {
+                    const formErrors = document.getElementById('form-errors');
+                    if (formErrors) formErrors.innerHTML = '<p class="error">Only JPEG, PNG, GIF, and WebP images are allowed</p>';
                     e.target.value = '';
                     if (preview) preview.innerHTML = '';
                     if (fileNameDisplay) fileNameDisplay.textContent = 'No file chosen';
@@ -231,28 +243,31 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Handle post deletion (for edit form)
-    window.deletePost = async function(postId) {
-        const confirmed = await confirmDelete('Post');
-        if (!confirmed) {
-            return;
-        }
-        
-        try {
-            const response = await fetch(`/api/posts/${postId}`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                window.location.href = '/board?my_posts=true';
-            } else {
-                const error = await response.json();
-                const formErrors = document.getElementById('form-errors');
-                if (formErrors) formErrors.innerHTML = `<p class="error">${error.error || 'Failed to delete post'}</p>`;
+    // Use guard pattern to prevent redefinition if another script already defined it
+    if (!window.deletePost) {
+        window.deletePost = async function(postId) {
+            const confirmed = await confirmDelete('Post');
+            if (!confirmed) {
+                return;
             }
-        } catch (error) {
-            console.error('Delete error:', error);
-            const formErrors = document.getElementById('form-errors');
-            if (formErrors) formErrors.innerHTML = '<p class="error">An error occurred while deleting the post</p>';
-        }
-    };
+            
+            try {
+                const response = await fetch(`/api/posts/${postId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    window.location.href = '/board?my_posts=true';
+                } else {
+                    const error = await response.json();
+                    const formErrors = document.getElementById('form-errors');
+                    if (formErrors) formErrors.innerHTML = `<p class="error">${window.escapeHtml(error.error || 'Failed to delete post')}</p>`;
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                const formErrors = document.getElementById('form-errors');
+                if (formErrors) formErrors.innerHTML = '<p class="error">An error occurred while deleting the post</p>';
+            }
+        };
+    }
 });

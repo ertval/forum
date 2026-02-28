@@ -12,17 +12,13 @@ func TestReactionServiceInterface(t *testing.T) {
 	// and that we can create a variable of the interface type
 
 	var reactionService ReactionService
-	if reactionService != nil {
-		t.Error("ReactionService interface should be usable as a nil variable")
-	}
+	_ = reactionService // ensure the interface is defined and can be used
 }
 
 func TestReactionRepositoryInterface(t *testing.T) {
 	// This test ensures that the ReactionRepository interface is properly defined
 	var reactionRepo ReactionRepository
-	if reactionRepo != nil {
-		t.Error("ReactionRepository interface should be usable as a nil variable")
-	}
+	_ = reactionRepo // ensure the interface is defined and can be used
 }
 
 // Mock implementations for interface compatibility testing

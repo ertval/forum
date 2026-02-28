@@ -51,6 +51,9 @@ fi
 
 echo -e "${YELLOW}=== Image Removal Functionality Test ===${NC}\n"
 
+# Clean up any stale cookies from previous runs
+rm -f "$COOKIE_JAR"
+
 # Create a test image
 echo "Creating test image..."
 convert -size 100x100 xc:blue "$TEST_IMAGE" 2>/dev/null || {
@@ -68,13 +71,17 @@ UNIQUE_ID="${TIMESTAMP}$$"
 # Take last 6 digits to keep it short but unique
 SHORT_ID="${UNIQUE_ID: -6}"
 # Use modulo to map to names, ensuring true uniqueness with the timestamp
-NAME_IDX=$((SHORT_ID % 100))
+# Use 10# prefix to force base-10 interpretation (avoids octal error for 08, 09, etc.)
+NAME_IDX=$((10#$SHORT_ID % 100))
 FIRST_NAMES=("Alice" "Bob" "Charlie" "Diana" "Eve" "Frank" "Grace" "Henry" "Ivy" "Jack" "Kate" "Leo" "Mia" "Noah" "Olivia" "Peter" "Quinn" "Rose" "Sam" "Tina")
 LAST_NAMES=("Smith" "Jones" "Brown" "Davis" "Miller" "Wilson" "Moore" "Taylor" "Anderson" "Thomas")
-FIRST_IDX=$((NAME_IDX % 20))
-LAST_IDX=$((NAME_IDX / 20 % 10))
-# Construct username with names
-TEST_USERNAME="${FIRST_NAMES[$FIRST_IDX]} ${LAST_NAMES[$LAST_IDX]} Imgtest"
+# Additional word pool for unique suffix (letters only to comply with username validation)
+SUFFIX_WORDS=("Alpha" "Beta" "Gamma" "Delta" "Echo" "Foxtrot" "Golf" "Hotel" "India" "Juliet" "Kilo" "Lima" "Mike" "November" "Oscar" "Papa" "Quebec" "Romeo" "Sierra" "Tango" "Uniform" "Victor" "Whiskey" "Xray" "Yankee" "Zulu")
+FIRST_IDX=$((10#$NAME_IDX % 20))
+LAST_IDX=$((10#$NAME_IDX / 20 % 10))
+SUFFIX_IDX=$((10#${UNIQUE_ID: -4} % 26))
+# Construct username with names only (no numbers/UUIDs - validation requires letters only)
+TEST_USERNAME="${FIRST_NAMES[$FIRST_IDX]} ${LAST_NAMES[$LAST_IDX]} ${SUFFIX_WORDS[$SUFFIX_IDX]}"
 TEST_EMAIL="imgremove_${UNIQUE_ID}@example.com"
 TEST_PASSWORD="TestPass123!"
 

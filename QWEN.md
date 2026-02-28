@@ -40,7 +40,7 @@ internal/modules/{module}/
 
 ## API URL Pattern
 
-All JSON API endpoints follow: `/api/{module}/{action}`
+All JSON API endpoints use the `/api` prefix with resource-style routes.
 
 ```
 POST /api/auth/register   POST /api/auth/login     GET /api/auth/session
@@ -98,6 +98,6 @@ go test ./tests/integration/... -v  # Integration tests
 
 ## Status & TODOs
 
-**✅ Complete**: auth, post, category, platform layer  
-**⚠️ Scaffolded**: comment, reaction (search `// TODO:` to implement)  
-**Optional**: moderation, notification (marked `[OPTIONAL FEATURE]`)
+**✅ Complete**: auth, user settings/avatar, post, category, comment, reaction, notification, platform layer  
+**⚠️ Pending Optional Features**: moderation, OAuth authentication extensions  
+**Script-audit expectation**: advanced passes; moderation and authentication (OAuth) remain pending.

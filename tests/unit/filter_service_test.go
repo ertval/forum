@@ -88,6 +88,78 @@ func TestFilterService_BuildFilter(t *testing.T) {
 			},
 		},
 		{
+			name: "disliked posts filter",
+			params: domain.FilterParams{
+				DislikedPosts: true,
+				CurrentUserID: "456",
+				Limit:         10,
+			},
+			expected: domain.PostFilter{
+				DislikedByUserID: "456",
+				Limit:            10,
+				Offset:           0,
+				DateFilter:       "all",
+			},
+		},
+		{
+			name: "commented posts filter",
+			params: domain.FilterParams{
+				CommentedPosts: true,
+				CurrentUserID:  "456",
+				Limit:          10,
+			},
+			expected: domain.PostFilter{
+				CommenterID: "456",
+				Limit:       10,
+				Offset:      0,
+				DateFilter:  "all",
+			},
+		},
+		{
+			name: "activity reactions with all reaction types",
+			params: domain.FilterParams{
+				ActivityType:  "reactions",
+				ReactionType:  "all",
+				CurrentUserID: "456",
+				Limit:         10,
+			},
+			expected: domain.PostFilter{
+				ReactedByUserID: "456",
+				Limit:           10,
+				Offset:          0,
+				DateFilter:      "all",
+			},
+		},
+		{
+			name: "activity reactions with dislike type",
+			params: domain.FilterParams{
+				ActivityType:  "reactions",
+				ReactionType:  "dislike",
+				CurrentUserID: "456",
+				Limit:         10,
+			},
+			expected: domain.PostFilter{
+				DislikedByUserID: "456",
+				Limit:            10,
+				Offset:           0,
+				DateFilter:       "all",
+			},
+		},
+		{
+			name: "activity commented posts",
+			params: domain.FilterParams{
+				ActivityType:  "commented_posts",
+				CurrentUserID: "456",
+				Limit:         10,
+			},
+			expected: domain.PostFilter{
+				CommenterID: "456",
+				Limit:       10,
+				Offset:      0,
+				DateFilter:  "all",
+			},
+		},
+		{
 			name: "date filter - today",
 			params: domain.FilterParams{
 				DateFilter: "today",
@@ -153,6 +225,15 @@ func TestFilterService_BuildFilter(t *testing.T) {
 			}
 			if result.LikedByUserID != tt.expected.LikedByUserID {
 				t.Errorf("LikedByUserID: got %v, want %v", result.LikedByUserID, tt.expected.LikedByUserID)
+			}
+			if result.DislikedByUserID != tt.expected.DislikedByUserID {
+				t.Errorf("DislikedByUserID: got %v, want %v", result.DislikedByUserID, tt.expected.DislikedByUserID)
+			}
+			if result.ReactedByUserID != tt.expected.ReactedByUserID {
+				t.Errorf("ReactedByUserID: got %v, want %v", result.ReactedByUserID, tt.expected.ReactedByUserID)
+			}
+			if result.CommenterID != tt.expected.CommenterID {
+				t.Errorf("CommenterID: got %v, want %v", result.CommenterID, tt.expected.CommenterID)
 			}
 			if result.DateFilter != tt.expected.DateFilter {
 				t.Errorf("DateFilter: got %v, want %v", result.DateFilter, tt.expected.DateFilter)

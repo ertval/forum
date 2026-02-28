@@ -6,6 +6,7 @@ import (
 	"context"
 	"forum/internal/modules/notification/domain"
 	"forum/internal/modules/notification/ports"
+	"time"
 )
 
 // Service implements the NotificationService interface.
@@ -19,14 +20,32 @@ func NewService(notificationRepo ports.NotificationRepository) *Service {
 }
 
 // CreateNotification creates a new notification for a user.
-// TODO: Implement notification creation with validation.
-func (s *Service) CreateNotification(ctx context.Context, userID int, notifType, message string, targetPublicID string) error {
-	// Implementation placeholder
-	// 1. Validate notification type
-	// 2. Resolve targetPublicID to internal target ID if needed
-	// 3. Create notification entity
-	// 4. Save to repository (repo generates PublicID)
-	return nil
+func (s *Service) CreateNotification(ctx context.Context, userID, actorID int, notifType, message string, targetPublicID string) error {
+	if userID <= 0 || actorID <= 0 {
+		return domain.ErrInvalidUserID
+	}
+
+	if targetPublicID == "" {
+		return domain.ErrInvalidTarget
+	}
+
+	switch notifType {
+	case domain.TypeLike, domain.TypeDislike, domain.TypeComment, domain.TypeReply:
+	default:
+		return domain.ErrInvalidNotificationType
+	}
+
+	notification := &domain.Notification{
+		UserID:         userID,
+		ActorID:        actorID,
+		Type:           notifType,
+		Message:        message,
+		IsRead:         false,
+		CreatedAt:      time.Now(),
+		PublicTargetID: targetPublicID,
+	}
+
+	return s.notificationRepo.Create(ctx, notification)
 }
 
 // GetUserNotifications retrieves all notifications for a user.

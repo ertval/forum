@@ -183,6 +183,10 @@ func (m *mockUserService) DecrementReactionCount(ctx context.Context, userID int
 	return nil
 }
 
+func (m *mockUserService) UpdateSettings(ctx context.Context, publicID, username, email, newPassword, avatarPath string) (*userDomain.User, error) {
+	return nil, nil
+}
+
 // mockImageHandler implements ports.ImageHandler for testing
 type mockImageHandler struct {
 	saveFunc   func(data []byte) (string, error)

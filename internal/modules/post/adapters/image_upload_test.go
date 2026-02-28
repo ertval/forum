@@ -232,6 +232,9 @@ func TestValidateImageType(t *testing.T) {
 	// Valid GIF magic bytes
 	validGIF := []byte{0x47, 0x49, 0x46, 0x38, 0x39, 0x61}
 
+	// Valid WebP magic bytes
+	validWebP := []byte{0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50}
+
 	// Invalid image bytes
 	invalidImage := []byte{0x00, 0x00, 0x00, 0x00}
 
@@ -266,6 +269,11 @@ func TestValidateImageType(t *testing.T) {
 			wantErr: nil,
 		},
 		{
+			name:    "valid WebP",
+			data:    validWebP,
+			wantErr: nil,
+		},
+		{
 			name:    "invalid image data",
 			data:    invalidImage,
 			wantErr: upload.ErrInvalidImageType,
@@ -297,7 +305,7 @@ func TestFormatImageError(t *testing.T) {
 		{
 			name:    "invalid image type error",
 			err:     upload.ErrInvalidImageType,
-			wantMsg: "Invalid image type, must be JPEG, PNG, or GIF",
+			wantMsg: "Invalid image type, must be JPEG, PNG, GIF, or WebP",
 		},
 		{
 			name:    "image too large error",

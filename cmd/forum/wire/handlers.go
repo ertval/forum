@@ -3,6 +3,9 @@ package wire
 
 import (
 	"html/template"
+	"os"
+
+	"forum/internal/platform/config"
 
 	authAdapters "forum/internal/modules/auth/adapters"
 	commentAdapters "forum/internal/modules/comment/adapters"
@@ -25,23 +28,32 @@ type Handlers struct {
 }
 
 // initHandlers creates all HTTP handler instances with unified dependency injection.
-func initHandlers(services *ServiceContainer) *Handlers {
-
+// Returns error if templates directory exists but contains invalid templates.
+func initHandlers(services *ServiceContainer, cfg *config.Config) (*Handlers, error) {
 	// Parse templates once and share between handlers that need them
-	// Skip if templates directory doesn't exist (for tests)
-	templates, err := template.ParseGlob("templates/*.html")
-	if err != nil {
-		// Templates are optional - API-only mode works without them
-		templates = nil
+	var templates *template.Template
+
+	// Check if templates directory exists
+	if info, err := os.Stat("templates"); err == nil && info.IsDir() {
+		// Directory exists - parse templates (errors are fatal)
+		templates, err = template.ParseGlob("templates/*.html")
+		if err != nil {
+			return nil, err
+		}
 	}
+	// If directory doesn't exist, templates remain nil (API-only mode)
+
+	// Cookie security is determined by config (from environment)
+	// In production, cfg.Session.Secure should be true
+	secureCookies := cfg.Session.Secure
 
 	return &Handlers{
-		Auth:         authAdapters.NewHTTPHandler(services, templates),
+		Auth:         authAdapters.NewHTTPHandler(services, templates, secureCookies),
 		User:         userAdapters.NewHTTPHandler(services, templates),
 		Post:         postAdapters.NewHTTPHandler(services, templates),
 		Comment:      commentAdapters.NewHTTPHandler(services, templates),
 		Reaction:     reactionAdapters.NewHTTPHandler(services, templates),
 		Moderation:   moderationAdapters.NewHTTPHandler(services, templates),
 		Notification: notificationAdapters.NewHTTPHandler(services, templates),
-	}
+	}, nil
 }

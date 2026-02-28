@@ -3,9 +3,12 @@ package httpserver
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"forum/internal/platform/logger"
@@ -158,43 +161,81 @@ func CORS(allowedOrigins []string) Middleware {
 	}
 }
 
-// rateLimiter tracks request counts per IP address.
+// RateLimiterConfig holds configuration for the rate limiter.
+type RateLimiterConfig struct {
+	Requests        int           // Maximum requests per window
+	Window          time.Duration // Time window for rate limiting
+	CleanupInterval time.Duration // How often to clean up expired entries
+	MaxEntries      int           // Maximum number of IP entries to prevent DoS
+	TrustProxy      bool          // Whether to trust X-Forwarded-For header
+}
+
+// DefaultRateLimiterConfig returns sensible defaults for rate limiting.
+func DefaultRateLimiterConfig(requests int, windowSeconds int) RateLimiterConfig {
+	return RateLimiterConfig{
+		Requests:        requests,
+		Window:          time.Duration(windowSeconds) * time.Second,
+		CleanupInterval: time.Minute,
+		MaxEntries:      10000, // Prevent memory exhaustion from IP spoofing
+		TrustProxy:      false, // Don't trust proxy headers by default
+	}
+}
+
+// rateLimiter tracks request counts per IP address using a sliding window.
 type rateLimiter struct {
-	requests map[string][]time.Time
+	entries    sync.Map // map[string]*ipEntry - lock-free for reads
+	limit      int
+	window     time.Duration
+	maxEntries int
+	trustProxy bool
+	entryCount int64 // atomic counter for entries
+	done       chan struct{}
+}
+
+// ipEntry tracks requests for a single IP with its own lock.
+type ipEntry struct {
 	mu       sync.Mutex
-	limit    int
-	window   time.Duration
+	requests []time.Time
 }
 
 // RateLimit middleware limits the number of requests per time window.
 // This is IP-based rate limiting that doesn't require user context.
 // For user-based rate limiting, use auth module middleware.
 func RateLimit(requests int, windowSeconds int) Middleware {
+	return RateLimitWithConfig(DefaultRateLimiterConfig(requests, windowSeconds))
+}
+
+// RateLimitWithConfig creates a rate limiter with custom configuration.
+// The returned cleanup function should be called during graceful shutdown.
+func RateLimitWithConfig(cfg RateLimiterConfig) Middleware {
 	limiter := &rateLimiter{
-		requests: make(map[string][]time.Time),
-		limit:    requests,
-		window:   time.Duration(windowSeconds) * time.Second,
+		limit:      cfg.Requests,
+		window:     cfg.Window,
+		maxEntries: cfg.MaxEntries,
+		trustProxy: cfg.TrustProxy,
+		done:       make(chan struct{}),
 	}
 
-	// Cleanup goroutine to prevent memory leak
+	// Cleanup goroutine with graceful shutdown support
 	go func() {
-		ticker := time.NewTicker(time.Minute)
+		ticker := time.NewTicker(cfg.CleanupInterval)
 		defer ticker.Stop()
-		for range ticker.C {
-			limiter.cleanup()
+		for {
+			select {
+			case <-ticker.C:
+				limiter.cleanup()
+			case <-limiter.done:
+				return // Exit on shutdown signal
+			}
 		}
 	}()
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Extract client IP (handle proxies)
-			clientIP := r.RemoteAddr
-			if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-				clientIP = forwarded
-			}
+			clientIP := getClientIP(r, limiter.trustProxy)
 
 			if !limiter.allow(clientIP) {
-				w.Header().Set("Retry-After", fmt.Sprintf("%d", windowSeconds))
+				w.Header().Set("Retry-After", fmt.Sprintf("%d", int(cfg.Window.Seconds())))
 				http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
 				return
 			}
@@ -204,17 +245,59 @@ func RateLimit(requests int, windowSeconds int) Middleware {
 	}
 }
 
+// getClientIP extracts the client IP address from the request.
+// Only trusts X-Forwarded-For if trustProxy is true (behind known proxy).
+func getClientIP(r *http.Request, trustProxy bool) string {
+	if trustProxy {
+		// X-Forwarded-For may contain multiple IPs: client, proxy1, proxy2
+		// The first IP is the original client
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			if idx := strings.Index(xff, ","); idx != -1 {
+				return strings.TrimSpace(xff[:idx])
+			}
+			return strings.TrimSpace(xff)
+		}
+		// X-Real-IP is set by some proxies (nginx)
+		if xri := r.Header.Get("X-Real-IP"); xri != "" {
+			return strings.TrimSpace(xri)
+		}
+	}
+	// Strip port from RemoteAddr (format: "IP:port" or "[IPv6]:port")
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return r.RemoteAddr
+}
+
 // allow checks if a request from the given IP is allowed.
 func (rl *rateLimiter) allow(ip string) bool {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
 	now := time.Now()
 	windowStart := now.Add(-rl.window)
 
-	// Filter out old requests
-	var recent []time.Time
-	for _, t := range rl.requests[ip] {
+	// Get or create entry for this IP
+	val, loaded := rl.entries.LoadOrStore(ip, &ipEntry{
+		requests: []time.Time{now},
+	})
+
+	if !loaded {
+		// New entry - check if we're at capacity
+		newCount := atomic.AddInt64(&rl.entryCount, 1)
+		if newCount > int64(rl.maxEntries) {
+			// At capacity - remove the entry we just added and reject
+			rl.entries.Delete(ip)
+			atomic.AddInt64(&rl.entryCount, -1)
+			return false // Reject to prevent DoS via IP spoofing
+		}
+		return true // First request for this IP, always allowed
+	}
+
+	entry := val.(*ipEntry)
+	entry.mu.Lock()
+	defer entry.mu.Unlock()
+
+	// Filter out old requests (sliding window)
+	recent := entry.requests[:0] // Reuse backing array
+	for _, t := range entry.requests {
 		if t.After(windowStart) {
 			recent = append(recent, t)
 		}
@@ -222,36 +305,48 @@ func (rl *rateLimiter) allow(ip string) bool {
 
 	// Check if under limit
 	if len(recent) >= rl.limit {
-		rl.requests[ip] = recent
+		entry.requests = recent
 		return false
 	}
 
 	// Record this request
-	rl.requests[ip] = append(recent, now)
+	entry.requests = append(recent, now)
 	return true
 }
 
 // cleanup removes expired entries to prevent memory growth.
 func (rl *rateLimiter) cleanup() {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
 	now := time.Now()
 	windowStart := now.Add(-rl.window)
 
-	for ip, times := range rl.requests {
-		var recent []time.Time
-		for _, t := range times {
+	rl.entries.Range(func(key, value interface{}) bool {
+		entry := value.(*ipEntry)
+		entry.mu.Lock()
+
+		// Filter to only recent requests
+		recent := entry.requests[:0]
+		for _, t := range entry.requests {
 			if t.After(windowStart) {
 				recent = append(recent, t)
 			}
 		}
+
 		if len(recent) == 0 {
-			delete(rl.requests, ip)
+			entry.mu.Unlock()
+			rl.entries.Delete(key)
+			atomic.AddInt64(&rl.entryCount, -1)
 		} else {
-			rl.requests[ip] = recent
+			entry.requests = recent
+			entry.mu.Unlock()
 		}
-	}
+
+		return true // Continue iteration
+	})
+}
+
+// Stop gracefully shuts down the rate limiter's cleanup goroutine.
+func (rl *rateLimiter) Stop() {
+	close(rl.done)
 }
 
 // NOTE: Authentication and Authorization middleware are intentionally NOT here.

@@ -8,18 +8,20 @@ import (
 
 // User represents a forum user.
 type User struct {
-	ID            int       `json:"-"`              // Internal unique identifier (INT PRIMARY KEY) - never expose
-	PublicID      string    `json:"id"`             // Public UUID identifier (exposed in API)
-	Email         string    `json:"email"`          // User's email address (unique)
-	Username      string    `json:"username"`       // User's display name (unique)
-	PasswordHash  string    `json:"-"`              // Hashed password - never expose
-	Role          Role      `json:"role"`           // User's role (Guest, User, Moderator, Admin)
-	PostCount     int       `json:"post_count"`     // Number of posts created (cached from posts table)
-	CommentCount  int       `json:"comment_count"`  // Number of comments made (cached from comments table)
-	ReactionCount int       `json:"reaction_count"` // Number of reactions given (computed from reactions table)
-	CreatedAt     time.Time `json:"created_at"`     // Account creation timestamp
-	UpdatedAt     time.Time `json:"updated_at"`     // Last update timestamp
-	IsActive      bool      `json:"is_active"`      // Account active status
+	ID            int       `json:"-"`                    // Internal unique identifier (INT PRIMARY KEY) - never expose
+	PublicID      string    `json:"id"`                   // Public UUID identifier (exposed in API)
+	Email         string    `json:"email"`                // User's email address (unique)
+	Username      string    `json:"username"`             // User's display name (unique)
+	PasswordHash  string    `json:"-"`                    // Hashed password - never expose
+	AvatarPath    string    `json:"-"`                    // Stored avatar filename (internal only)
+	AvatarURL     string    `json:"avatar_url,omitempty"` // Public avatar URL
+	Role          Role      `json:"role"`                 // User's role (Guest, User, Moderator, Admin)
+	PostCount     int       `json:"post_count"`           // Number of posts created (cached from posts table)
+	CommentCount  int       `json:"comment_count"`        // Number of comments made (cached from comments table)
+	ReactionCount int       `json:"reaction_count"`       // Number of reactions given (computed from reactions table)
+	CreatedAt     time.Time `json:"created_at"`           // Account creation timestamp
+	UpdatedAt     time.Time `json:"updated_at"`           // Last update timestamp
+	IsActive      bool      `json:"is_active"`            // Account active status
 }
 
 // Role represents a user's permission level.
@@ -39,11 +41,46 @@ const (
 	RoleAdmin Role = "admin"
 )
 
+// Permission constants define actions that can be checked.
+const (
+	PermissionViewContent      = "view"
+	PermissionCreatePost       = "create_post"
+	PermissionCreateComment    = "create_comment"
+	PermissionReact            = "react"
+	PermissionEditOwn          = "edit_own"
+	PermissionDeleteOwn        = "delete_own"
+	PermissionEditAny          = "edit_any"
+	PermissionDeleteAny        = "delete_any"
+	PermissionModerate         = "moderate"
+	PermissionManageUsers      = "manage_users"
+	PermissionManageCategories = "manage_categories"
+)
+
 // HasPermission checks if the user has permission for an action based on their role.
-// TODO: Implement permission logic.
 func (u *User) HasPermission(action string) bool {
-	// Implementation placeholder
-	// Define permissions for each role
+	switch u.Role {
+	case RoleAdmin:
+		// Admins have all permissions
+		return true
+	case RoleModerator:
+		// Moderators can view, create, moderate, and manage content
+		switch action {
+		case PermissionViewContent, PermissionCreatePost, PermissionCreateComment,
+			PermissionReact, PermissionEditOwn, PermissionDeleteOwn,
+			PermissionEditAny, PermissionDeleteAny, PermissionModerate:
+			return true
+		}
+	case RoleUser:
+		// Users can view, create, and manage their own content
+		switch action {
+		case PermissionViewContent, PermissionCreatePost, PermissionCreateComment,
+			PermissionReact, PermissionEditOwn, PermissionDeleteOwn:
+			return true
+		}
+	case RoleGuest:
+		// Guests can only view content
+		return action == PermissionViewContent
+	}
 	return false
 }
 

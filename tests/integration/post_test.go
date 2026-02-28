@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -24,7 +25,7 @@ func TestPostCreationAndRetrieval(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register user and login
-	sessionToken := registerAndLogin(t, app, "user@test.com", "Test User", "pass123")
+	sessionToken := registerAndLogin(t, app, "user@test.com", "Test User", "password123")
 
 	// Create category
 	createCategory(t, app, "tests")
@@ -72,7 +73,7 @@ func TestEmptyPostValidation(t *testing.T) {
 	app := setupTestApp(t)
 	defer app.Cleanup()
 
-	sessionToken := registerAndLogin(t, app, "user2@test.com", "Second User", "pass123")
+	sessionToken := registerAndLogin(t, app, "user2@test.com", "Second User", "password123")
 
 	// Empty title
 	postData := map[string]interface{}{
@@ -99,7 +100,7 @@ func TestFormPostCreation(t *testing.T) {
 	app := setupTestApp(t)
 	defer app.Cleanup()
 
-	sessionToken := registerAndLogin(t, app, "user3@test.com", "Third User", "pass123")
+	sessionToken := registerAndLogin(t, app, "user3@test.com", "Third User", "password123")
 	createCategory(t, app, "tests")
 	createCategory(t, app, "news")
 
@@ -136,6 +137,8 @@ func TestFormPostCreation(t *testing.T) {
 // Helper functions
 
 func setupTestApp(t *testing.T) *wire.App {
+	uploadDir := filepath.Join(t.TempDir(), "uploads")
+
 	cfg := &config.Config{
 		Database: config.DatabaseConfig{
 			Path:          ":memory:",
@@ -144,6 +147,11 @@ func setupTestApp(t *testing.T) *wire.App {
 		Server:   config.ServerConfig{Port: 8080},
 		Session:  config.SessionConfig{Duration: 24 * time.Hour},
 		Security: config.SecurityConfig{RateLimitRequests: 100, RateLimitWindow: time.Minute},
+		Upload: config.UploadConfig{
+			MaxSize:      20 * 1024 * 1024,
+			AllowedTypes: []string{"image/jpeg", "image/png", "image/gif"},
+			UploadDir:    uploadDir,
+		},
 	}
 
 	lgr := logger.New(logger.InfoLevel, os.Stdout)

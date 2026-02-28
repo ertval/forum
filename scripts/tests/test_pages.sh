@@ -626,13 +626,6 @@ else
     print_test "post-detail.js uses /api/comments/posts/{id} URL" "FAIL" "Wrong comment creation API URL"
 fi
 
-# Check reactions URL uses /api prefix
-if echo "$POST_DETAIL_JS" | grep -q "fetch(\`/api/reactions\`"; then
-    print_test "post-detail.js uses /api/reactions URL" "PASS"
-else
-    print_test "post-detail.js uses /api/reactions URL" "FAIL" "Wrong reactions API URL"
-fi
-
 # Check comment delete URL uses /api prefix
 if echo "$POST_DETAIL_JS" | grep -q "fetch(\`/api/comments/\${commentId}\`"; then
     print_test "post-detail.js uses /api/comments/{id} URL for delete" "PASS"
@@ -659,6 +652,20 @@ if echo "$LOAD_MORE_JS" | grep -q "fetch(\`/api/posts/load-more"; then
     print_test "load-more-posts.js uses /api/posts/load-more URL" "PASS"
 else
     print_test "load-more-posts.js uses /api/posts/load-more URL" "FAIL" "Wrong load-more API URL"
+fi
+
+# =============================================================================
+# REACTIONS.JS API URL TESTS
+# =============================================================================
+print_section "REACTIONS.JS API URL VERIFICATION"
+
+REACTIONS_JS=$(curl -s "$BASE_URL/static/js/reactions.js")
+
+# Check reactions URL uses /api prefix
+if echo "$REACTIONS_JS" | grep -q "fetch('/api/reactions'"; then
+    print_test "reactions.js uses /api/reactions URL" "PASS"
+else
+    print_test "reactions.js uses /api/reactions URL" "FAIL" "Wrong reactions API URL"
 fi
 
 # =============================================================================
@@ -698,7 +705,7 @@ print_test "Templates don't use old hardcoded URLs" "PASS"
 # =============================================================================
 print_section "JAVASCRIPT FILE SYNTAX VERIFICATION"
 
-JS_FILES=("auth.js" "post-forms.js" "post-detail.js" "load-more-posts.js" "main.js")
+JS_FILES=("auth.js" "post-forms.js" "post-detail.js" "load-more-posts.js" "reactions.js" "main.js")
 JS_DIR="${PROJECT_ROOT}/static/js"
 
 for jsfile in "${JS_FILES[@]}"; do

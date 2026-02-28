@@ -4,13 +4,13 @@
 # Seeds the database with test data required for all test scripts
 # =============================================================================
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Database path
-DB_PATH="${PROJECT_ROOT}/data/forum.db"
+# Database path (allow override via env to match runtime config)
+DB_PATH="${DATABASE_PATH:-${PROJECT_ROOT}/data/forum.db}"
 SEED_FILE="${SCRIPT_DIR}/seed_data.sql"
 
 # TLS certificate files (for local dev)
@@ -26,6 +26,12 @@ NC='\033[0m'
 
 echo -e "${YELLOW}=== Forum Database Seeder ===${NC}"
 echo ""
+
+# Ensure sqlite3 is available
+if ! command -v sqlite3 >/dev/null 2>&1; then
+    echo -e "${RED}sqlite3 is required but was not found in PATH.${NC}"
+    exit 1
+fi
 
 # Ensure TLS certs exist for local development (generate if missing)
 echo "Checking TLS certificates in: $CERT_DIR"
@@ -49,17 +55,14 @@ else
 fi
 
 
-# Check if database file exists - if not, run migrations first
-if [ ! -f "$DB_PATH" ]; then
-    echo -e "${YELLOW}Database file does not exist. Running migrations...${NC}"
-    # Run migrations from project root, not from seed directory
-    if ! bash "${PROJECT_ROOT}/scripts/seed/run_migrations.sh"; then
-        echo -e "${RED}Failed to run migrations.${NC}"
-        exit 1
-    fi
-    echo -e "${GREEN}✓ Migrations completed${NC}"
-    echo ""
+# Always run migrations first so schema is current before seeding
+echo -e "${YELLOW}Running migrations before seeding...${NC}"
+if ! bash "${PROJECT_ROOT}/scripts/seed/run_migrations.sh"; then
+    echo -e "${RED}Failed to run migrations.${NC}"
+    exit 1
 fi
+echo -e "${GREEN}✓ Migrations completed${NC}"
+echo ""
 
 # Check if seed file exists
 if [ ! -f "$SEED_FILE" ]; then

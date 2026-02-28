@@ -66,6 +66,9 @@ func TestNotificationTypeConstants(t *testing.T) {
 	if TypeLike != "like" {
 		t.Errorf("Expected TypeLike to be 'like', got '%s'", TypeLike)
 	}
+	if TypeDislike != "dislike" {
+		t.Errorf("Expected TypeDislike to be 'dislike', got '%s'", TypeDislike)
+	}
 	if TypeComment != "comment" {
 		t.Errorf("Expected TypeComment to be 'comment', got '%s'", TypeComment)
 	}

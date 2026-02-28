@@ -4,12 +4,38 @@ import (
 	"context"
 	"fmt"
 	commentDomain "forum/internal/modules/comment/domain"
+	notificationDomain "forum/internal/modules/notification/domain"
 	postDomain "forum/internal/modules/post/domain"
 	"forum/internal/modules/reaction/domain"
 	userDomain "forum/internal/modules/user/domain"
 	"testing"
 	"time"
 )
+
+type MockNotificationService struct {
+	called         bool
+	notifType      string
+	userID         int
+	actorID        int
+	targetPublicID string
+}
+
+func (m *MockNotificationService) CreateNotification(ctx context.Context, userID, actorID int, notifType, message string, targetPublicID string) error {
+	m.called = true
+	m.notifType = notifType
+	m.userID = userID
+	m.actorID = actorID
+	m.targetPublicID = targetPublicID
+	return nil
+}
+
+func (m *MockNotificationService) GetUserNotifications(ctx context.Context, userID int) ([]*notificationDomain.Notification, error) {
+	return nil, nil
+}
+
+func (m *MockNotificationService) MarkAsRead(ctx context.Context, notificationPublicID string) error {
+	return nil
+}
 
 // MockReactionRepository implements ReactionRepository for testing
 type MockReactionRepository struct {
@@ -282,6 +308,10 @@ func (m *MockUserService) ExistsByUsername(ctx context.Context, username string)
 	return false, nil
 }
 
+func (m *MockUserService) UpdateSettings(ctx context.Context, publicID, username, email, newPassword, avatarPath string) (*userDomain.User, error) {
+	return nil, nil
+}
+
 func TestService_React(t *testing.T) {
 	ctx := context.Background()
 	mockRepo := &MockReactionRepository{}
@@ -421,5 +451,55 @@ func TestService_CountReactions(t *testing.T) {
 	}
 	if dislikes != 1 {
 		t.Errorf("Expected 1 dislike, got %d", dislikes)
+	}
+}
+
+func TestService_React_SendsLikeNotification(t *testing.T) {
+	ctx := context.Background()
+	mockRepo := &MockReactionRepository{}
+	mockPostRepo := &MockPostRepository{posts: map[string]*postDomain.Post{
+		"public-10": {ID: 10, PublicID: "public-10", UserID: 1},
+	}}
+	mockCommentRepo := &MockCommentRepository{}
+	mockUserService := &MockUserService{}
+	notificationService := &MockNotificationService{}
+
+	service := NewService(mockRepo, mockPostRepo, mockCommentRepo, mockUserService)
+	service.SetNotificationService(notificationService)
+
+	if err := service.React(ctx, 2, "public-10", "post", domain.ReactionLike); err != nil {
+		t.Fatalf("React returned error: %v", err)
+	}
+
+	if !notificationService.called {
+		t.Fatal("expected notification to be sent")
+	}
+	if notificationService.notifType != notificationDomain.TypeLike {
+		t.Fatalf("expected like notification, got %s", notificationService.notifType)
+	}
+}
+
+func TestService_React_SendsDislikeNotification(t *testing.T) {
+	ctx := context.Background()
+	mockRepo := &MockReactionRepository{}
+	mockPostRepo := &MockPostRepository{posts: map[string]*postDomain.Post{
+		"public-10": {ID: 10, PublicID: "public-10", UserID: 1},
+	}}
+	mockCommentRepo := &MockCommentRepository{}
+	mockUserService := &MockUserService{}
+	notificationService := &MockNotificationService{}
+
+	service := NewService(mockRepo, mockPostRepo, mockCommentRepo, mockUserService)
+	service.SetNotificationService(notificationService)
+
+	if err := service.React(ctx, 2, "public-10", "post", domain.ReactionDislike); err != nil {
+		t.Fatalf("React returned error: %v", err)
+	}
+
+	if !notificationService.called {
+		t.Fatal("expected notification to be sent")
+	}
+	if notificationService.notifType != notificationDomain.TypeDislike {
+		t.Fatalf("expected dislike notification, got %s", notificationService.notifType)
 	}
 }

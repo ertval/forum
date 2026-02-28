@@ -17,6 +17,8 @@ var (
 	pngMagic = []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
 	// GIF magic bytes: 47 49 46 38
 	gifMagic = []byte{0x47, 0x49, 0x46, 0x38, 0x39, 0x61}
+	// WebP magic bytes: RIFF....WEBP
+	webpMagic = []byte{0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50}
 	// Invalid file (plain text)
 	textFile = []byte("This is not an image file")
 )
@@ -44,6 +46,12 @@ func TestDetectImageType(t *testing.T) {
 			name:     "valid GIF",
 			data:     gifMagic,
 			wantType: "image/gif",
+			wantErr:  false,
+		},
+		{
+			name:     "valid WebP",
+			data:     webpMagic,
+			wantType: "image/webp",
 			wantErr:  false,
 		},
 		{
@@ -89,6 +97,7 @@ func TestMIMEToExtension(t *testing.T) {
 		{"image/jpeg", ".jpg", false},
 		{"image/png", ".png", false},
 		{"image/gif", ".gif", false},
+		{"image/webp", ".webp", false},
 		{"text/plain", "", true},
 		{"application/pdf", "", true},
 		{"", "", true},
@@ -161,6 +170,11 @@ func TestImageHandler_Save(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "save valid WebP",
+			data:    webpMagic,
+			wantErr: false,
+		},
+		{
 			name:    "reject invalid file",
 			data:    textFile,
 			wantErr: true,
@@ -189,7 +203,7 @@ func TestImageHandler_Save(t *testing.T) {
 
 				// Verify filename format (UUID.ext)
 				ext := filepath.Ext(filename)
-				if ext != ".jpg" && ext != ".png" && ext != ".gif" {
+				if ext != ".jpg" && ext != ".png" && ext != ".gif" && ext != ".webp" {
 					t.Errorf("ImageHandler.Save() unexpected extension: %s", ext)
 				}
 			}
@@ -298,6 +312,11 @@ func TestValidateImage(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "valid WebP",
+			data:    webpMagic,
+			wantErr: false,
+		},
+		{
 			name:    "invalid type",
 			data:    textFile,
 			wantErr: true,
@@ -320,7 +339,8 @@ func TestValidateImage(t *testing.T) {
 }
 
 func TestImageHandler_FullPath(t *testing.T) {
-	handler := NewImageHandler("/var/uploads", testMaxImageSize)
+	baseDir := filepath.Join("var", "uploads")
+	handler := NewImageHandler(baseDir, testMaxImageSize)
 
 	tests := []struct {
 		name     string
@@ -330,12 +350,12 @@ func TestImageHandler_FullPath(t *testing.T) {
 		{
 			name:     "simple filename",
 			filename: "image.png",
-			want:     "/var/uploads/image.png",
+			want:     filepath.Join(baseDir, "image.png"),
 		},
 		{
 			name:     "uuid filename",
 			filename: "550e8400-e29b-41d4-a716-446655440000.jpg",
-			want:     "/var/uploads/550e8400-e29b-41d4-a716-446655440000.jpg",
+			want:     filepath.Join(baseDir, "550e8400-e29b-41d4-a716-446655440000.jpg"),
 		},
 	}
 

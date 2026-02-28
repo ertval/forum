@@ -44,16 +44,15 @@ func getEnvBool(key string, defaultValue bool) bool {
 }
 
 func getEnvStringSlice(key string, defaultValue []string) []string {
-	if value := os.Getenv(key); value != "" {
-		// Simple comma-separated parsing
-		if value != "" {
-			// Split by comma and trim spaces
-			parts := strings.Split(value, ",")
-			for i, part := range parts {
-				parts[i] = strings.TrimSpace(part)
-			}
-			return parts
-		}
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
 	}
-	return defaultValue
+
+	// Split by comma and trim spaces
+	parts := strings.Split(value, ",")
+	for i, part := range parts {
+		parts[i] = strings.TrimSpace(part)
+	}
+	return parts
 }

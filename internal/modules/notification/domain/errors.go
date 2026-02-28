@@ -11,4 +11,10 @@ var (
 
 	// ErrInvalidNotificationType is returned when the notification type is invalid.
 	ErrInvalidNotificationType = errors.New("invalid notification type")
+
+	// ErrInvalidUserID is returned when the provided user ID is invalid.
+	ErrInvalidUserID = errors.New("invalid user id")
+
+	// ErrInvalidTarget is returned when target data is invalid.
+	ErrInvalidTarget = errors.New("invalid target")
 )

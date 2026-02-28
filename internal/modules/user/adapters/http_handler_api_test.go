@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
+	authPorts "forum/internal/modules/auth/ports"
 	"forum/internal/modules/user/domain"
 )
 
@@ -31,6 +33,7 @@ type MockUserService struct {
 	existsByUsernameFn      func(ctx context.Context, username string) (bool, error)
 	incrementReactionCountFn func(ctx context.Context, userID int) error
 	decrementReactionCountFn func(ctx context.Context, userID int) error
+	updateSettingsFn        func(ctx context.Context, publicID, username, email, newPassword, avatarPath string) (*domain.User, error)
 }
 
 func (m *MockUserService) GetByID(ctx context.Context, userID int) (*domain.User, error) {
@@ -150,6 +153,13 @@ func (m *MockUserService) DecrementReactionCount(ctx context.Context, userID int
 		return m.decrementReactionCountFn(ctx, userID)
 	}
 	return nil
+}
+
+func (m *MockUserService) UpdateSettings(ctx context.Context, publicID, username, email, newPassword, avatarPath string) (*domain.User, error) {
+	if m.updateSettingsFn != nil {
+		return m.updateSettingsFn(ctx, publicID, username, email, newPassword, avatarPath)
+	}
+	return nil, nil
 }
 
 // mockServiceContainer implements ServiceContainer for testing
@@ -434,5 +444,62 @@ func TestActivateUserAPI_UserNotFound(t *testing.T) {
 
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("Expected status 404, got %d", rec.Code)
+	}
+}
+
+func TestUpdateSettingsAPI_Success(t *testing.T) {
+	mockService := &MockUserService{
+		getByPublicIDFn: func(ctx context.Context, publicID string) (*domain.User, error) {
+			return &domain.User{ID: 1, PublicID: publicID, Username: "Old Name", Email: "old@example.com"}, nil
+		},
+		updateSettingsFn: func(ctx context.Context, publicID, username, email, newPassword, avatarPath string) (*domain.User, error) {
+			return &domain.User{ID: 1, PublicID: publicID, Username: username, Email: email}, nil
+		},
+	}
+
+	handler := &HTTPHandler{userService: mockService, maxAvatarSize: maxAvatarImageSize}
+
+	form := url.Values{}
+	form.Set("username", "Alice Smith")
+	form.Set("email", "alice@example.com")
+	form.Set("new_password", "StrongPass123")
+	form.Set("confirm_password", "StrongPass123")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/users/settings", bytes.NewBufferString(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(context.WithValue(req.Context(), authPorts.UserIDKey, "user-public-id"))
+	rec := httptest.NewRecorder()
+
+	handler.UpdateSettingsAPI(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", rec.Code)
+	}
+}
+
+func TestUpdateSettingsAPI_PasswordMismatch(t *testing.T) {
+	mockService := &MockUserService{
+		getByPublicIDFn: func(ctx context.Context, publicID string) (*domain.User, error) {
+			return &domain.User{ID: 1, PublicID: publicID, Username: "Alice", Email: "alice@example.com"}, nil
+		},
+	}
+
+	handler := &HTTPHandler{userService: mockService, maxAvatarSize: maxAvatarImageSize}
+
+	form := url.Values{}
+	form.Set("username", "Alice")
+	form.Set("email", "alice@example.com")
+	form.Set("new_password", "StrongPass123")
+	form.Set("confirm_password", "DifferentPass123")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/users/settings", bytes.NewBufferString(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(context.WithValue(req.Context(), authPorts.UserIDKey, "user-public-id"))
+	rec := httptest.NewRecorder()
+
+	handler.UpdateSettingsAPI(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", rec.Code)
 	}
 }

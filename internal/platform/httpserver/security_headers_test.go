@@ -3,6 +3,7 @@ package httpserver
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -158,8 +159,8 @@ func TestSecurityHeadersDefaultConfig(t *testing.T) {
 	}
 }
 
-// TestItoa tests the integer to string conversion helper
-func TestItoa(t *testing.T) {
+// TestStrconvItoa tests that strconv.Itoa works as expected (replacing custom itoa)
+func TestStrconvItoa(t *testing.T) {
 	tests := []struct {
 		input    int
 		expected string
@@ -175,9 +176,9 @@ func TestItoa(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.expected, func(t *testing.T) {
-			result := itoa(tt.input)
+			result := strconv.Itoa(tt.input)
 			if result != tt.expected {
-				t.Errorf("itoa(%d) = %q, want %q", tt.input, result, tt.expected)
+				t.Errorf("strconv.Itoa(%d) = %q, want %q", tt.input, result, tt.expected)
 			}
 		})
 	}

@@ -118,11 +118,14 @@ func (s *Server) Start() error {
 	}
 }
 
+// defaultShutdownTimeout is the duration to wait for graceful shutdown (KISS-6)
+const defaultShutdownTimeout = 30 * time.Second
+
 // Shutdown gracefully shuts down the server.
 // It waits for existing connections to finish before shutting down.
 func (s *Server) Shutdown() error {
 	// Create a context with timeout for graceful shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultShutdownTimeout)
 	defer cancel()
 
 	// Shutdown HTTP server

@@ -3,21 +3,25 @@ package application
 
 import (
 	"context"
+	"log"
 	"time"
 
+	commentPorts "forum/internal/modules/comment/ports"
+	notificationDomain "forum/internal/modules/notification/domain"
+	notificationPorts "forum/internal/modules/notification/ports"
+	postPorts "forum/internal/modules/post/ports"
 	"forum/internal/modules/reaction/domain"
 	"forum/internal/modules/reaction/ports"
-	postPorts "forum/internal/modules/post/ports"
-	commentPorts "forum/internal/modules/comment/ports"
 	userPorts "forum/internal/modules/user/ports"
 )
 
 // Service implements the ReactionService interface.
 type Service struct {
-	reactionRepo ports.ReactionRepository
-	postRepo     postPorts.PostRepository
-	commentRepo  commentPorts.CommentRepository
-	userService  userPorts.UserService
+	reactionRepo        ports.ReactionRepository
+	postRepo            postPorts.PostRepository
+	commentRepo         commentPorts.CommentRepository
+	userService         userPorts.UserService
+	notificationService notificationPorts.NotificationService
 }
 
 // NewService creates a new reaction service with all required dependencies.
@@ -33,6 +37,11 @@ func NewService(
 		commentRepo:  commentRepo,
 		userService:  userService,
 	}
+}
+
+// SetNotificationService injects notification capability as an optional cross-module dependency.
+func (s *Service) SetNotificationService(notificationService notificationPorts.NotificationService) {
+	s.notificationService = notificationService
 }
 
 // React adds or updates a user's reaction to a target.
@@ -52,12 +61,14 @@ func (s *Service) React(ctx context.Context, userID int, targetPublicID string, 
 	}
 
 	// Validate that the target exists
+	postOwnerID := 0
 	switch targetType {
 	case "post":
-		_, err := s.postRepo.GetByID(ctx, targetPublicID)
+		post, err := s.postRepo.GetByID(ctx, targetPublicID)
 		if err != nil {
 			return err
 		}
+		postOwnerID = post.UserID
 	case "comment":
 		_, err := s.commentRepo.GetByPublicID(ctx, targetPublicID)
 		if err != nil {
@@ -92,12 +103,12 @@ func (s *Service) React(ctx context.Context, userID int, targetPublicID string, 
 
 	// Create new reaction
 	reaction := &domain.Reaction{
-		UserID:       userID,
-		TargetID:     0, // Will be resolved by repository based on targetPublicID
+		UserID:         userID,
+		TargetID:       0,              // Will be resolved by repository based on targetPublicID
 		PublicTargetID: targetPublicID, // Set the public target ID for repository to resolve
-		TargetType:   targetType,
-		Type:         reactionType,
-		CreatedAt:    time.Now(),
+		TargetType:     targetType,
+		Type:           reactionType,
+		CreatedAt:      time.Now(),
 	}
 
 	// The repository will handle resolving the targetPublicID to internal ID
@@ -106,10 +117,26 @@ func (s *Service) React(ctx context.Context, userID int, targetPublicID string, 
 		return err
 	}
 
+	if s.notificationService != nil && targetType == "post" && postOwnerID > 0 && postOwnerID != userID {
+		notificationType := notificationDomain.TypeLike
+		message := "Someone liked your post"
+		if reactionType == domain.ReactionDislike {
+			notificationType = notificationDomain.TypeDislike
+			message = "Someone disliked your post"
+		}
+		if err := s.notificationService.CreateNotification(ctx, postOwnerID, userID, notificationType, message, targetPublicID); err != nil {
+			log.Printf("WARNING: failed to create reaction notification for post owner %d: %v", postOwnerID, err)
+		}
+	}
+
 	// Increment user's reaction count asynchronously (non-blocking)
-	go func() {
-		_ = s.userService.IncrementReactionCount(context.Background(), userID)
-	}()
+	go func(uid int) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.userService.IncrementReactionCount(ctx, uid); err != nil {
+			log.Printf("WARNING: failed to increment reaction count for user %d: %v", uid, err)
+		}
+	}(userID)
 
 	return nil
 }
@@ -145,9 +172,13 @@ func (s *Service) RemoveReaction(ctx context.Context, userID int, targetPublicID
 	}
 
 	// Decrement user's reaction count asynchronously (non-blocking)
-	go func() {
-		_ = s.userService.DecrementReactionCount(context.Background(), userID)
-	}()
+	go func(uid int) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.userService.DecrementReactionCount(ctx, uid); err != nil {
+			log.Printf("WARNING: failed to decrement reaction count for user %d: %v", uid, err)
+		}
+	}(userID)
 
 	return nil
 }

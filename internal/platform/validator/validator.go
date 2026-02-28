@@ -11,6 +11,19 @@ import (
 	"unicode/utf8"
 )
 
+// Pre-compiled regexes for performance (compiled once at package init)
+var (
+	// emailRegex validates email format
+	emailRegex = regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$`)
+	// namePartRegex validates name parts (must start with capital)
+	namePartRegex = regexp.MustCompile(`^[A-Z][a-zA-Z]*$`)
+	// Sanitization regexes
+	reScript = regexp.MustCompile(`(?i)<script[^>]*>[\s\S]*?</script>`)
+	reStyle  = regexp.MustCompile(`(?i)<style[^>]*>[\s\S]*?</style>`)
+	reTags   = regexp.MustCompile(`<[^>]+>`)
+	reSpace  = regexp.MustCompile(`\s+`)
+)
+
 // Validator provides validation methods for common data types.
 type Validator struct {
 	errors map[string]string
@@ -64,11 +77,9 @@ func (v *Validator) MaxLength(field, value string, max int) {
 }
 
 // Email validates an email address format.
-// TODO: Implement proper email validation.
 func (v *Validator) Email(field, value string) {
 	// Normalize and sanitize before validation
 	value = strings.ToLower(strings.TrimSpace(Sanitize(value)))
-	emailRegex := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$`)
 	if !emailRegex.MatchString(value) {
 		v.AddError(field, "Must be a valid email address")
 	}
@@ -96,7 +107,6 @@ func (v *Validator) Username(field, value string) {
 
 	// Each part must contain only letters and start with capital letter
 	// Allows both "Alice" and "alice" patterns, but must start with capital
-	namePartRegex := regexp.MustCompile(`^[A-Z][a-zA-Z]*$`)
 	for _, part := range parts {
 		if !namePartRegex.MatchString(part) {
 			v.AddError(field, "Name must start with a capital letter and contain only letters (e.g., Alice or Alice Smith)")
@@ -149,13 +159,10 @@ func Sanitize(input string) string {
 	s := html.UnescapeString(input)
 
 	// Remove script blocks and style blocks (case-insensitive)
-	reScript := regexp.MustCompile(`(?i)<script[^>]*>[\s\S]*?</script>`)
 	s = reScript.ReplaceAllString(s, "")
-	reStyle := regexp.MustCompile(`(?i)<style[^>]*>[\s\S]*?</style>`)
 	s = reStyle.ReplaceAllString(s, "")
 
 	// Strip remaining tags
-	reTags := regexp.MustCompile(`<[^>]+>`)
 	s = reTags.ReplaceAllString(s, "")
 
 	// Remove control characters (except common whitespace)
@@ -173,7 +180,6 @@ func Sanitize(input string) string {
 	s = b.String()
 
 	// Collapse all whitespace sequences to a single space
-	reSpace := regexp.MustCompile(`\s+`)
 	s = reSpace.ReplaceAllString(s, " ")
 
 	// Trim edges

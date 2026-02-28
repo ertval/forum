@@ -5,12 +5,12 @@ package adapters
 
 import (
 	"bytes"
-	"fmt"
-	"html/template"
+	"log"
 	"net/http"
 
 	authPorts "forum/internal/modules/auth/ports"
 	postDomain "forum/internal/modules/post/domain"
+	"forum/internal/platform/templates"
 )
 
 // RegisterPageRoutes registers all post page routes with the router.
@@ -57,16 +57,24 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 
 	// Build filter using FilterService
 	filterParams := postDomain.FilterParams{
-		Category:      r.URL.Query().Get("category"),
-		UserID:        r.URL.Query().Get("user"),
-		MyPosts:       r.URL.Query().Get("my_posts") == "true",
-		LikedPosts:    r.URL.Query().Get("liked_posts") == "true",
-		Commenter:     r.URL.Query().Get("commenter"),
-		DateFilter:    r.URL.Query().Get("date_filter"),
-		Limit:         12,
-		Offset:        0,
-		CurrentUserID: currentUserPublicID,
+		Category:       r.URL.Query().Get("category"),
+		UserID:         r.URL.Query().Get("user"),
+		ActivityType:   r.URL.Query().Get("activity_type"),
+		ReactionType:   r.URL.Query().Get("reaction_type"),
+		MyPosts:        r.URL.Query().Get("my_posts") == "true",
+		LikedPosts:     r.URL.Query().Get("liked_posts") == "true",
+		DislikedPosts:  r.URL.Query().Get("disliked_posts") == "true",
+		CommentedPosts: r.URL.Query().Get("commented_posts") == "true",
+		Commenter:      r.URL.Query().Get("commenter"),
+		DateFilter:     r.URL.Query().Get("date_filter"),
+		Limit:          12,
+		Offset:         0,
+		CurrentUserID:  currentUserPublicID,
 	}
+	if filterParams.Commenter == "" && filterParams.CommentedPosts && currentUserPublicID != "" {
+		filterParams.Commenter = currentUserPublicID
+	}
+	activityType, reactionType := resolveBoardActivityFilters(filterParams)
 
 	filter := h.filterService.BuildFilter(ctx, filterParams)
 
@@ -119,15 +127,20 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 		"DateFilter":       filterParams.DateFilter,
 		"MyPosts":          filterParams.MyPosts,
 		"LikedPosts":       filterParams.LikedPosts,
+		"DislikedPosts":    filterParams.DislikedPosts,
+		"CommentedPosts":   filterParams.CommentedPosts,
+		"ActivityType":     activityType,
+		"SelectedReaction": reactionType,
 		"UserFilter":       filterParams.UserID,
+		"Commenter":        filterParams.Commenter,
 		"User":             currentUser,
 		"FilterAction":     "/",
 		"ShowFilter":       false,
 		"ShowSidebar":      false,
 	}
 
-	// Parse templates individually for this page
-	tmpl, err := template.ParseFiles("templates/base.html", "templates/home.html")
+	// Get cached templates (only parses on first request)
+	tmpl, err := templates.Get("home", "templates/base.html", "templates/home.html")
 	if err != nil {
 		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
 		return
@@ -172,16 +185,24 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 
 	// Build filter using FilterService
 	filterParams := postDomain.FilterParams{
-		Category:      r.URL.Query().Get("category"),
-		UserID:        r.URL.Query().Get("user"),
-		MyPosts:       r.URL.Query().Get("my_posts") == "true",
-		LikedPosts:    r.URL.Query().Get("liked_posts") == "true",
-		Commenter:     r.URL.Query().Get("commenter"),
-		DateFilter:    r.URL.Query().Get("date_filter"),
-		Limit:         10,
-		Offset:        0,
-		CurrentUserID: currentUserPublicID,
+		Category:       r.URL.Query().Get("category"),
+		UserID:         r.URL.Query().Get("user"),
+		ActivityType:   r.URL.Query().Get("activity_type"),
+		ReactionType:   r.URL.Query().Get("reaction_type"),
+		MyPosts:        r.URL.Query().Get("my_posts") == "true",
+		LikedPosts:     r.URL.Query().Get("liked_posts") == "true",
+		DislikedPosts:  r.URL.Query().Get("disliked_posts") == "true",
+		CommentedPosts: r.URL.Query().Get("commented_posts") == "true",
+		Commenter:      r.URL.Query().Get("commenter"),
+		DateFilter:     r.URL.Query().Get("date_filter"),
+		Limit:          10,
+		Offset:         0,
+		CurrentUserID:  currentUserPublicID,
 	}
+	if filterParams.Commenter == "" && filterParams.CommentedPosts && currentUserPublicID != "" {
+		filterParams.Commenter = currentUserPublicID
+	}
+	activityType, reactionType := resolveBoardActivityFilters(filterParams)
 
 	filter := h.filterService.BuildFilter(ctx, filterParams)
 
@@ -241,12 +262,17 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 		"ShowSidebar":      true,
 		"MyPosts":          filterParams.MyPosts,
 		"LikedPosts":       filterParams.LikedPosts,
+		"DislikedPosts":    filterParams.DislikedPosts,
+		"CommentedPosts":   filterParams.CommentedPosts,
+		"ActivityType":     activityType,
+		"SelectedReaction": reactionType,
 		"UserFilter":       filterParams.UserID,
+		"Commenter":        filterParams.Commenter,
 		"User":             currentUser,
 	}
 
-	// Parse templates individually for this page
-	tmpl, err := template.ParseFiles("templates/base.html", "templates/board.html")
+	// Get cached templates (only parses on first request)
+	tmpl, err := templates.Get("board", "templates/base.html", "templates/board.html")
 	if err != nil {
 		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
 		return
@@ -342,8 +368,8 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 		"Comments": comments,
 	}
 
-	// Parse templates individually for this page
-	tmpl, err := template.ParseFiles("templates/base.html", "templates/post_detail.html")
+	// Get cached templates (only parses on first request)
+	tmpl, err := templates.Get("post_detail", "templates/base.html", "templates/post_detail.html")
 	if err != nil {
 		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
 		return
@@ -352,8 +378,8 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
-		fmt.Printf("Template error: %v\n", err)
-		http.Error(w, fmt.Sprintf("Failed to render page: %v", err), http.StatusInternalServerError)
+		log.Printf("Template error: %v", err)
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
 		return
 	}
 	if _, err := buf.WriteTo(w); err != nil {
@@ -397,8 +423,8 @@ func (h *HTTPHandler) CreatePostPage(w http.ResponseWriter, r *http.Request) {
 		"MaxImageSize":    h.postService.MaxImageSize(),
 	}
 
-	// Parse templates individually for this page
-	tmpl, err := template.ParseFiles("templates/base.html", "templates/post_create.html")
+	// Get cached templates (only parses on first request)
+	tmpl, err := templates.Get("post_create", "templates/base.html", "templates/post_create.html")
 	if err != nil {
 		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
 		return
@@ -472,8 +498,8 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 		"MaxImageSize":    h.postService.MaxImageSize(),
 	}
 
-	// Parse templates individually for this page
-	tmpl, err := template.ParseFiles("templates/base.html", "templates/post_edit.html")
+	// Get cached templates (only parses on first request)
+	tmpl, err := templates.Get("post_edit", "templates/base.html", "templates/post_edit.html")
 	if err != nil {
 		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
 		return

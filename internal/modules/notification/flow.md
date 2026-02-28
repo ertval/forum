@@ -128,8 +128,7 @@ graph TD
 - Endpoints:
   - GET /notifications (list user's notifications)
   - PUT /notifications/:id/read (mark as read)
-  - PUT /notifications/read-all (mark all as read)
-  - GET /notifications/unread/count (unread count)
+    - Additional endpoints can be added later if needed (for example, unread count)
 - Real-time updates (optional): WebSocket or Server-Sent Events (SSE)
 
 **sqlite_repository.go** (OUTPUT ADAPTER):
@@ -276,47 +275,48 @@ notificationRepo.MarkAsRead(1)
 200 OK
 ```
 
-### Example 5: Mark All as Read
+### Example 5: Mark One Notification as Read
 
 ```text
-PUT /api/notifications/read-all
+PUT /api/notifications/{id}/read
 (User 789 is logged in)
 
          ↓
 
-http_handler.MarkAllAsRead()
+http_handler.MarkAsRead()
   • userID = 789 (from session)
+    • notificationID = 1
          ↓
 
-notificationService.MarkAllAsRead(789)
+notificationService.MarkAsRead(1, 789)
          ↓
 
-notificationRepo.MarkAllAsRead(789)
-  • SQL: UPDATE notifications SET is_read = true, read_at = ? WHERE recipient_id = 789 AND is_read = false
+notificationRepo.MarkAsRead(1)
+    • SQL: UPDATE notifications SET is_read = true, read_at = ? WHERE id = 1
          ↓
 
 200 OK
-{marked: 5}  (number of notifications marked)
+{status: "ok"}
 ```
 
-### Example 6: Get Unread Count (for UI Badge)
+### Example 6: List Notifications
 
 ```text
-GET /api/notifications/unread/count
+GET /api/notifications
 (User 789 is logged in)
 
          ↓
 
-http_handler.GetUnreadCount()
+http_handler.ListNotifications()
   • userID = 789 (from session)
          ↓
 
-notificationService.GetUnreadCount(789)
+notificationService.GetNotifications(789)
          ↓
 
-notificationRepo.CountUnread(789)
-  • SQL: SELECT COUNT(*) FROM notifications WHERE recipient_id = 789 AND is_read = false
-  → Returns 3
+notificationRepo.FindByUser(789)
+    • SQL: SELECT ... FROM notifications WHERE recipient_id = 789 ORDER BY created_at DESC
+    → Returns list
          ↓
 
 200 OK
@@ -495,8 +495,6 @@ This shows how **other modules trigger notifications** and the complete notifica
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
     mux.HandleFunc("GET /api/notifications", h.ListNotifications)              // List user's notifications
     mux.HandleFunc("PUT /api/notifications/{id}/read", h.MarkAsRead)           // Mark one as read
-    mux.HandleFunc("PUT /api/notifications/read-all", h.MarkAllAsRead)         // Mark all as read
-    mux.HandleFunc("GET /api/notifications/unread/count", h.GetUnreadCount)    // Get unread count
 }
 ```
 

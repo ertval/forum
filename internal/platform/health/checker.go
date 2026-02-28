@@ -3,7 +3,9 @@ package health
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -15,26 +17,47 @@ type Checker struct {
 }
 
 // NewChecker creates a new Checker.
+// Returns an error if required dependencies are nil.
 func NewChecker(db *sql.DB, router *http.ServeMux) *Checker {
+	// Note: We allow nil checks to happen at Check() time to provide
+	// meaningful error messages in health check results rather than panicking
 	return &Checker{db: db, router: router}
+}
+
+// NewCheckerWithValidation creates a new Checker with strict validation.
+// Returns an error if required dependencies are nil.
+func NewCheckerWithValidation(db *sql.DB, router *http.ServeMux) (*Checker, error) {
+	if db == nil {
+		return nil, errors.New("database connection cannot be nil")
+	}
+	if router == nil {
+		return nil, errors.New("router cannot be nil")
+	}
+	return &Checker{db: db, router: router}, nil
 }
 
 // Check performs all health checks and returns a map of results.
 func (c *Checker) Check(ctx context.Context) map[string]string {
 	results := make(map[string]string)
 
-	// Check database connection
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
-	defer cancel()
-
-	if err := c.db.PingContext(ctx); err != nil {
-		results["database"] = "down"
+	// Check database connection (with nil check to prevent panic - CRIT-4)
+	if c.db == nil {
+		results["database"] = "down (not configured)"
 	} else {
-		results["database"] = "up"
+		dbCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+		defer cancel()
+
+		if err := c.db.PingContext(dbCtx); err != nil {
+			results["database"] = "down"
+		} else {
+			results["database"] = "up"
+		}
 	}
 
 	// Check API endpoints for each module that has them
-	c.checkAPIEndpoints(ctx, results)
+	if c.router != nil {
+		c.checkAPIEndpoints(ctx, results)
+	}
 
 	return results
 }
@@ -105,13 +128,13 @@ func (c *Checker) checkAPIEndpoints(ctx context.Context, results map[string]stri
 	moderationAllUp := c.areAllRoutesRegistered(ctx, moderationEndpoints)
 	results["moderation_api"] = map[bool]string{true: "down", false: "down"}[moderationAllUp] // TODO: change to "up" when implemented
 
-	// Notification module endpoints - NOT YET IMPLEMENTED
+	// Notification module endpoints
 	notificationEndpoints := []struct{ method, path string }{
 		{"GET", "/api/notifications"},
 		{"PUT", "/api/notifications/{id}/read"},
 	}
 	notificationAllUp := c.areAllRoutesRegistered(ctx, notificationEndpoints)
-	results["notification_api"] = map[bool]string{true: "down", false: "down"}[notificationAllUp] // TODO: change to "up" when implemented
+	results["notification_api"] = map[bool]string{true: "up", false: "down"}[notificationAllUp]
 }
 
 // areAllRoutesRegistered checks if all routes in the list are registered in the router
@@ -124,22 +147,18 @@ func (c *Checker) areAllRoutesRegistered(ctx context.Context, endpoints []struct
 	return true
 }
 
+// pathParamRegex matches path parameters like {id}, {postId}, etc. (KISS-7)
+var pathParamRegex = regexp.MustCompile(`\{[^}]+\}`)
+
 // isRouteRegistered checks if a specific route is registered in the router
 func (c *Checker) isRouteRegistered(ctx context.Context, method, path string) bool {
-	// For parameterized routes, we'll try to make a test request
-	// to an actual instance of the route (e.g., /posts/1 for /posts/{id})
+	// For parameterized routes, replace all path parameters with test values
 	testPath := path
 	expectedPattern := method + " " + path
 
-	if strings.Contains(path, "{") && strings.Contains(path, "}") {
-		// Handle common parameter names in routes
-		testPath = strings.Replace(testPath, "{id}", "1", -1)
-		testPath = strings.Replace(testPath, "{postId}", "1", -1)
-		testPath = strings.Replace(testPath, "{targetType}", "post", -1)
-		testPath = strings.Replace(testPath, "{targetId}", "1", -1)
-		// Remove any remaining brackets that weren't matched by the specific replacements
-		testPath = strings.ReplaceAll(testPath, "{", "1") // fallback for other parameter names
-		testPath = strings.ReplaceAll(testPath, "}", "")
+	if strings.Contains(path, "{") {
+		// Use regex to replace all path parameters with a test value (KISS-7)
+		testPath = pathParamRegex.ReplaceAllString(path, "test-value-1")
 	}
 
 	// Create a test request with the appropriate method and test path

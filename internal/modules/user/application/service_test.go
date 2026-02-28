@@ -2,9 +2,12 @@ package application
 
 import (
 	"context"
+	"errors"
 	"forum/internal/modules/user/domain"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // MockUserRepository implements UserRepository for testing
@@ -211,6 +214,78 @@ func (m *MockUserRepository) DecrementReactionCount(ctx context.Context, userID 
 		user.ReactionCount--
 	}
 	return nil
+}
+
+func TestService_UpdateSettings_Success(t *testing.T) {
+	ctx := context.Background()
+	now := time.Now()
+	initialHash, _ := bcrypt.GenerateFromPassword([]byte("OldPassword123"), bcrypt.DefaultCost)
+
+	mockRepo := &MockUserRepository{
+		users: map[int]*domain.User{
+			1: {
+				ID:           1,
+				PublicID:     "test-public-id",
+				Email:        "old@example.com",
+				Username:     "Old Name",
+				PasswordHash: string(initialHash),
+				Role:         domain.RoleUser,
+				CreatedAt:    now,
+				UpdatedAt:    now,
+				IsActive:     true,
+			},
+		},
+	}
+	service := NewService(mockRepo)
+
+	updated, err := service.UpdateSettings(ctx, "test-public-id", "Alice Smith", "alice@example.com", "NewStrongPass123", "avatar-new.png")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if updated == nil {
+		t.Fatalf("expected updated user")
+	}
+	if updated.Username != "Alice Smith" {
+		t.Fatalf("expected updated username, got %s", updated.Username)
+	}
+	if updated.Email != "alice@example.com" {
+		t.Fatalf("expected updated email, got %s", updated.Email)
+	}
+	if updated.AvatarPath != "avatar-new.png" {
+		t.Fatalf("expected avatar path to be updated")
+	}
+	if updated.AvatarURL != "/static/uploads/avatar-new.png" {
+		t.Fatalf("expected avatar URL to be derived")
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(updated.PasswordHash), []byte("NewStrongPass123")); err != nil {
+		t.Fatalf("expected password hash to match new password")
+	}
+}
+
+func TestService_UpdateSettings_InvalidEmail(t *testing.T) {
+	ctx := context.Background()
+	now := time.Now()
+	mockRepo := &MockUserRepository{
+		users: map[int]*domain.User{
+			1: {
+				ID:           1,
+				PublicID:     "test-public-id",
+				Email:        "old@example.com",
+				Username:     "Old Name",
+				PasswordHash: "hash",
+				Role:         domain.RoleUser,
+				CreatedAt:    now,
+				UpdatedAt:    now,
+				IsActive:     true,
+			},
+		},
+	}
+	service := NewService(mockRepo)
+
+	_, err := service.UpdateSettings(ctx, "test-public-id", "Alice Smith", "not-an-email", "", "")
+	if !errors.Is(err, domain.ErrInvalidEmail) {
+		t.Fatalf("expected ErrInvalidEmail, got %v", err)
+	}
 }
 
 func TestService_GetByPublicID(t *testing.T) {
@@ -444,7 +519,7 @@ func TestService_UpdateRole(t *testing.T) {
 		service := NewService(mockRepo)
 
 		err := service.UpdateRole(ctx, 999, domain.RoleAdmin)
-		if err != domain.ErrUserNotFound {
+		if !errors.Is(err, domain.ErrUserNotFound) {
 			t.Errorf("Expected ErrUserNotFound, got %v", err)
 		}
 	})
@@ -503,7 +578,7 @@ func TestService_DeactivateUser(t *testing.T) {
 		service := NewService(mockRepo)
 
 		err := service.DeactivateUser(ctx, 999)
-		if err != domain.ErrUserNotFound {
+		if !errors.Is(err, domain.ErrUserNotFound) {
 			t.Errorf("Expected ErrUserNotFound, got %v", err)
 		}
 	})
@@ -562,7 +637,7 @@ func TestService_ActivateUser(t *testing.T) {
 		service := NewService(mockRepo)
 
 		err := service.ActivateUser(ctx, 999)
-		if err != domain.ErrUserNotFound {
+		if !errors.Is(err, domain.ErrUserNotFound) {
 			t.Errorf("Expected ErrUserNotFound, got %v", err)
 		}
 	})
@@ -711,7 +786,7 @@ func TestService_CreateUser_WithError(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error, got nil")
 	}
-	if err != domain.ErrUserNotFound {
+	if !errors.Is(err, domain.ErrUserNotFound) {
 		t.Errorf("Expected ErrUserNotFound, got %v", err)
 	}
 }

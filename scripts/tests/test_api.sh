@@ -585,7 +585,7 @@ print_section "REACTION API - /api/reactions"
 # Reaction without auth
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/reactions" \
     -H "Content-Type: application/json" \
-    -d '{"target_type":"post","target_id":"test","reaction_type":"like"}')
+    -d '{"target_type":"post","target_id":"test","type":"like"}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ] || [ "$HTTP_CODE" = "501" ]; then
     print_test "POST /api/reactions - Without auth (401)" "PASS"
@@ -597,7 +597,7 @@ fi
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/reactions" \
     -H "Content-Type: application/json" \
     -H "Cookie: session_token=$SESSION_COOKIE" \
-    -d "{\"target_type\":\"post\",\"target_id\":\"$SEED_POST_ID\",\"reaction_type\":\"like\"}")
+    -d "{\"target_type\":\"post\",\"target_id\":\"$SEED_POST_ID\",\"type\":\"like\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "501" ]; then
     print_test "POST /api/reactions - Like post (201)" "PASS"

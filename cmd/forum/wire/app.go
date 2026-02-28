@@ -1,7 +1,5 @@
+// CORE - Application lifecycle and initialization
 package wire
-
-// Package wire handles dependency injection and application wiring.
-// It initializes all components and returns a fully configured App instance.
 
 import (
 	"database/sql"
@@ -22,14 +20,14 @@ type App struct {
 	Logger   *logger.Logger
 }
 
-// Cleanup performs graceful cleanup of application resources.
-func (a *App) Cleanup() error {
+// Cleanup releases application resources.
+// Errors are logged but not returned since callers typically cannot
+// meaningfully handle cleanup failures.
+func (a *App) Cleanup() {
 	a.Logger.Info("Cleaning up application resources")
 	if err := a.Database.Close(); err != nil {
 		a.Logger.Error("Failed to close database connection", logger.Error(err))
-		return err
 	}
-	return nil
 }
 
 // Start starts the HTTP server.
@@ -50,7 +48,7 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 	// 1. Initialize Database
 	db, err := initDatabase(cfg, lgr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize database: %w", err)
+		return nil, fmt.Errorf("initialize database: %w", err)
 	}
 
 	// 2. Initialize Repositories (Output Adapters)
@@ -60,7 +58,11 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 	services := initServices(repos, cfg, lgr)
 
 	// 4. Initialize HTTP Handlers (Input Adapters)
-	handlers := initHandlers(services)
+	handlers, err := initHandlers(services, cfg)
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("initialize handlers: %w", err)
+	}
 
 	// 5. Initialize HTTP Server
 	server := initServer(cfg, lgr, handlers, db.DB())
@@ -80,14 +82,16 @@ func initDatabase(cfg *config.Config, lgr *logger.Logger) (*database.Connection,
 
 	dbConn, err := database.NewConnection(cfg.Database.Path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		return nil, fmt.Errorf("database connection: %w", err)
 	}
 
 	lgr.Info("Running database migrations")
 	migrator := database.NewMigrator(dbConn)
 	if err := migrator.Migrate(cfg.Database.MigrationsDir); err != nil {
-		dbConn.Close()
-		return nil, fmt.Errorf("failed to run migrations: %w", err)
+		if closeErr := dbConn.Close(); closeErr != nil {
+			lgr.Error("Failed to close database after migration failure", logger.Error(closeErr))
+		}
+		return nil, fmt.Errorf("migrations: %w", err)
 	}
 
 	return dbConn, nil
@@ -96,6 +100,11 @@ func initDatabase(cfg *config.Config, lgr *logger.Logger) (*database.Connection,
 // initServer creates and configures the HTTP server with all routes and middleware.
 func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *sql.DB) *httpserver.Server {
 	lgr.Info("Initializing HTTP server")
+
+	if err := os.MkdirAll(cfg.Upload.UploadDir, 0755); err != nil {
+		lgr.Error("Failed to initialize upload directory", logger.Error(err))
+		panic(fmt.Errorf("failed to initialize upload directory: %w", err))
+	}
 
 	// Create server with config as single source of truth
 	server := httpserver.New(cfg)
@@ -131,10 +140,8 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *
 	}))
 	server.Router().Handle("GET /health-api", httpserver.HealthAPI(healthChecker))
 
-	// Serve static files (optional - skip if directory doesn't exist)
-	// This allows tests to run without static files
-	lgr.Info("Checking for static directory")
-	if _, err := os.Stat("./static"); err == nil {
+	// Serve static files (optional - skip if directory doesn't exist or isn't a directory)
+	if info, err := os.Stat("./static"); err == nil && info.IsDir() {
 		lgr.Info("Registering static file handler")
 		server.Router().Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 	}

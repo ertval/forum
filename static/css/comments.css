@@ -15,7 +15,40 @@
     border-radius: 8px;
     margin-bottom: 1rem;
     border: 1px solid #d3e0ea;
-    border-left: 3px solid #a3d9c5;
+    border-left: 3px solid var(--color-primary);
+}
+
+.comment-reaction-like {
+    border-left-color: var(--color-primary);
+}
+
+.comment-reaction-dislike {
+    border-left-color: var(--color-error-border);
+}
+
+.activity-reaction-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.activity-reaction-row .comment-context {
+    margin-bottom: 0;
+}
+
+.activity-reaction-symbol {
+    margin-left: auto;
+    font-size: 1.2rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.activity-reaction-symbol-like {
+    color: var(--color-primary-dark);
+}
+
+.activity-reaction-symbol-dislike {
+    color: var(--color-error);
 }
 
 .comment-header {
@@ -54,7 +87,7 @@
 }
 
 .comment-post-link:hover {
-    color: #a3d9c5;
+    color: var(--color-primary);
 }
 
 .comment-post-author {
@@ -65,6 +98,21 @@
 .comment-content {
     margin: 0.5rem 0;
     color: #5a5a5a;
+}
+
+.activity-post-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.activity-post-actions {
+    display: flex;
+    gap: 0.25rem;
+    justify-content: flex-end;
+    margin-left: auto;
 }
 
 .comment-actions {
@@ -82,19 +130,22 @@
 
 .comment-reactions button {
     background: #e0f7e9;
-    border: none;
+    border: 1px solid #c2e6d6;
     padding: 0.35rem 0.75rem;
     border-radius: 16px;
     cursor: pointer;
     font-size: 0.85rem;
     color: #5a5a5a;
     transition: all 0.3s ease;
-    border: 1px solid #c2e6d6;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
 }
 
 .comment-reactions button:hover {
     background: #b5ead7;
     color: #5a5a5a;
+    transform: translateY(-1px);
 }
 
 .comment-reactions button.active {
@@ -123,7 +174,7 @@
 
 .edit-comment-textarea:focus {
     outline: none;
-    border-color: #a3d9c5;
+    border-color: var(--color-primary);
     box-shadow: 0 0 0 2px rgba(163, 217, 197, 0.3);
 }
 
@@ -175,7 +226,7 @@
 
 .comment-form textarea:focus {
     outline: none;
-    border-color: #a3d9c5;
+    border-color: var(--color-primary);
     box-shadow: 0 0 0 2px rgba(163, 217, 197, 0.3);
 }
 

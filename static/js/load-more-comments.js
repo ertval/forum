@@ -1,4 +1,5 @@
 // Load More Comments functionality for the My Comments page
+'use strict';
 
 (function() {
     function init() {
@@ -25,29 +26,37 @@
                 hour12: true
             });
 
+            // SECURITY: Escape all user-generated content to prevent XSS
+            const safePostTitle = window.escapeHtml(comment.PostTitle);
+            const safePostAuthor = window.escapeHtml(comment.PostAuthorUsername);
+            const safeAuthor = window.escapeHtml(comment.AuthorUsername);
+            const safeContent = window.escapeHtml(comment.Content);
+            const safePostId = window.escapeHtml(comment.PostPublicID);
+            const safeCommentId = window.escapeHtml(comment.PublicID);
+
             article.innerHTML = `
                 <div class="comment-context">
-                    <p>On post: <a class="comment-post-link" href="/posts/${comment.PostPublicID}">${comment.PostTitle}</a> by <span class="comment-post-author">${comment.PostAuthorUsername}</span></p>
+                    <p>On post: <a class="comment-post-link" href="/posts/${safePostId}">${safePostTitle}</a> by <span class="comment-post-author">${safePostAuthor}</span></p>
                 </div>
                 <div class="comment-header">
-                    <span class="comment-author">${comment.AuthorUsername}</span>
+                    <span class="comment-author">${safeAuthor}</span>
                     <span class="comment-date">${formattedDate}</span>
                 </div>
                 <div class="comment-content">
-                    ${comment.Content}
+                    ${safeContent}
                 </div>
                 <div class="comment-actions">
                     <div class="comment-reactions">
-                        <button class="btn-like-comment" data-comment-id="${comment.PublicID}">
-                            👍 (${comment.Likes || 0})
+                        <button class="btn-like-comment" data-comment-id="${safeCommentId}">
+                            👍 (${parseInt(comment.Likes, 10) || 0})
                         </button>
-                        <button class="btn-dislike-comment" data-comment-id="${comment.PublicID}">
-                            👎 (${comment.Dislikes || 0})
+                        <button class="btn-dislike-comment" data-comment-id="${safeCommentId}">
+                            👎 (${parseInt(comment.Dislikes, 10) || 0})
                         </button>
                     </div>
                     <div class="comment-owner-actions">
-                        <button class="btn btn-secondary btn-edit-comment" data-comment-id="${comment.PublicID}">Edit</button>
-                        <button class="btn btn-danger btn-delete-comment" data-comment-id="${comment.PublicID}">Delete</button>
+                        <button class="btn btn-secondary btn-edit-comment" data-comment-id="${safeCommentId}">Edit</button>
+                        <button class="btn btn-danger btn-delete-comment" data-comment-id="${safeCommentId}">Delete</button>
                     </div>
                 </div>
             `;

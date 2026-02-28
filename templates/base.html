@@ -27,12 +27,20 @@
                     {{/* User menu dropdown for narrow screens */}}
                     <div class="user-menu-container">
                         <button class="user-menu-btn" id="user-menu-btn" aria-haspopup="true" aria-expanded="false">
+                            {{if .User.AvatarURL}}
+                            <img src="{{.User.AvatarURL}}" alt="User avatar" class="avatar-image-small">
+                            {{else}}
                             <span class="avatar-icon-small">👤</span>
+                            {{end}}
                         </button>
                         <div class="user-menu-dropdown" id="user-menu-dropdown">
                             <div class="user-info">
                                 <div class="user-avatar">
+                                    {{if .User.AvatarURL}}
+                                    <img src="{{.User.AvatarURL}}" alt="User avatar" class="avatar-image">
+                                    {{else}}
                                     <span class="avatar-icon">👤</span>
+                                    {{end}}
                                 </div>
                                 <div class="user-details">
                                     <p class="username">{{.User.Username}}</p>
@@ -55,9 +63,10 @@
                             </div>
                             <div class="user-actions">
                                 <a href="/posts/new" class="btn btn-primary btn-small">Create Post</a>
-                                <a href="/board?my_posts=true" class="btn btn-primary btn-small">My Posts</a>
-                                <a href="/board?liked_posts=true" class="btn btn-primary btn-small">My Reactions</a>
-                                <a href="/comments" class="btn btn-primary btn-small">My Comments</a>
+                                <a href="/activity" class="btn btn-primary btn-small notification-link">
+                                    <span class="notification-link-label">🔔 My Activity</span>
+                                    <span class="notification-badge" data-notification-badge="true" hidden>0</span>
+                                </a>
                                 <a href="/settings" class="btn btn-primary btn-small">Settings</a>
                                 <a href="/logout" class="btn btn-primary btn-small">Logout</a>
                             </div>
@@ -75,7 +84,7 @@
     <main>
         <div class="container">
             {{/* Determine layout based on page type and user status */}}
-            {{ $showUserSidebar := and .User (not (or (eq .Title "Home") (eq .Title "Health Status"))) }}
+            {{/* $showUserSidebar already declared in body tag section (line 13) */}}
             {{ $showLeftSidebar := .ShowFilter }}
             {{ $isPostFormPage := or (eq .Title "Create Post") (eq .Title "Edit Post") }}
 
@@ -118,6 +127,9 @@
                     {{ template "content" . }}
                 </div>
                 <aside class="sidebar-right">
+                    {{ if .ShowFilterRight }}
+                    {{ template "filter-card" . }}
+                    {{ end }}
                     {{ template "user-card" . }}
                 </aside>
             </div>
@@ -154,6 +166,7 @@
         </div>
     </footer>
 
+    <script src="/static/js/utils.js"></script>
     <script src="/static/js/modal.js"></script>
     <script src="/static/js/main.js"></script>
     {{block "scripts" .}}{{end}}
@@ -167,7 +180,11 @@
 <div class="user-card">
     <div class="user-info">
         <div class="user-avatar">
+            {{if .User.AvatarURL}}
+            <img src="{{.User.AvatarURL}}" alt="User avatar" class="avatar-image">
+            {{else}}
             <span class="avatar-icon">👤</span>
+            {{end}}
         </div>
         <div class="user-details">
             <p class="username">{{.User.Username}}</p>
@@ -195,6 +212,10 @@
         <a href="/board?liked_posts=true{{if .SelectedCategory}}&category={{urlquery .SelectedCategory}}{{end}}{{if .DateFilter}}&date_filter={{.DateFilter}}{{end}}"
             class="btn btn-primary btn-small">My Reactions</a>
         <a href="/comments" class="btn btn-primary btn-small">My Comments</a>
+        <a href="/activity" class="btn btn-primary btn-small notification-link">
+            <span class="notification-link-label">🔔 My Activity</span>
+            <span class="notification-badge" data-notification-badge="true" hidden>0</span>
+        </a>
         <a href="/settings" class="btn btn-primary btn-small">Settings</a>
         <a href="/logout" class="btn btn-primary btn-small">Logout</a>
     </div>
@@ -204,18 +225,71 @@
 {{/* Filter Card Component - Shows filtering options */}}
 {{define "filter-card"}}
 <div class="filters">
-    <h2>{{if eq .Title "My Comments"}}Filter Comments{{else}}Filter Posts{{end}}</h2>
+    <h2>{{if eq .Title "My Comments"}}Filter Comments{{else if eq .Title "My Activity"}}Filter Activity{{else}}Filter Posts{{end}}</h2>
     <form method="GET" action="{{.FilterAction}}">
+        {{if eq .Title "My Activity"}}
+        <div class="filter-group">
+            <label for="activity_type">Activity Type:</label>
+            <select name="activity_type" id="activity_type">
+                <option value="all" {{if eq .ActivityType "all"}}selected{{end}}>All</option>
+                <option value="created_posts" {{if eq .ActivityType "created_posts"}}selected{{end}}>Created Posts</option>
+                <option value="reactions" {{if eq .ActivityType "reactions"}}selected{{end}}>Reactions</option>
+                <option value="comments" {{if eq .ActivityType "comments"}}selected{{end}}>Comments</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="category">Post Category:</label>
+            <select name="category" id="category">
+                <option value="">All Categories</option>
+                {{range .Categories}}
+                <option value="{{.Name}}" {{if eq $.SelectedCategory .Name}}selected{{end}}>{{.Name}}</option>
+                {{end}}
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="time">Time:</label>
+            <select name="time" id="time">
+                <option value="all" {{if eq .SelectedTime "all"}}selected{{end}}>All Time</option>
+                <option value="today" {{if eq .SelectedTime "today"}}selected{{end}}>Today</option>
+                <option value="week" {{if eq .SelectedTime "week"}}selected{{end}}>This Week</option>
+                <option value="month" {{if eq .SelectedTime "month"}}selected{{end}}>This Month</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="reaction_type">Reaction Type:</label>
+            <select name="reaction_type" id="reaction_type">
+                <option value="all" {{if eq .SelectedReaction "all"}}selected{{end}}>All</option>
+                <option value="like" {{if eq .SelectedReaction "like"}}selected{{end}}>Like</option>
+                <option value="dislike" {{if eq .SelectedReaction "dislike"}}selected{{end}}>Dislike</option>
+            </select>
+        </div>
+        {{else}}
         {{/* Preserve active filter state with hidden inputs */}}
         {{if .UserFilter}}
         <input type="hidden" name="user" value="{{.UserFilter}}">
         {{end}}
-        {{if .MyPosts}}
-        <input type="hidden" name="my_posts" value="true">
-        {{end}}
-        {{if .LikedPosts}}
-        <input type="hidden" name="liked_posts" value="true">
-        {{end}}
+
+        <div class="filter-group">
+            <label for="activity_type">Activity Type:</label>
+            <select name="activity_type" id="activity_type">
+                <option value="all" {{if eq .ActivityType "all"}}selected{{end}}>All Posts</option>
+                <option value="my_posts" {{if eq .ActivityType "my_posts"}}selected{{end}}>My Posts</option>
+                <option value="reactions" {{if eq .ActivityType "reactions"}}selected{{end}}>My Reactions</option>
+                <option value="commented_posts" {{if eq .ActivityType "commented_posts"}}selected{{end}}>Posts I Commented</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="reaction_type">Reaction Type:</label>
+            <select name="reaction_type" id="reaction_type">
+                <option value="all" {{if eq .SelectedReaction "all"}}selected{{end}}>All Reactions</option>
+                <option value="like" {{if eq .SelectedReaction "like"}}selected{{end}}>Like</option>
+                <option value="dislike" {{if eq .SelectedReaction "dislike"}}selected{{end}}>Dislike</option>
+            </select>
+        </div>
 
         <div class="filter-group">
             <label for="category">Category:</label>
@@ -237,11 +311,22 @@
             </select>
         </div>
 
-        <!-- 'Posts I Liked' filter removed: use 'My Likes' button in user card instead -->
+        {{if .MyPosts}}
+        <input type="hidden" name="my_posts" value="true">
+        {{end}}
+        {{if .LikedPosts}}
+        <input type="hidden" name="liked_posts" value="true">
+        {{end}}
+        {{if .DislikedPosts}}
+        <input type="hidden" name="disliked_posts" value="true">
+        {{end}}
+        {{if .CommentedPosts}}
+        <input type="hidden" name="commented_posts" value="true">
+        {{end}}
+        {{end}}
 
-        <button type="submit" class="btn btn-primary btn-small" style="font-weight: normal;">Apply Filters</button>
-        <a href="{{.FilterAction}}" class="btn btn-primary btn-small"
-            style="margin-top: 0.5rem; display: block; text-align: center;">Reset</a>
+        <button type="submit" class="btn btn-primary btn-small btn-filter-apply">Apply Filters</button>
+        <a href="{{.FilterAction}}" class="btn btn-primary btn-small btn-filter-reset">Reset</a>
     </form>
 </div>
 {{end}}
@@ -292,7 +377,7 @@
     <div class="form-group">
         <div class="current-image" id="current-image-container">
             <img src="{{.Post.ImageURL}}" alt="Current image" id="current-image">
-            <button type="button" class="btn-remove-image" id="remove-current-image" title="Remove image">
+            <button type="button" class="btn-remove-image" id="remove-current-image" title="Remove image" aria-label="Remove the current post image">
                 <span class="remove-icon">×</span> Remove Image
             </button>
         </div>
@@ -303,16 +388,16 @@
         <label for="image">{{if .Post.ImageURL}}Replace Image{{else}}Add Image{{end}} (Optional)</label>
         <div class="file-input-wrapper">
             <label for="image" class="file-input-label">Choose File</label>
-            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif" form="post-edit-form">
+            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif,image/webp" form="post-edit-form">
             <span class="file-name" id="file-name-display">No file chosen</span>
         </div>
-        <span class="form-help">JPEG, PNG, or GIF. Maximum 20MB</span>
+        <span class="form-help">JPEG, PNG, GIF, or WebP. Maximum 20MB</span>
         <div id="image-preview" class="image-preview"></div>
     </div>
     {{end}}
 </div>
 
-<div class="user-card" style="margin-top:1rem;">
+<div class="user-card user-card-spaced">
     <h2>Categories</h2>
     <div class="form-group">
         <div class="category-checkboxes">
@@ -342,15 +427,15 @@
         <label for="image">Add Image (Optional)</label>
         <div class="file-input-wrapper">
             <label for="image" class="file-input-label">Choose File</label>
-            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif" form="post-create-form">
+            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif,image/webp" form="post-create-form">
             <span class="file-name" id="file-name-display">No file chosen</span>
         </div>
-        <span class="form-help">JPEG, PNG, or GIF. Maximum 20MB</span>
+        <span class="form-help">JPEG, PNG, GIF, or WebP. Maximum 20MB</span>
         <div id="image-preview" class="image-preview"></div>
     </div>
 </div>
 
-<div class="user-card" style="margin-top:1rem;">
+<div class="user-card user-card-spaced">
     <h2>Categories</h2>
     <div class="form-group">
         <div class="category-checkboxes">

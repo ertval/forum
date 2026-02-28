@@ -1,12 +1,17 @@
-version: '3.8'
-
 services:
   forum:
     build: .
     ports:
       - "8080:8080"
+      - "8443:8443"
     volumes:
       - ./data:/app/data
+      - ./static/uploads:/app/static/uploads
+      - ./certs:/app/certs:ro
     environment:
-      - DB_PATH=/app/data/forum.db
+      - DATABASE_PATH=/app/data/forum.db
+      - UPLOAD_DIR=/app/static/uploads
+      - SERVER_HOST=0.0.0.0
+      - TLS_CERT_FILE=/app/certs/cert.pem
+      - TLS_KEY_FILE=/app/certs/key.pem
     restart: unless-stopped

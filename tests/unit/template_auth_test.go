@@ -34,7 +34,7 @@ func TestAuthTemplatesWithBase(t *testing.T) {
 		if !contains(html, "<title>Login - Forum</title>") {
 			t.Error("Missing title")
 		}
-		if !contains(html, `<form id="loginForm"`) {
+		if !contains(html, `<form id="login-form"`) {
 			t.Error("Missing login form")
 		}
 		if !contains(html, `name="email"`) {
@@ -73,7 +73,7 @@ func TestAuthTemplatesWithBase(t *testing.T) {
 		if !contains(html, "<title>Register - Forum</title>") {
 			t.Error("Missing title")
 		}
-		if !contains(html, `<form id="registerForm"`) {
+		if !contains(html, `<form id="register-form"`) {
 			t.Error("Missing register form")
 		}
 		if !contains(html, `name="username"`) {
@@ -106,10 +106,10 @@ func TestAuthTemplatesWithBase(t *testing.T) {
 		registerHTML := registerBuf.String()
 
 		// Verify they're different
-		if contains(loginHTML, "registerForm") {
+		if contains(loginHTML, "register-form") {
 			t.Error("Login page contains register form")
 		}
-		if contains(registerHTML, "loginForm") {
+		if contains(registerHTML, "login-form") {
 			t.Error("Register page contains login form")
 		}
 	})

@@ -41,7 +41,12 @@ type ServiceContainer struct {
 	logger         *logger.Logger
 }
 
-// Accessor methods for ServiceContainer to satisfy handler interfaces
+// Service accessor methods satisfy handler-specific interfaces.
+// Each handler declares only the services it needs, e.g.:
+//
+//	type ServiceContainer interface { Auth() authPorts.AuthService }
+//
+// This pattern enables compile-time dependency verification and interface segregation.
 func (sc *ServiceContainer) Auth() authPorts.AuthService                   { return sc.auth }
 func (sc *ServiceContainer) AuthMiddleware() authPorts.AuthMiddleware      { return sc.authMiddleware }
 func (sc *ServiceContainer) User() userPorts.UserService                   { return sc.user }
@@ -58,23 +63,25 @@ func (sc *ServiceContainer) Logger() *logger.Logger { return sc.logger }
 
 // initServices creates a ServiceContainer with all service instances and their dependencies.
 func initServices(repos *Repositories, cfg *config.Config, lgr *logger.Logger) *ServiceContainer {
-	// Layer 1: Services with no dependencies
+	// Layer 1: Foundation services (no inter-service dependencies)
 	userService := userApp.NewService(repos.User)
-
-	// Initialize image handler for post uploads (config-driven)
-	imageHandler := upload.NewImageHandler(cfg.Upload.UploadDir, cfg.Upload.MaxSize)
 	categoryService := postApp.NewCategoryService(repos.Category)
 	filterService := postApp.NewFilterService()
-	reactionService := reactionApp.NewService(repos.Reaction, repos.Post, repos.Comment, userService)
 	moderationService := moderationApp.NewService(repos.Moderation)
 	notificationService := notificationApp.NewService(repos.Notification)
 
-	// Layer 2: Services depending on Layer 1
+	// Layer 1b: Infrastructure adapters (config-driven, no service dependencies)
+	imageHandler := upload.NewImageHandler(cfg.Upload.UploadDir, cfg.Upload.MaxSize)
+
+	// Layer 2: Domain services (depend on Layer 1 services)
 	authService := authApp.NewService(repos.Session, userService, cfg.Session.Duration)
 	postService := postApp.NewService(repos.Post, repos.Category, userService, imageHandler, cfg.Upload.MaxSize)
+	reactionService := reactionApp.NewService(repos.Reaction, repos.Post, repos.Comment, userService)
 	commentService := commentApp.NewService(repos.Comment, postService, userService)
+	reactionService.SetNotificationService(notificationService)
+	commentService.SetNotificationService(notificationService)
 
-	// Layer 3: Adapters/middleware depending on services
+	// Layer 3: Cross-cutting middleware (depend on services)
 	authMiddleware := authAdapters.NewAuthMiddleware(authService, userService)
 
 	return &ServiceContainer{

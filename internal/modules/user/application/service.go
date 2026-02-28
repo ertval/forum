@@ -3,10 +3,15 @@ package application
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"forum/internal/modules/user/domain"
 	"forum/internal/modules/user/ports"
+	"forum/internal/platform/validator"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Service implements the UserService interface.
@@ -36,7 +41,7 @@ func (s *Service) CreateUser(ctx context.Context, email, username, passwordHash 
 
 	err = s.userRepo.Create(ctx, user)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("creating user: %w", err)
 	}
 
 	return user.ID, nil
@@ -76,7 +81,7 @@ func (s *Service) UpdateRole(ctx context.Context, userID int, newRole domain.Rol
 	// Get the user first to ensure they exist
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return domain.ErrUserNotFound
+		return fmt.Errorf("getting user for role update: %w", err)
 	}
 
 	// Update role and timestamp
@@ -91,7 +96,7 @@ func (s *Service) UpdateRole(ctx context.Context, userID int, newRole domain.Rol
 func (s *Service) DeactivateUser(ctx context.Context, userID int) error {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return domain.ErrUserNotFound
+		return fmt.Errorf("getting user for deactivation: %w", err)
 	}
 
 	if !user.IsActive {
@@ -109,7 +114,7 @@ func (s *Service) DeactivateUser(ctx context.Context, userID int) error {
 func (s *Service) ActivateUser(ctx context.Context, userID int) error {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return domain.ErrUserNotFound
+		return fmt.Errorf("getting user for activation: %w", err)
 	}
 
 	if user.IsActive {
@@ -176,4 +181,84 @@ func (s *Service) IncrementReactionCount(ctx context.Context, userID int) error 
 // DecrementReactionCount atomically decrements the user's reaction count.
 func (s *Service) DecrementReactionCount(ctx context.Context, userID int) error {
 	return s.userRepo.DecrementReactionCount(ctx, userID)
+}
+
+// UpdateSettings updates profile settings for a user identified by public UUID.
+func (s *Service) UpdateSettings(ctx context.Context, publicID, username, email, newPassword, avatarPath string) (*domain.User, error) {
+	if publicID == "" {
+		return nil, domain.ErrUserNotFound
+	}
+
+	user, err := s.userRepo.GetByPublicID(ctx, publicID)
+	if err != nil || user == nil {
+		return nil, domain.ErrUserNotFound
+	}
+
+	username = strings.TrimSpace(validator.Sanitize(username))
+	email = strings.ToLower(strings.TrimSpace(validator.Sanitize(email)))
+
+	v := validator.New()
+	v.Required("username", username)
+	v.Required("email", email)
+	if username != "" {
+		v.Username("username", username)
+	}
+	if email != "" {
+		v.Email("email", email)
+	}
+	if newPassword != "" {
+		v.Password("password", newPassword, 8)
+	}
+
+	if !v.Valid() {
+		for field := range v.Errors() {
+			switch field {
+			case "username":
+				return nil, domain.ErrInvalidUsername
+			case "email":
+				return nil, domain.ErrInvalidEmail
+			case "password":
+				return nil, domain.ErrWeakPassword
+			}
+		}
+	}
+
+	if username != user.Username {
+		existingUser, getErr := s.userRepo.GetByUsername(ctx, username)
+		if getErr == nil && existingUser != nil && existingUser.ID != user.ID {
+			return nil, domain.ErrUsernameAlreadyExists
+		}
+	}
+
+	if email != user.Email {
+		existingUser, getErr := s.userRepo.GetByEmail(ctx, email)
+		if getErr == nil && existingUser != nil && existingUser.ID != user.ID {
+			return nil, domain.ErrEmailAlreadyExists
+		}
+	}
+
+	user.Username = username
+	user.Email = email
+	user.AvatarPath = avatarPath
+	user.UpdatedAt = time.Now()
+
+	if newPassword != "" {
+		passwordHash, hashErr := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+		if hashErr != nil {
+			return nil, fmt.Errorf("hashing password: %w", hashErr)
+		}
+		user.PasswordHash = string(passwordHash)
+	}
+
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, fmt.Errorf("updating user settings: %w", err)
+	}
+
+	if user.AvatarPath != "" {
+		user.AvatarURL = "/static/uploads/" + user.AvatarPath
+	} else {
+		user.AvatarURL = ""
+	}
+
+	return user, nil
 }

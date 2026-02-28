@@ -1,8 +1,9 @@
 // Authentication JavaScript functions for login and register forms
+'use strict';
 
 document.addEventListener('DOMContentLoaded', function() {
     // Handle login form submission
-    const loginForm = document.getElementById('loginForm');
+    const loginForm = document.getElementById('login-form');
     if (loginForm) {
         loginForm.addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -26,12 +27,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
 
                 if (response.ok) {
-                    const result = await response.json();
                     // Redirect to home page after successful login
                     window.location.href = '/';
                 } else {
                     const error = await response.json();
-                    if (formErrors) formErrors.innerHTML = `<p class="error">${error.error || 'Login failed'}</p>`;
+                    // SECURITY: Escape error message to prevent XSS
+                    if (formErrors) formErrors.innerHTML = `<p class="error">${window.escapeHtml(error.error || 'Login failed')}</p>`;
                 }
             } catch (error) {
                 console.error('Login error:', error);
@@ -41,7 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Handle register form submission
-    const registerForm = document.getElementById('registerForm');
+    const registerForm = document.getElementById('register-form');
     if (registerForm) {
         registerForm.addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -66,12 +67,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
 
                 if (response.ok) {
-                    const result = await response.json();
                     // Redirect to home page after successful registration
                     window.location.href = '/';
                 } else {
                     const error = await response.json();
-                    if (formErrors) formErrors.innerHTML = `<p class="error">${error.error || 'Registration failed'}</p>`;
+                    // SECURITY: Escape error message to prevent XSS
+                    if (formErrors) formErrors.innerHTML = `<p class="error">${window.escapeHtml(error.error || 'Registration failed')}</p>`;
                 }
             } catch (error) {
                 console.error('Registration error:', error);
