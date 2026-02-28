@@ -4,8 +4,6 @@ package application
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"log"
 	"strings"
 	"time"
@@ -15,6 +13,7 @@ import (
 	userPort "forum/internal/modules/user/ports"
 	"forum/internal/platform/validator"
 
+	"github.com/gofrs/uuid/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -251,14 +250,13 @@ func (s *Service) GetSession(ctx context.Context, sessionToken string) (*domain.
 	return session, nil
 }
 
-// generateSessionToken generates a cryptographically secure session token.
-// Uses 32 bytes from crypto/rand (256 bits of entropy) encoded as hex.
+// generateSessionToken generates a cryptographically secure UUID v4 session token.
 func (s *Service) generateSessionToken() (string, error) {
-	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
+	u, err := uuid.NewV4()
+	if err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(bytes), nil
+	return u.String(), nil
 }
 
 // hashPassword hashes a plaintext password using bcrypt.

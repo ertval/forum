@@ -273,6 +273,17 @@ audit-evidence-perf:
 	bash ./scripts/audit/evidence_performance.sh
 .PHONY: audit-evidence-perf
 
+# Dead reference audit/cleanup (DB + template/static refs)
+dead-refs-dry-run:
+	@echo "$(BLUE)Running dead reference audit (dry-run)...$(NC)"
+	bash ./scripts/audit/clean_dead_refs.sh --dry-run
+.PHONY: dead-refs-dry-run
+
+dead-refs-apply:
+	@echo "$(YELLOW)Applying dead reference cleanup...$(NC)"
+	bash ./scripts/audit/clean_dead_refs.sh --apply
+.PHONY: dead-refs-apply
+
 # Docker cleanup process (safe dry run)
 docker-prune-dry-run:
 	@echo "$(BLUE)Running Docker prune dry-run process...$(NC)"
@@ -319,6 +330,8 @@ help:
 	@echo "  $(GREEN)audit-evidence-docker$(NC) - Generate docker build/run/health artifacts"
 	@echo "  $(GREEN)audit-evidence-pages$(NC) - Generate page sweep artifacts"
 	@echo "  $(GREEN)audit-evidence-perf$(NC) - Generate performance artifacts"
+	@echo "  $(GREEN)dead-refs-dry-run$(NC) - Audit dead refs in templates/static/DB without changes"
+	@echo "  $(GREEN)dead-refs-apply$(NC) - Apply safe cleanup of dead DB references"
 	@echo "  $(GREEN)docker-prune-dry-run$(NC) - Show docker cleanup process without deleting"
 	@echo "  $(GREEN)docker-prune-apply$(NC) - Apply docker cleanup process"
 	@echo "  $(GREEN)seed$(NC)            - Seed database"

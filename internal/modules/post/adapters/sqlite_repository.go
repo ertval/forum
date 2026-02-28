@@ -346,6 +346,16 @@ func (r *SQLitePostRepository) List(ctx context.Context, filter domain.PostFilte
 		args = append(args, filter.LikedByUserID)
 	}
 
+	// Filter by disliked posts
+	if filter.DislikedByUserID != "" {
+		query += `
+		INNER JOIN reactions dr ON p.id = dr.target_id
+		INNER JOIN users disliked_user ON dr.user_id = disliked_user.id
+		`
+		conditions = append(conditions, "disliked_user.public_id = ? AND dr.target_type = 'post' AND dr.type = 'dislike'")
+		args = append(args, filter.DislikedByUserID)
+	}
+
 	// Filter by posts where user has commented
 	if filter.CommenterID != "" {
 		query += `

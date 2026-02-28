@@ -6,6 +6,7 @@ package adapters
 import (
 	authPorts "forum/internal/modules/auth/ports"
 	"forum/internal/modules/notification/ports"
+	userPorts "forum/internal/modules/user/ports"
 	"html/template"
 	"net/http"
 )
@@ -13,6 +14,7 @@ import (
 // HTTPHandler handles HTTP requests for notifications.
 type HTTPHandler struct {
 	notificationService ports.NotificationService
+	userService         userPorts.UserService
 	middlewareProvider  authPorts.AuthMiddleware
 	templates           *template.Template
 }
@@ -20,6 +22,7 @@ type HTTPHandler struct {
 // ServiceContainer defines the minimal interface needed by this handler.
 type ServiceContainer interface {
 	Notification() ports.NotificationService
+	User() userPorts.UserService
 	AuthMiddleware() authPorts.AuthMiddleware
 }
 
@@ -27,6 +30,7 @@ type ServiceContainer interface {
 func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
 	return &HTTPHandler{
 		notificationService: services.Notification(),
+		userService:         services.User(),
 		middlewareProvider:  services.AuthMiddleware(),
 		templates:           templates,
 	}

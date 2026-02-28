@@ -9,15 +9,18 @@ import (
 
 	"forum/internal/modules/comment/domain"
 	"forum/internal/modules/comment/ports"
+	notificationDomain "forum/internal/modules/notification/domain"
+	notificationPorts "forum/internal/modules/notification/ports"
 	postPorts "forum/internal/modules/post/ports"
 	userPorts "forum/internal/modules/user/ports"
 )
 
 // Service implements the CommentService interface.
 type Service struct {
-	commentRepo ports.CommentRepository
-	postService postPorts.PostService
-	userService userPorts.UserService
+	commentRepo         ports.CommentRepository
+	postService         postPorts.PostService
+	userService         userPorts.UserService
+	notificationService notificationPorts.NotificationService
 }
 
 // NewService creates a new comment service.
@@ -27,6 +30,11 @@ func NewService(commentRepo ports.CommentRepository, postService postPorts.PostS
 		postService: postService,
 		userService: userService,
 	}
+}
+
+// SetNotificationService injects notification capability as an optional cross-module dependency.
+func (s *Service) SetNotificationService(notificationService notificationPorts.NotificationService) {
+	s.notificationService = notificationService
 }
 
 // CreateComment creates a new comment.
@@ -55,6 +63,13 @@ func (s *Service) CreateComment(ctx context.Context, postPublicID string, userID
 	// Save to repository (repository generates PublicID)
 	if err := s.commentRepo.Create(ctx, comment); err != nil {
 		return nil, err
+	}
+
+	if s.notificationService != nil && post.UserID != userID {
+		message := "Someone commented on your post"
+		if err := s.notificationService.CreateNotification(ctx, post.UserID, userID, notificationDomain.TypeComment, message, post.PublicID); err != nil {
+			log.Printf("WARNING: failed to create comment notification for post owner %d: %v", post.UserID, err)
+		}
 	}
 
 	// Increment user's comment count asynchronously (non-blocking)

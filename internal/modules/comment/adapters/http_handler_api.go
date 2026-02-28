@@ -21,12 +21,30 @@ func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
 	router.Handle("POST /api/comments/posts/{post_id}", authMiddleware(http.HandlerFunc(h.CreateCommentAPI)))
 	router.Handle("PUT /api/comments/{id}", authMiddleware(http.HandlerFunc(h.UpdateCommentAPI)))
 	router.Handle("DELETE /api/comments/{id}", authMiddleware(http.HandlerFunc(h.DeleteCommentAPI)))
+	router.Handle("GET /api/activity", authMiddleware(http.HandlerFunc(h.GetActivityAPI)))
 
 	// Public API routes (no authentication required)
 	// GET /api/comments/{id} - Get comment (public)
 	router.HandleFunc("GET /api/comments/{id}", h.GetCommentAPI)
 	// GET /api/comments/posts/{post_id} - List comments for post (public)
 	router.HandleFunc("GET /api/comments/posts/{post_id}", h.ListCommentsByPostAPI)
+}
+
+// GetActivityAPI returns unified activity data for the authenticated user.
+func (h *HTTPHandler) GetActivityAPI(w http.ResponseWriter, r *http.Request) {
+	userPublicID := authPorts.GetUserID(r.Context())
+	if userPublicID == "" {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	activity, err := h.aggregateUserActivity(r.Context(), userPublicID)
+	if err != nil {
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve activity")
+		return
+	}
+
+	h.writeJSON(w, http.StatusOK, activity)
 }
 
 // CreateCommentAPI handles comment creation requests.
@@ -79,17 +97,19 @@ func (h *HTTPHandler) CreateCommentAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	comment.PublicUserID = userPublicID
+
 	// Return success response
 	resp := struct {
 		ID        string `json:"id"`
 		PostID    string `json:"post_id"`
-		UserID    int    `json:"user_id"`
+		UserID    string `json:"user_id"`
 		Content   string `json:"content"`
 		CreatedAt string `json:"created_at"`
 	}{
 		ID:        comment.PublicID,
 		PostID:    comment.PublicPostID,
-		UserID:    comment.UserID,
+		UserID:    comment.PublicUserID,
 		Content:   comment.Content,
 		CreatedAt: comment.CreatedAt.Format(time.RFC3339),
 	}
@@ -117,18 +137,25 @@ func (h *HTTPHandler) GetCommentAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	commentAuthor, err := h.userService.GetByID(r.Context(), comment.UserID)
+	if err != nil {
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve comment author")
+		return
+	}
+	comment.PublicUserID = commentAuthor.PublicID
+
 	// Return success response
 	resp := struct {
 		ID        string `json:"id"`
 		PostID    string `json:"post_id"`
-		UserID    int    `json:"user_id"`
+		UserID    string `json:"user_id"`
 		Content   string `json:"content"`
 		CreatedAt string `json:"created_at"`
 		UpdatedAt string `json:"updated_at"`
 	}{
 		ID:        comment.PublicID,
 		PostID:    comment.PublicPostID,
-		UserID:    comment.UserID,
+		UserID:    comment.PublicUserID,
 		Content:   comment.Content,
 		CreatedAt: comment.CreatedAt.Format(time.RFC3339),
 		UpdatedAt: comment.UpdatedAt.Format(time.RFC3339),
@@ -204,17 +231,19 @@ func (h *HTTPHandler) UpdateCommentAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	existingComment.PublicUserID = userPublicID
+
 	// Return success response
 	resp := struct {
 		ID        string `json:"id"`
 		PostID    string `json:"post_id"`
-		UserID    int    `json:"user_id"`
+		UserID    string `json:"user_id"`
 		Content   string `json:"content"`
 		UpdatedAt string `json:"updated_at"`
 	}{
 		ID:        existingComment.PublicID,
 		PostID:    existingComment.PublicPostID,
-		UserID:    existingComment.UserID,
+		UserID:    existingComment.PublicUserID,
 		Content:   req.Content,
 		UpdatedAt: time.Now().Format(time.RFC3339),
 	}
@@ -299,11 +328,28 @@ func (h *HTTPHandler) ListCommentsByPostAPI(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	userPublicIDs := make(map[int]string, len(comments))
+	for _, comment := range comments {
+		if publicID, exists := userPublicIDs[comment.UserID]; exists {
+			comment.PublicUserID = publicID
+			continue
+		}
+
+		author, err := h.userService.GetByID(r.Context(), comment.UserID)
+		if err != nil {
+			platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve comment author")
+			return
+		}
+
+		userPublicIDs[comment.UserID] = author.PublicID
+		comment.PublicUserID = author.PublicID
+	}
+
 	// Prepare response
 	var commentsResp []struct {
 		ID        string `json:"id"`
 		PostID    string `json:"post_id"`
-		UserID    int    `json:"user_id"`
+		UserID    string `json:"user_id"`
 		Content   string `json:"content"`
 		CreatedAt string `json:"created_at"`
 		UpdatedAt string `json:"updated_at"`
@@ -313,14 +359,14 @@ func (h *HTTPHandler) ListCommentsByPostAPI(w http.ResponseWriter, r *http.Reque
 		commentResp := struct {
 			ID        string `json:"id"`
 			PostID    string `json:"post_id"`
-			UserID    int    `json:"user_id"`
+			UserID    string `json:"user_id"`
 			Content   string `json:"content"`
 			CreatedAt string `json:"created_at"`
 			UpdatedAt string `json:"updated_at"`
 		}{
 			ID:        comment.PublicID,
 			PostID:    comment.PublicPostID,
-			UserID:    comment.UserID,
+			UserID:    comment.PublicUserID,
 			Content:   comment.Content,
 			CreatedAt: comment.CreatedAt.Format(time.RFC3339),
 			UpdatedAt: comment.UpdatedAt.Format(time.RFC3339),
@@ -332,7 +378,7 @@ func (h *HTTPHandler) ListCommentsByPostAPI(w http.ResponseWriter, r *http.Reque
 		Comments []struct {
 			ID        string `json:"id"`
 			PostID    string `json:"post_id"`
-			UserID    int    `json:"user_id"`
+			UserID    string `json:"user_id"`
 			Content   string `json:"content"`
 			CreatedAt string `json:"created_at"`
 			UpdatedAt string `json:"updated_at"`

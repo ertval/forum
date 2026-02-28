@@ -9,6 +9,7 @@ import (
 
 	authPorts "forum/internal/modules/auth/ports"
 	"forum/internal/modules/reaction/domain"
+	platformErrors "forum/internal/platform/errors"
 	"forum/internal/platform/logger"
 )
 
@@ -32,7 +33,7 @@ func (h *HTTPHandler) AddReactionAPI(w http.ResponseWriter, r *http.Request) {
 	// Verify authentication first
 	if !authPorts.IsAuthenticated(r.Context()) {
 		h.logger.Error("Unauthorized reaction attempt", logger.String("method", "POST"), logger.String("path", "/api/reactions"))
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
@@ -43,7 +44,7 @@ func (h *HTTPHandler) AddReactionAPI(w http.ResponseWriter, r *http.Request) {
 	user, err := h.userService.GetByPublicID(r.Context(), userPublicID)
 	if err != nil {
 		h.logger.Error("User not found for reaction", logger.String("user_id", userPublicID), logger.Error(err))
-		http.Error(w, "User not found", http.StatusUnauthorized)
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "User not found")
 		return
 	}
 
@@ -58,21 +59,21 @@ func (h *HTTPHandler) AddReactionAPI(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.logger.Error("Invalid request body for reaction", logger.String("user_id", userPublicID), logger.Error(err))
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
 	// Validate the target type
 	if req.TargetType != "post" && req.TargetType != "comment" {
 		h.logger.Error("Invalid target type for reaction", logger.String("target_type", req.TargetType), logger.String("user_id", userPublicID))
-		http.Error(w, "Target type must be 'post' or 'comment'", http.StatusBadRequest)
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Target type must be 'post' or 'comment'")
 		return
 	}
 
 	// Validate the reaction type
 	if req.Type != domain.ReactionLike && req.Type != domain.ReactionDislike {
 		h.logger.Error("Invalid reaction type", logger.String("reaction_type", string(req.Type)), logger.String("user_id", userPublicID))
-		http.Error(w, "Reaction type must be 'like' or 'dislike'", http.StatusBadRequest)
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Reaction type must be 'like' or 'dislike'")
 		return
 	}
 
@@ -93,10 +94,10 @@ func (h *HTTPHandler) AddReactionAPI(w http.ResponseWriter, r *http.Request) {
 			logger.Error(err))
 
 		if err == domain.ErrInvalidTarget || err == domain.ErrInvalidReactionType {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
@@ -116,7 +117,7 @@ func (h *HTTPHandler) RemoveReactionAPI(w http.ResponseWriter, r *http.Request) 
 	// Verify authentication first
 	if !authPorts.IsAuthenticated(r.Context()) {
 		h.logger.Error("Unauthorized reaction removal attempt", logger.String("method", "DELETE"), logger.String("path", "/api/reactions"))
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
@@ -127,7 +128,7 @@ func (h *HTTPHandler) RemoveReactionAPI(w http.ResponseWriter, r *http.Request) 
 	user, err := h.userService.GetByPublicID(r.Context(), userPublicID)
 	if err != nil {
 		h.logger.Error("User not found for reaction removal", logger.String("user_id", userPublicID), logger.Error(err))
-		http.Error(w, "User not found", http.StatusUnauthorized)
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "User not found")
 		return
 	}
 
@@ -141,14 +142,14 @@ func (h *HTTPHandler) RemoveReactionAPI(w http.ResponseWriter, r *http.Request) 
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.logger.Error("Invalid request body for reaction removal", logger.String("user_id", userPublicID), logger.Error(err))
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
 	// Validate the target type
 	if req.TargetType != "post" && req.TargetType != "comment" {
 		h.logger.Error("Invalid target type for reaction removal", logger.String("target_type", req.TargetType), logger.String("user_id", userPublicID))
-		http.Error(w, "Target type must be 'post' or 'comment'", http.StatusBadRequest)
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Target type must be 'post' or 'comment'")
 		return
 	}
 
@@ -167,10 +168,10 @@ func (h *HTTPHandler) RemoveReactionAPI(w http.ResponseWriter, r *http.Request) 
 			logger.Error(err))
 
 		if err == domain.ErrReactionNotFound || err == domain.ErrInvalidTarget {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
@@ -192,7 +193,7 @@ func (h *HTTPHandler) GetReactionsAPI(w http.ResponseWriter, r *http.Request) {
 	// Validate the target type
 	if targetType != "post" && targetType != "comment" {
 		h.logger.Error("Invalid target type for getting reactions", logger.String("target_type", targetType))
-		http.Error(w, "Target type must be 'post' or 'comment'", http.StatusBadRequest)
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Target type must be 'post' or 'comment'")
 		return
 	}
 
@@ -209,10 +210,10 @@ func (h *HTTPHandler) GetReactionsAPI(w http.ResponseWriter, r *http.Request) {
 			logger.Error(err))
 
 		if err == domain.ErrInvalidTarget {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
@@ -234,7 +235,7 @@ func (h *HTTPHandler) CountReactionsAPI(w http.ResponseWriter, r *http.Request) 
 	// Validate the target type
 	if targetType != "post" && targetType != "comment" {
 		h.logger.Error("Invalid target type for counting reactions", logger.String("target_type", targetType))
-		http.Error(w, "Target type must be 'post' or 'comment'", http.StatusBadRequest)
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Target type must be 'post' or 'comment'")
 		return
 	}
 
@@ -251,10 +252,10 @@ func (h *HTTPHandler) CountReactionsAPI(w http.ResponseWriter, r *http.Request) 
 			logger.Error(err))
 
 		if err == domain.ErrInvalidTarget {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 

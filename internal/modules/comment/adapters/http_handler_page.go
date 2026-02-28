@@ -5,11 +5,13 @@ package adapters
 
 import (
 	"bytes"
+	"context"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
+	postDomain "forum/internal/modules/post/domain"
 	platformErrors "forum/internal/platform/errors"
 	"forum/internal/platform/templates"
 )
@@ -19,10 +21,63 @@ func (h *HTTPHandler) RegisterPageRoutes(router *http.ServeMux) {
 	// Protected page routes (require authentication)
 	authMiddleware := h.middlewareProvider.RequireAuth()
 	router.Handle("GET /comments", authMiddleware(http.HandlerFunc(h.MyCommentsPage)))
+	router.Handle("GET /activity", authMiddleware(http.HandlerFunc(h.ActivityPage)))
 
 	// Protected API route for loading more comments (requires authentication)
 	optionalAuth := h.middlewareProvider.OptionalAuth()
 	router.Handle("GET /api/comments/load-more", optionalAuth(http.HandlerFunc(h.LoadMoreCommentsAPI)))
+}
+
+// ActivityPage handles the unified page that displays user activity.
+func (h *HTTPHandler) ActivityPage(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	cookie, err := r.Cookie("session_token")
+	if err != nil || cookie.Value == "" {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	session, err := h.authService.ValidateSession(ctx, cookie.Value)
+	if err != nil || session == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	currentUser := h.buildCurrentUser(ctx, session.UserID)
+	userPublicID, ok := currentUser["PublicID"].(string)
+	if !ok || userPublicID == "" {
+		http.Error(w, "User not authenticated properly", http.StatusUnauthorized)
+		return
+	}
+
+	activity, err := h.aggregateUserActivity(ctx, userPublicID)
+	if err != nil {
+		http.Error(w, "Failed to load activity", http.StatusInternalServerError)
+		return
+	}
+
+	data := map[string]interface{}{
+		"Title":        "My Activity",
+		"User":         currentUser,
+		"ShowFilter":   false,
+		"ShowSidebar":  false,
+		"CreatedPosts": activity["created_posts"],
+		"Reactions":    activity["reactions"],
+		"Comments":     activity["comments"],
+	}
+
+	tmpl, err := templates.Get("activity", "templates/base.html", "templates/activity.html")
+	if err != nil {
+		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		return
+	}
 }
 
 // MyCommentsPage handles the page that displays all comments made by the current user.
@@ -298,4 +353,95 @@ func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request
 	}
 
 	h.writeJSON(w, http.StatusOK, commentsData)
+}
+
+func (h *HTTPHandler) aggregateUserActivity(ctx context.Context, userPublicID string) (map[string]interface{}, error) {
+	createdPosts, err := h.postService.ListPosts(ctx, postDomain.PostFilter{
+		UserID: userPublicID,
+		Limit:  50,
+		Offset: 0,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	likedPosts, err := h.postService.ListPosts(ctx, postDomain.PostFilter{
+		LikedByUserID: userPublicID,
+		Limit:         50,
+		Offset:        0,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	dislikedPosts, err := h.postService.ListPosts(ctx, postDomain.PostFilter{
+		DislikedByUserID: userPublicID,
+		Limit:            50,
+		Offset:           0,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	commentsFromService, err := h.commentService.ListCommentsByUserPaginated(ctx, userPublicID, 100, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	reactionItems := make([]map[string]interface{}, 0, len(likedPosts)+len(dislikedPosts))
+	for _, post := range likedPosts {
+		reactionItems = append(reactionItems, map[string]interface{}{
+			"PostPublicID": post.PublicID,
+			"PostTitle":    post.Title,
+			"ReactionType": "like",
+			"CreatedAt":    post.CreatedAt,
+		})
+	}
+	for _, post := range dislikedPosts {
+		reactionItems = append(reactionItems, map[string]interface{}{
+			"PostPublicID": post.PublicID,
+			"PostTitle":    post.Title,
+			"ReactionType": "dislike",
+			"CreatedAt":    post.CreatedAt,
+		})
+	}
+
+	commentItems := make([]map[string]interface{}, 0, len(commentsFromService))
+	for _, comment := range commentsFromService {
+		postTitle := "Post not found"
+		postPublicID := comment.PublicPostID
+		if comment.PublicPostID != "" {
+			post, err := h.postService.GetPost(ctx, comment.PublicPostID)
+			if err == nil && post != nil {
+				postTitle = post.Title
+				postPublicID = post.PublicID
+			}
+		}
+
+		commentItems = append(commentItems, map[string]interface{}{
+			"CommentPublicID": comment.PublicID,
+			"Content":         comment.Content,
+			"PostPublicID":    postPublicID,
+			"PostTitle":       postTitle,
+			"CreatedAt":       comment.CreatedAt,
+		})
+	}
+
+	createdPostItems := make([]map[string]interface{}, 0, len(createdPosts))
+	for _, post := range createdPosts {
+		createdPostItems = append(createdPostItems, map[string]interface{}{
+			"PublicID":     post.PublicID,
+			"Title":        post.Title,
+			"CreatedAt":    post.CreatedAt,
+			"LikeCount":    post.LikeCount,
+			"DislikeCount": post.DislikeCount,
+			"CommentCount": post.CommentCount,
+		})
+	}
+
+	return map[string]interface{}{
+		"created_posts": createdPostItems,
+		"reactions":     reactionItems,
+		"comments":      commentItems,
+	}, nil
 }

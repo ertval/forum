@@ -7,6 +7,8 @@ import (
 	"time"
 
 	commentPorts "forum/internal/modules/comment/ports"
+	notificationDomain "forum/internal/modules/notification/domain"
+	notificationPorts "forum/internal/modules/notification/ports"
 	postPorts "forum/internal/modules/post/ports"
 	"forum/internal/modules/reaction/domain"
 	"forum/internal/modules/reaction/ports"
@@ -15,10 +17,11 @@ import (
 
 // Service implements the ReactionService interface.
 type Service struct {
-	reactionRepo ports.ReactionRepository
-	postRepo     postPorts.PostRepository
-	commentRepo  commentPorts.CommentRepository
-	userService  userPorts.UserService
+	reactionRepo        ports.ReactionRepository
+	postRepo            postPorts.PostRepository
+	commentRepo         commentPorts.CommentRepository
+	userService         userPorts.UserService
+	notificationService notificationPorts.NotificationService
 }
 
 // NewService creates a new reaction service with all required dependencies.
@@ -34,6 +37,11 @@ func NewService(
 		commentRepo:  commentRepo,
 		userService:  userService,
 	}
+}
+
+// SetNotificationService injects notification capability as an optional cross-module dependency.
+func (s *Service) SetNotificationService(notificationService notificationPorts.NotificationService) {
+	s.notificationService = notificationService
 }
 
 // React adds or updates a user's reaction to a target.
@@ -53,12 +61,14 @@ func (s *Service) React(ctx context.Context, userID int, targetPublicID string, 
 	}
 
 	// Validate that the target exists
+	postOwnerID := 0
 	switch targetType {
 	case "post":
-		_, err := s.postRepo.GetByID(ctx, targetPublicID)
+		post, err := s.postRepo.GetByID(ctx, targetPublicID)
 		if err != nil {
 			return err
 		}
+		postOwnerID = post.UserID
 	case "comment":
 		_, err := s.commentRepo.GetByPublicID(ctx, targetPublicID)
 		if err != nil {
@@ -105,6 +115,18 @@ func (s *Service) React(ctx context.Context, userID int, targetPublicID string, 
 	err = s.reactionRepo.Create(ctx, reaction)
 	if err != nil {
 		return err
+	}
+
+	if s.notificationService != nil && targetType == "post" && postOwnerID > 0 && postOwnerID != userID {
+		notificationType := notificationDomain.TypeLike
+		message := "Someone liked your post"
+		if reactionType == domain.ReactionDislike {
+			notificationType = notificationDomain.TypeDislike
+			message = "Someone disliked your post"
+		}
+		if err := s.notificationService.CreateNotification(ctx, postOwnerID, userID, notificationType, message, targetPublicID); err != nil {
+			log.Printf("WARNING: failed to create reaction notification for post owner %d: %v", postOwnerID, err)
+		}
 	}
 
 	// Increment user's reaction count asynchronously (non-blocking)

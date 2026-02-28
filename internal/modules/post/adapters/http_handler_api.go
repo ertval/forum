@@ -38,7 +38,7 @@ func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
 // CreatePostAPI handles post creation requests.
 func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		platformErrors.WriteErrorJSON(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
@@ -167,7 +167,7 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 // GetPostAPI handles post retrieval requests.
 func (h *HTTPHandler) GetPostAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		platformErrors.WriteErrorJSON(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
@@ -181,7 +181,7 @@ func (h *HTTPHandler) GetPostAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if postID == "" || postID == "/api/posts" {
-		http.Error(w, "Post ID required", http.StatusBadRequest)
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Post ID required")
 		return
 	}
 
@@ -189,9 +189,9 @@ func (h *HTTPHandler) GetPostAPI(w http.ResponseWriter, r *http.Request) {
 	post, err := h.postService.GetPost(ctx, postID)
 	if err != nil {
 		if err == postDomain.ErrPostNotFound {
-			http.Error(w, "Post not found", http.StatusNotFound)
+			platformErrors.WriteErrorJSON(w, http.StatusNotFound, "Post not found")
 		} else {
-			http.Error(w, "Failed to retrieve post", http.StatusInternalServerError)
+			platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve post")
 		}
 		return
 	}
@@ -419,7 +419,7 @@ func (h *HTTPHandler) DeletePostAPI(w http.ResponseWriter, r *http.Request) {
 // ListPostsAPI handles listing posts with filters.
 func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		platformErrors.WriteErrorJSON(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 
@@ -479,7 +479,7 @@ func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 // LoadMorePostsAPI handles loading additional posts for the homepage.
 func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		platformErrors.WriteErrorJSON(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 

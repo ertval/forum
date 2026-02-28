@@ -39,6 +39,11 @@ func (s *FilterService) BuildFilter(ctx context.Context, params domain.FilterPar
 		filter.LikedByUserID = params.CurrentUserID
 	}
 
+	// Apply disliked posts filter
+	if params.DislikedPosts && params.CurrentUserID != "" {
+		filter.DislikedByUserID = params.CurrentUserID
+	}
+
 	// Apply commenter filter
 	if params.Commenter != "" {
 		filter.CommenterID = params.Commenter

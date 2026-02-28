@@ -58,6 +58,7 @@
                                 <a href="/board?my_posts=true" class="btn btn-primary btn-small">My Posts</a>
                                 <a href="/board?liked_posts=true" class="btn btn-primary btn-small">My Reactions</a>
                                 <a href="/comments" class="btn btn-primary btn-small">My Comments</a>
+                                <a href="/activity" class="btn btn-primary btn-small">My Activity</a>
                                 <a href="/settings" class="btn btn-primary btn-small">Settings</a>
                                 <a href="/logout" class="btn btn-primary btn-small">Logout</a>
                             </div>
@@ -196,6 +197,7 @@
         <a href="/board?liked_posts=true{{if .SelectedCategory}}&category={{urlquery .SelectedCategory}}{{end}}{{if .DateFilter}}&date_filter={{.DateFilter}}{{end}}"
             class="btn btn-primary btn-small">My Reactions</a>
         <a href="/comments" class="btn btn-primary btn-small">My Comments</a>
+        <a href="/activity" class="btn btn-primary btn-small">My Activity</a>
         <a href="/settings" class="btn btn-primary btn-small">Settings</a>
         <a href="/logout" class="btn btn-primary btn-small">Logout</a>
     </div>

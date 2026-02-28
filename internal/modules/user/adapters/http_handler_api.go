@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"forum/internal/modules/user/domain"
+	platformErrors "forum/internal/platform/errors"
 )
 
 // RegisterAPIRoutes registers all user API routes with the router.
@@ -34,13 +35,13 @@ func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
 func (h *HTTPHandler) GetUserAPI(w http.ResponseWriter, r *http.Request) {
 	publicID := r.PathValue("id")
 	if publicID == "" {
-		http.Error(w, `{"error":"user id is required"}`, http.StatusBadRequest)
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "user id is required")
 		return
 	}
 
 	user, err := h.userService.GetByPublicID(r.Context(), publicID)
 	if err != nil || user == nil {
-		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
+		platformErrors.WriteErrorJSON(w, http.StatusNotFound, "user not found")
 		return
 	}
 
@@ -59,7 +60,7 @@ func (h *HTTPHandler) ListUsersAPI(w http.ResponseWriter, r *http.Request) {
 
 	users, err := h.userService.ListUsers(r.Context(), offset, limit)
 	if err != nil {
-		http.Error(w, `{"error":"failed to list users"}`, http.StatusInternalServerError)
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "failed to list users")
 		return
 	}
 
@@ -82,37 +83,37 @@ type updateRoleRequest struct {
 func (h *HTTPHandler) UpdateRoleAPI(w http.ResponseWriter, r *http.Request) {
 	publicID := r.PathValue("id")
 	if publicID == "" {
-		http.Error(w, `{"error":"user id is required"}`, http.StatusBadRequest)
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "user id is required")
 		return
 	}
 
 	var req updateRoleRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	// Validate role
 	role := domain.Role(req.Role)
 	if role != domain.RoleUser && role != domain.RoleModerator && role != domain.RoleAdmin {
-		http.Error(w, `{"error":"invalid role"}`, http.StatusBadRequest)
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "invalid role")
 		return
 	}
 
 	// Get user by public ID to get internal ID
 	user, err := h.userService.GetByPublicID(r.Context(), publicID)
 	if err != nil || user == nil {
-		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
+		platformErrors.WriteErrorJSON(w, http.StatusNotFound, "user not found")
 		return
 	}
 
 	// Update role
 	if err := h.userService.UpdateRole(r.Context(), user.ID, role); err != nil {
 		if err == domain.ErrInvalidRole {
-			http.Error(w, `{"error":"invalid role"}`, http.StatusBadRequest)
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "invalid role")
 			return
 		}
-		http.Error(w, `{"error":"failed to update role"}`, http.StatusInternalServerError)
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "failed to update role")
 		return
 	}
 
@@ -127,19 +128,19 @@ func (h *HTTPHandler) UpdateRoleAPI(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPHandler) DeactivateUserAPI(w http.ResponseWriter, r *http.Request) {
 	publicID := r.PathValue("id")
 	if publicID == "" {
-		http.Error(w, `{"error":"user id is required"}`, http.StatusBadRequest)
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "user id is required")
 		return
 	}
 
 	// Get user by public ID to get internal ID
 	user, err := h.userService.GetByPublicID(r.Context(), publicID)
 	if err != nil || user == nil {
-		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
+		platformErrors.WriteErrorJSON(w, http.StatusNotFound, "user not found")
 		return
 	}
 
 	if err := h.userService.DeactivateUser(r.Context(), user.ID); err != nil {
-		http.Error(w, `{"error":"failed to deactivate user"}`, http.StatusInternalServerError)
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "failed to deactivate user")
 		return
 	}
 
@@ -154,19 +155,19 @@ func (h *HTTPHandler) DeactivateUserAPI(w http.ResponseWriter, r *http.Request) 
 func (h *HTTPHandler) ActivateUserAPI(w http.ResponseWriter, r *http.Request) {
 	publicID := r.PathValue("id")
 	if publicID == "" {
-		http.Error(w, `{"error":"user id is required"}`, http.StatusBadRequest)
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "user id is required")
 		return
 	}
 
 	// Get user by public ID to get internal ID
 	user, err := h.userService.GetByPublicID(r.Context(), publicID)
 	if err != nil || user == nil {
-		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
+		platformErrors.WriteErrorJSON(w, http.StatusNotFound, "user not found")
 		return
 	}
 
 	if err := h.userService.ActivateUser(r.Context(), user.ID); err != nil {
-		http.Error(w, `{"error":"failed to activate user"}`, http.StatusInternalServerError)
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "failed to activate user")
 		return
 	}
 

@@ -14,14 +14,16 @@ Fast path to functional forum MVP following core requirements, then complete rem
 - **Post module**: Full CRUD, categories, filtering (category, user, liked posts, date range)
 - **Comment module**: Full CRUD with ownership validation, pagination for "My Comments" page
 - **Reaction module**: Full implementation for posts and comments (like/dislike toggles)
+- **Activity**: Unified `/activity` page and `/api/activity` endpoint for created posts, likes/dislikes, and comments with post context
+- **Notification module**: End-to-end notifications for post owner on comment/like/dislike with list/read API
 - **Image upload**: PNG/JPEG/GIF support, 20MB limit, validation, persistence
 - **Filtering**: By category, My Posts, Liked Posts, date range (today/week/month/all)
 - **UI Enhancements**: Hover effects on reaction buttons, "Show More" pagination for comments
+- **Settings page**: Protected `GET /settings` page added and linked from existing navigation
 
 ### ⚠️ Scaffolded (Needs Implementation)
 
 - **Moderation module**: Domain/ports/adapters structure exists, minimal implementation
-- **Notification module**: Domain/ports/adapters structure exists, minimal implementation
 
 ### 🧪 Test Status
 
@@ -144,13 +146,13 @@ Fast path to functional forum MVP following core requirements, then complete rem
 
 ### Phase 11: Notifications [OPTIONAL]
 
-**Status**: Scaffolded, minimal implementation
+**Status**: Complete for advanced objective requirements
 
-- [ ] Notification entity and repository
-- [ ] Notification on comment reply
-- [ ] Notification on post reaction
-- [ ] Mark as read functionality
-- [ ] Notification list endpoint
+- [x] Notification entity and repository
+- [x] Notification on post comment
+- [x] Notification on post like/dislike
+- [x] Mark as read functionality
+- [x] Notification list endpoint
 
 ### Phase 12: Security Hardening ✅
 
@@ -158,6 +160,9 @@ Fast path to functional forum MVP following core requirements, then complete rem
 - [x] Rate limiting middleware (per-IP/per-user)
 - [x] Security headers (CSP, HSTS, X-Frame-Options, X-XSS-Protection, Referrer-Policy)
 - [x] Certificate generation script (`scripts/seed/generate_certs.sh`)
+- [x] UUID-format session cookie token generation (SEC-07)
+- [x] UUID-only outward ID exposure in API responses for security-sensitive entities
+- [x] Unified JSON API error schema via `platform/errors.WriteErrorJSON`
 - [x] Security headers tests
 
 ---
@@ -172,7 +177,7 @@ Fast path to functional forum MVP following core requirements, then complete rem
 | comment      | ✅     | ✅    | ✅          | ✅       | ✅    | Complete   |
 | reaction     | ✅     | ✅    | ✅          | ✅       | ✅    | Complete   |
 | moderation   | ✅     | ✅    | ⚠️          | ⚠️       | ⚠️    | Scaffolded |
-| notification | ✅     | ✅    | ⚠️          | ⚠️       | ⚠️    | Scaffolded |
+| notification | ✅     | ✅    | ✅          | ✅       | ✅    | Complete   |
 
 ---
 

@@ -4,13 +4,14 @@ package domain
 // PostFilter represents post filtering options.
 // This is a domain type used to specify filtering criteria for post queries.
 type PostFilter struct {
-	UserID        string   // Filter by user's public ID (UUID)
-	Categories    []string // Filter by category names
-	CommenterID   string   // Filter posts commented on by this user (public ID)
-	LikedByUserID string   // Filter posts liked by this user (public ID)
-	DateFilter    string   // "today", "week", "month", "all" (default)
-	Offset        int      // Pagination offset
-	Limit         int      // Pagination limit
+	UserID           string   // Filter by user's public ID (UUID)
+	Categories       []string // Filter by category names
+	CommenterID      string   // Filter posts commented on by this user (public ID)
+	LikedByUserID    string   // Filter posts liked by this user (public ID)
+	DislikedByUserID string   // Filter posts disliked by this user (public ID)
+	DateFilter       string   // "today", "week", "month", "all" (default)
+	Offset           int      // Pagination offset
+	Limit            int      // Pagination limit
 }
 
 // FilterParams represents query parameters for filtering.
@@ -21,6 +22,7 @@ type FilterParams struct {
 	UserID        string // Filter by specific user's public ID
 	MyPosts       bool   // Filter to current user's posts
 	LikedPosts    bool   // Filter to current user's liked posts
+	DislikedPosts bool   // Filter to current user's disliked posts
 	DateFilter    string // Date range filter
 	Limit         int    // Maximum results
 	Offset        int    // Result offset

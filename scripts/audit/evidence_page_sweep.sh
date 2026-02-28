@@ -15,7 +15,7 @@ ROUTES=(
   "/board"
   "/login"
   "/register"
-  "/post/create"
+  "/posts/new"
   "/health"
   "/health-api"
 )

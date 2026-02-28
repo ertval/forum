@@ -1,0 +1,24 @@
+{{define "content"}}
+<div class="posts">
+    <h2>Account Settings</h2>
+    <p>Review your account details and core security information.</p>
+
+    <article class="comment">
+        <div class="comment-content">
+            <p><strong>Public UUID:</strong> {{.User.PublicID}}</p>
+            <p><strong>Username:</strong> {{.User.Username}}</p>
+            <p><strong>Email:</strong> {{.User.Email}}</p>
+            {{if .User.Role}}
+            <p><strong>Role:</strong> {{.User.Role}}</p>
+            {{end}}
+        </div>
+    </article>
+
+    <article class="comment">
+        <div class="comment-content">
+            <p><strong>Security:</strong> Your password is securely stored as a hash and your account access is protected by an authenticated session.</p>
+            <p>Use the Logout action from the user menu to end your current session on this device.</p>
+        </div>
+    </article>
+</div>
+{{end}}
