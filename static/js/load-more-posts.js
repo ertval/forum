@@ -29,20 +29,92 @@
         const isHomeCompact = !!additionalPostsContainer;
 
         function createPostElement(post, compact) {
-            const el = document.createElement('article');
-            
+            // Use HTML <template> elements for cloning instead of innerHTML
+            const templateId = compact ? 'post-card-compact-template' : 'post-card-template';
+            const template = document.getElementById(templateId);
+
+            // Fallback: if template element not found, create manually
+            if (!template) {
+                return createPostElementFallback(post, compact);
+            }
+
+            const clone = template.content.cloneNode(true);
+            const article = clone.querySelector('article');
+
             // SECURITY: Escape all user-generated content to prevent XSS
             const safePostId = window.escapeHtml(post.PublicID);
             const safeTitle = window.escapeHtml(post.Title);
             const safeAuthor = window.escapeHtml(post.AuthorUsername);
             const safeContent = window.escapeHtml(post.Content);
-            // ImageURL is server-generated, but escape for safety
             const safeImageURL = post.ImageURL ? window.escapeHtml(post.ImageURL) : '';
-            
+
             const postDate = new Date(post.CreatedAt);
             const formattedDate = postDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-            
-            // Safely render categories
+
+            // Parse numeric values safely
+            const likeCount = parseInt(post.LikeCount, 10) || 0;
+            const dislikeCount = parseInt(post.DislikeCount, 10) || 0;
+            const commentCount = parseInt(post.CommentCount, 10) || 0;
+
+            // Fill in the template fields
+            article.setAttribute('data-href', `/posts/${safePostId}`);
+
+            const link = clone.querySelector('[data-field="link"]');
+            link.href = `/posts/${safePostId}`;
+            link.textContent = safeTitle;
+
+            clone.querySelector('[data-field="author"]').textContent = `by ${safeAuthor}`;
+            clone.querySelector('[data-field="date"]').textContent = formattedDate;
+
+            // Handle image
+            if (safeImageURL) {
+                const imgContainer = clone.querySelector('[data-field="image-container"]');
+                imgContainer.style.display = '';
+                const img = clone.querySelector('[data-field="image"]');
+                img.src = safeImageURL;
+                img.alt = safeTitle;
+            }
+
+            clone.querySelector('[data-field="content"]').textContent = safeContent;
+
+            // Build categories
+            const categoriesContainer = clone.querySelector('[data-field="categories"]');
+            (post.Categories || []).forEach(cat => {
+                const a = document.createElement('a');
+                const safeCat = window.escapeHtml(cat);
+                a.className = compact ? 'category-tag-compact' : 'category-tag';
+                a.href = compact ? `?category=${encodeURIComponent(cat)}` : `/board?category=${encodeURIComponent(cat)}`;
+                a.textContent = safeCat;
+                categoriesContainer.appendChild(a);
+            });
+
+            // Set reaction buttons
+            const likeBtn = clone.querySelector('[data-field="like-btn"]');
+            likeBtn.setAttribute('data-post-id', safePostId);
+            likeBtn.textContent = `👍 ${likeCount}`;
+
+            const dislikeBtn = clone.querySelector('[data-field="dislike-btn"]');
+            dislikeBtn.setAttribute('data-post-id', safePostId);
+            dislikeBtn.textContent = `👎 ${dislikeCount}`;
+
+            clone.querySelector('[data-field="comment-count"]').textContent = `💬 ${commentCount}`;
+
+            return article;
+        }
+
+        // Fallback for when template elements are not available
+        function createPostElementFallback(post, compact) {
+            const el = document.createElement('article');
+
+            const safePostId = window.escapeHtml(post.PublicID);
+            const safeTitle = window.escapeHtml(post.Title);
+            const safeAuthor = window.escapeHtml(post.AuthorUsername);
+            const safeContent = window.escapeHtml(post.Content);
+            const safeImageURL = post.ImageURL ? window.escapeHtml(post.ImageURL) : '';
+
+            const postDate = new Date(post.CreatedAt);
+            const formattedDate = postDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
             const categoriesHtml = (post.Categories || []).map(cat => {
                 const safeCat = window.escapeHtml(cat);
                 if (compact) {
@@ -50,81 +122,34 @@
                 }
                 return `<a class="category-tag" href="/board?category=${encodeURIComponent(cat)}">${safeCat}</a>`;
             }).join('');
-            
-            // Parse numeric values safely
+
             const likeCount = parseInt(post.LikeCount, 10) || 0;
             const dislikeCount = parseInt(post.DislikeCount, 10) || 0;
             const commentCount = parseInt(post.CommentCount, 10) || 0;
-            
-            if (compact) {
-                el.className = 'post-card-compact clickable-card';
-                el.setAttribute('data-href', `/posts/${safePostId}`);
-                el.innerHTML = `
-                    <div class="post-header-compact">
-                        <h3><a href="/posts/${safePostId}">${safeTitle}</a></h3>
-                        <div class="post-meta-compact">
-                            <span class="author-compact">by ${safeAuthor}</span>
-                            <span class="date-compact">${formattedDate}</span>
-                        </div>
-                    </div>
 
-                    ${safeImageURL ? `
-                    <div class="post-image-compact">
-                        <img src="${safeImageURL}" alt="${safeTitle}">
+            const prefix = compact ? '-compact' : '';
+            const cls = compact ? 'post-card-compact' : 'post-card';
+            el.className = `${cls} clickable-card`;
+            el.setAttribute('data-href', `/posts/${safePostId}`);
+            el.innerHTML = `
+                <div class="post-header${prefix}">
+                    <h3><a href="/posts/${safePostId}">${safeTitle}</a></h3>
+                    <div class="post-meta${prefix}">
+                        <span class="author${prefix}">by ${safeAuthor}</span>
+                        <span class="date${prefix}">${formattedDate}</span>
                     </div>
-                    ` : ''}
-
-                    <div class="post-content-compact">
-                        <p>${safeContent}</p>
+                </div>
+                ${safeImageURL ? `<div class="post-image${prefix}"><img src="${safeImageURL}" alt="${safeTitle}"></div>` : ''}
+                <div class="post-content${prefix}"><p>${safeContent}</p></div>
+                <div class="post-footer${prefix}">
+                    <div class="categories${prefix}">${categoriesHtml}</div>
+                    <div class="post-actions${prefix}">
+                        <button class="btn-like" data-post-id="${safePostId}" aria-label="Like this post" title="Like">👍 ${likeCount}</button>
+                        <button class="btn-dislike" data-post-id="${safePostId}" aria-label="Dislike this post" title="Dislike">👎 ${dislikeCount}</button>
+                        <span class="comments${prefix}">💬 ${commentCount}</span>
                     </div>
-
-                    <div class="post-footer-compact">
-                        <div class="categories-compact">
-                            ${categoriesHtml}
-                        </div>
-
-                        <div class="post-actions-compact">
-                            <button class="btn-like" data-post-id="${safePostId}" aria-label="Like this post" title="Like">👍 ${likeCount}</button>
-                            <button class="btn-dislike" data-post-id="${safePostId}" aria-label="Dislike this post" title="Dislike">👎 ${dislikeCount}</button>
-                            <span class="comments-compact">💬 ${commentCount}</span>
-                        </div>
-                    </div>
-                `;
-            } else {
-                el.className = 'post-card clickable-card';
-                el.setAttribute('data-href', `/posts/${safePostId}`);
-                el.innerHTML = `
-                    <div class="post-header">
-                        <h3><a href="/posts/${safePostId}">${safeTitle}</a></h3>
-                        <div class="post-meta">
-                            <span class="author">by ${safeAuthor}</span>
-                            <span class="date">${formattedDate}</span>
-                        </div>
-                    </div>
-
-                    ${safeImageURL ? `
-                    <div class="post-image">
-                        <img src="${safeImageURL}" alt="${safeTitle}">
-                    </div>
-                    ` : ''}
-
-                    <div class="post-content">
-                        <p>${safeContent}</p>
-                    </div>
-
-                    <div class="post-footer">
-                        <div class="categories">
-                            ${categoriesHtml}
-                        </div>
-
-                        <div class="post-actions">
-                            <button class="btn-like" data-post-id="${safePostId}" aria-label="Like this post" title="Like">👍 ${likeCount}</button>
-                            <button class="btn-dislike" data-post-id="${safePostId}" aria-label="Dislike this post" title="Dislike">👎 ${dislikeCount}</button>
-                            <span class="comments">💬 ${commentCount}</span>
-                        </div>
-                    </div>
-                `;
-            }
+                </div>
+            `;
             return el;
         }
 

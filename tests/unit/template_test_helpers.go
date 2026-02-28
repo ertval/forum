@@ -72,7 +72,7 @@ func (h *TemplateTestHelper) AssertHasFooter(t *testing.T, html string) {
 	t.Helper()
 
 	h.AssertContains(t, html, "<footer>")
-	h.AssertContains(t, html, "&copy; 2025 Ertval Karameta & Magnus Edvall.")
+	h.AssertContains(t, html, "&copy; Forum Authors.")
 }
 
 // AssertHasTitle checks if the HTML has the expected title.

@@ -102,8 +102,8 @@ func TestHealthTemplateRendering(t *testing.T) {
 	if !bytes.Contains([]byte(html), []byte("System Health Status")) {
 		t.Errorf("Expected HTML to contain 'System Health Status'")
 	}
-	if !bytes.Contains([]byte(html), []byte("Notification Module API")) {
-		t.Errorf("Expected HTML to contain 'Notification Module API'")
+	if !bytes.Contains([]byte(html), []byte("notification_api")) {
+		t.Errorf("Expected HTML to contain 'notification_api'")
 	}
 	if !bytes.Contains([]byte(html), []byte("status-up")) {
 		t.Errorf("Expected HTML to contain 'status-up' badge")

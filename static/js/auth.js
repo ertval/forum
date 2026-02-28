@@ -18,25 +18,15 @@ document.addEventListener('DOMContentLoaded', function() {
             };
 
             try {
-                const response = await fetch('/api/auth/login', {
+                await window.api.request('/api/auth/login', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
                     body: JSON.stringify(data)
                 });
-
-                if (response.ok) {
-                    // Redirect to home page after successful login
-                    window.location.href = '/';
-                } else {
-                    const error = await response.json();
-                    // SECURITY: Escape error message to prevent XSS
-                    if (formErrors) formErrors.innerHTML = `<p class="error">${window.escapeHtml(error.error || 'Login failed')}</p>`;
-                }
+                // Redirect to home page after successful login
+                window.location.href = '/';
             } catch (error) {
-                console.error('Login error:', error);
-                if (formErrors) formErrors.innerHTML = '<p class="error">An error occurred during login</p>';
+                // SECURITY: Escape error message to prevent XSS
+                if (formErrors) formErrors.innerHTML = `<p class="error">${window.escapeHtml(error.message || 'Login failed')}</p>`;
             }
         });
     }
@@ -58,25 +48,15 @@ document.addEventListener('DOMContentLoaded', function() {
             };
 
             try {
-                const response = await fetch('/api/auth/register', {
+                await window.api.request('/api/auth/register', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
                     body: JSON.stringify(data)
                 });
-
-                if (response.ok) {
-                    // Redirect to home page after successful registration
-                    window.location.href = '/';
-                } else {
-                    const error = await response.json();
-                    // SECURITY: Escape error message to prevent XSS
-                    if (formErrors) formErrors.innerHTML = `<p class="error">${window.escapeHtml(error.error || 'Registration failed')}</p>`;
-                }
+                // Redirect to home page after successful registration
+                window.location.href = '/';
             } catch (error) {
-                console.error('Registration error:', error);
-                if (formErrors) formErrors.innerHTML = '<p class="error">An error occurred during registration</p>';
+                // SECURITY: Escape error message to prevent XSS
+                if (formErrors) formErrors.innerHTML = `<p class="error">${window.escapeHtml(error.message || 'Registration failed')}</p>`;
             }
         });
     }

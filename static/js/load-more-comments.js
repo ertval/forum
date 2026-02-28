@@ -12,9 +12,14 @@
         const BATCH_SIZE = 20;
 
         function createCommentElement(comment) {
-            const article = document.createElement('article');
-            article.className = 'comment';
-            article.id = `comment-${comment.PublicID}`;
+            // Use HTML <template> element for cloning instead of innerHTML
+            const template = document.getElementById('comment-list-template');
+            if (!template) {
+                return createCommentElementFallback(comment);
+            }
+
+            const clone = template.content.cloneNode(true);
+            const article = clone.querySelector('article');
 
             const commentDate = new Date(comment.CreatedAt);
             const formattedDate = commentDate.toLocaleDateString('en-US', {
@@ -26,7 +31,55 @@
                 hour12: true
             });
 
-            // SECURITY: Escape all user-generated content to prevent XSS
+            // SECURITY: Escape all user-generated content
+            const safePostTitle = window.escapeHtml(comment.PostTitle);
+            const safePostAuthor = window.escapeHtml(comment.PostAuthorUsername);
+            const safeAuthor = window.escapeHtml(comment.AuthorUsername);
+            const safeContent = window.escapeHtml(comment.Content);
+            const safePostId = window.escapeHtml(comment.PostPublicID);
+            const safeCommentId = window.escapeHtml(comment.PublicID);
+
+            article.id = `comment-${safeCommentId}`;
+
+            // Fill template fields
+            const postLink = clone.querySelector('[data-field="post-link"]');
+            postLink.href = `/posts/${safePostId}`;
+            postLink.textContent = safePostTitle;
+
+            clone.querySelector('[data-field="post-author"]').textContent = safePostAuthor;
+            clone.querySelector('[data-field="author"]').textContent = safeAuthor;
+            clone.querySelector('[data-field="date"]').textContent = formattedDate;
+            clone.querySelector('[data-field="content"]').textContent = safeContent;
+
+            const likeBtn = clone.querySelector('[data-field="like-btn"]');
+            likeBtn.setAttribute('data-comment-id', safeCommentId);
+            likeBtn.textContent = `👍 (${parseInt(comment.Likes, 10) || 0})`;
+
+            const dislikeBtn = clone.querySelector('[data-field="dislike-btn"]');
+            dislikeBtn.setAttribute('data-comment-id', safeCommentId);
+            dislikeBtn.textContent = `👎 (${parseInt(comment.Dislikes, 10) || 0})`;
+
+            const editBtn = clone.querySelector('[data-field="edit-btn"]');
+            editBtn.setAttribute('data-comment-id', safeCommentId);
+
+            const deleteBtn = clone.querySelector('[data-field="delete-btn"]');
+            deleteBtn.setAttribute('data-comment-id', safeCommentId);
+
+            return article;
+        }
+
+        // Fallback when template element is not available
+        function createCommentElementFallback(comment) {
+            const article = document.createElement('article');
+            article.className = 'comment';
+            article.id = `comment-${comment.PublicID}`;
+
+            const commentDate = new Date(comment.CreatedAt);
+            const formattedDate = commentDate.toLocaleDateString('en-US', {
+                year: 'numeric', month: 'short', day: '2-digit',
+                hour: 'numeric', minute: '2-digit', hour12: true
+            });
+
             const safePostTitle = window.escapeHtml(comment.PostTitle);
             const safePostAuthor = window.escapeHtml(comment.PostAuthorUsername);
             const safeAuthor = window.escapeHtml(comment.AuthorUsername);
@@ -42,17 +95,11 @@
                     <span class="comment-author">${safeAuthor}</span>
                     <span class="comment-date">${formattedDate}</span>
                 </div>
-                <div class="comment-content">
-                    ${safeContent}
-                </div>
+                <div class="comment-content">${safeContent}</div>
                 <div class="comment-actions">
                     <div class="comment-reactions">
-                        <button class="btn-like-comment" data-comment-id="${safeCommentId}">
-                            👍 (${parseInt(comment.Likes, 10) || 0})
-                        </button>
-                        <button class="btn-dislike-comment" data-comment-id="${safeCommentId}">
-                            👎 (${parseInt(comment.Dislikes, 10) || 0})
-                        </button>
+                        <button class="btn-like-comment" data-comment-id="${safeCommentId}">👍 (${parseInt(comment.Likes, 10) || 0})</button>
+                        <button class="btn-dislike-comment" data-comment-id="${safeCommentId}">👎 (${parseInt(comment.Dislikes, 10) || 0})</button>
                     </div>
                     <div class="comment-owner-actions">
                         <button class="btn btn-secondary btn-edit-comment" data-comment-id="${safeCommentId}">Edit</button>
@@ -60,7 +107,6 @@
                     </div>
                 </div>
             `;
-
             return article;
         }
 

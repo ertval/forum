@@ -143,20 +143,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             try {
-                const response = await fetch('/api/posts', {
+                const result = await window.api.request('/api/posts', {
                     method: 'POST',
                     body: formData
                 });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    window.location.href = `/posts/${result.id}`;
-                } else {
-                    const error = await response.json();
-                    if (formErrors) formErrors.innerHTML = `<p class="error">${error.error || 'Failed to create post'}</p>`;
-                }
+                window.location.href = `/posts/${result.id}`;
             } catch (error) {
-                if (formErrors) formErrors.innerHTML = '<p class="error">Network error. Please try again.</p>';
+                if (formErrors) formErrors.innerHTML = `<p class="error">${window.escapeHtml(error.message || 'Failed to create post')}</p>`;
             }
         });
     }
@@ -210,19 +203,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             try {
-                const response = await fetch(`/api/posts/${postId}`, {
+                await window.api.request(`/api/posts/${postId}`, {
                     method: 'PUT',
                     body: formData
                 });
-
-                if (response.ok) {
-                    window.location.href = `/posts/${postId}`;
-                } else {
-                    const error = await response.json();
-                    if (formErrors) formErrors.innerHTML = `<p class="error">${error.error || 'Failed to update post'}</p>`;
-                }
+                window.location.href = `/posts/${postId}`;
             } catch (error) {
-                if (formErrors) formErrors.innerHTML = '<p class="error">Network error. Please try again.</p>';
+                if (formErrors) formErrors.innerHTML = `<p class="error">${window.escapeHtml(error.message || 'Failed to update post')}</p>`;
             }
         });
     }
@@ -237,21 +224,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             try {
-                const response = await fetch(`/api/posts/${postId}`, {
+                await window.api.request(`/api/posts/${postId}`, {
                     method: 'DELETE'
                 });
-                
-                if (response.ok) {
-                    window.location.href = '/board?my_posts=true';
-                } else {
-                    const error = await response.json();
-                    const formErrors = document.getElementById('form-errors');
-                    if (formErrors) formErrors.innerHTML = `<p class="error">${window.escapeHtml(error.error || 'Failed to delete post')}</p>`;
-                }
+                window.location.href = '/board?my_posts=true';
             } catch (error) {
-                console.error('Delete error:', error);
                 const formErrors = document.getElementById('form-errors');
-                if (formErrors) formErrors.innerHTML = '<p class="error">An error occurred while deleting the post</p>';
+                if (formErrors) formErrors.innerHTML = `<p class="error">${window.escapeHtml(error.message || 'Failed to delete post')}</p>`;
             }
         };
     }

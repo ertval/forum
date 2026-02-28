@@ -89,28 +89,106 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             try {
-                const response = await fetch(`/api/comments/posts/${postId}`, {
+                const result = await window.api.request(`/api/comments/posts/${postId}`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
                     body: JSON.stringify({ content: content })
                 });
 
-                if (response.ok) {
-                    commentForm.reset();
-                    // In a real implementation, we would update the UI to show the new comment
-                    // without page reload
-                    location.reload(); // Simple approach to refresh comments
-                } else {
-                    const error = await response.json();
-                    showPageError(error.error || 'Failed to post comment');
+                commentForm.reset();
+
+                // Inject new comment into DOM instead of reloading
+                const commentsList = document.querySelector('.comments-list');
+                if (commentsList && result) {
+                    const commentEl = createNewCommentElement(result);
+                    // Insert at the end of the comments list
+                    commentsList.appendChild(commentEl);
+
+                    // Update comments count in section header
+                    const commentsHeader = document.querySelector('.comments-section h2');
+                    if (commentsHeader) {
+                        const match = commentsHeader.textContent.match(/Comments \((\d+)\)/);
+                        if (match) {
+                            const newCount = parseInt(match[1]) + 1;
+                            commentsHeader.textContent = `Comments (${newCount})`;
+                        }
+                    }
+
+                    // Update user stats
+                    updateUserCommentCount(1);
+
+                    // Scroll to new comment
+                    commentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             } catch (error) {
-                console.error('Comment error:', error);
-                showPageError('An error occurred while posting the comment');
+                showPageError(error.message || 'An error occurred while posting the comment');
             }
         });
+    }
+
+    // Create a new comment element from API response data
+    function createNewCommentElement(data) {
+        // Try to use HTML template element
+        const template = document.getElementById('comment-template');
+        const commentDate = new Date(data.created_at);
+        const formattedDate = commentDate.toLocaleDateString('en-US', {
+            year: 'numeric', month: 'short', day: '2-digit',
+            hour: 'numeric', minute: '2-digit', hour12: true
+        });
+        const safeCommentId = window.escapeHtml(data.id);
+        const safeContent = window.escapeHtml(data.content);
+
+        // Get current user's username from the page
+        const currentUsername = document.querySelector('.user-menu-dropdown .username')?.textContent?.trim()
+            || document.querySelector('.welcome-text')?.textContent?.replace('Welcome, ', '')?.trim()
+            || 'You';
+        const safeAuthor = window.escapeHtml(currentUsername);
+
+        if (template) {
+            const clone = template.content.cloneNode(true);
+            const article = clone.querySelector('article');
+            article.id = `comment-${safeCommentId}`;
+
+            clone.querySelector('[data-field="author"]').textContent = safeAuthor;
+            clone.querySelector('[data-field="date"]').textContent = formattedDate;
+            clone.querySelector('[data-field="content"]').textContent = safeContent;
+
+            const likeBtn = clone.querySelector('[data-field="like-btn"]');
+            likeBtn.setAttribute('data-comment-id', safeCommentId);
+
+            const dislikeBtn = clone.querySelector('[data-field="dislike-btn"]');
+            dislikeBtn.setAttribute('data-comment-id', safeCommentId);
+
+            const editBtn = clone.querySelector('[data-field="edit-btn"]');
+            editBtn.setAttribute('data-comment-id', safeCommentId);
+
+            const deleteBtn = clone.querySelector('[data-field="delete-btn"]');
+            deleteBtn.setAttribute('data-comment-id', safeCommentId);
+
+            return article;
+        }
+
+        // Fallback: build element manually
+        const article = document.createElement('article');
+        article.className = 'comment';
+        article.id = `comment-${safeCommentId}`;
+        article.innerHTML = `
+            <div class="comment-header">
+                <span class="comment-author">${safeAuthor}</span>
+                <span class="comment-date">${formattedDate}</span>
+            </div>
+            <div class="comment-content">${safeContent}</div>
+            <div class="comment-actions">
+                <div class="comment-reactions">
+                    <button class="btn-like-comment" data-comment-id="${safeCommentId}">👍 (0)</button>
+                    <button class="btn-dislike-comment" data-comment-id="${safeCommentId}">👎 (0)</button>
+                </div>
+                <div class="comment-owner-actions">
+                    <button class="btn btn-secondary btn-edit-comment" data-comment-id="${safeCommentId}">Edit</button>
+                    <button class="btn btn-danger btn-delete-comment" data-comment-id="${safeCommentId}">Delete</button>
+                </div>
+            </div>
+        `;
+        return article;
     }
 
     // Handle the global deletePost function that is called from inline onclick
@@ -123,19 +201,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             try {
-                const response = await fetch(`/api/posts/${postId}`, {
+                await window.api.request(`/api/posts/${postId}`, {
                     method: 'DELETE'
                 });
-
-                if (response.ok) {
-                    window.location.href = '/board?my_posts=true';
-                } else {
-                    const error = await response.json();
-                    showPageError(error.error || 'Failed to delete post');
-                }
+                window.location.href = '/board?my_posts=true';
             } catch (error) {
-                console.error('Delete error:', error);
-                showPageError('An error occurred while deleting the post');
+                showPageError(error.message || 'Failed to delete post');
             }
         };
     }
@@ -150,36 +221,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
         clearPageError();
         try {
-            const response = await fetch(`/api/comments/${commentId}`, {
+            await window.api.request(`/api/comments/${commentId}`, {
                 method: 'DELETE'
             });
 
-            if (response.ok) {
-                // Remove the comment from the UI
-                const commentElement = document.getElementById(`comment-${commentId}`);
-                if (commentElement) {
-                    commentElement.remove();
-                }
-
-                // Update the comments count in the section header
-                const commentsHeader = document.querySelector('.comments-section h2');
-                if (commentsHeader) {
-                    const match = commentsHeader.textContent.match(/Comments \((\d+)\)/);
-                    if (match) {
-                        const newCount = Math.max(0, parseInt(match[1]) - 1);
-                        commentsHeader.textContent = `Comments (${newCount})`;
-                    }
-                }
-
-                // Update user stats in sidebar and dropdown (comment count)
-                updateUserCommentCount(-1);
-            } else {
-                const error = await response.json();
-                showPageError(error.error || 'Failed to delete comment');
+            // Remove the comment from the UI
+            const commentElement = document.getElementById(`comment-${commentId}`);
+            if (commentElement) {
+                commentElement.remove();
             }
+
+            // Update the comments count in the section header
+            const commentsHeader = document.querySelector('.comments-section h2');
+            if (commentsHeader) {
+                const match = commentsHeader.textContent.match(/Comments \((\d+)\)/);
+                if (match) {
+                    const newCount = Math.max(0, parseInt(match[1]) - 1);
+                    commentsHeader.textContent = `Comments (${newCount})`;
+                }
+            }
+
+            // Update user stats in sidebar and dropdown (comment count)
+            updateUserCommentCount(-1);
         } catch (error) {
-            console.error('Delete comment error:', error);
-            showPageError('An error occurred while deleting the comment');
+            showPageError(error.message || 'An error occurred while deleting the comment');
         }
     }
 
@@ -237,25 +302,34 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to update a comment
     async function updateComment(commentId, newContent) {
         try {
-            const response = await fetch(`/api/comments/${commentId}`, {
+            const result = await window.api.request(`/api/comments/${commentId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify({ content: newContent })
             });
 
-            if (response.ok) {
-                // Reload the page to reflect the updated comment
-                location.reload();
-            } else {
-                const error = await response.json();
-                showPageError(error.error || 'Failed to update comment');
-                return false;
+            // Update comment content in place instead of reloading
+            const commentElement = document.getElementById(`comment-${commentId}`);
+            if (commentElement) {
+                const contentElement = commentElement.querySelector('.comment-content');
+                const actionsDiv = commentElement.querySelector('.comment-actions');
+
+                // Update content with escaped text
+                if (contentElement) {
+                    contentElement.textContent = result?.content || newContent;
+                    contentElement.removeAttribute('data-original-content');
+                }
+
+                // Restore original actions
+                if (actionsDiv) {
+                    const originalActions = actionsDiv.getAttribute('data-original-actions');
+                    if (originalActions) {
+                        actionsDiv.innerHTML = originalActions;
+                        actionsDiv.removeAttribute('data-original-actions');
+                    }
+                }
             }
         } catch (error) {
-            console.error('Update comment error:', error);
-            showPageError('An error occurred while updating the comment');
+            showPageError(error.message || 'An error occurred while updating the comment');
             return false;
         }
         return true;
