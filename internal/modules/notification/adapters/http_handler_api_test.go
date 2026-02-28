@@ -27,6 +27,9 @@ func (m *mockNotificationService) GetUserNotifications(ctx context.Context, user
 func (m *mockNotificationService) MarkAsRead(ctx context.Context, notificationPublicID string) error {
 	return m.markErr
 }
+func (m *mockNotificationService) MarkAllAsRead(ctx context.Context, userID int) error {
+	return nil
+}
 
 type mockUserService struct{}
 

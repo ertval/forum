@@ -141,3 +141,12 @@ func (r *SQLiteNotificationRepository) MarkAsReadByPublicID(ctx context.Context,
 
 	return nil
 }
+
+// MarkAllAsReadByUserID marks all notifications as read for a user.
+func (r *SQLiteNotificationRepository) MarkAllAsReadByUserID(ctx context.Context, userID int) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE notifications SET read = 1 WHERE user_id = ? AND read = 0`, userID)
+	if err != nil {
+		return fmt.Errorf("mark all notifications as read: %w", err)
+	}
+	return nil
+}

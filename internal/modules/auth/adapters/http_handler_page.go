@@ -6,6 +6,7 @@ package adapters
 import (
 	"net/http"
 
+	platformErrors "forum/internal/platform/errors"
 	"forum/internal/platform/templates"
 )
 
@@ -25,12 +26,12 @@ func (h *HTTPHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
 	// Get cached templates (only parses on first request)
 	tmpl, err := templates.Get("login", "templates/base.html", "templates/login.html")
 	if err != nil {
-		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", nil)
 		return
 	}
 
 	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
-		http.Error(w, "Failed to render login page", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", nil)
 		return
 	}
 }
@@ -44,12 +45,12 @@ func (h *HTTPHandler) RegisterPage(w http.ResponseWriter, r *http.Request) {
 	// Get cached templates (only parses on first request)
 	tmpl, err := templates.Get("register", "templates/base.html", "templates/register.html")
 	if err != nil {
-		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", nil)
 		return
 	}
 
 	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
-		http.Error(w, "Failed to render register page", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", nil)
 		return
 	}
 }

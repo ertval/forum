@@ -20,4 +20,7 @@ type NotificationRepository interface {
 
 	// MarkAsReadByPublicID marks a notification as read by its public UUID.
 	MarkAsReadByPublicID(ctx context.Context, notificationPublicID string) error
+
+	// MarkAllAsReadByUserID marks all notifications as read for a user.
+	MarkAllAsReadByUserID(ctx context.Context, userID int) error
 }

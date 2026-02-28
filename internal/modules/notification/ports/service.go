@@ -21,4 +21,7 @@ type NotificationService interface {
 
 	// MarkAsRead marks a notification as read by its public UUID.
 	MarkAsRead(ctx context.Context, notificationPublicID string) error
+
+	// MarkAllAsRead marks all notifications as read for a user.
+	MarkAllAsRead(ctx context.Context, userID int) error
 }

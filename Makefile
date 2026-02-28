@@ -203,10 +203,19 @@ docker-build:
 	@echo "$(GREEN)Docker image built$(NC)"
 .PHONY: docker-build
 
-# Docker run
+# Docker run (with named container and volumes for persistence)
 docker-run:
 	@echo "$(BLUE)Running Docker container...$(NC)"
-	docker run -p 8080:8080 forum
+	@if docker ps -a --format '{{.Names}}' | grep -q '^forum$$'; then \
+		echo "$(YELLOW)Container 'forum' already exists. Starting it...$(NC)"; \
+		docker start -a forum; \
+	else \
+		docker run --name forum \
+			-p 8080:8080 \
+			-v forum-data:/app/data \
+			-v forum-uploads:/app/static/uploads \
+			forum; \
+	fi
 .PHONY: docker-run
 
 # Docker compose up

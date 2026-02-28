@@ -42,6 +42,15 @@ func (m *MockNotificationRepository) MarkAsReadByPublicID(ctx context.Context, n
 	return nil
 }
 
+func (m *MockNotificationRepository) MarkAllAsReadByUserID(ctx context.Context, userID int) error {
+	for _, n := range m.notifications {
+		if n.UserID == userID {
+			n.MarkAsRead()
+		}
+	}
+	return nil
+}
+
 func (m *MockNotificationRepository) Create(ctx context.Context, notification *domain.Notification) error {
 	if m.createFn != nil {
 		return m.createFn(ctx, notification)

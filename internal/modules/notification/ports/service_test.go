@@ -30,6 +30,10 @@ func (m *mockNotificationService) MarkAsRead(ctx context.Context, notificationPu
 	return nil
 }
 
+func (m *mockNotificationService) MarkAllAsRead(ctx context.Context, userID int) error {
+	return nil
+}
+
 type mockNotificationRepository struct{}
 
 func (m *mockNotificationRepository) GetByUserID(ctx context.Context, userID int) ([]*domain.Notification, error) {
@@ -37,6 +41,10 @@ func (m *mockNotificationRepository) GetByUserID(ctx context.Context, userID int
 }
 
 func (m *mockNotificationRepository) MarkAsReadByPublicID(ctx context.Context, notificationPublicID string) error {
+	return nil
+}
+
+func (m *mockNotificationRepository) MarkAllAsReadByUserID(ctx context.Context, userID int) error {
 	return nil
 }
 

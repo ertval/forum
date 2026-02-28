@@ -35,6 +35,10 @@ func (m *MockNotificationService) MarkAsRead(ctx context.Context, notificationPu
 	return nil
 }
 
+func (m *MockNotificationService) MarkAllAsRead(ctx context.Context, userID int) error {
+	return nil
+}
+
 // MockCommentRepository implements CommentRepository for testing
 type MockCommentRepository struct {
 	comments             map[string]*domain.Comment

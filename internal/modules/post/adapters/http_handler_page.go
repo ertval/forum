@@ -82,11 +82,11 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 	// Fetch posts
 	posts, err := h.postService.ListPosts(ctx, filter)
 	if err != nil {
-		http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "Failed to load posts.", currentUser)
 		return
 	}
 
-	// Create preview content for posts on home page
+	// Create preview content for posts on board page
 	previewPosts := make([]map[string]interface{}, len(posts))
 	for i, post := range posts {
 		previewPost := make(map[string]interface{})
@@ -143,14 +143,14 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 	// Get cached templates (only parses on first request)
 	tmpl, err := templates.Get("home", "templates/base.html", "templates/home.html")
 	if err != nil {
-		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 		return
 	}
 
 	// Render template
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 		return
 	}
 }
@@ -210,7 +210,7 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 	// Fetch posts
 	posts, err := h.postService.ListPosts(ctx, filter)
 	if err != nil {
-		http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "Failed to load posts.", currentUser)
 		return
 	}
 
@@ -275,13 +275,13 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 	// Get cached templates (only parses on first request)
 	tmpl, err := templates.Get("board", "templates/base.html", "templates/board.html")
 	if err != nil {
-		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 		return
 	}
 }
@@ -293,7 +293,7 @@ func (h *HTTPHandler) PostDetailPage(w http.ResponseWriter, r *http.Request) {
 	// Extract post ID from path variable
 	postID := r.PathValue("id")
 	if postID == "" {
-		http.Error(w, "Post ID required", http.StatusBadRequest)
+		platformErrors.RenderErrorPage(w, http.StatusBadRequest, "Post ID is required.", nil)
 		return
 	}
 
@@ -372,7 +372,7 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 	// Get cached templates (only parses on first request)
 	tmpl, err := templates.Get("post_detail", "templates/base.html", "templates/post_detail.html")
 	if err != nil {
-		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 		return
 	}
 
@@ -380,11 +380,11 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
 		log.Printf("Template error: %v", err)
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 		return
 	}
 	if _, err := buf.WriteTo(w); err != nil {
-		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+		log.Printf("Write error: %v", err)
 	}
 }
 
@@ -395,14 +395,14 @@ func (h *HTTPHandler) CreatePostPage(w http.ResponseWriter, r *http.Request) {
 	// Get user PUBLIC ID (UUID) from context (set by RequireAuth middleware)
 	userPublicID := authPorts.GetUserID(ctx)
 	if userPublicID == "" {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		platformErrors.RenderErrorPage(w, http.StatusUnauthorized, "", nil)
 		return
 	}
 
 	// Convert PUBLIC ID (UUID) to internal INT ID for service layer
 	userID, err := h.getInternalUserID(ctx, userPublicID)
 	if err != nil {
-		http.Error(w, "Invalid user", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", nil)
 		return
 	}
 
@@ -427,14 +427,14 @@ func (h *HTTPHandler) CreatePostPage(w http.ResponseWriter, r *http.Request) {
 	// Get cached templates (only parses on first request)
 	tmpl, err := templates.Get("post_create", "templates/base.html", "templates/post_create.html")
 	if err != nil {
-		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 		return
 	}
 
 	// Render template
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 	}
 }
 
@@ -445,14 +445,14 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 	// Get user PUBLIC ID (UUID) from context (set by RequireAuth middleware)
 	userPublicID := authPorts.GetUserID(ctx)
 	if userPublicID == "" {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		platformErrors.RenderErrorPage(w, http.StatusUnauthorized, "", nil)
 		return
 	}
 
 	// Convert PUBLIC ID (UUID) to internal INT ID for service layer
 	userID, err := h.getInternalUserID(ctx, userPublicID)
 	if err != nil {
-		http.Error(w, "Invalid user", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", nil)
 		return
 	}
 
@@ -502,12 +502,12 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 	// Get cached templates (only parses on first request)
 	tmpl, err := templates.Get("post_edit", "templates/base.html", "templates/post_edit.html")
 	if err != nil {
-		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 	}
 }

@@ -57,3 +57,11 @@ func (s *Service) GetUserNotifications(ctx context.Context, userID int) ([]*doma
 func (s *Service) MarkAsRead(ctx context.Context, notificationPublicID string) error {
 	return s.notificationRepo.MarkAsReadByPublicID(ctx, notificationPublicID)
 }
+
+// MarkAllAsRead marks all notifications as read for a user.
+func (s *Service) MarkAllAsRead(ctx context.Context, userID int) error {
+	if userID <= 0 {
+		return domain.ErrInvalidUserID
+	}
+	return s.notificationRepo.MarkAllAsReadByUserID(ctx, userID)
+}

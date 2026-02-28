@@ -62,6 +62,9 @@
         });
     }
 
+    // Check if we are on the activity page — if so, mark all as read
+    var isActivityPage = window.location.pathname === '/activity';
+
     fetch('/api/notifications', {
         headers: {
             Accept: 'application/json'
@@ -74,24 +77,33 @@
             return response.json();
         })
         .then(function(payload) {
+            var unreadCount = 0;
             if (typeof payload.unread_count === 'number') {
-                updateBadges(payload.unread_count);
-                return;
+                unreadCount = payload.unread_count;
+            } else if (Array.isArray(payload.notifications)) {
+                unreadCount = payload.notifications.reduce(function(total, notification) {
+                    if (notification && notification.is_read === false) {
+                        return total + 1;
+                    }
+                    return total;
+                }, 0);
             }
 
-            if (!Array.isArray(payload.notifications)) {
-                updateBadges(0);
-                return;
+            // On the activity page, mark all notifications as read
+            if (isActivityPage && unreadCount > 0) {
+                fetch('/api/notifications/read-all', {
+                    method: 'PUT',
+                    headers: { Accept: 'application/json' }
+                })
+                    .then(function() {
+                        updateBadges(0);
+                    })
+                    .catch(function() {
+                        updateBadges(unreadCount);
+                    });
+            } else {
+                updateBadges(unreadCount);
             }
-
-            const unreadCount = payload.notifications.reduce(function(total, notification) {
-                if (notification && notification.is_read === false) {
-                    return total + 1;
-                }
-                return total;
-            }, 0);
-
-            updateBadges(unreadCount);
         })
         .catch(function() {
             updateBadges(0);

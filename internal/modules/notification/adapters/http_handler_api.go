@@ -21,6 +21,8 @@ func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
 	router.Handle("GET /api/notifications", authMiddleware(http.HandlerFunc(h.GetNotificationsAPI)))
 	// PUT /api/notifications/{id}/read - Mark notification as read
 	router.Handle("PUT /api/notifications/{id}/read", authMiddleware(http.HandlerFunc(h.MarkAsReadAPI)))
+	// PUT /api/notifications/read-all - Mark all notifications as read
+	router.Handle("PUT /api/notifications/read-all", authMiddleware(http.HandlerFunc(h.MarkAllAsReadAPI)))
 }
 
 // GetNotificationsAPI handles retrieving user notifications.
@@ -74,6 +76,28 @@ func (h *HTTPHandler) MarkAsReadAPI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to mark notification as read")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// MarkAllAsReadAPI handles marking all notifications as read for the current user.
+func (h *HTTPHandler) MarkAllAsReadAPI(w http.ResponseWriter, r *http.Request) {
+	userPublicID := authPorts.GetUserID(r.Context())
+	if userPublicID == "" {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	user, err := h.userService.GetByPublicID(r.Context(), userPublicID)
+	if err != nil || user == nil {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
+		return
+	}
+
+	if err := h.notificationService.MarkAllAsRead(r.Context(), user.ID); err != nil {
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to mark notifications as read")
 		return
 	}
 

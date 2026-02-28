@@ -97,13 +97,13 @@ func (h *HTTPHandler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 
 	tmpl, err := templates.Get("activity", "templates/base.html", "templates/activity.html")
 	if err != nil {
-		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 		return
 	}
 }
@@ -283,13 +283,13 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 	if h.commentService != nil {
 		currentUserInfo, ok := currentUser.(map[string]interface{})
 		if !ok {
-			http.Error(w, "Failed to get user info", http.StatusInternalServerError)
+			platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 			return
 		}
 
 		userPublicID, ok := currentUserInfo["PublicID"].(string)
 		if !ok || userPublicID == "" {
-			http.Error(w, "User not authenticated properly", http.StatusUnauthorized)
+			platformErrors.RenderErrorPage(w, http.StatusUnauthorized, "", currentUser)
 			return
 		}
 
@@ -402,7 +402,7 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 	// Get cached templates (only parses on first request)
 	tmpl, err := templates.Get("comments", "templates/base.html", "templates/comments.html")
 	if err != nil {
-		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 		return
 	}
 
@@ -410,11 +410,11 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
 		log.Printf("Template error: %v", err)
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 		return
 	}
 	if _, err := buf.WriteTo(w); err != nil {
-		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+		log.Printf("Write error: %v", err)
 	}
 }
 
