@@ -1,9 +1,6 @@
 // JavaScript functions for post creation and editing
 'use strict';
 
-const apiContractPatternPostCreate = "fetch('/api/posts'";
-const apiContractPatternPostUpdate = 'fetch(`/api/posts/${postId}`';
-
 document.addEventListener('DOMContentLoaded', function() {
     // Track if image should be removed on form submission
     let shouldRemoveImage = false;

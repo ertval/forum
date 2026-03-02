@@ -17,8 +17,8 @@ set -e
 BASE_URL="http://localhost:8080"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DB_PATH="${PROJECT_ROOT}/data/forum.db"
-SESSION_COOKIE=""
-SESSION_COOKIE_2=""
+SESSION_COOKIE_FILE="/tmp/forum_advanced_audit_session_1.txt"
+SESSION_COOKIE_FILE_2="/tmp/forum_advanced_audit_session_2.txt"
 SERVER_PID=""
 SERVER_LOG="/tmp/forum_advanced_audit_server.log"
 
@@ -78,8 +78,8 @@ print_answer() {
     echo ""
 }
 
-extract_session_cookie() {
-    echo "$1" | grep -i "set-cookie" | grep "session_token" | sed 's/.*session_token=\([^;]*\).*/\1/' | head -n 1
+has_session_cookie() {
+    [ -f "$1" ] && grep -q "session_token" "$1"
 }
 
 extract_json_field() {
@@ -122,10 +122,11 @@ start_server() {
 login_as() {
     local email="$1"
     local password="$2"
-    local response=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+    local cookie_file="$3"
+    local response=$(curl -s -w "\n%{http_code}" -c "$cookie_file" -X POST "$BASE_URL/api/auth/login" \
         -H "Content-Type: application/json" \
         -d "{\"email\":\"$email\",\"password\":\"$password\"}")
-    extract_session_cookie "$response"
+    echo "$response" | tail -n1
 }
 
 cleanup() {
@@ -134,21 +135,21 @@ cleanup() {
     echo ""
     
     # Delete created posts via API
-    if [ ${#CREATED_POSTS[@]} -gt 0 ] && [ -n "$SESSION_COOKIE" ]; then
+    if [ ${#CREATED_POSTS[@]} -gt 0 ] && has_session_cookie "$SESSION_COOKIE_FILE"; then
         for post_id in "${CREATED_POSTS[@]}"; do
             if [ -n "$post_id" ]; then
                 curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
-                    -H "Cookie: session_token=$SESSION_COOKIE" > /dev/null 2>&1
+                    -b "$SESSION_COOKIE_FILE" > /dev/null 2>&1
             fi
         done
     fi
     
     # Delete created comments
-    if [ ${#CREATED_COMMENTS[@]} -gt 0 ] && [ -n "$SESSION_COOKIE" ]; then
+    if [ ${#CREATED_COMMENTS[@]} -gt 0 ] && has_session_cookie "$SESSION_COOKIE_FILE"; then
         for comment_id in "${CREATED_COMMENTS[@]}"; do
             if [ -n "$comment_id" ]; then
                 curl -s -X DELETE "$BASE_URL/api/comments/$comment_id" \
-                    -H "Cookie: session_token=$SESSION_COOKIE" > /dev/null 2>&1
+                    -b "$SESSION_COOKIE_FILE" > /dev/null 2>&1
             fi
         done
     fi
@@ -166,6 +167,7 @@ cleanup() {
     if [ -n "$SERVER_PID" ]; then
         kill $SERVER_PID 2>/dev/null || true
     fi
+    rm -f "$SESSION_COOKIE_FILE" "$SESSION_COOKIE_FILE_2"
 }
 trap cleanup EXIT
 
@@ -207,9 +209,9 @@ start_server
 
 # Login as first user
 echo "Logging in as test user 1..."
-SESSION_COOKIE=$(login_as "$TEST_EMAIL" "$TEST_PASSWORD")
+LOGIN_CODE=$(login_as "$TEST_EMAIL" "$TEST_PASSWORD" "$SESSION_COOKIE_FILE")
 
-if [ -z "$SESSION_COOKIE" ]; then
+if [ "$LOGIN_CODE" != "200" ] || ! has_session_cookie "$SESSION_COOKIE_FILE"; then
     echo -e "${RED}Failed to login as user 1${NC}"
     exit 1
 fi
@@ -217,9 +219,9 @@ echo "User 1 session established"
 
 # Login as second user
 echo "Logging in as test user 2..."
-SESSION_COOKIE_2=$(login_as "$TEST_EMAIL_2" "$TEST_PASSWORD")
+LOGIN_CODE_2=$(login_as "$TEST_EMAIL_2" "$TEST_PASSWORD" "$SESSION_COOKIE_FILE_2")
 
-if [ -z "$SESSION_COOKIE_2" ]; then
+if [ "$LOGIN_CODE_2" != "200" ] || ! has_session_cookie "$SESSION_COOKIE_FILE_2"; then
     echo -e "${YELLOW}Warning: Could not login as user 2, some tests may be skipped${NC}"
 fi
 
@@ -245,7 +247,7 @@ print_question "Try to create a new post - Does new post appear on the activity 
 # Create a test post
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -b "$SESSION_COOKIE_FILE" \
     -d '{"title":"Activity Test Post","content":"Testing activity page functionality","categories":["General"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
@@ -254,7 +256,7 @@ ACTIVITY_TEST_POST_ID=$(extract_json_field "$BODY" "id")
 
 if [ "$HTTP_CODE" = "201" ] && [ -n "$ACTIVITY_TEST_POST_ID" ]; then
     # Check if activity page exists and shows the post
-    ACTIVITY_RESPONSE=$(curl -s -w "\n%{http_code}" -H "Cookie: session_token=$SESSION_COOKIE" "$BASE_URL/activity")
+    ACTIVITY_RESPONSE=$(curl -s -w "\n%{http_code}" -b "$SESSION_COOKIE_FILE" "$BASE_URL/activity")
     ACTIVITY_HTTP_CODE=$(echo "$ACTIVITY_RESPONSE" | tail -n1)
     ACTIVITY_BODY=$(echo "$ACTIVITY_RESPONSE" | sed '$d')
     
@@ -266,7 +268,7 @@ if [ "$HTTP_CODE" = "201" ] && [ -n "$ACTIVITY_TEST_POST_ID" ]; then
         fi
     elif [ "$ACTIVITY_HTTP_CODE" = "404" ]; then
         # Check API endpoint
-        ACTIVITY_API=$(curl -s -o /dev/null -w "%{http_code}" -H "Cookie: session_token=$SESSION_COOKIE" "$BASE_URL/api/activity")
+        ACTIVITY_API=$(curl -s -o /dev/null -w "%{http_code}" -b "$SESSION_COOKIE_FILE" "$BASE_URL/api/activity")
         if [ "$ACTIVITY_API" != "404" ]; then
             print_answer "PENDING" "Activity API exists (HTTP $ACTIVITY_API) - feature may need frontend implementation"
         else
@@ -286,18 +288,18 @@ if [ -n "$SEED_POST_ID" ]; then
     # Like the post
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/reactions" \
         -H "Content-Type: application/json" \
-        -H "Cookie: session_token=$SESSION_COOKIE" \
+        -b "$SESSION_COOKIE_FILE" \
         -d "{\"target_type\":\"post\",\"target_id\":\"$SEED_POST_ID\",\"type\":\"like\"}")
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     
     if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ]; then
         # Check activity page for liked post
-        ACTIVITY_RESPONSE=$(curl -s -H "Cookie: session_token=$SESSION_COOKIE" "$BASE_URL/activity")
+        ACTIVITY_RESPONSE=$(curl -s -b "$SESSION_COOKIE_FILE" "$BASE_URL/activity")
         if echo "$ACTIVITY_RESPONSE" | grep -qi "liked\|like\|reaction"; then
             print_answer "YES" "Liked post appears on activity page"
         else
             # Check via API
-            LIKED_API=$(curl -s -H "Cookie: session_token=$SESSION_COOKIE" "$BASE_URL/api/posts?liked=true")
+            LIKED_API=$(curl -s -b "$SESSION_COOKIE_FILE" "$BASE_URL/api/posts?liked_posts=true")
             if echo "$LIKED_API" | grep -q "$SEED_POST_ID"; then
                 print_answer "YES" "Liked posts retrievable via API"
             else
@@ -320,13 +322,13 @@ if [ -n "$SEED_POST_ID" ]; then
     # Dislike a different post or toggle
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/reactions" \
         -H "Content-Type: application/json" \
-        -H "Cookie: session_token=$SESSION_COOKIE" \
+        -b "$SESSION_COOKIE_FILE" \
         -d "{\"target_type\":\"post\",\"target_id\":\"$SEED_POST_ID\",\"type\":\"dislike\"}")
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     
     if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ]; then
         # Check activity page
-        ACTIVITY_RESPONSE=$(curl -s -H "Cookie: session_token=$SESSION_COOKIE" "$BASE_URL/activity")
+        ACTIVITY_RESPONSE=$(curl -s -b "$SESSION_COOKIE_FILE" "$BASE_URL/activity")
         if echo "$ACTIVITY_RESPONSE" | grep -qi "disliked\|dislike"; then
             print_answer "YES" "Disliked post appears on activity page"
         else
@@ -347,7 +349,7 @@ print_question "Try to comment on any post - Does the comment appear on the acti
 if [ -n "$SEED_POST_ID" ]; then
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/comments/posts/$SEED_POST_ID" \
         -H "Content-Type: application/json" \
-        -H "Cookie: session_token=$SESSION_COOKIE" \
+        -b "$SESSION_COOKIE_FILE" \
         -d '{"content":"Activity test comment for audit"}')
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     BODY=$(echo "$RESPONSE" | sed '$d')
@@ -356,7 +358,7 @@ if [ -n "$SEED_POST_ID" ]; then
     
     if [ "$HTTP_CODE" = "201" ]; then
         # Check activity page for comment
-        ACTIVITY_RESPONSE=$(curl -s -H "Cookie: session_token=$SESSION_COOKIE" "$BASE_URL/activity")
+        ACTIVITY_RESPONSE=$(curl -s -b "$SESSION_COOKIE_FILE" "$BASE_URL/activity")
         if echo "$ACTIVITY_RESPONSE" | grep -qi "comment\|Activity test comment"; then
             print_answer "YES" "Comment appears on activity page"
         else
@@ -381,7 +383,7 @@ print_section "NOTIFICATIONS"
 # First, create a post as User 1 that User 2 will interact with
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -b "$SESSION_COOKIE_FILE" \
     -d '{"title":"Notification Test Post","content":"Testing notifications when others interact","categories":["General"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
@@ -391,11 +393,11 @@ NOTIFICATION_TEST_POST_ID=$(extract_json_field "$BODY" "id")
 # Q: Login as another user and make a comment. Did the post creator receive a notification?
 print_question "Login as another user and comment on the post - Did the user who created the post receive a notification saying that the post has been commented?"
 
-if [ -n "$SESSION_COOKIE_2" ] && [ -n "$NOTIFICATION_TEST_POST_ID" ]; then
+if has_session_cookie "$SESSION_COOKIE_FILE_2" && [ -n "$NOTIFICATION_TEST_POST_ID" ]; then
     # User 2 comments on User 1's post
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/comments/posts/$NOTIFICATION_TEST_POST_ID" \
         -H "Content-Type: application/json" \
-        -H "Cookie: session_token=$SESSION_COOKIE_2" \
+        -b "$SESSION_COOKIE_FILE_2" \
         -d '{"content":"This is a comment from user 2 for notification test"}')
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     BODY=$(echo "$RESPONSE" | sed '$d')
@@ -404,7 +406,7 @@ if [ -n "$SESSION_COOKIE_2" ] && [ -n "$NOTIFICATION_TEST_POST_ID" ]; then
     
     if [ "$HTTP_CODE" = "201" ]; then
         # Check User 1's notifications
-        NOTIF_RESPONSE=$(curl -s -w "\n%{http_code}" -H "Cookie: session_token=$SESSION_COOKIE" "$BASE_URL/api/notifications")
+        NOTIF_RESPONSE=$(curl -s -w "\n%{http_code}" -b "$SESSION_COOKIE_FILE" "$BASE_URL/api/notifications")
         NOTIF_HTTP_CODE=$(echo "$NOTIF_RESPONSE" | tail -n1)
         NOTIF_BODY=$(echo "$NOTIF_RESPONSE" | sed '$d')
         
@@ -428,7 +430,7 @@ if [ -n "$SESSION_COOKIE_2" ] && [ -n "$NOTIFICATION_TEST_POST_ID" ]; then
         print_answer "NO" "Could not create comment as user 2 (HTTP $HTTP_CODE)"
     fi
 else
-    if [ -z "$SESSION_COOKIE_2" ]; then
+    if ! has_session_cookie "$SESSION_COOKIE_FILE_2"; then
         print_answer "PENDING" "Could not login as second user for notification test"
     else
         print_answer "PENDING" "No post available for notification test"
@@ -438,17 +440,17 @@ fi
 # Q: Login as another user and like the post. Did the post creator receive a notification?
 print_question "Login as another user and like the post - Did the user who created the post receive a notification saying that the post has been liked?"
 
-if [ -n "$SESSION_COOKIE_2" ] && [ -n "$NOTIFICATION_TEST_POST_ID" ]; then
+if has_session_cookie "$SESSION_COOKIE_FILE_2" && [ -n "$NOTIFICATION_TEST_POST_ID" ]; then
     # User 2 likes User 1's post
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/reactions" \
         -H "Content-Type: application/json" \
-        -H "Cookie: session_token=$SESSION_COOKIE_2" \
+        -b "$SESSION_COOKIE_FILE_2" \
         -d "{\"target_type\":\"post\",\"target_id\":\"$NOTIFICATION_TEST_POST_ID\",\"type\":\"like\"}")
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     
     if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ]; then
         # Check User 1's notifications
-        NOTIF_RESPONSE=$(curl -s -w "\n%{http_code}" -H "Cookie: session_token=$SESSION_COOKIE" "$BASE_URL/api/notifications")
+        NOTIF_RESPONSE=$(curl -s -w "\n%{http_code}" -b "$SESSION_COOKIE_FILE" "$BASE_URL/api/notifications")
         NOTIF_HTTP_CODE=$(echo "$NOTIF_RESPONSE" | tail -n1)
         NOTIF_BODY=$(echo "$NOTIF_RESPONSE" | sed '$d')
         
@@ -473,17 +475,17 @@ fi
 # Q: Login as another user and dislike the post. Did the post creator receive a notification?
 print_question "Login as another user and dislike the post - Did the user who created the post receive a notification saying that the post has been disliked?"
 
-if [ -n "$SESSION_COOKIE_2" ] && [ -n "$NOTIFICATION_TEST_POST_ID" ]; then
+if has_session_cookie "$SESSION_COOKIE_FILE_2" && [ -n "$NOTIFICATION_TEST_POST_ID" ]; then
     # User 2 dislikes User 1's post (may toggle from like)
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/reactions" \
         -H "Content-Type: application/json" \
-        -H "Cookie: session_token=$SESSION_COOKIE_2" \
+        -b "$SESSION_COOKIE_FILE_2" \
         -d "{\"target_type\":\"post\",\"target_id\":\"$NOTIFICATION_TEST_POST_ID\",\"type\":\"dislike\"}")
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     
     if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ]; then
         # Check User 1's notifications
-        NOTIF_RESPONSE=$(curl -s -w "\n%{http_code}" -H "Cookie: session_token=$SESSION_COOKIE" "$BASE_URL/api/notifications")
+        NOTIF_RESPONSE=$(curl -s -w "\n%{http_code}" -b "$SESSION_COOKIE_FILE" "$BASE_URL/api/notifications")
         NOTIF_HTTP_CODE=$(echo "$NOTIF_RESPONSE" | tail -n1)
         NOTIF_BODY=$(echo "$NOTIF_RESPONSE" | sed '$d')
         
@@ -516,7 +518,7 @@ print_section "EDIT/DELETE POSTS AND COMMENTS"
 # Create a post for edit/delete testing
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -b "$SESSION_COOKIE_FILE" \
     -d '{"title":"Edit Delete Test Post","content":"This post will be edited and deleted","categories":["General"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
@@ -533,7 +535,7 @@ EDIT_COMMENT_SUCCESS=false
 if [ -n "$EDIT_TEST_POST_ID" ]; then
     RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "$BASE_URL/api/posts/$EDIT_TEST_POST_ID" \
         -H "Content-Type: application/json" \
-        -H "Cookie: session_token=$SESSION_COOKIE" \
+        -b "$SESSION_COOKIE_FILE" \
         -d '{"title":"Edited Post Title","content":"This content has been edited"}')
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     
@@ -547,7 +549,7 @@ if [ -n "$SEED_POST_ID" ]; then
     # Create a comment to edit
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/comments/posts/$SEED_POST_ID" \
         -H "Content-Type: application/json" \
-        -H "Cookie: session_token=$SESSION_COOKIE" \
+        -b "$SESSION_COOKIE_FILE" \
         -d '{"content":"Comment to be edited"}')
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     BODY=$(echo "$RESPONSE" | sed '$d')
@@ -558,7 +560,7 @@ if [ -n "$SEED_POST_ID" ]; then
         # Try to edit the comment
         RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "$BASE_URL/api/comments/$EDIT_COMMENT_ID" \
             -H "Content-Type: application/json" \
-            -H "Cookie: session_token=$SESSION_COOKIE" \
+            -b "$SESSION_COOKIE_FILE" \
             -d '{"content":"This comment has been edited"}')
         HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
         
@@ -592,7 +594,7 @@ DELETE_COMMENT_SUCCESS=false
 # Create another post specifically for deletion test
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -b "$SESSION_COOKIE_FILE" \
     -d '{"title":"Delete Test Post","content":"This post will be deleted","categories":["General"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
@@ -601,7 +603,7 @@ DELETE_TEST_POST_ID=$(extract_json_field "$BODY" "id")
 if [ -n "$DELETE_TEST_POST_ID" ] && [ "$HTTP_CODE" = "201" ]; then
     # Try to delete the post
     RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE "$BASE_URL/api/posts/$DELETE_TEST_POST_ID" \
-        -H "Cookie: session_token=$SESSION_COOKIE")
+        -b "$SESSION_COOKIE_FILE")
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     
     if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
@@ -613,7 +615,7 @@ fi
 if [ -n "$SEED_POST_ID" ]; then
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/comments/posts/$SEED_POST_ID" \
         -H "Content-Type: application/json" \
-        -H "Cookie: session_token=$SESSION_COOKIE" \
+        -b "$SESSION_COOKIE_FILE" \
         -d '{"content":"Comment to be deleted"}')
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     BODY=$(echo "$RESPONSE" | sed '$d')
@@ -622,7 +624,7 @@ if [ -n "$SEED_POST_ID" ]; then
     if [ -n "$DELETE_COMMENT_ID" ] && [ "$HTTP_CODE" = "201" ]; then
         # Try to delete the comment
         RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE "$BASE_URL/api/comments/$DELETE_COMMENT_ID" \
-            -H "Cookie: session_token=$SESSION_COOKIE")
+            -b "$SESSION_COOKIE_FILE")
         HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
         
         if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then

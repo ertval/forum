@@ -1,8 +1,6 @@
 // Load More Posts functionality for the forum homepage
 'use strict';
 
-const apiContractPatternLoadMore = 'fetch(`/api/posts/load-more';
-
 // Initialize as soon as possible - handle both cases where DOM is already ready or not
 (function() {
     function init() {

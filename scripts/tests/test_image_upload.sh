@@ -21,7 +21,7 @@ TEST_EMAIL="testuser@example.com"
 TEST_USERNAME="Test User"
 TEST_PASSWORD="Password123"
 TEST_DIR="/tmp/forum_image_test_${TIMESTAMP}"
-SESSION_TOKEN=""
+COOKIE_JAR="/tmp/forum_image_cookie_${TIMESTAMP}.txt"
 SERVER_PID=""
 SERVER_LOG="/tmp/forum_image_server_${TIMESTAMP}.log"
 VERBOSE=0
@@ -105,11 +105,6 @@ extract_json_field() {
     local json="$1"
     local field="$2"
     echo "$json" | grep -o "\"$field\":\"[^\"]*\"" | sed "s/\"$field\":\"\([^\"]*\)\"/\1/" | head -n 1
-}
-
-extract_session_cookie() {
-    local headers="$1"
-    echo "$headers" | grep -i "set-cookie" | grep "session_token" | sed 's/.*session_token=\([^;]*\).*/\1/' | head -n 1
 }
 
 check_server_running() {
@@ -341,11 +336,11 @@ cleanup() {
     info_log "Cleaning up..."
     
     # Delete created posts via API
-    if [ ${#CREATED_POST_IDS[@]} -gt 0 ] && [ -n "$SESSION_TOKEN" ]; then
+    if [ ${#CREATED_POST_IDS[@]} -gt 0 ] && [ -s "$COOKIE_JAR" ]; then
         for post_id in "${CREATED_POST_IDS[@]}"; do
             if [ -n "$post_id" ]; then
                 curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
-                    -H "Cookie: session_token=$SESSION_TOKEN" > /dev/null 2>&1
+                    -b "$COOKIE_JAR" > /dev/null 2>&1
             fi
         done
         debug_log "Deleted ${#CREATED_POST_IDS[@]} test posts"
@@ -360,6 +355,10 @@ cleanup() {
     if [ -d "$TEST_DIR" ]; then
         rm -rf "$TEST_DIR"
         debug_log "Removed test directory: $TEST_DIR"
+    fi
+
+    if [ -f "$COOKIE_JAR" ]; then
+        rm -f "$COOKIE_JAR"
     fi
     
     # Remove server log unless verbose
@@ -401,19 +400,20 @@ register_and_login() {
     info_log "Logging in as test user..."
     
     # Login
-    RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+    rm -f "$COOKIE_JAR"
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/login" \
+        -c "$COOKIE_JAR" \
         -H "Content-Type: application/json" \
         -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}")
-    HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP" | tail -n1 | awk '{print $2}')
-    SESSION_TOKEN=$(extract_session_cookie "$RESPONSE")
+    HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     
-    if [ "$HTTP_CODE" != "200" ] || [ -z "$SESSION_TOKEN" ]; then
+    if [ "$HTTP_CODE" != "200" ] || [ ! -s "$COOKIE_JAR" ]; then
         echo -e "${RED}Failed to login test user. HTTP $HTTP_CODE${NC}"
         exit 1
     fi
     
     info_log "Authentication successful. Session token obtained."
-    debug_log "Session token: ${SESSION_TOKEN:0:20}..."
+    debug_log "Authentication cookie jar ready: $COOKIE_JAR"
 }
 
 # =============================================================================
@@ -426,7 +426,7 @@ test_png_upload() {
     echo "Testing: Create a post with a PNG image"
     
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
-        -H "Cookie: session_token=$SESSION_TOKEN" \
+        -b "$COOKIE_JAR" \
         -F "title=PNG Image Test Post" \
         -F "content=This post contains a PNG image for testing" \
         -F "categories=General" \
@@ -463,7 +463,7 @@ test_jpeg_upload() {
     echo "Testing: Create a post with a JPEG image"
     
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
-        -H "Cookie: session_token=$SESSION_TOKEN" \
+        -b "$COOKIE_JAR" \
         -F "title=JPEG Image Test Post" \
         -F "content=This post contains a JPEG image for testing" \
         -F "categories=General" \
@@ -500,7 +500,7 @@ test_gif_upload() {
     echo "Testing: Create a post with a GIF image"
     
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
-        -H "Cookie: session_token=$SESSION_TOKEN" \
+        -b "$COOKIE_JAR" \
         -F "title=GIF Image Test Post" \
         -F "content=This post contains a GIF image for testing" \
         -F "categories=General" \
@@ -537,7 +537,7 @@ test_oversized_image() {
     echo "Testing: Attempt to create a post with an image larger than 20MB"
     
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
-        -H "Cookie: session_token=$SESSION_TOKEN" \
+        -b "$COOKIE_JAR" \
         -F "title=Oversized Image Test" \
         -F "content=This should fail due to image size" \
         -F "categories=General" \
@@ -633,7 +633,7 @@ test_unsupported_bmp() {
     echo "Testing: Attempt to upload an unsupported BMP image"
     
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
-        -H "Cookie: session_token=$SESSION_TOKEN" \
+        -b "$COOKIE_JAR" \
         -F "title=BMP Image Test" \
         -F "content=This should fail - BMP not supported" \
         -F "categories=General" \
@@ -670,7 +670,7 @@ test_webp_upload() {
     echo "Testing: Create a post with a WebP image"
     
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
-        -H "Cookie: session_token=$SESSION_TOKEN" \
+        -b "$COOKIE_JAR" \
         -F "title=WebP Image Test" \
         -F "content=This should succeed with WebP support" \
         -F "categories=General" \
@@ -706,7 +706,7 @@ test_unsupported_svg() {
     echo "Testing: Attempt to upload an unsupported SVG image"
     
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
-        -H "Cookie: session_token=$SESSION_TOKEN" \
+        -b "$COOKIE_JAR" \
         -F "title=SVG Image Test" \
         -F "content=This should fail - SVG not supported" \
         -F "categories=General" \
@@ -738,7 +738,7 @@ test_unsupported_tiff() {
     echo "Testing: Attempt to upload an unsupported TIFF image"
     
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
-        -H "Cookie: session_token=$SESSION_TOKEN" \
+        -b "$COOKIE_JAR" \
         -F "title=TIFF Image Test" \
         -F "content=This should fail - TIFF not supported" \
         -F "categories=General" \
@@ -770,7 +770,7 @@ test_post_without_image() {
     echo "Testing: Create a post without any image (baseline test)"
     
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
-        -H "Cookie: session_token=$SESSION_TOKEN" \
+        -b "$COOKIE_JAR" \
         -H "Content-Type: application/json" \
         -d '{"title":"No Image Test Post","content":"This post has no image attached","categories":["General"]}')
     

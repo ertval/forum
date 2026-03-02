@@ -3,7 +3,6 @@ package health
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"net/http"
 	"regexp"
 	"strings"
@@ -32,18 +31,6 @@ func NewChecker(db *sql.DB, router *http.ServeMux) *Checker {
 	// Note: We allow nil checks to happen at Check() time to provide
 	// meaningful error messages in health check results rather than panicking
 	return &Checker{db: db, router: router}
-}
-
-// NewCheckerWithValidation creates a new Checker with strict validation.
-// Returns an error if required dependencies are nil.
-func NewCheckerWithValidation(db *sql.DB, router *http.ServeMux) (*Checker, error) {
-	if db == nil {
-		return nil, errors.New("database connection cannot be nil")
-	}
-	if router == nil {
-		return nil, errors.New("router cannot be nil")
-	}
-	return &Checker{db: db, router: router}, nil
 }
 
 // Check performs all health checks and returns a map of results.

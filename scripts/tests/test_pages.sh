@@ -13,7 +13,8 @@ set -e
 BASE_URL="http://localhost:8080"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DB_PATH="${PROJECT_ROOT}/data/forum.db"
-SESSION_COOKIE=""
+COOKIE_JAR=""
+COOKIE_JAR2=""
 SERVER_PID=""
 SERVER_LOG="/tmp/forum_pages_server.log"
 
@@ -68,8 +69,8 @@ validate_html() {
     echo "$1" | grep -qi "$2"
 }
 
-extract_session_cookie() {
-    echo "$1" | grep -i "set-cookie" | grep "session_token" | sed 's/.*session_token=\([^;]*\).*/\1/' | head -n 1
+has_session_cookie() {
+    [ -f "$1" ] && grep -q "session_token" "$1"
 }
 
 check_server_running() {
@@ -130,6 +131,8 @@ cleanup() {
     if [ -n "$SERVER_PID" ]; then
         kill $SERVER_PID 2>/dev/null || true
     fi
+    [ -n "$COOKIE_JAR" ] && rm -f "$COOKIE_JAR"
+    [ -n "$COOKIE_JAR2" ] && rm -f "$COOKIE_JAR2"
 }
 trap cleanup EXIT
 
@@ -169,11 +172,15 @@ echo ""
 kill_existing_server
 start_server
 
+COOKIE_JAR=$(mktemp /tmp/forum_pages_cookie_1.XXXXXX)
+COOKIE_JAR2=$(mktemp /tmp/forum_pages_cookie_2.XXXXXX)
+rm -f "$COOKIE_JAR" "$COOKIE_JAR2"
+
 # Login to get session
-RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/api/auth/login" \
+    -c "$COOKIE_JAR" \
     -H "Content-Type: application/json" \
     -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}")
-SESSION_COOKIE=$(extract_session_cookie "$RESPONSE")
 
 # =============================================================================
 # HOME PAGE TESTS
@@ -313,9 +320,9 @@ else
 fi
 
 # Create post page - with auth
-if [ -n "$SESSION_COOKIE" ]; then
+if [ "$HTTP_CODE" = "200" ] && has_session_cookie "$COOKIE_JAR"; then
     RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/posts/new" \
-        -H "Cookie: session_token=$SESSION_COOKIE")
+        -b "$COOKIE_JAR")
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     BODY=$(echo "$RESPONSE" | sed '$d')
     if [ "$HTTP_CODE" = "200" ]; then
@@ -392,9 +399,9 @@ print_section "ACCESS CONTROL"
 TESTUSER_POST=$(sqlite3 "$DB_PATH" "SELECT p.public_id FROM posts p JOIN users u ON p.author_id = u.id WHERE u.username = 'Test User' LIMIT 1;" 2>/dev/null)
 
 # Edit own post - should work
-if [ -n "$TESTUSER_POST" ] && [ -n "$SESSION_COOKIE" ]; then
+if [ -n "$TESTUSER_POST" ] && has_session_cookie "$COOKIE_JAR"; then
     RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/posts/$TESTUSER_POST/edit" \
-        -H "Cookie: session_token=$SESSION_COOKIE")
+        -b "$COOKIE_JAR")
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     if [ "$HTTP_CODE" = "200" ]; then
         print_test "GET /posts/:id/edit - Own post (200)" "PASS"
@@ -404,15 +411,15 @@ if [ -n "$TESTUSER_POST" ] && [ -n "$SESSION_COOKIE" ]; then
 fi
 
 # Login as second user
-RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+HTTP_CODE2=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/api/auth/login" \
+    -c "$COOKIE_JAR2" \
     -H "Content-Type: application/json" \
     -d "{\"email\":\"$TEST_EMAIL2\",\"password\":\"$TEST_PASSWORD\"}")
-SESSION_COOKIE2=$(extract_session_cookie "$RESPONSE")
 
 # Edit another user's post - should be forbidden
-if [ -n "$TESTUSER_POST" ] && [ -n "$SESSION_COOKIE2" ]; then
+if [ -n "$TESTUSER_POST" ] && [ "$HTTP_CODE2" = "200" ] && has_session_cookie "$COOKIE_JAR2"; then
     RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/posts/$TESTUSER_POST/edit" \
-        -H "Cookie: session_token=$SESSION_COOKIE2")
+        -b "$COOKIE_JAR2")
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     if [ "$HTTP_CODE" = "403" ] || [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "302" ]; then
         print_test "GET /posts/:id/edit - Others' post (403)" "PASS"
@@ -516,12 +523,12 @@ fi
 print_section "STATIC ASSETS"
 
 # CSS file accessible
-RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/static/css/style.css" 2>/dev/null || echo "404")
+RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/static/css/base.css" 2>/dev/null || echo "404")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "200" ]; then
-    print_test "GET /static/css/style.css - Accessible" "PASS"
+    print_test "GET /static/css/base.css - Accessible" "PASS"
 else
-    print_test "GET /static/css/style.css - Accessible" "SKIP" "May use different path"
+    print_test "GET /static/css/base.css - Accessible" "SKIP" "May use different path"
 fi
 
 # JS file accessible (if exists)
@@ -551,27 +558,27 @@ print_section "JAVASCRIPT API URL VERIFICATION"
 AUTH_JS=$(curl -s "$BASE_URL/static/js/auth.js")
 
 # Check login URL uses /api prefix
-if echo "$AUTH_JS" | grep -q "fetch('/api/auth/login'"; then
+if echo "$AUTH_JS" | grep -q "window.api.request('/api/auth/login'"; then
     print_test "auth.js uses /api/auth/login URL" "PASS"
 else
     print_test "auth.js uses /api/auth/login URL" "FAIL" "Wrong login API URL in JavaScript"
 fi
 
 # Check register URL uses /api prefix
-if echo "$AUTH_JS" | grep -q "fetch('/api/auth/register'"; then
+if echo "$AUTH_JS" | grep -q "window.api.request('/api/auth/register'"; then
     print_test "auth.js uses /api/auth/register URL" "PASS"
 else
     print_test "auth.js uses /api/auth/register URL" "FAIL" "Wrong register API URL in JavaScript"
 fi
 
 # Verify no incorrect URLs exist (without /api prefix)
-if ! echo "$AUTH_JS" | grep -q "fetch('/auth/login'"; then
+if ! echo "$AUTH_JS" | grep -q "window.api.request('/auth/login'"; then
     print_test "auth.js doesn't use wrong /auth/login URL" "PASS"
 else
     print_test "auth.js doesn't use wrong /auth/login URL" "FAIL" "Found incorrect /auth/login URL"
 fi
 
-if ! echo "$AUTH_JS" | grep -q "fetch('/auth/register'"; then
+if ! echo "$AUTH_JS" | grep -q "window.api.request('/auth/register'"; then
     print_test "auth.js doesn't use wrong /auth/register URL" "PASS"
 else
     print_test "auth.js doesn't use wrong /auth/register URL" "FAIL" "Found incorrect /auth/register URL"
@@ -585,28 +592,28 @@ print_section "POST-FORMS.JS API URL VERIFICATION"
 POST_FORMS_JS=$(curl -s "$BASE_URL/static/js/post-forms.js")
 
 # Check post creation URL uses /api prefix
-if echo "$POST_FORMS_JS" | grep -q "fetch('/api/posts'"; then
+if echo "$POST_FORMS_JS" | grep -q "window.api.request('/api/posts'"; then
     print_test "post-forms.js uses /api/posts URL for creation" "PASS"
 else
     print_test "post-forms.js uses /api/posts URL for creation" "FAIL" "Wrong post creation API URL"
 fi
 
 # Check post update URL uses /api prefix
-if echo "$POST_FORMS_JS" | grep -q "fetch(\`/api/posts/\${postId}\`"; then
+if echo "$POST_FORMS_JS" | grep -q "window.api.request(\`/api/posts/\${postId}\`"; then
     print_test "post-forms.js uses /api/posts/{id} URL for update" "PASS"
 else
     print_test "post-forms.js uses /api/posts/{id} URL for update" "FAIL" "Wrong post update API URL"
 fi
 
 # Check post delete URL uses /api prefix
-if echo "$POST_FORMS_JS" | grep -q "fetch(\`/api/posts/\${postId}\`" | head -1; then
+if echo "$POST_FORMS_JS" | grep -q "window.api.request(\`/api/posts/\${postId}\`"; then
     print_test "post-forms.js uses /api/posts/{id} URL for delete" "PASS"
 else
     print_test "post-forms.js uses /api/posts/{id} URL for delete" "FAIL" "Wrong post delete API URL"
 fi
 
 # Verify no old URLs exist (without /api prefix for posts)
-if ! echo "$POST_FORMS_JS" | grep -q "fetch('/posts'," && ! echo "$POST_FORMS_JS" | grep -q "fetch(\`/posts/\${"; then
+if ! echo "$POST_FORMS_JS" | grep -q "window.api.request('/posts'" && ! echo "$POST_FORMS_JS" | grep -q "window.api.request(\`/posts/\${"; then
     print_test "post-forms.js doesn't use wrong /posts URLs" "PASS"
 else
     print_test "post-forms.js doesn't use wrong /posts URLs" "FAIL" "Found incorrect /posts URL without /api prefix"
@@ -620,21 +627,21 @@ print_section "POST-DETAIL.JS API URL VERIFICATION"
 POST_DETAIL_JS=$(curl -s "$BASE_URL/static/js/post-detail.js")
 
 # Check comment creation URL uses /api prefix
-if echo "$POST_DETAIL_JS" | grep -q "fetch(\`/api/comments/posts/"; then
+if echo "$POST_DETAIL_JS" | grep -q "window.api.request(\`/api/comments/posts/"; then
     print_test "post-detail.js uses /api/comments/posts/{id} URL" "PASS"
 else
     print_test "post-detail.js uses /api/comments/posts/{id} URL" "FAIL" "Wrong comment creation API URL"
 fi
 
 # Check comment delete URL uses /api prefix
-if echo "$POST_DETAIL_JS" | grep -q "fetch(\`/api/comments/\${commentId}\`"; then
+if echo "$POST_DETAIL_JS" | grep -q "window.api.request(\`/api/comments/\${commentId}\`"; then
     print_test "post-detail.js uses /api/comments/{id} URL for delete" "PASS"
 else
     print_test "post-detail.js uses /api/comments/{id} URL for delete" "FAIL" "Wrong comment delete API URL"
 fi
 
 # Check post delete URL uses /api prefix in post-detail.js
-if echo "$POST_DETAIL_JS" | grep -q "fetch(\`/api/posts/\${postId}\`"; then
+if echo "$POST_DETAIL_JS" | grep -q "window.api.request(\`/api/posts/\${postId}\`"; then
     print_test "post-detail.js uses /api/posts/{id} URL for delete" "PASS"
 else
     print_test "post-detail.js uses /api/posts/{id} URL for delete" "FAIL" "Wrong post delete API URL"
@@ -648,7 +655,7 @@ print_section "LOAD-MORE-POSTS.JS API URL VERIFICATION"
 LOAD_MORE_JS=$(curl -s "$BASE_URL/static/js/load-more-posts.js")
 
 # Check load-more URL uses /api prefix
-if echo "$LOAD_MORE_JS" | grep -q "fetch(\`/api/posts/load-more"; then
+if echo "$LOAD_MORE_JS" | grep -q "window.api.request(\`/api/posts/load-more"; then
     print_test "load-more-posts.js uses /api/posts/load-more URL" "PASS"
 else
     print_test "load-more-posts.js uses /api/posts/load-more URL" "FAIL" "Wrong load-more API URL"
@@ -662,7 +669,7 @@ print_section "REACTIONS.JS API URL VERIFICATION"
 REACTIONS_JS=$(curl -s "$BASE_URL/static/js/reactions.js")
 
 # Check reactions URL uses /api prefix
-if echo "$REACTIONS_JS" | grep -q "fetch('/api/reactions'"; then
+if echo "$REACTIONS_JS" | grep -q "window.api.request('/api/reactions'"; then
     print_test "reactions.js uses /api/reactions URL" "PASS"
 else
     print_test "reactions.js uses /api/reactions URL" "FAIL" "Wrong reactions API URL"
@@ -711,16 +718,9 @@ JS_DIR="${PROJECT_ROOT}/static/js"
 for jsfile in "${JS_FILES[@]}"; do
     js_path="${JS_DIR}/${jsfile}"
     if [ -f "$js_path" ]; then
-        # Basic syntax check - look for common errors
-        if grep -q "fetch('/[^a]" "$js_path" 2>/dev/null; then
-            # Found fetch URL not starting with /a (likely missing /api/)
-            if grep -qE "fetch\('/posts[^']" "$js_path" 2>/dev/null || \
-               grep -qE "fetch\('/comments[^']" "$js_path" 2>/dev/null || \
-               grep -qE "fetch\('/auth[^']" "$js_path" 2>/dev/null; then
-                print_test "JS ${jsfile} API URLs have /api/ prefix" "FAIL" "Found API call without /api/ prefix"
-            else
-                print_test "JS ${jsfile} API URLs have /api/ prefix" "PASS"
-            fi
+        if grep -qE "window\.api\.request\('/(posts|comments|auth|reactions|notifications)" "$js_path" 2>/dev/null || \
+           grep -qE "window\.api\.request\(\`/(posts|comments|auth|reactions|notifications)" "$js_path" 2>/dev/null; then
+            print_test "JS ${jsfile} API URLs have /api/ prefix" "FAIL" "Found API call without /api/ prefix"
         else
             print_test "JS ${jsfile} API URLs have /api/ prefix" "PASS"
         fi

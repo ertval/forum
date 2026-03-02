@@ -12,7 +12,6 @@ set -e
 BASE_URL="http://localhost:8080"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DB_PATH="${PROJECT_ROOT}/data/forum.db"
-SESSION_COOKIE=""
 SESSION_COOKIE_FILE="/tmp/forum_image_audit_session.txt"
 SERVER_PID=""
 SERVER_LOG="/tmp/forum_image_audit_server.log"
@@ -61,10 +60,6 @@ print_answer() {
         FAILED=$((FAILED + 1))
     fi
     echo ""
-}
-
-extract_session_cookie() {
-    echo "$1" | grep -i "set-cookie" | grep "session_token" | sed 's/.*session_token=\([^;]*\).*/\1/' | head -n 1
 }
 
 check_server_running() {
@@ -126,11 +121,11 @@ cleanup() {
     echo ""
     
     # Delete created posts via API
-    if [ ${#CREATED_POST_IDS[@]} -gt 0 ] && [ -n "$SESSION_COOKIE" ]; then
+    if [ ${#CREATED_POST_IDS[@]} -gt 0 ] && [ -s "$SESSION_COOKIE_FILE" ]; then
         for post_id in "${CREATED_POST_IDS[@]}"; do
             if [ -n "$post_id" ]; then
                 curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
-                    -H "Cookie: session_token=$SESSION_COOKIE" > /dev/null 2>&1
+                    -b "$SESSION_COOKIE_FILE" > /dev/null 2>&1
             fi
         done
     fi
@@ -184,20 +179,24 @@ start_server
 
 # Login
 echo "Logging in as test user..."
-RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+rm -f "$SESSION_COOKIE_FILE"
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/login" \
+    -c "$SESSION_COOKIE_FILE" \
     -H "Content-Type: application/json" \
     -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}")
-SESSION_COOKIE=$(extract_session_cookie "$RESPONSE")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 
-if [ -z "$SESSION_COOKIE" ]; then
+if [ "$HTTP_CODE" != "200" ] || [ ! -s "$SESSION_COOKIE_FILE" ]; then
     echo -e "${RED}Failed to login. Creating test user...${NC}"
     curl -s -X POST "$BASE_URL/api/auth/register" \
         -H "Content-Type: application/json" \
         -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"Image Test\",\"password\":\"$TEST_PASSWORD\"}" > /dev/null
-    RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+    rm -f "$SESSION_COOKIE_FILE"
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/login" \
+        -c "$SESSION_COOKIE_FILE" \
         -H "Content-Type: application/json" \
         -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}")
-    SESSION_COOKIE=$(extract_session_cookie "$RESPONSE")
+    HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 fi
 
 # =============================================================================
@@ -208,7 +207,7 @@ print_section "FUNCTIONAL - Image Upload"
 # Q: Try creating a post with a PNG image - Was it successful?
 print_question "Try creating a post with a PNG image - Was the post created successfully?"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -b "$SESSION_COOKIE_FILE" \
     -F "title=PNG Image Audit Test" \
     -F "content=This post contains a PNG image" \
     -F "categories=General" \
@@ -227,7 +226,7 @@ fi
 # Q: Try creating a post with a JPEG image - Was it successful?
 print_question "Try creating a post with a JPEG image - Was the post created successfully?"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -b "$SESSION_COOKIE_FILE" \
     -F "title=JPEG Image Audit Test" \
     -F "content=This post contains a JPEG image" \
     -F "categories=General" \
@@ -246,7 +245,7 @@ fi
 # Q: Try creating a post with a GIF image - Was it successful?
 print_question "Try creating a post with a GIF image - Was the post created successfully?"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -b "$SESSION_COOKIE_FILE" \
     -F "title=GIF Image Audit Test" \
     -F "content=This post contains a GIF image" \
     -F "categories=General" \
@@ -265,7 +264,7 @@ fi
 # Q: Try to create a post with an image larger than 20mb
 print_question "Try to create a post with an image larger than 20mb - Were you warned that this was not possible?"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -b "$SESSION_COOKIE_FILE" \
     -F "title=Large Image Test" \
     -F "content=This should fail due to size" \
     -F "categories=General" \

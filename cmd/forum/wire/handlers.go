@@ -71,6 +71,12 @@ func initHandlers(services *ServiceContainer, cfg *config.Config) (*Handlers, er
 		if _, err = templateRegistry.GetOrParse("settings", "templates/base.html", "templates/settings.html"); err != nil {
 			return nil, err
 		}
+		if _, err = templateRegistry.GetOrParse("login", "templates/base.html", "templates/login.html"); err != nil {
+			return nil, err
+		}
+		if _, err = templateRegistry.GetOrParse("register", "templates/base.html", "templates/register.html"); err != nil {
+			return nil, err
+		}
 	}
 	// If directory doesn't exist, htmlTemplates remain nil (API-only mode)
 
@@ -80,7 +86,7 @@ func initHandlers(services *ServiceContainer, cfg *config.Config) (*Handlers, er
 	sessionCookieName := cfg.Session.CookieName
 
 	return &Handlers{
-		Auth:         authAdapters.NewHTTPHandler(services, htmlTemplates, secureCookies, sessionCookieName),
+		Auth:         authAdapters.NewHTTPHandler(services, templateRegistry, secureCookies, sessionCookieName),
 		User:         userAdapters.NewHTTPHandler(services, templateRegistry),
 		Post:         postAdapters.NewHTTPHandler(services, templateRegistry, logger.New(logger.InfoLevel, os.Stderr)),
 		Comment:      commentAdapters.NewHTTPHandler(services, templateRegistry),

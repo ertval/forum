@@ -14,6 +14,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DB_PATH="${PROJECT_ROOT}/data/forum.db"
 SERVER_PID=""
 SERVER_LOG="/tmp/forum_auth_audit_server.log"
+SESSION_COOKIE_FILE="/tmp/forum_auth_audit_session.txt"
 
 # Colors
 if [ -t 1 ]; then
@@ -63,6 +64,10 @@ print_answer() {
     echo ""
 }
 
+has_session_cookies() {
+    [ -f "$SESSION_COOKIE_FILE" ] && awk 'NF && $1 !~ /^#/' "$SESSION_COOKIE_FILE" >/dev/null 2>&1
+}
+
 check_server_running() {
     lsof -Pi :8080 -sTCP:LISTEN -t >/dev/null 2>&1
 }
@@ -102,11 +107,11 @@ cleanup() {
     echo ""
     
     # Delete created posts via API
-    if [ ${#CREATED_POSTS[@]} -gt 0 ] && [ -n "$SESSION_COOKIE" ]; then
+    if [ ${#CREATED_POSTS[@]} -gt 0 ] && has_session_cookies; then
         for post_id in "${CREATED_POSTS[@]}"; do
             if [ -n "$post_id" ]; then
                 curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
-                    -H "Cookie: session_token=$SESSION_COOKIE" > /dev/null 2>&1
+                    -b "$SESSION_COOKIE_FILE" > /dev/null 2>&1
             fi
         done
     fi
@@ -127,6 +132,7 @@ cleanup() {
     if [ -n "$SERVER_PID" ]; then
         kill $SERVER_PID 2>/dev/null || true
     fi
+    rm -f "$SESSION_COOKIE_FILE"
 }
 trap cleanup EXIT
 
@@ -232,16 +238,18 @@ fi
 
 # Q: Can you login and have all the rights of a registered user?
 print_question "Try to login with the user you created - Can you login and have all the rights of a registered user?"
-RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+rm -f "$SESSION_COOKIE_FILE"
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/login" \
+    -c "$SESSION_COOKIE_FILE" \
+    -b "$SESSION_COOKIE_FILE" \
     -H "Content-Type: application/json" \
     -d "{\"email\":\"$UNIQUE_EMAIL\",\"password\":\"Password123\"}")
-HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP" | tail -n1 | awk '{print $2}')
-SESSION_COOKIE=$(echo "$RESPONSE" | grep -i "set-cookie" | grep "session_token" | sed 's/.*session_token=\([^;]*\).*/\1/' | head -n 1)
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 
-if [ "$HTTP_CODE" = "200" ] && [ -n "$SESSION_COOKIE" ]; then
+if [ "$HTTP_CODE" = "200" ] && has_session_cookies; then
     # Test that we can access protected endpoints
     CREATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
-        -H "Cookie: session_token=$SESSION_COOKIE" \
+        -b "$SESSION_COOKIE_FILE" \
         -H "Content-Type: application/json" \
         -d '{"title":"Auth Test Post","content":"Testing rights","categories":["General"]}')
     CREATE_CODE=$(echo "$CREATE_RESPONSE" | tail -n1)

@@ -1,10 +1,6 @@
 // JavaScript functions for post detail page
 'use strict';
 
-const apiContractPatternCommentCreate = 'fetch(`/api/comments/posts/${postId}`';
-const apiContractPatternCommentDelete = 'fetch(`/api/comments/${commentId}`';
-const apiContractPatternPostDelete = 'fetch(`/api/posts/${postId}`';
-
 // Helper function to show inline error messages (delegates to shared utility)
 function showPageError(message) {
     window.showError(message, 'page-errors');

@@ -183,6 +183,37 @@ func levelToString(l Level) string {
 	}
 }
 
+// applyColor applies colorization depending on the logger config.
+func (l *Logger) applyColor(s, color string) string {
+	if l.config == nil {
+		// default to color enabled for terminal output
+		if color == "" {
+			return s
+		}
+		return color + s + colorReset
+	}
+	if !l.config.Colorize || color == "" {
+		return s
+	}
+	return color + s + colorReset
+}
+
+// colorForLevel returns the ANSI color for a log level.
+func colorForLevel(l Level) string {
+	switch l {
+	case DebugLevel:
+		return colorMagenta
+	case InfoLevel:
+		return colorGreen
+	case WarnLevel:
+		return colorYellow
+	case ErrorLevel:
+		return colorRed
+	default:
+		return colorWhite
+	}
+}
+
 // internal log implementation
 func (l *Logger) log(level Level, msg string, fields ...Field) {
 	if level < l.level {
@@ -385,6 +416,24 @@ func Any(key string, value any) Field {
 // Duration creates a duration field (in milliseconds).
 func Duration(key string, value time.Duration) Field {
 	return Field{Key: key, Value: value.Milliseconds()}
+}
+
+// truncateToWidth truncates the input string to at most width runes.
+// If truncation occurs, an ellipsis (single rune) is appended to indicate truncation.
+func truncateToWidth(s string, width int) string {
+	if width <= 0 {
+		return s
+	}
+	rs := []rune(s)
+	if len(rs) <= width {
+		return s
+	}
+	// leave room for ellipsis
+	if width <= 1 {
+		return string(rs[:width])
+	}
+	truncated := string(rs[:width-1]) + "…"
+	return truncated
 }
 
 func sanitizeFieldValuesForPlainText(data map[string]any) map[string]any {

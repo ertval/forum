@@ -3,7 +3,6 @@
 package validator
 
 import (
-	"html"
 	"regexp"
 	"strconv"
 	"strings"
@@ -17,11 +16,6 @@ var (
 	emailRegex = regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$`)
 	// namePartRegex validates username handles (letters, digits, underscores, hyphens)
 	namePartRegex = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`)
-	// Sanitization regexes
-	reScript = regexp.MustCompile(`(?i)<script[^>]*>[\s\S]*?</script>`)
-	reStyle  = regexp.MustCompile(`(?i)<style[^>]*>[\s\S]*?</style>`)
-	reTags   = regexp.MustCompile(`<[^>]+>`)
-	reSpace  = regexp.MustCompile(`\s+`)
 )
 
 // Validator provides validation methods for common data types.
@@ -167,46 +161,3 @@ func (v *Validator) Matches(field, value string, pattern *regexp.Regexp) {
 	}
 }
 
-// Sanitize removes potentially dangerous characters from input.
-// Sanitize performs lightweight, safe sanitization of user-supplied text.
-// It is intentionally conservative: it trims, collapses whitespace, removes
-// control characters (including NUL), strips HTML tags and script/style
-// blocks, and unescapes HTML entities. This keeps the implementation
-// dependency free and easy to audit.
-func Sanitize(input string) string {
-	if input == "" {
-		return ""
-	}
-
-	// Unescape any HTML entities first (e.g., &lt;script&gt;)
-	s := html.UnescapeString(input)
-
-	// Remove script blocks and style blocks (case-insensitive)
-	s = reScript.ReplaceAllString(s, "")
-	s = reStyle.ReplaceAllString(s, "")
-
-	// Strip remaining tags
-	s = reTags.ReplaceAllString(s, "")
-
-	// Remove control characters (except common whitespace)
-	var b strings.Builder
-	for _, r := range s {
-		if unicode.IsControl(r) {
-			// allow tab, newline and carriage return
-			if r == '\t' || r == '\n' || r == '\r' {
-				b.WriteRune(r)
-			}
-			continue
-		}
-		b.WriteRune(r)
-	}
-	s = b.String()
-
-	// Collapse all whitespace sequences to a single space
-	s = reSpace.ReplaceAllString(s, " ")
-
-	// Trim edges
-	s = strings.TrimSpace(s)
-
-	return s
-}

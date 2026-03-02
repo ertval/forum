@@ -6,7 +6,7 @@ package adapters
 import (
 	authPorts "forum/internal/modules/auth/ports"
 	userPorts "forum/internal/modules/user/ports"
-	"html/template"
+	platformTemplates "forum/internal/platform/templates"
 	"net/http"
 )
 
@@ -16,7 +16,7 @@ type HTTPHandler struct {
 	authService        authPorts.AuthService
 	userService        userPorts.UserService
 	middlewareProvider authPorts.AuthMiddleware
-	templates          *template.Template
+	templates          *platformTemplates.Registry
 	secureCookies      bool // Whether to set Secure flag on cookies (true in production)
 	cookieName         string
 }
@@ -30,7 +30,7 @@ type ServiceContainer interface {
 }
 
 // NewHTTPHandler creates a new HTTP handler for authentication with unified dependency injection.
-func NewHTTPHandler(services ServiceContainer, templates *template.Template, secureCookies bool, cookieName string) *HTTPHandler {
+func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Registry, secureCookies bool, cookieName string) *HTTPHandler {
 	if cookieName == "" {
 		cookieName = "session_token"
 	}
