@@ -10,7 +10,7 @@ This remediation cycle is complete for all non-deferred issues.
 Completed:
 - Architecture drift removed across code and docs ([docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)).
 - Moderation module implemented end-to-end (domain, application, adapters, repository, tests).
-- Cross-module coupling reduced through adapter contracts in wire layer ([cmd/forum/wire/service_adapters.go](cmd/forum/wire/service_adapters.go)).
+- Cross-module coupling reduced through adapter contracts in wire layer ([cmd/forum/wire/services.go](cmd/forum/wire/services.go)).
 - Role authorization tightened for admin-only role updates and moderator/admin delete-any behavior.
 - Handler split corrected for comments API/page separation.
 - Audit/test docs and scripts aligned with deferred OAuth scope.
@@ -30,7 +30,7 @@ Deferred by scope:
 | P1 | Enforce missing authorization controls | Done | [internal/modules/user/adapters/http_handler_api.go](internal/modules/user/adapters/http_handler_api.go), [internal/modules/post/adapters/http_handler_api.go](internal/modules/post/adapters/http_handler_api.go), [internal/modules/comment/adapters/http_handler_api.go](internal/modules/comment/adapters/http_handler_api.go) |
 | P2 | Stabilize automated test outcomes | Done | [scripts/tests/test_audit_authentication.sh](scripts/tests/test_audit_authentication.sh), [scripts/tests/run_all_tests.sh](scripts/tests/run_all_tests.sh) |
 | P2 | Repair integration contract regressions | Done | [tests/integration/auth_test.go](tests/integration/auth_test.go), [tests/integration/auth_id_exposure_test.go](tests/integration/auth_id_exposure_test.go) |
-| P3 | Reduce cross-module domain coupling | Done | [cmd/forum/wire/service_adapters.go](cmd/forum/wire/service_adapters.go), [internal/modules/auth/application/service.go](internal/modules/auth/application/service.go), [internal/modules/comment/application/service.go](internal/modules/comment/application/service.go), [internal/modules/reaction/application/service.go](internal/modules/reaction/application/service.go) |
+| P3 | Reduce cross-module domain coupling | Done | [cmd/forum/wire/services.go](cmd/forum/wire/services.go), [internal/modules/auth/application/service.go](internal/modules/auth/application/service.go), [internal/modules/comment/application/service.go](internal/modules/comment/application/service.go), [internal/modules/reaction/application/service.go](internal/modules/reaction/application/service.go) |
 
 ---
 

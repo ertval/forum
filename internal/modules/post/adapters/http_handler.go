@@ -46,13 +46,12 @@ type ServiceContainer interface {
 }
 
 // NewHTTPHandler creates a new HTTP handler for posts with unified dependency injection.
-func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Registry, log ...*logger.Logger) *HTTPHandler {
-	var l *logger.Logger
-	if len(log) > 0 && log[0] != nil {
-		l = log[0]
-	} else {
-		l = logger.New(logger.InfoLevel, os.Stderr)
+func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Registry) *HTTPHandler {
+	lgr := logger.New(logger.InfoLevel, os.Stderr)
+	if provider, ok := any(services).(interface{ Logger() *logger.Logger }); ok && provider.Logger() != nil {
+		lgr = provider.Logger()
 	}
+
 	return &HTTPHandler{
 		postService:        services.Post(),
 		categoryService:    services.Category(),
@@ -62,7 +61,7 @@ func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Regi
 		commentService:     services.Comment(),
 		reactionService:    services.Reaction(),
 		templates:          templates,
-		logger:             l,
+		logger:             lgr,
 	}
 }
 

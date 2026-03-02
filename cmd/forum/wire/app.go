@@ -58,7 +58,7 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 	services := initServices(repos, cfg, lgr)
 
 	// 4. Initialize HTTP Handlers (Input Adapters)
-	handlers, err := initHandlers(services, cfg)
+	handlers, err := initHandlers(services)
 	if err != nil {
 		db.Close()
 		return nil, fmt.Errorf("initialize handlers: %w", err)

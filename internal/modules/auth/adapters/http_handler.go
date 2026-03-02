@@ -27,10 +27,14 @@ type ServiceContainer interface {
 	Auth() authPorts.AuthService
 	User() userPorts.UserService
 	AuthMiddleware() authPorts.AuthMiddleware
+	SessionCookieName() string
+	SecureCookies() bool
 }
 
 // NewHTTPHandler creates a new HTTP handler for authentication with unified dependency injection.
-func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Registry, secureCookies bool, cookieName string) *HTTPHandler {
+func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Registry) *HTTPHandler {
+	secureCookies := services.SecureCookies()
+	cookieName := services.SessionCookieName()
 	if cookieName == "" {
 		cookieName = "session_token"
 	}

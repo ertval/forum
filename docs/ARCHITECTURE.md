@@ -343,7 +343,7 @@ wire/
 **ServiceContainer Pattern**:
 - Single concrete `ServiceContainer` holds all services
 - Each handler declares a local interface with only needed accessors
-- Constructors: `NewHTTPHandler(services ServiceContainer, templates *template.Template)`
+- Constructors: `NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Registry)`
 
 ---
 

@@ -31,13 +31,14 @@ type HTTPHandler struct {
 type ServiceContainer interface {
 	User() ports.UserService
 	AuthMiddleware() authPorts.AuthMiddleware
+	UploadDir() string
 }
 
 // NewHTTPHandler creates a new HTTP handler for users with unified dependency injection.
-func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Registry, uploadDir ...string) *HTTPHandler {
-	dir := "./static/uploads"
-	if len(uploadDir) > 0 && uploadDir[0] != "" {
-		dir = uploadDir[0]
+func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Registry) *HTTPHandler {
+	dir := services.UploadDir()
+	if dir == "" {
+		dir = "./static/uploads"
 	}
 
 	return &HTTPHandler{

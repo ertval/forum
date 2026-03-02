@@ -5,8 +5,6 @@ import (
 	"html/template"
 	"os"
 
-	"forum/internal/platform/config"
-	logger "forum/internal/platform/logger"
 	platformTemplates "forum/internal/platform/templates"
 
 	authAdapters "forum/internal/modules/auth/adapters"
@@ -32,7 +30,7 @@ type Handlers struct {
 
 // initHandlers creates all HTTP handler instances with unified dependency injection.
 // Returns error if templates directory exists but contains invalid templates.
-func initHandlers(services *ServiceContainer, cfg *config.Config) (*Handlers, error) {
+func initHandlers(services *ServiceContainer) (*Handlers, error) {
 	// Parse HTML templates once for handlers that still use *html/template.Template
 	var htmlTemplates *template.Template
 
@@ -80,19 +78,14 @@ func initHandlers(services *ServiceContainer, cfg *config.Config) (*Handlers, er
 	}
 	// If directory doesn't exist, htmlTemplates remain nil (API-only mode)
 
-	// Cookie security is determined by config (from environment)
-	// In production, cfg.Session.Secure should be true
-	secureCookies := cfg.Session.Secure
-	sessionCookieName := cfg.Session.CookieName
-
 	return &Handlers{
-		Auth:         authAdapters.NewHTTPHandler(services, templateRegistry, secureCookies, sessionCookieName),
+		Auth:         authAdapters.NewHTTPHandler(services, templateRegistry),
 		User:         userAdapters.NewHTTPHandler(services, templateRegistry),
-		Post:         postAdapters.NewHTTPHandler(services, templateRegistry, logger.New(logger.InfoLevel, os.Stderr)),
+		Post:         postAdapters.NewHTTPHandler(services, templateRegistry),
 		Comment:      commentAdapters.NewHTTPHandler(services, templateRegistry),
-		Reaction:     reactionAdapters.NewHTTPHandler(services, htmlTemplates),
-		Moderation:   moderationAdapters.NewHTTPHandler(services, htmlTemplates),
-		Notification: notificationAdapters.NewHTTPHandler(services, htmlTemplates),
+		Reaction:     reactionAdapters.NewHTTPHandler(services, templateRegistry),
+		Moderation:   moderationAdapters.NewHTTPHandler(services, templateRegistry),
+		Notification: notificationAdapters.NewHTTPHandler(services, templateRegistry),
 		Templates:    htmlTemplates,
 	}, nil
 }

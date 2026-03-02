@@ -58,6 +58,10 @@ func (m *pageTestServiceContainer) AuthMiddleware() authPorts.AuthMiddleware {
 	return m.middlewareProvider
 }
 
+func (m *pageTestServiceContainer) UploadDir() string {
+	return "./static/uploads"
+}
+
 func TestHTTPHandler_SettingsPage_Authenticated(t *testing.T) {
 	currentDir, err := os.Getwd()
 	if err != nil {

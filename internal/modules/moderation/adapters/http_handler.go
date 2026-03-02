@@ -11,7 +11,7 @@ import (
 	"forum/internal/modules/moderation/ports"
 	userDomain "forum/internal/modules/user/domain"
 	userPorts "forum/internal/modules/user/ports"
-	"html/template"
+	platformTemplates "forum/internal/platform/templates"
 	"mime"
 	"net/http"
 )
@@ -21,7 +21,7 @@ type HTTPHandler struct {
 	moderationService  ports.ModerationService
 	userService        userLookupService
 	middlewareProvider authPorts.AuthMiddleware
-	templates          *template.Template
+	templates          *platformTemplates.Registry
 }
 
 type userLookupService interface {
@@ -36,7 +36,7 @@ type ServiceContainer interface {
 }
 
 // NewHTTPHandler creates a new HTTP handler for moderation with unified dependency injection.
-func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
+func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Registry) *HTTPHandler {
 	return &HTTPHandler{
 		moderationService:  services.Moderation(),
 		userService:        services.User(),
