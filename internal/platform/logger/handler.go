@@ -143,7 +143,7 @@ func (h *humanHandler) Handle(_ context.Context, r slog.Record) error {
 
 	// HTTP request compact formatting
 	if r.Message == "http.request" {
-		out := formatHTTPRequest(ts, level, sanitizeFieldValuesForPlainText(data), h.config)
+		out := formatHTTPRequest(ts, sanitizeFieldValuesForPlainText(data), h.config)
 		out += "\n"
 		h.mu.Lock()
 		_, _ = h.output.Write([]byte(out))

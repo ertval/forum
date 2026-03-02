@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"forum/internal/platform/httpjson"
+	"forum/internal/modules/shared/adapters/httpjson"
 )
 
 func TestCommentHTTPHandler_parseJSON_AcceptsCharsetSuffix(t *testing.T) {

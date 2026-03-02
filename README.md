@@ -79,6 +79,10 @@ The app starts on:
 - HTTP: `http://localhost:8080`
 - HTTPS: `https://localhost:8443` (only if cert/key files exist)
 
+### Devcontainer note
+
+Some devcontainers do not include Docker Engine/CLI access. If `make up` prints a Docker/Compose availability error, run Docker commands from your host terminal instead.
+
 ### Seed test data (optional but useful)
 
 ```bash
@@ -97,6 +101,8 @@ This runs migrations first, then loads seed data.
 make up        # start
 make down      # stop
 ```
+
+`make up` now auto-detects `docker compose` (preferred) and falls back to `docker-compose` when available.
 
 Compose exposes `8080` (HTTP) and `8443` (HTTPS) and mounts `./data`, `./static/uploads`, and `./certs`.
 
@@ -126,6 +132,9 @@ docker rm forum
 ```
 
 The app binds to `0.0.0.0` by default so it is accessible from outside the container without extra flags.
+The container entrypoint also fixes mounted volume permissions at startup before dropping to `appuser`, preventing startup crashes that can appear as browser connection resets.
+
+If you run `docker run -p 8080:8080 forum` repeatedly without `--name`, Docker will create a new container each time. Use `--name forum` + `docker start forum` to reuse the same container.
 
 ### Seeding within Docker
 
@@ -193,6 +202,6 @@ Examples:
 3. Implement use cases in `application/service.go`
 4. Add adapters (`http_handler*.go`, `sqlite_repository.go`)
 5. Register in `cmd/forum/wire/{repositories,services,handlers}.go` and routes in `app.go`
-6. Add migration: `migrations/NNN_{module}_{description}.sql`
+6. Add migration: `migrations/NNN_module.sql`
 
 Use `internal/modules/auth/` as the reference implementation.

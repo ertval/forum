@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	authDomain "forum/internal/modules/auth/domain"
-	"forum/internal/platform/httpjson"
+	"forum/internal/modules/shared/adapters/httpjson"
 )
 
 type registerAPIAuthServiceStub struct {

@@ -9,6 +9,7 @@ Fast path to functional forum MVP following core requirements, then complete rem
 ### ✅ Completed Features
 
 - **Platform layer**: config, database (SQLite), logger, httpserver, errors, validator, upload
+- **Shared module adapters**: `internal/modules/shared/adapters/httpjson` for JSON handler utilities used across module adapters
 - **Auth module**: Registration, login, sessions (one per user), logout, session validation
 - **User module**: Domain, repository, stats (post/comment counts cached in users table)
 - **Post module**: Full CRUD, categories, filtering (category, user, liked posts, date range)
@@ -20,6 +21,7 @@ Fast path to functional forum MVP following core requirements, then complete rem
 - **Filtering**: By category, My Posts, Liked Posts, date range (today/week/month/all)
 - **UI Enhancements**: Hover effects on reaction buttons, "Show More" pagination for comments
 - **Settings page**: Protected `GET /settings` page added and linked from existing navigation
+- **Docker reliability**: `make up/down` supports modern `docker compose` and container startup now normalizes mounted volume permissions before dropping privileges
 
 ### ⚠️ Scaffolded (Needs Implementation)
 
@@ -208,7 +210,7 @@ make test-script
 go build -o bin/forum cmd/forum/main.go
 
 # Docker
-docker-compose up --build
+docker compose up --build
 ```
 
 ---

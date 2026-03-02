@@ -12,8 +12,8 @@ import (
 
 	authPorts "forum/internal/modules/auth/ports"
 	commentDomain "forum/internal/modules/comment/domain"
+	"forum/internal/modules/shared/adapters/httpjson"
 	platformErrors "forum/internal/platform/errors"
-	"forum/internal/platform/httpjson"
 )
 
 // RegisterAPIRoutes registers all comment API routes with the router.

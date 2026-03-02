@@ -9,8 +9,8 @@ import (
 	"time"
 
 	authDomain "forum/internal/modules/auth/domain"
+	"forum/internal/modules/shared/adapters/httpjson"
 	platformErrors "forum/internal/platform/errors"
-	"forum/internal/platform/httpjson"
 )
 
 func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {

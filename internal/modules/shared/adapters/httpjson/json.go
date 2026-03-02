@@ -1,4 +1,5 @@
-// Package httpjson provides shared JSON request/response utilities for HTTP handlers.
+// SHARED ADAPTER - JSON HTTP Utilities
+// Package httpjson provides shared JSON request/response utilities for module HTTP handlers.
 package httpjson
 
 import (
@@ -37,7 +38,6 @@ func ParseJSON(r *http.Request, v interface{}) error {
 		return ErrEmptyBody
 	}
 
-	// Check if content type is JSON
 	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || mediaType != "application/json" {
 		return fmt.Errorf("content type is not application/json")

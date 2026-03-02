@@ -8,8 +8,8 @@ import (
 
 	authPorts "forum/internal/modules/auth/ports"
 	"forum/internal/modules/reaction/domain"
+	"forum/internal/modules/shared/adapters/httpjson"
 	platformErrors "forum/internal/platform/errors"
-	"forum/internal/platform/httpjson"
 	"forum/internal/platform/logger"
 )
 

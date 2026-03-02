@@ -188,6 +188,11 @@ Provide your analysis in the following format:
 - fix these issues by spwaninng a new subagent to implement each one of them in parallel, (TDD, 90% coverage, idiomatic Go, Hexagonal Architecture). After implementing each feature, ask them to test their work and update the roadmap and readme to reflect the new functionality and any changes made.
 - merge any extra migrations into the core ones, one per module, and make sure they are properly ordered and documented.
 - Check the repo and make sure any code that should be in modules is not found in the platform dir. Check what is suposed to be where and fix this. (httpjson is in platform but it is internal to our modules as a shared utility.)
+- i get this error with make up (seems no docker in devcontainer):
+docker-compose up -d
+make: docker-compose: No such file or directory
+make: *** [Makefile:224: docker-up] Error 127
+- I am having truble running the even outside the devcontainer i get connection reset error when trying to access the forum through localhost:8080. Make sure to fix this issue and update the documentation with the correct instructions on how to run the app both inside and outside the devcontainer.
 - fix these and any other problems you can see. The problems console should be empty after you are done. [{
 	"resource": "/workspaces/forum/internal/modules/notification/adapters/sqlite_repository.go",
 	"owner": "_generated_diagnostic_collection_name_#1",

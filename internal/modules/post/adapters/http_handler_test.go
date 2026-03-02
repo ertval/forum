@@ -19,9 +19,9 @@ import (
 	postDomain "forum/internal/modules/post/domain"
 	postPorts "forum/internal/modules/post/ports"
 	reactionPorts "forum/internal/modules/reaction/ports"
+	"forum/internal/modules/shared/adapters/httpjson"
 	userDomain "forum/internal/modules/user/domain"
 	userPorts "forum/internal/modules/user/ports"
-	"forum/internal/platform/httpjson"
 	platformTemplates "forum/internal/platform/templates"
 )
 
@@ -1557,9 +1557,9 @@ func TestHTTPHandler_RegisterRoutes(t *testing.T) {
 	}
 
 	container := &mockServiceContainer{
-		postService:       &mockPostService{},
-		authService:       authSvc,
-		userService:       &mockUserService{},
+		postService:        &mockPostService{},
+		authService:        authSvc,
+		userService:        &mockUserService{},
 		middlewareProvider: &mockMiddlewareProvider{},
 	}
 

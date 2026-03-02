@@ -101,7 +101,7 @@ func formatBytes(bytes int) string {
 // formatHTTPRequest creates a compact, colorful one-line log for HTTP requests.
 // Format: TS PROTO STATUS METHOD PATH?QUERY (SIZEb, DURms) [IP]
 // Example: 18:33:58 🔒 ✓ 200 GET /board?my_posts=true (6.4kb, 1ms) [127.0.0.1]
-func formatHTTPRequest(ts string, level Level, data map[string]any, cfg *Config) string {
+func formatHTTPRequest(ts string, data map[string]any, cfg *Config) string {
 	// Extract fields
 	method := getStringField(data, "method", "???")
 	path := getStringField(data, "path", "/")

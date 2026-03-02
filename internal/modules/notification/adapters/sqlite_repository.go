@@ -129,34 +129,12 @@ func (r *SQLiteNotificationRepository) GetByUserID(ctx context.Context, userID i
 
 	notifications := make([]*domain.Notification, 0)
 	for rows.Next() {
-		var notification domain.Notification
-		var targetPublicID sql.NullString
-		var actorPublicID sql.NullString
-
-		if err := rows.Scan(
-			&notification.ID,
-			&notification.PublicID,
-			&notification.UserID,
-			&notification.ActorID,
-			&notification.Type,
-			&notification.Message,
-			&notification.TargetID,
-			&notification.IsRead,
-			&notification.CreatedAt,
-			&targetPublicID,
-			&actorPublicID,
-		); err != nil {
+		notification, err := scanNotification(rows)
+		if err != nil {
 			return nil, fmt.Errorf("scan notification: %w", err)
 		}
 
-		if targetPublicID.Valid {
-			notification.PublicTargetID = targetPublicID.String
-		}
-		if actorPublicID.Valid {
-			notification.PublicActorID = actorPublicID.String
-		}
-
-		notifications = append(notifications, &notification)
+		notifications = append(notifications, notification)
 	}
 
 	if err := rows.Err(); err != nil {

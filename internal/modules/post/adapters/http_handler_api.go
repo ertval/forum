@@ -12,8 +12,8 @@ import (
 
 	authPorts "forum/internal/modules/auth/ports"
 	postDomain "forum/internal/modules/post/domain"
+	"forum/internal/modules/shared/adapters/httpjson"
 	platformErrors "forum/internal/platform/errors"
-	"forum/internal/platform/httpjson"
 	logger "forum/internal/platform/logger"
 	"forum/internal/platform/upload"
 )

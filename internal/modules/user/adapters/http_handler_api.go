@@ -6,9 +6,9 @@ import (
 	"net/http"
 
 	authPorts "forum/internal/modules/auth/ports"
+	"forum/internal/modules/shared/adapters/httpjson"
 	"forum/internal/modules/user/domain"
 	platformErrors "forum/internal/platform/errors"
-	"forum/internal/platform/httpjson"
 )
 
 // RegisterAPIRoutes registers all user API routes with the router.

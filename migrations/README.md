@@ -10,6 +10,8 @@ Example: `001_auth.sql`
 
 All migrations are applied in sequential order based on their numeric prefix (`001`, `002`, `003`, etc). Keep filenames short, containing just the numeric prefix and the module name.
 
+Core rule for this repository: keep one core schema migration per module in this directory (plus cross-cutting schema files such as indexes when needed). Do not place schema migrations under `scripts/` or module folders.
+
 ## Migration Structure
 
 Each migration must contain an `Up` and `Down` section with specific markers. The migrator extracts the Up section when applying, and the Down section when rolling back.

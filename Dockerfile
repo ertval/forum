@@ -32,7 +32,7 @@ FROM alpine:3.20
 # Install minimal runtime dependencies and create non-root user
 # ca-certificates: HTTPS/TLS, sqlite-libs: database, tzdata: timezones
 # --no-cache reduces image size by not storing package manager cache
-RUN apk add --no-cache ca-certificates sqlite-libs tzdata && \
+RUN apk add --no-cache ca-certificates sqlite-libs tzdata su-exec && \
     adduser -D -s /bin/sh appuser
 
 # Set working directory for the application
@@ -45,6 +45,7 @@ COPY --from=builder /app/forum .
 COPY --from=builder /app/static ./static
 COPY --from=builder /app/templates ./templates
 COPY --from=builder /app/migrations ./migrations
+COPY --from=builder /app/scripts/docker/entrypoint.sh ./docker-entrypoint.sh
 
 # Create data and upload directories so the app can run without mounted volumes
 RUN mkdir -p data static/uploads
@@ -55,11 +56,12 @@ RUN chown -R appuser:appuser /app
 # Declare volumes for data persistence across container restarts
 VOLUME ["/app/data", "/app/static/uploads"]
 
-# Switch to non-root user for security (principle of least privilege)
-USER appuser
-
 # Expose port 8080 for HTTP traffic
 EXPOSE 8080
+
+# Runtime entrypoint normalizes mount permissions then drops to appuser
+RUN chmod +x ./docker-entrypoint.sh
+ENTRYPOINT ["./docker-entrypoint.sh"]
 
 # Run the application using exec form (preferred over shell form for signal handling)
 CMD ["./forum"]

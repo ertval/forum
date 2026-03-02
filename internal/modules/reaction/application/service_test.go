@@ -47,12 +47,12 @@ func (m *MockNotificationService) CountUnread(ctx context.Context, userID int) (
 
 // MockReactionRepository implements ReactionRepository for testing
 type MockReactionRepository struct {
-	reactions                map[string]*domain.Reaction // Key: userID:targetPublicID:targetType
-	countFn                  func(ctx context.Context, targetPublicID string, targetType string, reactionType domain.ReactionType) (int, error)
-	countLikesAndDislikesFn  func(ctx context.Context, targetPublicID string, targetType string) (likes, dislikes int, err error)
-	getByTargetFn            func(ctx context.Context, targetPublicID string, targetType string) ([]*domain.Reaction, error)
-	deleteFn                 func(ctx context.Context, userID int, targetPublicID string, targetType string) error
-	countByUserIDFn          func(ctx context.Context, userID int) (int, error)
+	reactions               map[string]*domain.Reaction // Key: userID:targetPublicID:targetType
+	countFn                 func(ctx context.Context, targetPublicID string, targetType string, reactionType domain.ReactionType) (int, error)
+	countLikesAndDislikesFn func(ctx context.Context, targetPublicID string, targetType string) (likes, dislikes int, err error)
+	getByTargetFn           func(ctx context.Context, targetPublicID string, targetType string) ([]*domain.Reaction, error)
+	deleteFn                func(ctx context.Context, userID int, targetPublicID string, targetType string) error
+	countByUserIDFn         func(ctx context.Context, userID int) (int, error)
 }
 
 func (m *MockReactionRepository) CountByTargetPublicID(ctx context.Context, targetPublicID string, targetType string, reactionType domain.ReactionType) (int, error) {
@@ -138,9 +138,10 @@ func (m *MockReactionRepository) CountLikesAndDislikesByTargetPublicID(ctx conte
 	dislikesCount := 0
 	for _, reaction := range m.reactions {
 		if reaction.PublicTargetID == targetPublicID && reaction.TargetType == targetType {
-			if reaction.Type == domain.ReactionLike {
+			switch reaction.Type {
+			case domain.ReactionLike:
 				likesCount++
-			} else if reaction.Type == domain.ReactionDislike {
+			case domain.ReactionDislike:
 				dislikesCount++
 			}
 		}

@@ -20,6 +20,9 @@ LDFLAGS=-ldflags "-w -s"
 # Database
 MIGRATIONS_DIR=./migrations
 
+# Docker compose command detection (prefer modern plugin syntax)
+DOCKER_COMPOSE_CMD=$(shell if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then echo "docker compose"; elif command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo ""; fi)
+
 # Colors for output
 RED=\033[0;31m
 GREEN=\033[0;32m
@@ -221,13 +224,22 @@ docker-run:
 # Docker compose up
 docker-up:
 	@echo "$(BLUE)Starting Docker Compose...$(NC)"
-	docker-compose up -d
+	@if [ -z "$(DOCKER_COMPOSE_CMD)" ]; then \
+		echo "$(RED)Docker Compose is not available in this environment.$(NC)"; \
+		echo "$(YELLOW)Install Docker Desktop/Engine with Compose plugin, then retry.$(NC)"; \
+		exit 127; \
+	fi
+	$(DOCKER_COMPOSE_CMD) up -d
 .PHONY: docker-up
 
 # Docker compose down
 docker-down:
 	@echo "$(BLUE)Stopping Docker Compose...$(NC)"
-	docker-compose down
+	@if [ -z "$(DOCKER_COMPOSE_CMD)" ]; then \
+		echo "$(RED)Docker Compose is not available in this environment.$(NC)"; \
+		exit 127; \
+	fi
+	$(DOCKER_COMPOSE_CMD) down
 .PHONY: docker-down
 
 # up: Alias to start docker-compose

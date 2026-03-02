@@ -8,7 +8,7 @@ import (
 
 	authPorts "forum/internal/modules/auth/ports"
 	"forum/internal/modules/notification/domain"
-	"forum/internal/platform/httpjson"
+	"forum/internal/modules/shared/adapters/httpjson"
 
 	platformErrors "forum/internal/platform/errors"
 )
