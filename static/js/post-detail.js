@@ -65,6 +65,40 @@ document.addEventListener('DOMContentLoaded', function() {
             const postId = e.target.getAttribute('data-post-id');
             await deletePost(postId);
         }
+
+        // Handle save comment edit
+        if (e.target.classList.contains('btn-save-comment')) {
+            e.preventDefault();
+            const commentId = e.target.getAttribute('data-comment-id');
+            const commentElement = document.getElementById(`comment-${commentId}`);
+            if (commentElement) {
+                const textarea = commentElement.querySelector('textarea');
+                if (textarea) {
+                    const newContent = textarea.value.trim();
+                    if (!newContent) {
+                        showPageError('Comment content cannot be empty');
+                        return;
+                    }
+                    await updateComment(commentId, newContent);
+                }
+            }
+        }
+
+        // Handle cancel comment edit
+        if (e.target.classList.contains('btn-cancel-edit')) {
+            e.preventDefault();
+            const commentElement = e.target.closest('.comment');
+            if (commentElement) {
+                const contentElement = commentElement.querySelector('.comment-content');
+                const actionsDiv = commentElement.querySelector('.comment-actions');
+
+                // Restore original content as plain text (not innerHTML)
+                contentElement.textContent = contentElement.getAttribute('data-original-content') || '';
+
+                // Restore original actions (server-generated button HTML)
+                actionsDiv.innerHTML = actionsDiv.getAttribute('data-original-actions') || '';
+            }
+        }
     });
 
     // Handle comment form submission
@@ -302,8 +336,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         formGroup.appendChild(textarea);
 
-        // Save original content for reference
-        const originalContent = contentElement.innerHTML;
+        // Save original content for reference (store as plain text to avoid innerHTML footgun)
+        const originalContent = contentElement.textContent;
         contentElement.setAttribute('data-original-content', originalContent);
 
         // Replace content with form structure
@@ -363,38 +397,4 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
 
-    // Add event listener for save and cancel buttons
-    document.body.addEventListener('click', async function(e) {
-        if (e.target.classList.contains('btn-save-comment')) {
-            e.preventDefault();
-            const commentId = e.target.getAttribute('data-comment-id');
-            const commentElement = document.getElementById(`comment-${commentId}`);
-            if (commentElement) {
-                const textarea = commentElement.querySelector('textarea');
-                if (textarea) {
-                    const newContent = textarea.value.trim();
-                    if (!newContent) {
-                        showPageError('Comment content cannot be empty');
-                        return;
-                    }
-                    await updateComment(commentId, newContent);
-                }
-            }
-        }
-
-        if (e.target.classList.contains('btn-cancel-edit')) {
-            e.preventDefault();
-            const commentElement = e.target.closest('.comment');
-            if (commentElement) {
-                const contentElement = commentElement.querySelector('.comment-content');
-                const actionsDiv = commentElement.querySelector('.comment-actions');
-
-                // Restore original content
-                contentElement.innerHTML = contentElement.getAttribute('data-original-content') || '';
-
-                // Restore original actions
-                actionsDiv.innerHTML = actionsDiv.getAttribute('data-original-actions') || '';
-            }
-        }
-    });
 });

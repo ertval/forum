@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -567,5 +568,14 @@ func TestRateLimitWithConfig_ReturnsWorkingStopFunction(t *testing.T) {
 		t.Fatalf("status code = %d, want %d", rec.Code, http.StatusOK)
 	}
 
+	// Verify the stop function actually stops the background goroutine.
+	// Capture goroutine count before calling stop, give the goroutine time
+	// to exit, then assert the count decreased.
+	beforeStop := runtime.NumGoroutine()
 	stop()
+	time.Sleep(50 * time.Millisecond)
+	afterStop := runtime.NumGoroutine()
+	if afterStop >= beforeStop {
+		t.Errorf("goroutine count did not decrease after stop(): before=%d, after=%d", beforeStop, afterStop)
+	}
 }

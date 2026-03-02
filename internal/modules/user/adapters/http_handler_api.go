@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 
+	authPorts "forum/internal/modules/auth/ports"
 	"forum/internal/modules/user/domain"
 	platformErrors "forum/internal/platform/errors"
 )
@@ -176,6 +177,30 @@ func (h *HTTPHandler) ActivateUserAPI(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(map[string]string{"message": "user activated successfully"}); err != nil {
+		log.Printf("Error encoding JSON response: %v", err)
+	}
+}
+
+// UpdateSettingsAPI handles settings update requests (JSON API).
+func (h *HTTPHandler) UpdateSettingsAPI(w http.ResponseWriter, r *http.Request) {
+	userPublicID := authPorts.GetUserID(r.Context())
+	if userPublicID == "" {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	updatedUser, statusCode, errMessage := h.updateCurrentUserSettings(r, userPublicID)
+	if errMessage != "" {
+		platformErrors.WriteErrorJSON(w, statusCode, errMessage)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(map[string]any{
+		"message": "settings updated successfully",
+		"user":    updatedUser,
+	}); err != nil {
 		log.Printf("Error encoding JSON response: %v", err)
 	}
 }

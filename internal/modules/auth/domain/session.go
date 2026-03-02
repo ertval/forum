@@ -3,7 +3,16 @@
 package domain
 
 import (
+	"regexp"
+	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
+)
+
+// Pre-compiled validation regexes (stdlib only, no external dependencies).
+var (
+	credEmailRegex = regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$`)
 )
 
 // Session represents an authenticated user session.
@@ -47,4 +56,57 @@ func (s *Session) Validate() error {
 type Credentials struct {
 	Email    string // User's email address
 	Password string // User's password (plaintext, will be hashed)
+}
+
+// Validate checks that the credentials meet format and strength requirements.
+// This is used by the application layer instead of importing platform/validator.
+func (c *Credentials) Validate() error {
+	// Validate email
+	email := strings.ToLower(strings.TrimSpace(c.Email))
+	if email == "" {
+		return ErrInvalidEmail
+	}
+	if !credEmailRegex.MatchString(email) {
+		return ErrInvalidEmail
+	}
+
+	// Validate password presence
+	if strings.TrimSpace(c.Password) == "" {
+		return &PasswordValidationError{Message: "Password is required"}
+	}
+
+	// Validate password strength (minimum 8 chars, upper, lower, digit)
+	n := utf8.RuneCountInString(c.Password)
+	if n < 8 {
+		return &PasswordValidationError{Message: "Password must be at least 8 characters long"}
+	}
+
+	var hasUpper, hasLower, hasDigit bool
+	for _, r := range c.Password {
+		if unicode.IsUpper(r) {
+			hasUpper = true
+		}
+		if unicode.IsLower(r) {
+			hasLower = true
+		}
+		if unicode.IsDigit(r) {
+			hasDigit = true
+		}
+	}
+
+	var missing []string
+	if !hasUpper {
+		missing = append(missing, "an uppercase letter")
+	}
+	if !hasLower {
+		missing = append(missing, "a lowercase letter")
+	}
+	if !hasDigit {
+		missing = append(missing, "a digit")
+	}
+	if len(missing) > 0 {
+		return &PasswordValidationError{Message: "Password must contain at least " + strings.Join(missing, ", ")}
+	}
+
+	return nil
 }

@@ -7,32 +7,60 @@ import (
 	"log"
 	"time"
 
-	commentPorts "forum/internal/modules/comment/ports"
-	notificationDomain "forum/internal/modules/notification/domain"
-	notificationPorts "forum/internal/modules/notification/ports"
-	postPorts "forum/internal/modules/post/ports"
+	commentDomain "forum/internal/modules/comment/domain"
+	postDomain "forum/internal/modules/post/domain"
 	"forum/internal/modules/reaction/domain"
 	"forum/internal/modules/reaction/ports"
-	userPorts "forum/internal/modules/user/ports"
 	"forum/internal/platform/async"
 )
+
+// Notification type constants mirrored locally to avoid cross-module port imports.
+const (
+	notifTypeLike    = "like"
+	notifTypeDislike = "dislike"
+)
+
+// postRepository defines the minimal post data access required by the reaction service.
+// This avoids a direct import of the post module's ports package.
+type postRepository interface {
+	GetByID(ctx context.Context, postID string) (*postDomain.Post, error)
+}
+
+// commentRepository defines the minimal comment data access required by the reaction service.
+// This avoids a direct import of the comment module's ports package.
+type commentRepository interface {
+	GetByPublicID(ctx context.Context, commentPublicID string) (*commentDomain.Comment, error)
+}
+
+// userService defines the minimal user operations required by the reaction service.
+// This avoids a direct import of the user module's ports package.
+type userService interface {
+	IncrementReactionCount(ctx context.Context, userID int) error
+	DecrementReactionCount(ctx context.Context, userID int) error
+}
+
+// notificationService defines the minimal notification operations required by the reaction service.
+// This avoids a direct import of the notification module's ports package.
+type notificationService interface {
+	CreateNotification(ctx context.Context, userID, actorID int, notifType, message string, targetPublicID string) error
+}
 
 // Service implements the ReactionService interface.
 type Service struct {
 	reactionRepo        ports.ReactionRepository
-	postRepo            postPorts.PostRepository
-	commentRepo         commentPorts.CommentRepository
-	userService         userPorts.UserService
-	notificationService notificationPorts.NotificationService
+	postRepo            postRepository
+	commentRepo         commentRepository
+	userService         userService
+	notificationService notificationService
 }
 
 // NewService creates a new reaction service with all required dependencies.
 func NewService(
 	reactionRepo ports.ReactionRepository,
-	postRepo postPorts.PostRepository,
-	commentRepo commentPorts.CommentRepository,
-	userService userPorts.UserService,
-	notificationService notificationPorts.NotificationService,
+	postRepo postRepository,
+	commentRepo commentRepository,
+	userService userService,
+	notificationService notificationService,
 ) *Service {
 	return &Service{
 		reactionRepo:        reactionRepo,
@@ -87,10 +115,10 @@ func (s *Service) React(ctx context.Context, userID int, targetPublicID string, 
 	if s.notificationService != nil && targetType == "post" {
 		post, postErr := s.postRepo.GetByID(ctx, targetPublicID)
 		if postErr == nil && post.UserID != userID {
-			notificationType := notificationDomain.TypeLike
+			notificationType := notifTypeLike
 			message := "Someone liked your post"
 			if reactionType == domain.ReactionDislike {
-				notificationType = notificationDomain.TypeDislike
+				notificationType = notifTypeDislike
 				message = "Someone disliked your post"
 			}
 			if err := s.notificationService.CreateNotification(ctx, post.UserID, userID, notificationType, message, targetPublicID); err != nil {

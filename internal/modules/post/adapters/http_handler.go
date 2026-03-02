@@ -7,8 +7,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"net/http"
+	"os"
 	"strings"
 
 	authPorts "forum/internal/modules/auth/ports"
@@ -18,6 +18,7 @@ import (
 	userPorts "forum/internal/modules/user/ports"
 	"forum/internal/platform/httpserver"
 	logger "forum/internal/platform/logger"
+	platformTemplates "forum/internal/platform/templates"
 )
 
 // HTTPHandler handles HTTP requests for posts.
@@ -29,7 +30,7 @@ type HTTPHandler struct {
 	middlewareProvider authPorts.AuthMiddleware
 	commentService     commentPorts.CommentService
 	reactionService    reactionPorts.ReactionService
-	templates          *template.Template
+	templates          *platformTemplates.Registry
 	logger             *logger.Logger
 }
 
@@ -45,7 +46,13 @@ type ServiceContainer interface {
 }
 
 // NewHTTPHandler creates a new HTTP handler for posts with unified dependency injection.
-func NewHTTPHandler(services ServiceContainer, templates *template.Template, log *logger.Logger) *HTTPHandler {
+func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Registry, log ...*logger.Logger) *HTTPHandler {
+	var l *logger.Logger
+	if len(log) > 0 && log[0] != nil {
+		l = log[0]
+	} else {
+		l = logger.New(logger.InfoLevel, os.Stderr)
+	}
 	return &HTTPHandler{
 		postService:        services.Post(),
 		categoryService:    services.Category(),
@@ -55,12 +62,12 @@ func NewHTTPHandler(services ServiceContainer, templates *template.Template, log
 		commentService:     services.Comment(),
 		reactionService:    services.Reaction(),
 		templates:          templates,
-		logger:             log,
+		logger:             l,
 	}
 }
 
-// Templates returns the shared templates (helper for other handlers).
-func (h *HTTPHandler) Templates() *template.Template {
+// Templates returns the injected template registry.
+func (h *HTTPHandler) Templates() *platformTemplates.Registry {
 	return h.templates
 }
 

@@ -4,31 +4,45 @@ package application
 
 import (
 	"context"
+	"html"
 	"log"
+	"regexp"
 	"strings"
 	"time"
 
 	"forum/internal/modules/auth/domain"
 	authPort "forum/internal/modules/auth/ports"
-	userPort "forum/internal/modules/user/ports"
-	"forum/internal/platform/validator"
+	userDomain "forum/internal/modules/user/domain"
 
 	"github.com/gofrs/uuid/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
+// authUsernamePartRegex validates each word in a username
+// (must start with a letter, followed by letters/digits/underscores/hyphens).
+var authUsernamePartRegex = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`)
+
+// userService defines the minimal user operations required by the auth service.
+// This avoids a direct import of the user module's ports package.
+type userService interface {
+	ExistsByEmail(ctx context.Context, email string) (bool, error)
+	ExistsByUsername(ctx context.Context, username string) (bool, error)
+	CreateUser(ctx context.Context, email, username, passwordHash string) (userID int, err error)
+	GetByEmail(ctx context.Context, email string) (*userDomain.User, error)
+}
+
 // Service implements the AuthService interface.
 // It coordinates authentication operations using domain logic and repositories.
 type Service struct {
 	sessionRepo     authPort.SessionRepository
-	userService     userPort.UserService
+	userService     userService
 	sessionDuration time.Duration
 }
 
 // NewService creates a new auth service with the required dependencies.
 func NewService(
 	sessionRepo authPort.SessionRepository,
-	userService userPort.UserService,
+	userService userService,
 	sessionDuration time.Duration,
 ) *Service {
 	return &Service{
@@ -48,22 +62,13 @@ func (s *Service) Register(ctx context.Context, email, username, password string
 		return 0, nil, err
 	}
 
-	validation := validator.New()
-	validation.Required("username", username)
-	if username != "" {
-		validation.Username("username", username)
-	}
-	if !validation.Valid() {
-		for field := range validation.Errors() {
-			if field == "username" {
-				return 0, nil, domain.ErrInvalidUsername
-			}
-		}
+	if err := validateUsername(username); err != nil {
+		return 0, nil, err
 	}
 
 	// Sanitize inputs for storage/lookup
-	email = strings.ToLower(strings.TrimSpace(validator.Sanitize(email)))
-	username = strings.TrimSpace(validator.Sanitize(username))
+	email = strings.ToLower(strings.TrimSpace(sanitize(email)))
+	username = strings.TrimSpace(sanitize(username))
 
 	// 2. Check if email or username already exists
 	emailExists, err := s.userService.ExistsByEmail(ctx, email)
@@ -129,7 +134,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (*domain.Se
 	}
 
 	// Sanitize email for lookup
-	email = strings.ToLower(strings.TrimSpace(validator.Sanitize(email)))
+	email = strings.ToLower(strings.TrimSpace(sanitize(email)))
 
 	// 2. Retrieve user by email
 	user, err := s.userService.GetByEmail(ctx, email)
@@ -273,33 +278,50 @@ func (s *Service) comparePassword(hash, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 }
 
-// validateCredentials validates the credentials.
-// Returns an error if the credentials are invalid.
+// validateCredentials validates the credentials using the domain's Validate method.
 func validateCredentials(c *domain.Credentials) error {
-	v := validator.New()
+	return c.Validate()
+}
 
-	v.Required("email", c.Email)
-	if c.Email != "" {
-		v.Email("email", c.Email)
+// validateUsername checks that a username meets format requirements.
+func validateUsername(username string) error {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return domain.ErrInvalidUsername
 	}
-
-	v.Required("password", c.Password)
-	if c.Password != "" {
-		// Minimum 8 characters for secure password validation
-		v.Password("password", c.Password, 8)
-	}
-
-	if !v.Valid() {
-		// Convert validator errors to domain-specific errors.
-		// Check email first for deterministic error ordering.
-		errs := v.Errors()
-		if _, ok := errs["email"]; ok {
-			return domain.ErrInvalidEmail
-		}
-		if msg, ok := errs["password"]; ok {
-			return &domain.PasswordValidationError{Message: msg}
+	parts := strings.Fields(username)
+	for _, part := range parts {
+		if !authUsernamePartRegex.MatchString(part) {
+			return domain.ErrInvalidUsername
 		}
 	}
-
 	return nil
+}
+
+// sanitize removes potentially dangerous characters from input.
+// It strips HTML tags, script/style blocks, and unescapes HTML entities.
+var (
+	authReScript = regexp.MustCompile(`(?i)<script[^>]*>[\s\S]*?</script>`)
+	authReStyle  = regexp.MustCompile(`(?i)<style[^>]*>[\s\S]*?</style>`)
+	authReTags   = regexp.MustCompile(`<[^>]+>`)
+	authReSpace  = regexp.MustCompile(`\s+`)
+)
+
+func sanitize(input string) string {
+	if input == "" {
+		return ""
+	}
+	s := html.UnescapeString(input)
+	s = authReScript.ReplaceAllString(s, "")
+	s = authReStyle.ReplaceAllString(s, "")
+	s = authReTags.ReplaceAllString(s, "")
+	var b strings.Builder
+	for _, r := range s {
+		if r >= 0x20 || r == '\t' || r == '\n' || r == '\r' {
+			b.WriteRune(r)
+		}
+	}
+	s = b.String()
+	s = authReSpace.ReplaceAllString(strings.TrimSpace(s), " ")
+	return s
 }

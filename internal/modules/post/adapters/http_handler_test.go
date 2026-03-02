@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -22,6 +21,7 @@ import (
 	reactionPorts "forum/internal/modules/reaction/ports"
 	userDomain "forum/internal/modules/user/domain"
 	userPorts "forum/internal/modules/user/ports"
+	platformTemplates "forum/internal/platform/templates"
 )
 
 // Mock implementations
@@ -1183,14 +1183,14 @@ func TestCreatePostPreview(t *testing.T) {
 }
 
 func TestHTTPHandler_Templates(t *testing.T) {
-	tmpl := template.Must(template.New("test").Parse("test"))
+	reg := platformTemplates.NewRegistry()
 	container := &mockServiceContainer{
 		postService: &mockPostService{},
 	}
 
-	handler := NewHTTPHandler(container, tmpl)
+	handler := NewHTTPHandler(container, reg)
 
-	if handler.Templates() != tmpl {
+	if handler.Templates() != reg {
 		t.Error("Templates() should return the templates passed to NewHTTPHandler")
 	}
 }

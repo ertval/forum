@@ -7,8 +7,167 @@ package logger
 
 import (
 	"fmt"
+	"slices"
+	"sort"
+	"strconv"
 	"strings"
 )
+
+// applyColor applies colorization depending on the logger config.
+func (l *Logger) applyColor(s, color string) string {
+	if l.config == nil {
+		// default to color enabled for terminal output
+		if color == "" {
+			return s
+		}
+		return color + s + colorReset
+	}
+	if !l.config.Colorize || color == "" {
+		return s
+	}
+	return color + s + colorReset
+}
+
+// colorForLevel returns the ANSI color for a log level.
+func colorForLevel(l Level) string {
+	switch l {
+	case DebugLevel:
+		return colorMagenta
+	case InfoLevel:
+		return colorGreen
+	case WarnLevel:
+		return colorYellow
+	case ErrorLevel:
+		return colorRed
+	default:
+		return colorWhite
+	}
+}
+
+// truncateToWidth truncates the input string to at most width runes.
+// If truncation occurs, an ellipsis (single rune) is appended to indicate truncation.
+func truncateToWidth(s string, width int) string {
+	if width <= 0 {
+		return s
+	}
+	rs := []rune(s)
+	if len(rs) <= width {
+		return s
+	}
+	// leave room for ellipsis
+	if width <= 1 {
+		return string(rs[:width])
+	}
+	truncated := string(rs[:width-1]) + "…"
+	return truncated
+}
+
+// formatGenericLine formats a non-HTTP log entry as a human-readable line.
+// It returns the formatted line without a trailing newline.
+func (l *Logger) formatGenericLine(level Level, ts, msg string, data map[string]any) string {
+	// prepare fields: if AllowedFields is set, only include those keys.
+	allowed := map[string]struct{}{}
+	useAllowed := false
+	if l.config != nil && len(l.config.AllowedFields) > 0 {
+		for _, k := range l.config.AllowedFields {
+			allowed[k] = struct{}{}
+		}
+		allowed[""] = struct{}{} // Always allow empty keys for prefix-less fields
+		useAllowed = true
+	}
+
+	// colorize level label
+	levelLabel := fmt.Sprintf("[%s]", levelToString(level))
+	levelColored := l.applyColor(levelLabel, colorForLevel(level))
+
+	// colorize message when it's important (server start/stop, errors, etc.)
+	msgStr := sanitizePlainText(fmt.Sprintf("%s", msg))
+	msgColor := colorForMessage(level)
+	if msgColor != "" {
+		msgStr = l.applyColor(msgStr, msgColor)
+	}
+
+	out := fmt.Sprintf("%s %s %s", levelColored, ts, msgStr)
+	if len(data) > 0 {
+		// iterate fields in sorted order for stable output
+		keys := make([]string, 0, len(data))
+		for k := range data {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			v := data[k]
+			if useAllowed {
+				if _, ok := allowed[k]; !ok {
+					continue
+				}
+			} else if l.config != nil {
+				// if not using AllowedFields, respect OmitFields
+				skip := slices.Contains(l.config.OmitFields, k)
+				if skip {
+					continue
+				}
+			}
+
+			// prepare value string and optionally color status codes or URLs
+			keyStr := sanitizePlainText(k)
+			valStr := sanitizePlainText(fmt.Sprintf("%v", v))
+			valColor := ""
+
+			// color URL-like values for better visibility and clickability
+			if vs, ok := v.(string); ok {
+				lower := strings.ToLower(vs)
+				if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
+					valColor = colorBlue
+				}
+			}
+
+			if k == "status" {
+				// try to detect integer status code from various types
+				switch tv := v.(type) {
+				case int:
+					valColor = colorForStatusCode(tv)
+				case int32:
+					valColor = colorForStatusCode(int(tv))
+				case int64:
+					valColor = colorForStatusCode(int(tv))
+				case float64:
+					// if it's float but integer valued, treat as status
+					ival := int(tv)
+					if float64(ival) == tv {
+						valColor = colorForStatusCode(ival)
+					}
+				case string:
+					if code, err := strconv.Atoi(tv); err == nil {
+						valColor = colorForStatusCode(code)
+					}
+				}
+			}
+
+			// color error values red
+			if valColor == "" && k == "error" {
+				valColor = colorRed
+			}
+
+			if k == "" {
+				if valColor != "" {
+					out += " " + l.applyColor(valStr, valColor)
+				} else {
+					out += " " + valStr
+				}
+			} else if valColor != "" {
+				out += fmt.Sprintf(" %s:%s", keyStr, l.applyColor(valStr, valColor))
+			} else {
+				out += fmt.Sprintf(" %s:%s", keyStr, valStr)
+			}
+		}
+	}
+	// apply max line width truncation when requested
+	if l.config != nil && l.config.MaxLineWidth > 0 {
+		out = truncateToWidth(out, l.config.MaxLineWidth)
+	}
+	return out
+}
 
 // colorForStatusCode returns a color based on HTTP status code ranges.
 func colorForStatusCode(code int) string {

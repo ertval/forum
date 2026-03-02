@@ -1,4 +1,3 @@
-// Package database provides database connection management and migrations.
 package database
 
 import (

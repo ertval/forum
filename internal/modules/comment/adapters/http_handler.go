@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"mime"
 	"net/http"
 	"os"
@@ -19,6 +18,7 @@ import (
 	userPorts "forum/internal/modules/user/ports"
 	"forum/internal/platform/httpserver"
 	logger "forum/internal/platform/logger"
+	platformTemplates "forum/internal/platform/templates"
 )
 
 const (
@@ -37,7 +37,7 @@ type HTTPHandler struct {
 	categoryService    postPorts.CategoryService
 	reactionService    reactionPorts.ReactionService
 	middlewareProvider authPorts.AuthMiddleware
-	templates          *template.Template
+	templates          *platformTemplates.Registry
 }
 
 // ServiceContainer defines the minimal interface needed by this handler.
@@ -52,7 +52,7 @@ type ServiceContainer interface {
 }
 
 // NewHTTPHandler creates a new HTTP handler for comments with unified dependency injection.
-func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
+func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Registry) *HTTPHandler {
 	return &HTTPHandler{
 		commentService:     services.Comment(),
 		authService:        services.Auth(),
@@ -133,11 +133,8 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 	// Register API routes
 	h.RegisterAPIRoutes(router)
 
-	// Register page routes
+	// Register page routes (includes form submission routes)
 	h.RegisterPageRoutes(router)
-
-	// Register form routes
-	h.RegisterFormRoutes(router)
 }
 
 // writeJSON writes a JSON response.

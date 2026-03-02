@@ -8,21 +8,27 @@ import (
 
 	"forum/internal/modules/post/domain"
 	"forum/internal/modules/post/ports"
-	userPorts "forum/internal/modules/user/ports"
 	"forum/internal/platform/async"
 )
+
+// userService defines the minimal user operations required by the post service.
+// This avoids a direct import of the user module's ports package.
+type userService interface {
+	IncrementPostCount(ctx context.Context, userID int) error
+	DecrementPostCount(ctx context.Context, userID int) error
+}
 
 // Service implements the PostService interface.
 type Service struct {
 	postRepo     ports.PostRepository
 	categoryRepo ports.CategoryRepository
-	userService  userPorts.UserService
+	userService  userService
 	imageHandler ports.ImageHandler
 	maxImageSize int64
 }
 
 // NewService creates a new post service.
-func NewService(postRepo ports.PostRepository, categoryRepo ports.CategoryRepository, userService userPorts.UserService, imageHandler ports.ImageHandler, maxImageSize int64) *Service {
+func NewService(postRepo ports.PostRepository, categoryRepo ports.CategoryRepository, userService userService, imageHandler ports.ImageHandler, maxImageSize int64) *Service {
 	return &Service{
 		postRepo:     postRepo,
 		categoryRepo: categoryRepo,

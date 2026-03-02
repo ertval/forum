@@ -6,14 +6,16 @@ package adapters
 import (
 	"bytes"
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
+	commentDomain "forum/internal/modules/comment/domain"
 	postDomain "forum/internal/modules/post/domain"
 	platformErrors "forum/internal/platform/errors"
-	"forum/internal/platform/templates"
 )
 
 type activityFilters struct {
@@ -33,6 +35,12 @@ func (h *HTTPHandler) RegisterPageRoutes(router *http.ServeMux) {
 	// Protected API route for loading more comments (requires authentication)
 	optionalAuth := h.middlewareProvider.OptionalAuth()
 	router.Handle("GET /api/comments/load-more", optionalAuth(http.HandlerFunc(h.LoadMoreCommentsAPI)))
+
+	// Form submission routes
+	// POST /posts/{post_id}/comments - Create comment via form
+	router.HandleFunc("POST /posts/{post_id}/comments", h.CreateCommentForm)
+	// DELETE /comments/{id} - Delete comment via form
+	router.HandleFunc("DELETE /comments/{id}", h.DeleteCommentForm)
 }
 
 // ActivityPage handles the unified page that displays user activity.
@@ -96,9 +104,13 @@ func (h *HTTPHandler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 		"Comments":         activity["comments"],
 	}
 
-	tmpl, err := templates.Get("activity", "templates/base.html", "templates/activity.html")
-	if err != nil {
-		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
+	if h.templates == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "templates not configured", currentUser)
+		return
+	}
+	tmpl := h.templates.Lookup("activity")
+	if tmpl == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "template not found", currentUser)
 		return
 	}
 
@@ -437,9 +449,13 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get cached templates (only parses on first request)
-	tmpl, err := templates.Get("comments", "templates/base.html", "templates/comments.html")
-	if err != nil {
-		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
+	if h.templates == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "templates not configured", currentUser)
+		return
+	}
+	tmpl := h.templates.Lookup("comments")
+	if tmpl == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "template not found", currentUser)
 		return
 	}
 
@@ -704,4 +720,79 @@ func (h *HTTPHandler) aggregateUserActivity(ctx context.Context, userPublicID st
 		"reactions":     reactionItems,
 		"comments":      commentItems,
 	}, nil
+}
+
+// CreateCommentForm handles comment form submissions from the post detail page (HTML form).
+func (h *HTTPHandler) CreateCommentForm(w http.ResponseWriter, r *http.Request) {
+	userID, _ := h.GetCurrentUser(r)
+	if userID == 0 {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	postPublicID := r.PathValue("post_id")
+	if postPublicID == "" {
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Post ID is required")
+		return
+	}
+
+	content := strings.TrimSpace(r.FormValue("content"))
+	if content == "" {
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Comment content is required")
+		return
+	}
+
+	_, err := h.commentService.CreateComment(r.Context(), postPublicID, userID, content)
+	if err != nil {
+		if errors.Is(err, commentDomain.ErrEmptyContent) || errors.Is(err, commentDomain.ErrContentTooLong) {
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to create comment")
+		return
+	}
+
+	http.Redirect(w, r, r.Referer(), http.StatusSeeOther)
+}
+
+// DeleteCommentForm handles comment deletion from the post detail page (HTML form).
+func (h *HTTPHandler) DeleteCommentForm(w http.ResponseWriter, r *http.Request) {
+	userID, _ := h.GetCurrentUser(r)
+	if userID == 0 {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	commentPublicID := r.PathValue("id")
+	if commentPublicID == "" {
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Comment ID is required")
+		return
+	}
+
+	existingComment, err := h.commentService.GetComment(r.Context(), commentPublicID)
+	if err != nil {
+		if errors.Is(err, commentDomain.ErrCommentNotFound) {
+			platformErrors.WriteErrorJSON(w, http.StatusNotFound, "Comment not found")
+			return
+		}
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve comment")
+		return
+	}
+
+	if existingComment.UserID != userID {
+		platformErrors.WriteErrorJSON(w, http.StatusForbidden, "Not authorized to delete this comment")
+		return
+	}
+
+	err = h.commentService.DeleteComment(r.Context(), commentPublicID)
+	if err != nil {
+		if errors.Is(err, commentDomain.ErrCommentNotFound) {
+			platformErrors.WriteErrorJSON(w, http.StatusNotFound, "Comment not found")
+			return
+		}
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to delete comment")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

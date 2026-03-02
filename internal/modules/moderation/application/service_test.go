@@ -56,16 +56,6 @@ func (m *MockReportRepository) Update(ctx context.Context, report *domain.Report
 	return nil
 }
 
-func (m *MockReportRepository) GetByID(ctx context.Context, reportID int) (*domain.Report, error) {
-	// adapt to new repository method: GetByPublicID
-	if m.getFn != nil {
-		// The test harness will call GetByPublicID directly; keep a shim for compatibility
-		return nil, nil
-	}
-
-	return nil, domain.ErrReportNotFound
-}
-
 // Implement the new interface method expected by ports.ReportRepository
 func (m *MockReportRepository) GetByPublicID(ctx context.Context, reportPublicID string) (*domain.Report, error) {
 	if m.getFn != nil {

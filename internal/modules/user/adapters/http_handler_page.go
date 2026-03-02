@@ -35,3 +35,20 @@ func (h *HTTPHandler) SettingsPage(w http.ResponseWriter, r *http.Request) {
 
 	h.renderSettingsPage(w, http.StatusOK, currentUser, "", r.URL.Query().Get("updated") == "1")
 }
+
+// UpdateSettingsPage handles settings form submissions (HTML form POST).
+func (h *HTTPHandler) UpdateSettingsPage(w http.ResponseWriter, r *http.Request) {
+	userPublicID := authPorts.GetUserID(r.Context())
+	if userPublicID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	updatedUser, statusCode, errMessage := h.updateCurrentUserSettings(r, userPublicID)
+	if errMessage != "" {
+		h.renderSettingsPage(w, statusCode, updatedUser, errMessage, false)
+		return
+	}
+
+	http.Redirect(w, r, "/settings?updated=1", http.StatusSeeOther)
+}

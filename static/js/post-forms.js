@@ -47,12 +47,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     if (preview) {
-                        preview.innerHTML = `
-                            <img src="${e.target.result}" alt="Preview">
-                            <button type="button" class="btn-remove-image" id="remove-preview-image" title="Remove image">
-                                <span class="remove-icon">×</span> Remove Image
-                            </button>
-                        `;
+                        // Build preview with DOM methods (avoids innerHTML with data URL)
+                        preview.innerHTML = '';
+                        const previewImg = document.createElement('img');
+                        previewImg.src = e.target.result;
+                        previewImg.alt = 'Preview';
+                        const removeBtn = document.createElement('button');
+                        removeBtn.type = 'button';
+                        removeBtn.className = 'btn-remove-image';
+                        removeBtn.id = 'remove-preview-image';
+                        removeBtn.title = 'Remove image';
+                        const removeIcon = document.createElement('span');
+                        removeIcon.className = 'remove-icon';
+                        removeIcon.textContent = '\u00d7';
+                        removeBtn.appendChild(removeIcon);
+                        removeBtn.appendChild(document.createTextNode(' Remove Image'));
+                        preview.appendChild(previewImg);
+                        preview.appendChild(removeBtn);
                         // Attach remove handler to the new button
                         attachPreviewRemoveHandler();
                     }

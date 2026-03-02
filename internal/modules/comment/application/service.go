@@ -9,23 +9,44 @@ import (
 
 	"forum/internal/modules/comment/domain"
 	"forum/internal/modules/comment/ports"
-	notificationDomain "forum/internal/modules/notification/domain"
-	notificationPorts "forum/internal/modules/notification/ports"
-	postPorts "forum/internal/modules/post/ports"
-	userPorts "forum/internal/modules/user/ports"
+	postDomain "forum/internal/modules/post/domain"
+	userDomain "forum/internal/modules/user/domain"
 	"forum/internal/platform/async"
 )
+
+// Notification type constants mirrored locally to avoid cross-module port imports.
+const notifTypeComment = "comment"
+
+// postService defines the minimal post operations required by the comment service.
+// This avoids a direct import of the post module's ports package.
+type postService interface {
+	GetPost(ctx context.Context, postID string) (*postDomain.Post, error)
+}
+
+// userService defines the minimal user operations required by the comment service.
+// This avoids a direct import of the user module's ports package.
+type userService interface {
+	GetByPublicID(ctx context.Context, publicID string) (*userDomain.User, error)
+	IncrementCommentCount(ctx context.Context, userID int) error
+	DecrementCommentCount(ctx context.Context, userID int) error
+}
+
+// notificationService defines the minimal notification operations required by the comment service.
+// This avoids a direct import of the notification module's ports package.
+type notificationService interface {
+	CreateNotification(ctx context.Context, userID, actorID int, notifType, message string, targetPublicID string) error
+}
 
 // Service implements the CommentService interface.
 type Service struct {
 	commentRepo         ports.CommentRepository
-	postService         postPorts.PostService
-	userService         userPorts.UserService
-	notificationService notificationPorts.NotificationService
+	postService         postService
+	userService         userService
+	notificationService notificationService
 }
 
 // NewService creates a new comment service.
-func NewService(commentRepo ports.CommentRepository, postService postPorts.PostService, userService userPorts.UserService, notificationService notificationPorts.NotificationService) *Service {
+func NewService(commentRepo ports.CommentRepository, postService postService, userService userService, notificationService notificationService) *Service {
 	return &Service{
 		commentRepo:         commentRepo,
 		postService:         postService,
@@ -64,7 +85,7 @@ func (s *Service) CreateComment(ctx context.Context, postPublicID string, userID
 
 	if s.notificationService != nil && post.UserID != userID {
 		message := "Someone commented on your post"
-		if err := s.notificationService.CreateNotification(ctx, post.UserID, userID, notificationDomain.TypeComment, message, post.PublicID); err != nil {
+		if err := s.notificationService.CreateNotification(ctx, post.UserID, userID, notifTypeComment, message, post.PublicID); err != nil {
 			log.Printf("WARNING: failed to create comment notification for post owner %d: %v", post.UserID, err)
 		}
 	}

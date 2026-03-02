@@ -11,7 +11,6 @@ import (
 	postDomain "forum/internal/modules/post/domain"
 	platformErrors "forum/internal/platform/errors"
 	logger "forum/internal/platform/logger"
-	"forum/internal/platform/templates"
 )
 
 type postListPageDefaults struct {
@@ -184,10 +183,14 @@ func (h *HTTPHandler) renderPostListPage(w http.ResponseWriter, r *http.Request,
 		data["PageTitle"] = h.buildPageTitle(filterOptions)
 	}
 
-	// Get cached templates (only parses on first request)
-	tmpl, err := templates.Get(defaults.templateName, "templates/base.html", "templates/"+defaults.templateName+".html")
-	if err != nil {
-		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
+	// Get template from injected registry
+	if h.templates == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "templates not configured", currentUser)
+		return
+	}
+	tmpl := h.templates.Lookup(defaults.templateName)
+	if tmpl == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "template not found", currentUser)
 		return
 	}
 
@@ -275,10 +278,14 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 		"Comments": comments,
 	}
 
-	// Get cached templates (only parses on first request)
-	tmpl, err := templates.Get("post_detail", "templates/base.html", "templates/post_detail.html")
-	if err != nil {
-		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
+	// Get template from injected registry
+	if h.templates == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "templates not configured", currentUser)
+		return
+	}
+	tmpl := h.templates.Lookup("post_detail")
+	if tmpl == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "template not found", currentUser)
 		return
 	}
 
@@ -331,10 +338,14 @@ func (h *HTTPHandler) CreatePostPage(w http.ResponseWriter, r *http.Request) {
 		"MaxImageSize":    h.postService.MaxImageSize(),
 	}
 
-	// Get cached templates (only parses on first request)
-	tmpl, err := templates.Get("post_create", "templates/base.html", "templates/post_create.html")
-	if err != nil {
-		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
+	// Get template from injected registry
+	if h.templates == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "templates not configured", currentUser)
+		return
+	}
+	tmpl := h.templates.Lookup("post_create")
+	if tmpl == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "template not found", currentUser)
 		return
 	}
 
@@ -407,10 +418,14 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 		"MaxImageSize":    h.postService.MaxImageSize(),
 	}
 
-	// Get cached templates (only parses on first request)
-	tmpl, err := templates.Get("post_edit", "templates/base.html", "templates/post_edit.html")
-	if err != nil {
-		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
+	// Get template from injected registry
+	if h.templates == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "templates not configured", currentUser)
+		return
+	}
+	tmpl := h.templates.Lookup("post_edit")
+	if tmpl == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "template not found", currentUser)
 		return
 	}
 

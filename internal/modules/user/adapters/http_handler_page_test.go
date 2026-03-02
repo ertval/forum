@@ -15,6 +15,7 @@ import (
 	authPorts "forum/internal/modules/auth/ports"
 	"forum/internal/modules/user/domain"
 	userPorts "forum/internal/modules/user/ports"
+	platformTemplates "forum/internal/platform/templates"
 )
 
 type pageTestMiddlewareProvider struct {
@@ -94,7 +95,12 @@ func TestHTTPHandler_SettingsPage_Authenticated(t *testing.T) {
 		},
 	}
 
-	handler := NewHTTPHandler(container, nil)
+	registry := platformTemplates.NewRegistry()
+	if _, err := registry.GetOrParse("settings", "templates/base.html", "templates/settings.html"); err != nil {
+		t.Fatalf("failed to parse settings template: %v", err)
+	}
+
+	handler := NewHTTPHandler(container, registry)
 	router := http.NewServeMux()
 	handler.RegisterRoutes(router)
 
@@ -229,7 +235,12 @@ func TestHTTPHandler_UpdateSettingsPage_PasswordMismatch(t *testing.T) {
 		},
 	}
 
-	handler := NewHTTPHandler(container, nil)
+	registry := platformTemplates.NewRegistry()
+	if _, err := registry.GetOrParse("settings", "templates/base.html", "templates/settings.html"); err != nil {
+		t.Fatalf("failed to parse settings template: %v", err)
+	}
+
+	handler := NewHTTPHandler(container, registry)
 	router := http.NewServeMux()
 	handler.RegisterRoutes(router)
 

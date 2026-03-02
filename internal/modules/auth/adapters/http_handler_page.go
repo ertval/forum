@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	platformErrors "forum/internal/platform/errors"
-	"forum/internal/platform/templates"
 )
 
 // RegisterPageRoutes registers all authentication page routes with the router.
@@ -24,9 +23,13 @@ func (h *HTTPHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get cached templates (only parses on first request)
-	tmpl, err := templates.Get("login", "templates/base.html", "templates/login.html")
-	if err != nil {
-		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", nil)
+	if h.templates == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "templates not configured", nil)
+		return
+	}
+	tmpl := h.templates.Lookup("login")
+	if tmpl == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "template not found", nil)
 		return
 	}
 
@@ -43,9 +46,13 @@ func (h *HTTPHandler) RegisterPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get cached templates (only parses on first request)
-	tmpl, err := templates.Get("register", "templates/base.html", "templates/register.html")
-	if err != nil {
-		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", nil)
+	if h.templates == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "templates not configured", nil)
+		return
+	}
+	tmpl := h.templates.Lookup("register")
+	if tmpl == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "template not found", nil)
 		return
 	}
 

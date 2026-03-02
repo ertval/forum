@@ -218,7 +218,6 @@ func (c *Config) Validate() error {
 	if len(c.Upload.AllowedTypes) == 0 {
 		return fmt.Errorf("at least one allowed file type must be specified")
 	}
-	// Validate Upload configuration
 	if c.Upload.UploadDir == "" {
 		return fmt.Errorf("upload directory path cannot be empty")
 	}

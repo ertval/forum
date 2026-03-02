@@ -61,3 +61,11 @@ func (r *Registry) GetOrParse(key string, files ...string) (*template.Template, 
 func Get(key string, files ...string) (*template.Template, error) {
 	return global.GetOrParse(key, files...)
 }
+
+// Lookup retrieves a cached template by key. Returns nil if not found or not yet parsed.
+// Use GetOrParse to ensure the template is parsed before calling Lookup.
+func (r *Registry) Lookup(key string) *template.Template {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.cache[key]
+}

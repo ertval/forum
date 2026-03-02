@@ -40,25 +40,49 @@
             const type = options.type || 'warning';
             const icon = iconMap[type] || iconMap.warning;
 
-            overlay.innerHTML = `
-                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-                    <div class="modal-header">
-                        <span class="modal-icon ${type}">${icon}</span>
-                        <h3 id="modal-title">${escapeHtml(options.title || 'Confirm Action')}</h3>
-                    </div>
-                    <div class="modal-body">
-                        <p>${escapeHtml(options.message || 'Are you sure you want to proceed?')}</p>
-                    </div>
-                    <div class="modal-actions">
-                        <button class="btn btn-cancel" id="modal-cancel" type="button">
-                            ${escapeHtml(options.cancelText || 'Cancel')}
-                        </button>
-                        <button class="btn btn-confirm-danger" id="modal-confirm" type="button">
-                            ${escapeHtml(options.confirmText || 'Confirm')}
-                        </button>
-                    </div>
-                </div>
-            `;
+            // Build modal structure with DOM methods (avoids innerHTML with user data)
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.setAttribute('role', 'dialog');
+            modal.setAttribute('aria-modal', 'true');
+            modal.setAttribute('aria-labelledby', 'modal-title');
+
+            const header = document.createElement('div');
+            header.className = 'modal-header';
+            const iconSpan = document.createElement('span');
+            iconSpan.className = `modal-icon ${type}`;
+            iconSpan.textContent = icon;
+            const titleEl = document.createElement('h3');
+            titleEl.id = 'modal-title';
+            titleEl.textContent = options.title || 'Confirm Action';
+            header.appendChild(iconSpan);
+            header.appendChild(titleEl);
+
+            const body = document.createElement('div');
+            body.className = 'modal-body';
+            const msgP = document.createElement('p');
+            msgP.textContent = options.message || 'Are you sure you want to proceed?';
+            body.appendChild(msgP);
+
+            const actionsEl = document.createElement('div');
+            actionsEl.className = 'modal-actions';
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'btn btn-cancel';
+            cancelBtn.id = 'modal-cancel';
+            cancelBtn.type = 'button';
+            cancelBtn.textContent = options.cancelText || 'Cancel';
+            const confirmBtn = document.createElement('button');
+            confirmBtn.className = 'btn btn-confirm-danger';
+            confirmBtn.id = 'modal-confirm';
+            confirmBtn.type = 'button';
+            confirmBtn.textContent = options.confirmText || 'Confirm';
+            actionsEl.appendChild(cancelBtn);
+            actionsEl.appendChild(confirmBtn);
+
+            modal.appendChild(header);
+            modal.appendChild(body);
+            modal.appendChild(actionsEl);
+            overlay.appendChild(modal);
 
             // Add to document
             document.body.appendChild(overlay);
@@ -68,9 +92,7 @@
             overlay.offsetHeight;
             overlay.classList.add('show');
 
-            // Focus confirm button
-            const confirmBtn = overlay.querySelector('#modal-confirm');
-            const cancelBtn = overlay.querySelector('#modal-cancel');
+            // Focus confirm button (already created as DOM node above)
             confirmBtn.focus();
 
             // Event handlers

@@ -151,7 +151,7 @@ func CORS(allowedOrigins []string) Middleware {
 
 			// Only emit credentials header when echoing a specific origin.
 			// The Fetch spec forbids credentials: true with wildcard origin.
-			if !allowAll {
+			if allowedOrigin := w.Header().Get("Access-Control-Allow-Origin"); allowedOrigin != "" && allowedOrigin != "*" {
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
 			}
 

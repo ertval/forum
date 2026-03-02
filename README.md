@@ -59,7 +59,7 @@ Dependency direction:
 - `domain` -> no project-layer imports
 
 Detailed reference: `docs/ARCHITECTURE.md`.
-
+New contributors should start with the `docs/guides/ONBOARDING_GUIDE.md`.
 ---
 
 ## Quick start (local)
@@ -127,6 +127,14 @@ docker rm forum
 
 The app binds to `0.0.0.0` by default so it is accessible from outside the container without extra flags.
 
+### Seeding within Docker
+
+If you don't have sqlite3 installed locally, you can run the seeding script via a disposable tools container:
+
+```bash
+docker run --rm -v "${PWD}:/workspace" -w /workspace alpine:3.20 sh -lc \
+  "apk add --no-cache bash sqlite openssl >/dev/null && DATABASE_PATH=/workspace/data/forum.db bash scripts/seed/seed.sh"
+```
 ---
 
 ## Testing
