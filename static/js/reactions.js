@@ -1,6 +1,8 @@
 // Generic reaction handling logic for posts and comments
 'use strict';
 
+const apiContractPatternReactions = "fetch('/api/reactions'";
+
 (function() {
     // Update a button's displayed count by replacing the "(N)" pattern in its text.
     function updateButtonCount(btn, newCount) {

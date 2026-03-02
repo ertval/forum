@@ -7,6 +7,7 @@ import (
 
 	"forum/internal/platform/config"
 	logger "forum/internal/platform/logger"
+	platformTemplates "forum/internal/platform/templates"
 
 	authAdapters "forum/internal/modules/auth/adapters"
 	commentAdapters "forum/internal/modules/comment/adapters"
@@ -32,18 +33,46 @@ type Handlers struct {
 // initHandlers creates all HTTP handler instances with unified dependency injection.
 // Returns error if templates directory exists but contains invalid templates.
 func initHandlers(services *ServiceContainer, cfg *config.Config) (*Handlers, error) {
-	// Parse templates once and share between handlers that need them
-	var templates *template.Template
+	// Parse HTML templates once for handlers that still use *html/template.Template
+	var htmlTemplates *template.Template
+
+	// Create shared template registry for handlers using platform/templates.Registry
+	templateRegistry := platformTemplates.NewRegistry()
 
 	// Check if templates directory exists
 	if info, err := os.Stat("templates"); err == nil && info.IsDir() {
 		// Directory exists - parse templates (errors are fatal)
-		templates, err = template.ParseGlob("templates/*.html")
+		htmlTemplates, err = template.ParseGlob("templates/*.html")
 		if err != nil {
 			return nil, err
 		}
+
+		if _, err = templateRegistry.GetOrParse("post_detail", "templates/base.html", "templates/post_detail.html"); err != nil {
+			return nil, err
+		}
+		if _, err = templateRegistry.GetOrParse("home", "templates/base.html", "templates/home.html"); err != nil {
+			return nil, err
+		}
+		if _, err = templateRegistry.GetOrParse("board", "templates/base.html", "templates/board.html"); err != nil {
+			return nil, err
+		}
+		if _, err = templateRegistry.GetOrParse("post_create", "templates/base.html", "templates/post_create.html"); err != nil {
+			return nil, err
+		}
+		if _, err = templateRegistry.GetOrParse("post_edit", "templates/base.html", "templates/post_edit.html"); err != nil {
+			return nil, err
+		}
+		if _, err = templateRegistry.GetOrParse("activity", "templates/base.html", "templates/activity.html"); err != nil {
+			return nil, err
+		}
+		if _, err = templateRegistry.GetOrParse("comments", "templates/base.html", "templates/comments.html"); err != nil {
+			return nil, err
+		}
+		if _, err = templateRegistry.GetOrParse("settings", "templates/base.html", "templates/settings.html"); err != nil {
+			return nil, err
+		}
 	}
-	// If directory doesn't exist, templates remain nil (API-only mode)
+	// If directory doesn't exist, htmlTemplates remain nil (API-only mode)
 
 	// Cookie security is determined by config (from environment)
 	// In production, cfg.Session.Secure should be true
@@ -51,13 +80,13 @@ func initHandlers(services *ServiceContainer, cfg *config.Config) (*Handlers, er
 	sessionCookieName := cfg.Session.CookieName
 
 	return &Handlers{
-		Auth:         authAdapters.NewHTTPHandler(services, templates, secureCookies, sessionCookieName),
-		User:         userAdapters.NewHTTPHandler(services, templates),
-		Post:         postAdapters.NewHTTPHandler(services, templates, logger.New(logger.InfoLevel, os.Stderr)),
-		Comment:      commentAdapters.NewHTTPHandler(services, templates),
-		Reaction:     reactionAdapters.NewHTTPHandler(services, templates),
-		Moderation:   moderationAdapters.NewHTTPHandler(services, templates),
-		Notification: notificationAdapters.NewHTTPHandler(services, templates),
-		Templates:    templates,
+		Auth:         authAdapters.NewHTTPHandler(services, htmlTemplates, secureCookies, sessionCookieName),
+		User:         userAdapters.NewHTTPHandler(services, templateRegistry),
+		Post:         postAdapters.NewHTTPHandler(services, templateRegistry, logger.New(logger.InfoLevel, os.Stderr)),
+		Comment:      commentAdapters.NewHTTPHandler(services, templateRegistry),
+		Reaction:     reactionAdapters.NewHTTPHandler(services, htmlTemplates),
+		Moderation:   moderationAdapters.NewHTTPHandler(services, htmlTemplates),
+		Notification: notificationAdapters.NewHTTPHandler(services, htmlTemplates),
+		Templates:    htmlTemplates,
 	}, nil
 }

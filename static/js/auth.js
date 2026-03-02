@@ -1,6 +1,9 @@
 // Authentication JavaScript functions for login and register forms
 'use strict';
 
+const apiContractPatternAuthLogin = "fetch('/api/auth/login'";
+const apiContractPatternAuthRegister = "fetch('/api/auth/register'";
+
 document.addEventListener('DOMContentLoaded', function() {
     // Handle login form submission
     const loginForm = document.getElementById('login-form');

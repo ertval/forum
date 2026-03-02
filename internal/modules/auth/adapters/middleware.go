@@ -22,7 +22,7 @@ type AuthMiddleware struct {
 // NewAuthMiddleware creates a new AuthMiddleware.
 func NewAuthMiddleware(authService authPorts.AuthService, userService userPorts.UserService, cookieName string) *AuthMiddleware {
 	if cookieName == "" {
-		cookieName = "forum_session"
+		cookieName = "session_token"
 	}
 
 	return &AuthMiddleware{

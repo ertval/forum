@@ -32,7 +32,7 @@ type ServiceContainer interface {
 // NewHTTPHandler creates a new HTTP handler for authentication with unified dependency injection.
 func NewHTTPHandler(services ServiceContainer, templates *template.Template, secureCookies bool, cookieName string) *HTTPHandler {
 	if cookieName == "" {
-		cookieName = "forum_session"
+		cookieName = "session_token"
 	}
 
 	return &HTTPHandler{

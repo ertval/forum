@@ -104,7 +104,7 @@ func Load() (*Config, error) {
 
 	cfg.Session.Secret = getEnvString("SESSION_SECRET", "defaultsecret")
 	cfg.Session.Duration = getEnvDuration("SESSION_DURATION", 24*time.Hour)
-	cfg.Session.CookieName = getEnvString("SESSION_COOKIE_NAME", "forum_session")
+	cfg.Session.CookieName = getEnvString("SESSION_COOKIE_NAME", "session_token")
 	cfg.Session.Secure = getEnvBool("SESSION_SECURE", false)
 	cfg.Session.HttpOnly = getEnvBool("SESSION_HTTP_ONLY", true)
 
