@@ -82,6 +82,7 @@ func (h *HTTPHandler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 		"ShowFilterRight":  false,
 		"ShowSidebar":      false,
 		"FilterAction":     "/activity",
+		"FilterMode":       "activity",
 		"Categories":       categories,
 		"SelectedCategory": filters.Category,
 		"SelectedTime":     filters.Time,
@@ -304,24 +305,11 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 				commentsFromService = commentsFromService[:initialLimit]
 			}
 
-			// Batch: collect unique user IDs and post IDs
-			uniqueUserIDs := make(map[int]struct{})
+			// Batch: collect unique post IDs
 			uniquePostIDs := make(map[string]struct{})
 			for _, comment := range commentsFromService {
-				if comment.UserID != 0 {
-					uniqueUserIDs[comment.UserID] = struct{}{}
-				}
 				if comment.PublicPostID != "" {
 					uniquePostIDs[comment.PublicPostID] = struct{}{}
-				}
-			}
-
-			// Fetch all users in bulk
-			userCache := make(map[int]string, len(uniqueUserIDs))
-			for uid := range uniqueUserIDs {
-				user, err := h.userService.GetByID(ctx, uid)
-				if err == nil && user != nil {
-					userCache[uid] = user.Username
 				}
 			}
 
@@ -357,7 +345,8 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 			}
 
 			for _, comment := range commentsFromService {
-				authorUsername := userCache[comment.UserID]
+				// Author data is populated by the repository JOIN query
+				authorUsername := comment.AuthorUsername
 
 				postTitle := "Post not found"
 				postAuthorUsername := "Unknown"
@@ -427,6 +416,7 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 		"Comments":         comments,
 		"ShowFilter":       true,
 		"FilterAction":     "/comments",
+		"FilterMode":       "comments",
 		"Categories":       categories,
 		"SelectedCategory": selectedCategory,
 		"DateFilter":       dateFilter,
@@ -456,11 +446,6 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 
 // LoadMoreCommentsAPI handles loading additional comments for the My Comments page.
 func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	ctx := r.Context()
 
 	// Get user PUBLIC ID (UUID) from session cookie.
@@ -503,26 +488,14 @@ func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Enrich comments with post and user information using batch lookups
+	// Enrich comments with post information using batch lookups
 	commentsData := make([]map[string]interface{}, 0, len(comments))
 
-	// Batch: collect unique user IDs and post IDs
-	uniqueUserIDs := make(map[int]struct{})
+	// Batch: collect unique post IDs
 	uniquePostIDs := make(map[string]struct{})
 	for _, comment := range comments {
-		if comment.UserID != 0 {
-			uniqueUserIDs[comment.UserID] = struct{}{}
-		}
 		if comment.PublicPostID != "" {
 			uniquePostIDs[comment.PublicPostID] = struct{}{}
-		}
-	}
-
-	userCache := make(map[int]string, len(uniqueUserIDs))
-	for uid := range uniqueUserIDs {
-		user, err := h.userService.GetByID(ctx, uid)
-		if err == nil && user != nil {
-			userCache[uid] = user.Username
 		}
 	}
 
@@ -539,7 +512,8 @@ func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request
 	}
 
 	for _, comment := range comments {
-		authorUsername := userCache[comment.UserID]
+		// Author data is populated by the repository JOIN query
+		authorUsername := comment.AuthorUsername
 
 		postTitle := "Post not found"
 		postAuthorUsername := "Unknown"
@@ -629,18 +603,30 @@ func (h *HTTPHandler) aggregateUserActivity(ctx context.Context, userPublicID st
 
 	commentItems := make([]map[string]interface{}, 0, len(commentsFromService))
 
-	// Collect unique post IDs and fetch all posts in bulk to avoid N+1 queries
-	uniquePostIDs := make(map[string]struct{})
-	for _, comment := range commentsFromService {
-		if comment.PublicPostID != "" {
-			uniquePostIDs[comment.PublicPostID] = struct{}{}
+	// Fetch all posts the user has commented on in one query to avoid per-comment lookups.
+	postCache := make(map[string]*postDomain.Post)
+	commentedPosts, err := h.postService.ListPosts(ctx, postDomain.PostFilter{
+		CommenterID: userPublicID,
+	})
+	if err == nil {
+		postCache = make(map[string]*postDomain.Post, len(commentedPosts))
+		for _, post := range commentedPosts {
+			if post != nil {
+				postCache[post.PublicID] = post
+			}
 		}
 	}
-	postCache := make(map[string]*postDomain.Post, len(uniquePostIDs))
-	for postID := range uniquePostIDs {
-		post, err := h.postService.GetPost(ctx, postID)
-		if err == nil && post != nil {
-			postCache[postID] = post
+
+	for _, comment := range commentsFromService {
+		if comment.PublicPostID == "" {
+			continue
+		}
+		if _, ok := postCache[comment.PublicPostID]; ok {
+			continue
+		}
+		post, getErr := h.postService.GetPost(ctx, comment.PublicPostID)
+		if getErr == nil && post != nil {
+			postCache[comment.PublicPostID] = post
 		}
 	}
 

@@ -24,32 +24,22 @@
     async function handlePostReaction(postId, reactionType) {
         clearPageError();
         try {
-            const response = await fetch('/api/reactions', {
+            await window.api.request('/api/reactions', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify({
                     target_type: 'post',
                     target_id: postId,
                     type: reactionType
-                }),
-                credentials: 'include'
+                })
             });
-
-            if (response.ok) {
-                location.reload(); // Reload to get updated counts
-            } else {
-                if (response.status === 401) {
-                    showPageError('Please login to react to posts');
-                } else {
-                    const error = await response.json();
-                    showPageError(error.error || `Failed to ${reactionType} post`);
-                }
-            }
+            window.location.reload();
         } catch (error) {
+            if (error && error.status === 401) {
+                showPageError('Please login to react to posts');
+                return;
+            }
             console.error(`Reaction error (${reactionType}):`, error);
-            showPageError(`An error occurred while ${reactionType}ing the post`);
+            showPageError(error.message || `An error occurred while ${reactionType}ing the post`);
         }
     }
 
@@ -57,32 +47,22 @@
     async function handleCommentReaction(commentId, reactionType) {
         clearPageError();
         try {
-            const response = await fetch('/api/reactions', {
+            await window.api.request('/api/reactions', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify({
                     target_type: 'comment',
                     target_id: commentId,
                     type: reactionType
-                }),
-                credentials: 'include'
+                })
             });
-
-            if (response.ok) {
-                location.reload(); // Reload to get updated counts
-            } else {
-                if (response.status === 401) {
-                    showPageError('Please login to react to comments');
-                } else {
-                    const error = await response.json();
-                    showPageError(error.error || `Failed to ${reactionType} comment`);
-                }
-            }
+            window.location.reload();
         } catch (error) {
+            if (error && error.status === 401) {
+                showPageError('Please login to react to comments');
+                return;
+            }
             console.error(`Comment reaction error (${reactionType}):`, error);
-            showPageError(`An error occurred while ${reactionType}ing the comment`);
+            showPageError(error.message || `An error occurred while ${reactionType}ing the comment`);
         }
     }
 

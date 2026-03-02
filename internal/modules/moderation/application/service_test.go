@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"forum/internal/modules/moderation/domain"
 	"testing"
@@ -88,11 +89,13 @@ func TestService_CreateReport(t *testing.T) {
 	mockRepo := &MockReportRepository{}
 	service := NewService(mockRepo)
 
-	// Test the current implementation (returns nil since it's a placeholder)
-	// Use a string public ID (mock expects format "pub-<id>")
+	// Test the current implementation (returns not implemented error)
 	err := service.CreateReport(ctx, 1, "pub-10", "post", "Inappropriate content")
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if err == nil {
+		t.Error("Expected 'not implemented' error, got nil")
+	}
+	if !errors.Is(err, domain.ErrNotImplemented) {
+		t.Errorf("Expected ErrNotImplemented, got %v", err)
 	}
 }
 
@@ -101,11 +104,13 @@ func TestService_ReviewReport(t *testing.T) {
 	mockRepo := &MockReportRepository{}
 	service := NewService(mockRepo)
 
-	// Test the current implementation (returns nil since it's a placeholder)
-	// Review by public report ID
+	// Test the current implementation (returns not implemented error)
 	err := service.ReviewReport(ctx, "pub-1", "resolved")
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if err == nil {
+		t.Error("Expected 'not implemented' error, got nil")
+	}
+	if !errors.Is(err, domain.ErrNotImplemented) {
+		t.Errorf("Expected ErrNotImplemented, got %v", err)
 	}
 }
 

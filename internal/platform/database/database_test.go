@@ -1,6 +1,8 @@
 package database
 
 import (
+	"bytes"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -641,6 +643,87 @@ CREATE INDEX idx_users ON users(id);`,
 				t.Errorf("extractUpSQL() = %q, want %q", result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestMigrator_Migrate_WarnsOnMalformedMigration(t *testing.T) {
+	conn, err := NewConnection(":memory:")
+	if err != nil {
+		t.Fatalf("NewConnection() failed: %v", err)
+	}
+	defer conn.Close()
+
+	testMigDir := t.TempDir()
+	malformedMigration := `CREATE TABLE malformed_only (id INTEGER PRIMARY KEY);`
+	if err := os.WriteFile(filepath.Join(testMigDir, "001_malformed.sql"), []byte(malformedMigration), 0644); err != nil {
+		t.Fatalf("Failed to write malformed migration: %v", err)
+	}
+
+	var logBuffer bytes.Buffer
+	originalWriter := log.Writer()
+	defer log.SetOutput(originalWriter)
+	log.SetOutput(&logBuffer)
+
+	migrator := NewMigrator(conn)
+	if err := migrator.Migrate(testMigDir); err != nil {
+		t.Fatalf("Migrate() failed: %v", err)
+	}
+
+	if !strings.Contains(logBuffer.String(), "has no '-- +migrate Up' marker, skipping") {
+		t.Fatalf("expected warning log for malformed migration, got logs: %s", logBuffer.String())
+	}
+
+	var count int
+	err = conn.DB().QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count)
+	if err != nil {
+		t.Fatalf("Failed to query schema_migrations: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected 0 applied migrations for malformed file, got %d", count)
+	}
+}
+
+func TestMigrator_Migrate_IsAtomicOnFailure(t *testing.T) {
+	conn, err := NewConnection(":memory:")
+	if err != nil {
+		t.Fatalf("NewConnection() failed: %v", err)
+	}
+	defer conn.Close()
+
+	testMigDir := t.TempDir()
+	partiallyFailingMigration := `-- +migrate Up
+CREATE TABLE atomic_users (id INTEGER PRIMARY KEY);
+CREATE TABLE atomic_users (id INTEGER PRIMARY KEY);
+
+-- +migrate Down
+DROP TABLE atomic_users;`
+
+	if err := os.WriteFile(filepath.Join(testMigDir, "001_atomic_failure.sql"), []byte(partiallyFailingMigration), 0644); err != nil {
+		t.Fatalf("Failed to write migration file: %v", err)
+	}
+
+	migrator := NewMigrator(conn)
+	err = migrator.Migrate(testMigDir)
+	if err == nil {
+		t.Fatal("expected migration error, got nil")
+	}
+
+	var tableCount int
+	err = conn.DB().QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='atomic_users'").Scan(&tableCount)
+	if err != nil {
+		t.Fatalf("failed to query sqlite_master: %v", err)
+	}
+	if tableCount != 0 {
+		t.Fatalf("expected atomic_users table to be rolled back, got count=%d", tableCount)
+	}
+
+	var migrationCount int
+	err = conn.DB().QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&migrationCount)
+	if err != nil {
+		t.Fatalf("failed to query schema_migrations: %v", err)
+	}
+	if migrationCount != 0 {
+		t.Fatalf("expected no recorded migrations after failure, got %d", migrationCount)
 	}
 }
 

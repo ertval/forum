@@ -87,26 +87,78 @@
             const safePostId = window.escapeHtml(comment.PostPublicID);
             const safeCommentId = window.escapeHtml(comment.PublicID);
 
-            article.innerHTML = `
-                <div class="comment-context">
-                    <p>On post: <a class="comment-post-link" href="/posts/${safePostId}">${safePostTitle}</a> by <span class="comment-post-author">${safePostAuthor}</span></p>
-                </div>
-                <div class="comment-header">
-                    <span class="comment-author">${safeAuthor}</span>
-                    <span class="comment-date">${formattedDate}</span>
-                </div>
-                <div class="comment-content">${safeContent}</div>
-                <div class="comment-actions">
-                    <div class="comment-reactions">
-                        <button class="btn-like-comment" data-comment-id="${safeCommentId}">👍 (${parseInt(comment.Likes, 10) || 0})</button>
-                        <button class="btn-dislike-comment" data-comment-id="${safeCommentId}">👎 (${parseInt(comment.Dislikes, 10) || 0})</button>
-                    </div>
-                    <div class="comment-owner-actions">
-                        <button class="btn btn-secondary btn-edit-comment" data-comment-id="${safeCommentId}">Edit</button>
-                        <button class="btn btn-danger btn-delete-comment" data-comment-id="${safeCommentId}">Delete</button>
-                    </div>
-                </div>
-            `;
+            const contextDiv = document.createElement('div');
+            contextDiv.className = 'comment-context';
+            const contextP = document.createElement('p');
+            contextP.append('On post: ');
+            const postLink = document.createElement('a');
+            postLink.className = 'comment-post-link';
+            postLink.href = `/posts/${safePostId}`;
+            postLink.textContent = safePostTitle;
+            contextP.appendChild(postLink);
+            contextP.append(' by ');
+            const postAuthor = document.createElement('span');
+            postAuthor.className = 'comment-post-author';
+            postAuthor.textContent = safePostAuthor;
+            contextP.appendChild(postAuthor);
+            contextDiv.appendChild(contextP);
+
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'comment-header';
+            const authorSpan = document.createElement('span');
+            authorSpan.className = 'comment-author';
+            authorSpan.textContent = safeAuthor;
+            const dateSpan = document.createElement('span');
+            dateSpan.className = 'comment-date';
+            dateSpan.textContent = formattedDate;
+            headerDiv.appendChild(authorSpan);
+            headerDiv.appendChild(dateSpan);
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'comment-content';
+            contentDiv.textContent = safeContent;
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'comment-actions';
+            const reactionsDiv = document.createElement('div');
+            reactionsDiv.className = 'comment-reactions';
+
+            const likeBtn = document.createElement('button');
+            likeBtn.className = 'btn-like-comment';
+            likeBtn.setAttribute('data-comment-id', safeCommentId);
+            likeBtn.textContent = `👍 (${parseInt(comment.Likes, 10) || 0})`;
+
+            const dislikeBtn = document.createElement('button');
+            dislikeBtn.className = 'btn-dislike-comment';
+            dislikeBtn.setAttribute('data-comment-id', safeCommentId);
+            dislikeBtn.textContent = `👎 (${parseInt(comment.Dislikes, 10) || 0})`;
+
+            reactionsDiv.appendChild(likeBtn);
+            reactionsDiv.appendChild(dislikeBtn);
+
+            const ownerActionsDiv = document.createElement('div');
+            ownerActionsDiv.className = 'comment-owner-actions';
+
+            const editBtn = document.createElement('button');
+            editBtn.className = 'btn btn-secondary btn-edit-comment';
+            editBtn.setAttribute('data-comment-id', safeCommentId);
+            editBtn.textContent = 'Edit';
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-danger btn-delete-comment';
+            deleteBtn.setAttribute('data-comment-id', safeCommentId);
+            deleteBtn.textContent = 'Delete';
+
+            ownerActionsDiv.appendChild(editBtn);
+            ownerActionsDiv.appendChild(deleteBtn);
+
+            actionsDiv.appendChild(reactionsDiv);
+            actionsDiv.appendChild(ownerActionsDiv);
+
+            article.appendChild(contextDiv);
+            article.appendChild(headerDiv);
+            article.appendChild(contentDiv);
+            article.appendChild(actionsDiv);
             return article;
         }
 
@@ -121,12 +173,7 @@
                 if (category) params.append('category', category);
                 if (dateFilter) params.append('date_filter', dateFilter);
 
-                const response = await fetch(`/api/comments/load-more?${params}`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const comments = await response.json();
+                const comments = await window.api.request(`/api/comments/load-more?${params}`);
                 if (!comments || comments.length === 0) {
                     loadMoreBtn.textContent = 'No more comments';
                     loadMoreBtn.disabled = true;

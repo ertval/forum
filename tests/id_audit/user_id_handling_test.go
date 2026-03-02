@@ -52,7 +52,8 @@ func TestSQLiteUserRepositoryIDHandling(t *testing.T) {
 		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active INTEGER DEFAULT 1
+		is_active INTEGER DEFAULT 1,
+		avatar_path TEXT DEFAULT ''
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -136,7 +137,8 @@ func TestUserRepositoryQueryMethods(t *testing.T) {
 		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active INTEGER DEFAULT 1
+		is_active INTEGER DEFAULT 1,
+		avatar_path TEXT DEFAULT ''
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -223,7 +225,8 @@ func TestUserRepositoryInterfaceConsistency(t *testing.T) {
 		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active INTEGER DEFAULT 1
+		is_active INTEGER DEFAULT 1,
+		avatar_path TEXT DEFAULT ''
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -314,7 +317,8 @@ func TestHTTPResponseIDExposure(t *testing.T) {
 		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active INTEGER DEFAULT 1
+		is_active INTEGER DEFAULT 1,
+		avatar_path TEXT DEFAULT ''
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)

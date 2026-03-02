@@ -102,19 +102,23 @@ func (r *SQLiteReactionRepository) DeleteByTargetPublicID(ctx context.Context, u
 		return domain.ErrInvalidTarget
 	}
 
-	// Resolve target public ID to internal ID
-	targetID, err := r.resolveTargetID(ctx, targetPublicID, targetType)
-	if err != nil {
-		return err
+	var targetTable string
+	switch targetType {
+	case "post":
+		targetTable = "posts"
+	case "comment":
+		targetTable = "comments"
 	}
 
-	// Delete the reaction
-	deleteQuery := `
+	// Delete directly using target public UUID resolution in a subquery.
+	deleteQuery := fmt.Sprintf(`
 		DELETE FROM reactions
-		WHERE user_id = ? AND target_id = ? AND target_type = ?
-	`
+		WHERE user_id = ?
+		  AND target_type = ?
+		  AND target_id = (SELECT id FROM %s WHERE public_id = ?)
+	`, targetTable)
 
-	result, err := r.db.ExecContext(ctx, deleteQuery, userID, targetID, targetType)
+	result, err := r.db.ExecContext(ctx, deleteQuery, userID, targetType, targetPublicID)
 	if err != nil {
 		return err
 	}
@@ -125,6 +129,16 @@ func (r *SQLiteReactionRepository) DeleteByTargetPublicID(ctx context.Context, u
 	}
 
 	if rowsAffected == 0 {
+		// Preserve semantic distinction between target missing and reaction missing.
+		existsQuery := fmt.Sprintf("SELECT EXISTS(SELECT 1 FROM %s WHERE public_id = ?)", targetTable)
+		var targetExists bool
+		err = r.db.QueryRowContext(ctx, existsQuery, targetPublicID).Scan(&targetExists)
+		if err != nil {
+			return err
+		}
+		if !targetExists {
+			return domain.ErrTargetNotFound
+		}
 		return domain.ErrReactionNotFound
 	}
 

@@ -65,7 +65,11 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 	}
 
 	// 5. Initialize HTTP Server
-	server := initServer(cfg, lgr, handlers, db.DB())
+	server, err := initServer(cfg, lgr, handlers, db.DB())
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("initialize server: %w", err)
+	}
 
 	lgr.Info("Application initialization complete")
 
@@ -98,12 +102,11 @@ func initDatabase(cfg *config.Config, lgr *logger.Logger) (*database.Connection,
 }
 
 // initServer creates and configures the HTTP server with all routes and middleware.
-func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *sql.DB) *httpserver.Server {
+func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *sql.DB) (*httpserver.Server, error) {
 	lgr.Info("Initializing HTTP server")
 
 	if err := os.MkdirAll(cfg.Upload.UploadDir, 0755); err != nil {
-		lgr.Error("Failed to initialize upload directory", logger.Error(err))
-		panic(fmt.Errorf("failed to initialize upload directory: %w", err))
+		return nil, fmt.Errorf("failed to initialize upload directory: %w", err)
 	}
 
 	// Create server with config as single source of truth
@@ -136,6 +139,7 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *
 	// Register health check routes with proper configuration
 	server.Router().Handle("GET /health", httpserver.HealthPage(httpserver.HealthPageConfig{
 		Checker:          healthChecker,
+		Templates:        handlers.Templates,
 		AuthFunc:         handlers.Auth.GetCurrentUser,
 		GetUserWithStats: handlers.Post.GetUserWithStats,
 	}))
@@ -147,5 +151,5 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *
 		server.Router().Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 	}
 
-	return server
+	return server, nil
 }

@@ -61,7 +61,9 @@ window.api = {
         }
         
         if (!response.ok) {
-            throw new Error(data?.error || `Server error (${response.status})`);
+            const err = new Error(data?.error || `Server error (${response.status})`);
+            err.status = response.status;
+            throw err;
         }
         
         return data;

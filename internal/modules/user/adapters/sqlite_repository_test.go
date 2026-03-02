@@ -1084,3 +1084,123 @@ func TestSQLiteUserRepository_DecrementCommentCount(t *testing.T) {
 		t.Errorf("Expected CommentCount 0, got %d", retrievedZero.CommentCount)
 	}
 }
+
+func TestSQLiteUserRepository_GetByEmail_IncludesAvatarPath(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec(`CREATE TABLE users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT UNIQUE NOT NULL,
+		email TEXT UNIQUE,
+		username TEXT UNIQUE,
+		password_hash TEXT,
+		avatar_path TEXT DEFAULT '',
+		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
+		reaction_count INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMP,
+		updated_at TIMESTAMP,
+		is_active INTEGER
+	)`)
+	if err != nil {
+		t.Fatalf("Failed to create table: %v", err)
+	}
+
+	now := time.Now()
+	_, err = db.Exec(`INSERT INTO users (
+		public_id, email, username, password_hash, avatar_path, role,
+		post_count, comment_count, reaction_count, created_at, updated_at, is_active
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"11111111-1111-1111-1111-111111111111",
+		"avatar-email@example.com",
+		"avataruseremail",
+		"hash",
+		"avatars/email-user.png",
+		domain.RoleUser,
+		0, 0, 0,
+		now, now,
+		1,
+	)
+	if err != nil {
+		t.Fatalf("Failed to insert user: %v", err)
+	}
+
+	repo := NewSQLiteUserRepository(db)
+	user, err := repo.GetByEmail(context.Background(), "avatar-email@example.com")
+	if err != nil {
+		t.Fatalf("GetByEmail returned error: %v", err)
+	}
+
+	if user.AvatarPath != "avatars/email-user.png" {
+		t.Fatalf("AvatarPath = %q, want %q", user.AvatarPath, "avatars/email-user.png")
+	}
+
+	if user.AvatarURL != domain.AvatarURLPrefix+"avatars/email-user.png" {
+		t.Fatalf("AvatarURL = %q, want %q", user.AvatarURL, domain.AvatarURLPrefix+"avatars/email-user.png")
+	}
+}
+
+func TestSQLiteUserRepository_GetByUsername_IncludesAvatarPath(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec(`CREATE TABLE users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		public_id TEXT UNIQUE NOT NULL,
+		email TEXT UNIQUE,
+		username TEXT UNIQUE,
+		password_hash TEXT,
+		avatar_path TEXT DEFAULT '',
+		role TEXT,
+		post_count INTEGER NOT NULL DEFAULT 0,
+		comment_count INTEGER NOT NULL DEFAULT 0,
+		reaction_count INTEGER NOT NULL DEFAULT 0,
+		created_at TIMESTAMP,
+		updated_at TIMESTAMP,
+		is_active INTEGER
+	)`)
+	if err != nil {
+		t.Fatalf("Failed to create table: %v", err)
+	}
+
+	now := time.Now()
+	_, err = db.Exec(`INSERT INTO users (
+		public_id, email, username, password_hash, avatar_path, role,
+		post_count, comment_count, reaction_count, created_at, updated_at, is_active
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"22222222-2222-2222-2222-222222222222",
+		"avatar-username@example.com",
+		"avataruserbyname",
+		"hash",
+		"avatars/username-user.png",
+		domain.RoleUser,
+		0, 0, 0,
+		now, now,
+		1,
+	)
+	if err != nil {
+		t.Fatalf("Failed to insert user: %v", err)
+	}
+
+	repo := NewSQLiteUserRepository(db)
+	user, err := repo.GetByUsername(context.Background(), "avataruserbyname")
+	if err != nil {
+		t.Fatalf("GetByUsername returned error: %v", err)
+	}
+
+	if user.AvatarPath != "avatars/username-user.png" {
+		t.Fatalf("AvatarPath = %q, want %q", user.AvatarPath, "avatars/username-user.png")
+	}
+
+	if user.AvatarURL != domain.AvatarURLPrefix+"avatars/username-user.png" {
+		t.Fatalf("AvatarURL = %q, want %q", user.AvatarURL, domain.AvatarURLPrefix+"avatars/username-user.png")
+	}
+}

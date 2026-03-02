@@ -348,7 +348,7 @@ func TestService_React(t *testing.T) {
 	mockPostRepo := &MockPostRepository{}
 	mockCommentRepo := &MockCommentRepository{}
 	mockUserService := &MockUserService{}
-	service := NewService(mockRepo, mockPostRepo, mockCommentRepo, mockUserService)
+	service := NewService(mockRepo, mockPostRepo, mockCommentRepo, mockUserService, nil)
 
 	// Test with a mock post that exists
 	mockPostRepo.posts = map[string]*postDomain.Post{
@@ -369,7 +369,7 @@ func TestService_RemoveReaction(t *testing.T) {
 	mockPostRepo := &MockPostRepository{}
 	mockCommentRepo := &MockCommentRepository{}
 	mockUserService := &MockUserService{}
-	service := NewService(mockRepo, mockPostRepo, mockCommentRepo, mockUserService)
+	service := NewService(mockRepo, mockPostRepo, mockCommentRepo, mockUserService, nil)
 
 	// Test with a mock post that exists
 	mockPostRepo.posts = map[string]*postDomain.Post{
@@ -389,7 +389,7 @@ func TestService_GetReactions(t *testing.T) {
 	mockPostRepo := &MockPostRepository{}
 	mockCommentRepo := &MockCommentRepository{}
 	mockUserService := &MockUserService{}
-	service := NewService(mockRepo, mockPostRepo, mockCommentRepo, mockUserService)
+	service := NewService(mockRepo, mockPostRepo, mockCommentRepo, mockUserService, nil)
 
 	// Set up mock to return a post when GetByID is called
 	mockPostRepo.getByIDFn = func(ctx context.Context, postID string) (*postDomain.Post, error) {
@@ -449,7 +449,7 @@ func TestService_CountReactions(t *testing.T) {
 	mockPostRepo := &MockPostRepository{}
 	mockCommentRepo := &MockCommentRepository{}
 	mockUserService := &MockUserService{}
-	service := NewService(mockRepo, mockPostRepo, mockCommentRepo, mockUserService)
+	service := NewService(mockRepo, mockPostRepo, mockCommentRepo, mockUserService, nil)
 
 	// Set up mock to return a post when GetByID is called
 	mockPostRepo.getByIDFn = func(ctx context.Context, postID string) (*postDomain.Post, error) {

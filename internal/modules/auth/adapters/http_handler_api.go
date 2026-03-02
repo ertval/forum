@@ -8,15 +8,14 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"mime"
 	"net/http"
-	"strings"
 	"time"
 
 	authDomain "forum/internal/modules/auth/domain"
 	platformErrors "forum/internal/platform/errors"
 )
 
-// RegisterAPIRoutes registers all authentication API routes with the router.
 func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
 	authMiddleware := h.middlewareProvider.RequireAuth()
 
@@ -239,7 +238,8 @@ func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interfac
 // parseJSON parses JSON request body.
 func (h *HTTPHandler) parseJSON(r *http.Request, v interface{}) error {
 	// Check if content type is JSON
-	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/json" {
 		return fmt.Errorf("content type is not application/json")
 	}
 

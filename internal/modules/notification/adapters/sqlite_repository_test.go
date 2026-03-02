@@ -161,3 +161,90 @@ func TestSQLiteNotificationRepository_MarkAsRead(t *testing.T) {
 		t.Fatalf("expected notification to be marked as read")
 	}
 }
+
+func TestSQLiteNotificationRepository_MarkAsReadByPublicID_WrongUser(t *testing.T) {
+	db := setupNotificationTestDB(t)
+	defer db.Close()
+
+	repo := NewSQLiteNotificationRepository(db)
+	notification := &domain.Notification{
+		UserID:         1,
+		ActorID:        2,
+		Type:           domain.TypeLike,
+		Message:        "Someone liked your post",
+		PublicTargetID: "post-10",
+		CreatedAt:      time.Now(),
+	}
+	if err := repo.Create(context.Background(), notification); err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	err := repo.MarkAsReadByPublicID(context.Background(), 2, notification.PublicID)
+	if err != domain.ErrNotificationNotFound {
+		t.Fatalf("expected ErrNotificationNotFound, got %v", err)
+	}
+
+	result, err := repo.GetByUserID(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("GetByUserID returned error: %v", err)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected 1 notification, got %d", len(result))
+	}
+	if result[0].IsRead {
+		t.Fatal("expected notification to remain unread")
+	}
+}
+
+func TestSQLiteNotificationRepository_CountUnread(t *testing.T) {
+	db := setupNotificationTestDB(t)
+	defer db.Close()
+
+	repo := NewSQLiteNotificationRepository(db)
+	ctx := context.Background()
+
+	if err := repo.Create(ctx, &domain.Notification{
+		UserID:         1,
+		ActorID:        2,
+		Type:           domain.TypeLike,
+		Message:        "n1",
+		PublicTargetID: "post-10",
+		CreatedAt:      time.Now(),
+	}); err != nil {
+		t.Fatalf("Create n1 returned error: %v", err)
+	}
+
+	if err := repo.Create(ctx, &domain.Notification{
+		UserID:         1,
+		ActorID:        2,
+		Type:           domain.TypeComment,
+		Message:        "n2",
+		PublicTargetID: "post-10",
+		CreatedAt:      time.Now(),
+	}); err != nil {
+		t.Fatalf("Create n2 returned error: %v", err)
+	}
+
+	if err := repo.MarkAllAsReadByUserID(ctx, 1); err != nil {
+		t.Fatalf("MarkAllAsReadByUserID returned error: %v", err)
+	}
+
+	if err := repo.Create(ctx, &domain.Notification{
+		UserID:         1,
+		ActorID:        2,
+		Type:           domain.TypeDislike,
+		Message:        "n3",
+		PublicTargetID: "post-10",
+		CreatedAt:      time.Now(),
+	}); err != nil {
+		t.Fatalf("Create n3 returned error: %v", err)
+	}
+
+	count, err := repo.CountUnread(ctx, 1)
+	if err != nil {
+		t.Fatalf("CountUnread returned error: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected unread count 1, got %d", count)
+	}
+}

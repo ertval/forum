@@ -3,12 +3,13 @@ package application
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"time"
 
 	"forum/internal/modules/post/domain"
 	"forum/internal/modules/post/ports"
 	userPorts "forum/internal/modules/user/ports"
+	"forum/internal/platform/async"
 )
 
 // Service implements the PostService interface.
@@ -83,13 +84,9 @@ func (s *Service) CreatePost(ctx context.Context, userID int, title, content str
 	}
 
 	// Increment user's post count asynchronously (non-blocking)
-	go func(uid int) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := s.userService.IncrementPostCount(ctx, uid); err != nil {
-			log.Printf("WARNING: failed to increment post count for user %d: %v", uid, err)
-		}
-	}(userID)
+	async.Run(func(ctx context.Context) error {
+		return s.userService.IncrementPostCount(ctx, userID)
+	}, 5*time.Second, fmt.Sprintf("increment post count for user %d", userID))
 
 	return post, nil
 }
@@ -153,13 +150,9 @@ func (s *Service) DeletePost(ctx context.Context, postID string) error {
 	}
 
 	// Decrement user's post count asynchronously (non-blocking)
-	go func(uid int) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := s.userService.DecrementPostCount(ctx, uid); err != nil {
-			log.Printf("WARNING: failed to decrement post count for user %d: %v", uid, err)
-		}
-	}(post.UserID)
+	async.Run(func(ctx context.Context) error {
+		return s.userService.DecrementPostCount(ctx, post.UserID)
+	}, 5*time.Second, fmt.Sprintf("decrement post count for user %d", post.UserID))
 
 	return nil
 }

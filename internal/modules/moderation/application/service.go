@@ -4,7 +4,6 @@ package application
 
 import (
 	"context"
-	"errors"
 	"forum/internal/modules/moderation/domain"
 	"forum/internal/modules/moderation/ports"
 )
@@ -22,13 +21,13 @@ func NewService(reportRepo ports.ReportRepository) *Service {
 // CreateReport creates a new moderation report.
 // TODO: Implement report creation with validation.
 func (s *Service) CreateReport(ctx context.Context, reporterID int, targetPublicID string, targetType, reason string) error {
-	return errors.New("not implemented")
+	return domain.ErrNotImplemented
 }
 
 // ReviewReport marks a report as reviewed with a decision.
 // TODO: Implement report review logic.
 func (s *Service) ReviewReport(ctx context.Context, reportPublicID string, decision string) error {
-	return errors.New("not implemented")
+	return domain.ErrNotImplemented
 }
 
 // ListReports retrieves reports filtered by status.

@@ -177,6 +177,22 @@ func TestErrorFieldAndTypes(t *testing.T) {
 	}
 }
 
+func TestErrorFieldNilDoesNotPanic(t *testing.T) {
+	var buf bytes.Buffer
+	l := logger.New(logger.InfoLevel, &buf)
+
+	l.Error("noop", logger.Error(nil))
+
+	m := unmarshalLastJSONLine(t, &buf)
+	f, ok := m["fields"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected fields map, got %T", m["fields"])
+	}
+	if f["error"] != "" {
+		t.Fatalf("expected empty error field for nil error, got %v", f["error"])
+	}
+}
+
 func TestTimestampIsRecent(t *testing.T) {
 	var buf bytes.Buffer
 	l := logger.New(logger.InfoLevel, &buf)

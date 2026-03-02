@@ -53,7 +53,7 @@ func main() {
 		urls += " " + httpsAddr
 	}
 
-	lgr.Info("Forum server started", logger.String("", urls))
+	lgr.Info("Forum server started", logger.String("urls", urls))
 
 	// 5. Graceful Shutdown
 	quit := make(chan os.Signal, 1)

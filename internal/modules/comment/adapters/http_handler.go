@@ -8,15 +8,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"mime"
 	"net/http"
 	"os"
-	"strings"
 
 	authPorts "forum/internal/modules/auth/ports"
 	commentPorts "forum/internal/modules/comment/ports"
 	postPorts "forum/internal/modules/post/ports"
 	reactionPorts "forum/internal/modules/reaction/ports"
 	userPorts "forum/internal/modules/user/ports"
+	"forum/internal/platform/httpserver"
 	logger "forum/internal/platform/logger"
 )
 
@@ -64,41 +65,43 @@ func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HT
 	}
 }
 
+// LookupUser returns user data by internal ID for template rendering.
+func (h *HTTPHandler) LookupUser(ctx context.Context, userID int) (*httpserver.CurrentUserData, error) {
+	user, err := h.userService.GetByID(ctx, userID)
+	if err != nil || user == nil {
+		return nil, fmt.Errorf("user not found")
+	}
+	return &httpserver.CurrentUserData{
+		PublicID:     user.PublicID,
+		Username:     user.Username,
+		Email:        user.Email,
+		AvatarURL:    user.AvatarURL,
+		PostCount:    user.PostCount,
+		CommentCount: user.CommentCount,
+	}, nil
+}
+
+// LookupInternalID resolves a public UUID to an internal database ID.
+func (h *HTTPHandler) LookupInternalID(ctx context.Context, publicID string) (int, error) {
+	user, err := h.userService.GetByPublicID(ctx, publicID)
+	if err != nil {
+		return 0, err
+	}
+	return user.ID, nil
+}
+
+// LookupReactionCount returns the total reaction count for a user.
+func (h *HTTPHandler) LookupReactionCount(ctx context.Context, userID int) (int, error) {
+	if h.reactionService == nil {
+		return 0, nil
+	}
+	return h.reactionService.GetUserReactionCount(ctx, userID)
+}
+
 // buildCurrentUser fetches full user info (including cached stats) and returns
 // a map suitable for templates. It always returns a map (never nil).
 func (h *HTTPHandler) buildCurrentUser(ctx context.Context, userID int) map[string]interface{} {
-	// Fetch user with all fields including cached stats
-	user, err := h.userService.GetByID(ctx, userID)
-	if err != nil || user == nil {
-		// Return empty map if user not found
-		return map[string]interface{}{
-			"PublicID":      "",
-			"Username":      "",
-			"Email":         "",
-			"AvatarURL":     "",
-			"PostCount":     0,
-			"CommentCount":  0,
-			"ReactionCount": 0,
-		}
-	}
-
-	// Get reaction count from reaction service
-	reactionCount := 0
-	if h.reactionService != nil {
-		if count, err := h.reactionService.GetUserReactionCount(ctx, userID); err == nil {
-			reactionCount = count
-		}
-	}
-
-	return map[string]interface{}{
-		"PublicID":      user.PublicID,
-		"Username":      user.Username,
-		"Email":         user.Email,
-		"AvatarURL":     user.AvatarURL,
-		"PostCount":     user.PostCount,
-		"CommentCount":  user.CommentCount,
-		"ReactionCount": reactionCount,
-	}
+	return httpserver.BuildCurrentUser(ctx, userID, h)
 }
 
 // GetCurrentUser extracts user info from session cookie (helper for other handlers).
@@ -122,17 +125,7 @@ func (h *HTTPHandler) GetCurrentUser(r *http.Request) (userID int, username stri
 // to the internal INT ID needed for service layer calls.
 // SECURITY: Ensures public UUID is never exposed, only used for lookups.
 func (h *HTTPHandler) getInternalUserID(ctx context.Context, userPublicID string) (int, error) {
-	if userPublicID == "" {
-		return 0, fmt.Errorf("user ID required")
-	}
-
-	// Fetch user by PublicID to get internal INT ID
-	user, err := h.userService.GetByPublicID(ctx, userPublicID)
-	if err != nil {
-		return 0, fmt.Errorf("user not found")
-	}
-
-	return user.ID, nil
+	return httpserver.GetInternalUserID(ctx, userPublicID, h)
 }
 
 // RegisterRoutes registers all comment routes.
@@ -167,8 +160,8 @@ func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interfac
 // parseJSON parses JSON request body.
 func (h *HTTPHandler) parseJSON(r *http.Request, v interface{}) error {
 	// Check if content type is JSON
-	ct := r.Header.Get("Content-Type")
-	if !strings.HasPrefix(ct, "application/json") {
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/json" {
 		return fmt.Errorf("content type is not application/json")
 	}
 

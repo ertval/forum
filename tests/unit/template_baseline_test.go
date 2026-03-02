@@ -83,6 +83,24 @@ func TestHealthTemplateRendering(t *testing.T) {
 			"post_api":         "up",
 			"notification_api": "up",
 		},
+		"HealthSections": []map[string]interface{}{
+			{
+				"Title":   "Core Services",
+				"ColName": "Service",
+				"Rows": []map[string]string{
+					{"Label": "Database", "Status": "up"},
+				},
+			},
+			{
+				"Title":   "Module API Status",
+				"ColName": "Module",
+				"Rows": []map[string]string{
+					{"Label": "auth_api", "Status": "up"},
+					{"Label": "post_api", "Status": "up"},
+					{"Label": "notification_api", "Status": "up"},
+				},
+			},
+		},
 	}
 
 	var buf bytes.Buffer

@@ -21,6 +21,17 @@ var criticalChecks = map[string]bool{
 	"user_api":         true,
 }
 
+type healthTableRow struct {
+	Label  string
+	Status string
+}
+
+type healthTableSection struct {
+	Title   string
+	Rows    []healthTableRow
+	ColName string
+}
+
 func HealthAPI(checker *health.Checker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Perform checks
@@ -49,6 +60,7 @@ func HealthAPI(checker *health.Checker) http.HandlerFunc {
 // HealthPageConfig holds dependencies for the health UI page handler.
 type HealthPageConfig struct {
 	Checker  *health.Checker
+	Templates *template.Template
 	AuthFunc func(r *http.Request) (userID int, username string)
 	// GetUserWithStats returns full user data including stats for template rendering.
 	// If nil, only basic auth info (ID, Username) will be shown.
@@ -58,10 +70,7 @@ type HealthPageConfig struct {
 // HealthPage renders an HTML page with the system's health status.
 // Now accepts shared templates and auth function to preserve session.
 func HealthPage(cfg HealthPageConfig) http.HandlerFunc {
-	// Parse templates ONCE at handler creation time (not on every request)
-	healthTemplate, parseErr := template.ParseFiles("templates/base.html", "templates/health.html")
-	if parseErr != nil {
-		// If templates can't be parsed at startup, return a handler that reports the error
+	if cfg.Templates == nil {
 		return func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Health templates not available", http.StatusInternalServerError)
 		}
@@ -87,18 +96,44 @@ func HealthPage(cfg HealthPageConfig) http.HandlerFunc {
 		}
 
 		// Prepare data for the template
+		moduleRows := []healthTableRow{
+			{Label: "auth_api", Status: results["auth_api"]},
+			{Label: "post_api", Status: results["post_api"]},
+			{Label: "user_api", Status: results["user_api"]},
+			{Label: "comment_api", Status: results["comment_api"]},
+			{Label: "reaction_api", Status: results["reaction_api"]},
+			{Label: "moderation_api", Status: results["moderation_api"]},
+			{Label: "notification_api", Status: results["notification_api"]},
+		}
+
+		healthSections := []healthTableSection{
+			{
+				Title:   "Core Services",
+				ColName: "Service",
+				Rows: []healthTableRow{
+					{Label: "Database", Status: results["database"]},
+				},
+			},
+			{
+				Title:   "Module API Status",
+				ColName: "Module",
+				Rows:    moduleRows,
+			},
+		}
+
 		data := map[string]interface{}{
 			"Title":           "Health Status",
 			"HideUserSidebar": true,
 			"Health":          results,
+			"HealthSections":  healthSections,
 			"User":            currentUser,
 			// Health page should not show the sidebar even when user is present
 			"ShowSidebar": false,
 		}
 
-		// Execute the pre-parsed template
+		// Execute the shared pre-parsed template set
 		w.Header().Set("Content-Type", "text/html")
-		if err := healthTemplate.ExecuteTemplate(w, "base", data); err != nil {
+		if err := cfg.Templates.ExecuteTemplate(w, "base", data); err != nil {
 			http.Error(w, "Could not execute template", http.StatusInternalServerError)
 		}
 	}

@@ -46,7 +46,8 @@ func (r *SQLiteCommentRepository) Create(ctx context.Context, comment *domain.Co
 func (r *SQLiteCommentRepository) GetByPublicID(ctx context.Context, commentPublicID string) (*domain.Comment, error) {
 	row := r.db.QueryRowContext(ctx, `
 		SELECT c.id, c.public_id, c.post_id, c.author_id, c.content, c.created_at, c.updated_at,
-		       p.public_id AS post_public_id, u.public_id AS user_public_id
+		       COALESCE(p.public_id, '') AS post_public_id, COALESCE(u.public_id, '') AS user_public_id,
+		       COALESCE(u.username, '') AS author_username
 		FROM comments c
 		LEFT JOIN posts p ON c.post_id = p.id
 		LEFT JOIN users u ON c.author_id = u.id
@@ -54,7 +55,6 @@ func (r *SQLiteCommentRepository) GetByPublicID(ctx context.Context, commentPubl
 	`, commentPublicID)
 
 	var comment domain.Comment
-	var postPublicID, userPublicID sql.NullString
 	err := row.Scan(
 		&comment.ID,
 		&comment.PublicID,
@@ -63,21 +63,15 @@ func (r *SQLiteCommentRepository) GetByPublicID(ctx context.Context, commentPubl
 		&comment.Content,
 		&comment.CreatedAt,
 		&comment.UpdatedAt,
-		&postPublicID,
-		&userPublicID,
+		&comment.PublicPostID,
+		&comment.PublicUserID,
+		&comment.AuthorUsername,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, domain.ErrCommentNotFound
 		}
 		return nil, err
-	}
-
-	if postPublicID.Valid {
-		comment.PublicPostID = postPublicID.String
-	}
-	if userPublicID.Valid {
-		comment.PublicUserID = userPublicID.String
 	}
 
 	return &comment, nil
@@ -106,7 +100,8 @@ func (r *SQLiteCommentRepository) DeleteByPublicID(ctx context.Context, commentP
 func (r *SQLiteCommentRepository) ListByPostPublicID(ctx context.Context, postPublicID string) ([]*domain.Comment, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT c.id, c.public_id, c.post_id, c.author_id, c.content, c.created_at, c.updated_at,
-		       p.public_id AS post_public_id, u.public_id AS user_public_id
+		       p.public_id AS post_public_id, COALESCE(u.public_id, '') AS user_public_id,
+		       COALESCE(u.username, '') AS author_username
 		FROM comments c
 		JOIN posts p ON c.post_id = p.id
 		LEFT JOIN users u ON c.author_id = u.id
@@ -132,6 +127,7 @@ func (r *SQLiteCommentRepository) ListByPostPublicID(ctx context.Context, postPu
 			&comment.UpdatedAt,
 			&postPublicID,
 			&userPublicID,
+			&comment.AuthorUsername,
 		)
 		if err != nil {
 			return nil, err
@@ -151,9 +147,12 @@ func (r *SQLiteCommentRepository) ListByPostPublicID(ctx context.Context, postPu
 // ListByUser retrieves all comments made by a specific user.
 func (r *SQLiteCommentRepository) ListByUser(ctx context.Context, userID int) ([]*domain.Comment, error) {
 	query := `
-		SELECT c.id, c.public_id, c.post_id, c.author_id, c.content, c.created_at, c.updated_at, p.public_id as post_public_id
+		SELECT c.id, c.public_id, c.post_id, c.author_id, c.content, c.created_at, c.updated_at,
+		       p.public_id AS post_public_id, COALESCE(u.public_id, '') AS user_public_id,
+		       COALESCE(u.username, '') AS author_username
 		FROM comments c
 		INNER JOIN posts p ON c.post_id = p.id
+		LEFT JOIN users u ON c.author_id = u.id
 		WHERE c.author_id = ?
 		ORDER BY c.created_at DESC
 	`
@@ -177,6 +176,8 @@ func (r *SQLiteCommentRepository) ListByUser(ctx context.Context, userID int) ([
 			&comment.CreatedAt,
 			&comment.UpdatedAt,
 			&postPublicID,
+			&comment.PublicUserID,
+			&comment.AuthorUsername,
 		)
 		if err != nil {
 			return nil, err
@@ -195,9 +196,12 @@ func (r *SQLiteCommentRepository) ListByUser(ctx context.Context, userID int) ([
 // ListByUserPaginated retrieves comments made by a user with limit and offset.
 func (r *SQLiteCommentRepository) ListByUserPaginated(ctx context.Context, userID int, limit, offset int) ([]*domain.Comment, error) {
 	query := `
-		SELECT c.id, c.public_id, c.post_id, c.author_id, c.content, c.created_at, c.updated_at, p.public_id as post_public_id
+		SELECT c.id, c.public_id, c.post_id, c.author_id, c.content, c.created_at, c.updated_at,
+		       p.public_id AS post_public_id, COALESCE(u.public_id, '') AS user_public_id,
+		       COALESCE(u.username, '') AS author_username
 		FROM comments c
 		INNER JOIN posts p ON c.post_id = p.id
+		LEFT JOIN users u ON c.author_id = u.id
 		WHERE c.author_id = ?
 		ORDER BY c.created_at DESC
 		LIMIT ? OFFSET ?
@@ -222,6 +226,8 @@ func (r *SQLiteCommentRepository) ListByUserPaginated(ctx context.Context, userI
 			&comment.CreatedAt,
 			&comment.UpdatedAt,
 			&postPublicID,
+			&comment.PublicUserID,
+			&comment.AuthorUsername,
 		)
 		if err != nil {
 			return nil, err

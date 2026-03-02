@@ -4,6 +4,7 @@ package adapters
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -93,11 +94,11 @@ func (h *HTTPHandler) AddReactionAPI(w http.ResponseWriter, r *http.Request) {
 			logger.String("reaction_type", string(req.Type)),
 			logger.Error(err))
 
-		if err == domain.ErrInvalidTarget || err == domain.ErrInvalidReactionType {
+		if errors.Is(err, domain.ErrInvalidTarget) || errors.Is(err, domain.ErrInvalidReactionType) {
 			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		if err == domain.ErrTargetNotFound {
+		if errors.Is(err, domain.ErrTargetNotFound) {
 			platformErrors.WriteErrorJSON(w, http.StatusNotFound, err.Error())
 			return
 		}
@@ -171,11 +172,11 @@ func (h *HTTPHandler) RemoveReactionAPI(w http.ResponseWriter, r *http.Request) 
 			logger.String("target_id", req.TargetID),
 			logger.Error(err))
 
-		if err == domain.ErrReactionNotFound || err == domain.ErrInvalidTarget {
+		if errors.Is(err, domain.ErrReactionNotFound) || errors.Is(err, domain.ErrInvalidTarget) {
 			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		if err == domain.ErrTargetNotFound {
+		if errors.Is(err, domain.ErrTargetNotFound) {
 			platformErrors.WriteErrorJSON(w, http.StatusNotFound, err.Error())
 			return
 		}
@@ -217,7 +218,7 @@ func (h *HTTPHandler) GetReactionsAPI(w http.ResponseWriter, r *http.Request) {
 			logger.String("target_id", targetID),
 			logger.Error(err))
 
-		if err == domain.ErrInvalidTarget {
+		if errors.Is(err, domain.ErrInvalidTarget) {
 			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -259,7 +260,7 @@ func (h *HTTPHandler) CountReactionsAPI(w http.ResponseWriter, r *http.Request) 
 			logger.String("target_id", targetID),
 			logger.Error(err))
 
-		if err == domain.ErrInvalidTarget {
+		if errors.Is(err, domain.ErrInvalidTarget) {
 			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 			return
 		}

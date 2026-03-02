@@ -38,11 +38,3 @@ type CategoryService interface {
 	// Delete removes a category by its public UUID.
 	Delete(ctx context.Context, categoryID string) error
 }
-
-// FilterService defines post filtering use cases.
-type FilterService interface {
-	// BuildFilter creates a PostFilter from query parameters and context.
-	BuildFilter(ctx context.Context, params domain.FilterParams) domain.PostFilter
-	// ApplyDateFilter applies date constraints to a filter.
-	ApplyDateFilter(filter *domain.PostFilter, dateFilter string)
-}

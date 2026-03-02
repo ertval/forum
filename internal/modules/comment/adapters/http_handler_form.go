@@ -21,11 +21,6 @@ func (h *HTTPHandler) RegisterFormRoutes(router *http.ServeMux) {
 
 // CreateCommentForm handles comment form submissions from the post detail page (HTML form).
 func (h *HTTPHandler) CreateCommentForm(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	// Get userID from session
 	userID, _ := h.GetCurrentUser(r)
 	if userID == 0 {
@@ -65,11 +60,6 @@ func (h *HTTPHandler) CreateCommentForm(w http.ResponseWriter, r *http.Request) 
 
 // DeleteCommentForm handles comment deletion from the post detail page (HTML form).
 func (h *HTTPHandler) DeleteCommentForm(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	// Get userID from session
 	userID, _ := h.GetCurrentUser(r)
 	if userID == 0 {

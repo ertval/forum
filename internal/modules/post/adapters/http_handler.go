@@ -15,10 +15,10 @@ import (
 
 	authPorts "forum/internal/modules/auth/ports"
 	commentPorts "forum/internal/modules/comment/ports"
-	postDomain "forum/internal/modules/post/domain"
 	postPorts "forum/internal/modules/post/ports"
 	reactionPorts "forum/internal/modules/reaction/ports"
 	userPorts "forum/internal/modules/user/ports"
+	"forum/internal/platform/httpserver"
 	logger "forum/internal/platform/logger"
 )
 
@@ -26,7 +26,6 @@ import (
 type HTTPHandler struct {
 	postService        postPorts.PostService
 	categoryService    postPorts.CategoryService
-	filterService      postPorts.FilterService
 	authService        authPorts.AuthService
 	userService        userPorts.UserService
 	middlewareProvider authPorts.AuthMiddleware
@@ -40,7 +39,6 @@ type HTTPHandler struct {
 type ServiceContainer interface {
 	Post() postPorts.PostService
 	Category() postPorts.CategoryService
-	Filter() postPorts.FilterService
 	Auth() authPorts.AuthService
 	User() userPorts.UserService
 	AuthMiddleware() authPorts.AuthMiddleware
@@ -53,7 +51,6 @@ func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HT
 	return &HTTPHandler{
 		postService:        services.Post(),
 		categoryService:    services.Category(),
-		filterService:      services.Filter(),
 		authService:        services.Auth(),
 		userService:        services.User(),
 		middlewareProvider: services.AuthMiddleware(),
@@ -69,41 +66,43 @@ func (h *HTTPHandler) Templates() *template.Template {
 	return h.templates
 }
 
+// LookupUser returns user data by internal ID for template rendering.
+func (h *HTTPHandler) LookupUser(ctx context.Context, userID int) (*httpserver.CurrentUserData, error) {
+	user, err := h.userService.GetByID(ctx, userID)
+	if err != nil || user == nil {
+		return nil, fmt.Errorf("user not found")
+	}
+	return &httpserver.CurrentUserData{
+		PublicID:     user.PublicID,
+		Username:     user.Username,
+		Email:        user.Email,
+		AvatarURL:    user.AvatarURL,
+		PostCount:    user.PostCount,
+		CommentCount: user.CommentCount,
+	}, nil
+}
+
+// LookupInternalID resolves a public UUID to an internal database ID.
+func (h *HTTPHandler) LookupInternalID(ctx context.Context, publicID string) (int, error) {
+	user, err := h.userService.GetByPublicID(ctx, publicID)
+	if err != nil {
+		return 0, err
+	}
+	return user.ID, nil
+}
+
+// LookupReactionCount returns the total reaction count for a user.
+func (h *HTTPHandler) LookupReactionCount(ctx context.Context, userID int) (int, error) {
+	if h.reactionService == nil {
+		return 0, nil
+	}
+	return h.reactionService.GetUserReactionCount(ctx, userID)
+}
+
 // buildCurrentUser fetches full user info (including cached stats) and returns
 // a map suitable for templates. It always returns a map (never nil).
 func (h *HTTPHandler) buildCurrentUser(ctx context.Context, userID int) map[string]interface{} {
-	// Fetch user with all fields including cached stats
-	user, err := h.userService.GetByID(ctx, userID)
-	if err != nil || user == nil {
-		// Return empty map if user not found
-		return map[string]interface{}{
-			"PublicID":      "",
-			"Username":      "",
-			"Email":         "",
-			"AvatarURL":     "",
-			"PostCount":     0,
-			"CommentCount":  0,
-			"ReactionCount": 0,
-		}
-	}
-
-	// Get reaction count from reaction service
-	reactionCount := 0
-	if h.reactionService != nil {
-		if count, err := h.reactionService.GetUserReactionCount(ctx, userID); err == nil {
-			reactionCount = count
-		}
-	}
-
-	return map[string]interface{}{
-		"PublicID":      user.PublicID,
-		"Username":      user.Username,
-		"Email":         user.Email,
-		"AvatarURL":     user.AvatarURL,
-		"PostCount":     user.PostCount,
-		"CommentCount":  user.CommentCount,
-		"ReactionCount": reactionCount,
-	}
+	return httpserver.BuildCurrentUser(ctx, userID, h)
 }
 
 // GetUserWithStats extracts user info with stats from session cookie (for external handlers).
@@ -127,21 +126,11 @@ func (h *HTTPHandler) GetUserWithStats(r *http.Request) map[string]interface{} {
 // to the internal INT ID needed for service layer calls.
 // SECURITY: Ensures public UUID is never exposed, only used for lookups.
 func (h *HTTPHandler) getInternalUserID(ctx context.Context, userPublicID string) (int, error) {
-	if userPublicID == "" {
-		return 0, fmt.Errorf("user ID required")
-	}
-
-	// Fetch user by PublicID to get internal INT ID
-	user, err := h.userService.GetByPublicID(ctx, userPublicID)
-	if err != nil {
-		return 0, fmt.Errorf("user not found")
-	}
-
-	return user.ID, nil
+	return httpserver.GetInternalUserID(ctx, userPublicID, h)
 }
 
 // buildPageTitle creates a dynamic page title based on active filters.
-func (h *HTTPHandler) buildPageTitle(filterParams postDomain.FilterParams) string {
+func (h *HTTPHandler) buildPageTitle(filterParams listFilterOptions) string {
 	// Build title parts: [My] [Category] Posts [TimePeriod]
 	var parts []string
 	activityType, reactionType := resolveBoardActivityFilters(filterParams)
@@ -212,7 +201,7 @@ func normalizeReactionType(reactionType string) string {
 	}
 }
 
-func resolveBoardActivityFilters(params postDomain.FilterParams) (string, string) {
+func resolveBoardActivityFilters(params listFilterOptions) (string, string) {
 	activityType := normalizeBoardActivityType(params.ActivityType)
 	reactionType := normalizeReactionType(params.ReactionType)
 

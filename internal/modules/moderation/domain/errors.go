@@ -6,6 +6,9 @@ import "errors"
 
 // Domain errors for the moderation module.
 var (
+	// ErrNotImplemented is returned for optional moderation operations that are not implemented.
+	ErrNotImplemented = errors.New("not implemented")
+
 	// ErrReportNotFound is returned when a report doesn't exist.
 	ErrReportNotFound = errors.New("report not found")
 

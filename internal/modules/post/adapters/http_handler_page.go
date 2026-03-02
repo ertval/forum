@@ -14,6 +14,17 @@ import (
 	"forum/internal/platform/templates"
 )
 
+type postListPageDefaults struct {
+	title           string
+	templateName    string
+	filterAction    string
+	limit           int
+	showFilter      bool
+	showSidebar     bool
+	hideUserSidebar bool
+	includePageTitle bool
+}
+
 // RegisterPageRoutes registers all post page routes with the router.
 func (h *HTTPHandler) RegisterPageRoutes(router *http.ServeMux) {
 	// Public page routes (no auth required)
@@ -34,126 +45,16 @@ func (h *HTTPHandler) HomePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
-
-	// Get session token from cookie and build full user info when available
-	cookie, err := r.Cookie("session_token")
-	var currentUser any = nil
-
-	if err == nil && cookie.Value != "" {
-		if session, err := h.authService.ValidateSession(ctx, cookie.Value); err == nil && session != nil {
-			currentUser = h.buildCurrentUser(ctx, session.UserID)
-		}
-	}
-
-	// Parse filter parameters
-	var currentUserPublicID string
-	if currentUser != nil {
-		if userMap, ok := currentUser.(map[string]interface{}); ok {
-			if uid, ok := userMap["PublicID"].(string); ok {
-				currentUserPublicID = uid
-			}
-		}
-	}
-
-	// Build filter using FilterService
-	filterParams := postDomain.FilterParams{
-		Category:       r.URL.Query().Get("category"),
-		UserID:         r.URL.Query().Get("user"),
-		ActivityType:   r.URL.Query().Get("activity_type"),
-		ReactionType:   r.URL.Query().Get("reaction_type"),
-		MyPosts:        r.URL.Query().Get("my_posts") == "true",
-		LikedPosts:     r.URL.Query().Get("liked_posts") == "true",
-		DislikedPosts:  r.URL.Query().Get("disliked_posts") == "true",
-		CommentedPosts: r.URL.Query().Get("commented_posts") == "true",
-		Commenter:      r.URL.Query().Get("commenter"),
-		DateFilter:     r.URL.Query().Get("date_filter"),
-		Limit:          12,
-		Offset:         0,
-		CurrentUserID:  currentUserPublicID,
-	}
-	if filterParams.Commenter == "" && filterParams.CommentedPosts && currentUserPublicID != "" {
-		filterParams.Commenter = currentUserPublicID
-	}
-	activityType, reactionType := resolveBoardActivityFilters(filterParams)
-
-	filter := h.filterService.BuildFilter(ctx, filterParams)
-
-	// Fetch posts
-	posts, err := h.postService.ListPosts(ctx, filter)
-	if err != nil {
-		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "Failed to load posts.", currentUser)
-		return
-	}
-
-	// Create preview content for posts on board page
-	previewPosts := make([]map[string]interface{}, len(posts))
-	for i, post := range posts {
-		previewPost := make(map[string]interface{})
-
-		previewPost["ID"] = post.PublicID
-		previewPost["PublicID"] = post.PublicID
-		previewPost["UserID"] = post.UserPublicID
-		previewPost["UserPublicID"] = post.UserPublicID
-		previewPost["AuthorUsername"] = post.AuthorUsername
-		previewPost["Author"] = post.AuthorUsername
-		previewPost["Title"] = post.Title
-		previewPost["Content"] = createPostPreview(post.Content)
-		previewPost["ImageURL"] = post.ImageURL
-		previewPost["Categories"] = post.Categories
-		previewPost["LikeCount"] = post.LikeCount
-		previewPost["DislikeCount"] = post.DislikeCount
-		previewPost["CommentCount"] = post.CommentCount
-		previewPost["CreatedAt"] = post.CreatedAt
-		previewPost["UpdatedAt"] = post.UpdatedAt
-
-		previewPosts[i] = previewPost
-	}
-
-	// Fetch all categories for filter dropdown
-	var categories []*postDomain.Category
-	if h.categoryService != nil {
-		categories, err = h.categoryService.List(ctx)
-		if err != nil {
-			categories = []*postDomain.Category{}
-		}
-	}
-
-	// Prepare template data for home page
-	data := map[string]interface{}{
-		"Title":            "Home",
-		"HideUserSidebar":  true,
-		"Posts":            previewPosts,
-		"Categories":       categories,
-		"SelectedCategory": filterParams.Category,
-		"DateFilter":       filterParams.DateFilter,
-		"MyPosts":          filterParams.MyPosts,
-		"LikedPosts":       filterParams.LikedPosts,
-		"DislikedPosts":    filterParams.DislikedPosts,
-		"CommentedPosts":   filterParams.CommentedPosts,
-		"ActivityType":     activityType,
-		"SelectedReaction": reactionType,
-		"UserFilter":       filterParams.UserID,
-		"Commenter":        filterParams.Commenter,
-		"User":             currentUser,
-		"FilterAction":     "/",
-		"ShowFilter":       false,
-		"ShowSidebar":      false,
-	}
-
-	// Get cached templates (only parses on first request)
-	tmpl, err := templates.Get("home", "templates/base.html", "templates/home.html")
-	if err != nil {
-		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
-		return
-	}
-
-	// Render template
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
-		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
-		return
-	}
+	h.renderPostListPage(w, r, postListPageDefaults{
+		title:            "Home",
+		templateName:     "home",
+		filterAction:     "/",
+		limit:            12,
+		showFilter:       false,
+		showSidebar:      false,
+		hideUserSidebar:  true,
+		includePageTitle: false,
+	})
 }
 
 // BoardPage handles the board page rendering with post list (identical to homepage).
@@ -163,6 +64,19 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.renderPostListPage(w, r, postListPageDefaults{
+		title:            "Board",
+		templateName:     "board",
+		filterAction:     "/board",
+		limit:            10,
+		showFilter:       true,
+		showSidebar:      true,
+		hideUserSidebar:  false,
+		includePageTitle: true,
+	})
+}
+
+func (h *HTTPHandler) renderPostListPage(w http.ResponseWriter, r *http.Request, defaults postListPageDefaults) {
 	ctx := r.Context()
 
 	// Get session token from cookie
@@ -185,8 +99,7 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Build filter using FilterService
-	filterParams := postDomain.FilterParams{
+	filterOptions := listFilterOptions{
 		Category:       r.URL.Query().Get("category"),
 		UserID:         r.URL.Query().Get("user"),
 		ActivityType:   r.URL.Query().Get("activity_type"),
@@ -197,16 +110,16 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 		CommentedPosts: r.URL.Query().Get("commented_posts") == "true",
 		Commenter:      r.URL.Query().Get("commenter"),
 		DateFilter:     r.URL.Query().Get("date_filter"),
-		Limit:          10,
+		Limit:          defaults.limit,
 		Offset:         0,
 		CurrentUserID:  currentUserPublicID,
 	}
-	if filterParams.Commenter == "" && filterParams.CommentedPosts && currentUserPublicID != "" {
-		filterParams.Commenter = currentUserPublicID
+	if filterOptions.Commenter == "" && filterOptions.CommentedPosts && currentUserPublicID != "" {
+		filterOptions.Commenter = currentUserPublicID
 	}
-	activityType, reactionType := resolveBoardActivityFilters(filterParams)
+	activityType, reactionType := resolveBoardActivityFilters(filterOptions)
 
-	filter := h.filterService.BuildFilter(ctx, filterParams)
+	filter := buildPostFilter(filterOptions)
 
 	// Fetch posts
 	posts, err := h.postService.ListPosts(ctx, filter)
@@ -225,7 +138,6 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 		previewPost["UserID"] = post.UserPublicID
 		previewPost["UserPublicID"] = post.UserPublicID
 		previewPost["AuthorUsername"] = post.AuthorUsername
-		previewPost["Author"] = post.AuthorUsername
 		previewPost["Title"] = post.Title
 		previewPost["Content"] = createPostPreview(post.Content)
 		previewPost["ImageURL"] = post.ImageURL
@@ -248,33 +160,34 @@ func (h *HTTPHandler) BoardPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Build dynamic page title based on active filters
-	pageTitle := h.buildPageTitle(filterParams)
-
-	// Prepare template data for board page
+	// Prepare template data for page
 	data := map[string]interface{}{
-		"Title":            "Board",
-		"PageTitle":        pageTitle,
+		"Title":            defaults.title,
 		"Posts":            previewPosts,
 		"Categories":       categories,
-		"SelectedCategory": filterParams.Category,
-		"DateFilter":       filterParams.DateFilter,
-		"FilterAction":     "/board",
-		"ShowFilter":       true,
-		"ShowSidebar":      true,
-		"MyPosts":          filterParams.MyPosts,
-		"LikedPosts":       filterParams.LikedPosts,
-		"DislikedPosts":    filterParams.DislikedPosts,
-		"CommentedPosts":   filterParams.CommentedPosts,
+		"SelectedCategory": filterOptions.Category,
+		"DateFilter":       filterOptions.DateFilter,
+		"FilterAction":     defaults.filterAction,
+		"FilterMode":       "posts",
+		"ShowFilter":       defaults.showFilter,
+		"ShowSidebar":      defaults.showSidebar,
+		"HideUserSidebar":  defaults.hideUserSidebar,
+		"MyPosts":          filterOptions.MyPosts,
+		"LikedPosts":       filterOptions.LikedPosts,
+		"DislikedPosts":    filterOptions.DislikedPosts,
+		"CommentedPosts":   filterOptions.CommentedPosts,
 		"ActivityType":     activityType,
 		"SelectedReaction": reactionType,
-		"UserFilter":       filterParams.UserID,
-		"Commenter":        filterParams.Commenter,
+		"UserFilter":       filterOptions.UserID,
+		"Commenter":        filterOptions.Commenter,
 		"User":             currentUser,
+	}
+	if defaults.includePageTitle {
+		data["PageTitle"] = h.buildPageTitle(filterOptions)
 	}
 
 	// Get cached templates (only parses on first request)
-	tmpl, err := templates.Get("board", "templates/base.html", "templates/board.html")
+	tmpl, err := templates.Get(defaults.templateName, "templates/base.html", "templates/"+defaults.templateName+".html")
 	if err != nil {
 		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 		return
@@ -332,15 +245,9 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 		commentsFromService, err := h.commentService.ListCommentsByPost(ctx, post.PublicID)
 		if err == nil {
 			for _, comment := range commentsFromService {
-				var authorUsername string
-				var authorPublicID string
-				if comment.UserID != 0 {
-					user, err := h.userService.GetByID(ctx, comment.UserID)
-					if err == nil && user != nil {
-						authorUsername = user.Username
-						authorPublicID = user.PublicID
-					}
-				}
+				// Author data is already populated by the repository JOIN query
+				authorUsername := comment.AuthorUsername
+				authorPublicID := comment.PublicUserID
 
 				// Get reaction counts for this comment
 				likes, dislikes := 0, 0
@@ -422,6 +329,7 @@ func (h *HTTPHandler) CreatePostPage(w http.ResponseWriter, r *http.Request) {
 		"Categories":      categories,
 		"ShowSidebar":     true,
 		"ShowPostSidebar": true,
+		"PostSidebarMode": "create",
 		"MaxImageSize":    h.postService.MaxImageSize(),
 	}
 
@@ -497,6 +405,7 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 		"Categories":      categories,
 		"ShowSidebar":     true,
 		"ShowPostSidebar": true,
+		"PostSidebarMode": "edit",
 		"MaxImageSize":    h.postService.MaxImageSize(),
 	}
 

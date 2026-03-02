@@ -94,6 +94,49 @@ func TestSQLiteCommentRepository_Create(t *testing.T) {
 	}
 }
 
+func TestSQLiteCommentRepository_Create_UsesProvidedTimestamps(t *testing.T) {
+	db := setupCommentTestDB(t)
+	defer db.Close()
+
+	repo := NewSQLiteCommentRepository(db)
+
+	_, err := db.Exec("INSERT INTO posts (id, public_id) VALUES (?, ?)", 10, "post-uuid-10")
+	if err != nil {
+		t.Fatalf("Failed to insert test post: %v", err)
+	}
+
+	createdAt := time.Date(2026, time.January, 2, 3, 4, 5, 0, time.UTC)
+	updatedAt := createdAt.Add(2 * time.Minute)
+	comment := &domain.Comment{
+		PostID:    10,
+		UserID:    5,
+		Content:   "Timestamp test",
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
+	}
+
+	if err := repo.Create(context.Background(), comment); err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	var createdUnix int64
+	var updatedUnix int64
+	err = db.QueryRow(
+		"SELECT CAST(strftime('%s', created_at) AS INTEGER), CAST(strftime('%s', updated_at) AS INTEGER) FROM comments WHERE public_id = ?",
+		comment.PublicID,
+	).Scan(&createdUnix, &updatedUnix)
+	if err != nil {
+		t.Fatalf("Failed to query persisted timestamps: %v", err)
+	}
+
+	if createdUnix != createdAt.Unix() {
+		t.Fatalf("expected created_at unix %d, got %d", createdAt.Unix(), createdUnix)
+	}
+	if updatedUnix != updatedAt.Unix() {
+		t.Fatalf("expected updated_at unix %d, got %d", updatedAt.Unix(), updatedUnix)
+	}
+}
+
 // TestSQLiteCommentRepository_GetByPublicID tests retrieval by public UUID
 func TestSQLiteCommentRepository_GetByPublicID(t *testing.T) {
 	db := setupCommentTestDB(t)

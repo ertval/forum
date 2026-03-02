@@ -264,7 +264,7 @@ func TestService_GetComment(t *testing.T) {
 	mockRepo := &MockCommentRepository{}
 	mockPostService := &MockPostService{}
 	mockUserService := &MockUserService{}
-	service := NewService(mockRepo, mockPostService, mockUserService)
+	service := NewService(mockRepo, mockPostService, mockUserService, nil)
 
 	// Add a test comment to the mock
 	testTime := time.Now()
@@ -311,7 +311,7 @@ func TestService_DeleteComment(t *testing.T) {
 	mockRepo := &MockCommentRepository{}
 	mockPostService := &MockPostService{}
 	mockUserService := &MockUserService{}
-	service := NewService(mockRepo, mockPostService, mockUserService)
+	service := NewService(mockRepo, mockPostService, mockUserService, nil)
 
 	// Add a test comment to the mock
 	testTime := time.Now()
@@ -346,7 +346,7 @@ func TestService_ListCommentsByPost(t *testing.T) {
 	mockRepo := &MockCommentRepository{}
 	mockPostService := &MockPostService{}
 	mockUserService := &MockUserService{}
-	service := NewService(mockRepo, mockPostService, mockUserService)
+	service := NewService(mockRepo, mockPostService, mockUserService, nil)
 
 	// Add test comments to the mock
 	testTime := time.Now()
@@ -393,7 +393,7 @@ func TestService_CreateComment(t *testing.T) {
 	mockRepo := &MockCommentRepository{}
 	mockPostService := &MockPostService{}
 	mockUserService := &MockUserService{}
-	service := NewService(mockRepo, mockPostService, mockUserService)
+	service := NewService(mockRepo, mockPostService, mockUserService, nil)
 
 	t.Run("successful create comment", func(t *testing.T) {
 		comment, err := service.CreateComment(ctx, "post-uuid-10", 5, "Test content")
@@ -439,7 +439,7 @@ func TestService_UpdateComment(t *testing.T) {
 	mockRepo := &MockCommentRepository{}
 	mockPostService := &MockPostService{}
 	mockUserService := &MockUserService{}
-	service := NewService(mockRepo, mockPostService, mockUserService)
+	service := NewService(mockRepo, mockPostService, mockUserService, nil)
 
 	// Add a test comment to update
 	testTime := time.Now()
@@ -525,7 +525,7 @@ func TestService_ListCommentsByUser(t *testing.T) {
 				}, nil
 			},
 		}
-		service := NewService(mockRepo, mockPostService, mockUserService)
+		service := NewService(mockRepo, mockPostService, mockUserService, nil)
 
 		comments, err := service.ListCommentsByUser(ctx, "user-public-id")
 		if err != nil {
@@ -544,7 +544,7 @@ func TestService_ListCommentsByUser(t *testing.T) {
 				return nil, userDomain.ErrUserNotFound
 			},
 		}
-		service := NewService(mockRepo, mockPostService, mockUserService)
+		service := NewService(mockRepo, mockPostService, mockUserService, nil)
 
 		_, err := service.ListCommentsByUser(ctx, "non-existent-user")
 		if err == nil {
@@ -558,7 +558,7 @@ func TestService_CreateComment_ValidationError(t *testing.T) {
 	mockRepo := &MockCommentRepository{}
 	mockPostService := &MockPostService{}
 	mockUserService := &MockUserService{}
-	service := NewService(mockRepo, mockPostService, mockUserService)
+	service := NewService(mockRepo, mockPostService, mockUserService, nil)
 
 	// Test with empty content (validation error)
 	_, err := service.CreateComment(ctx, "post-uuid-1", 1, "")
@@ -576,7 +576,7 @@ func TestService_DeleteComment_NotFound(t *testing.T) {
 	}
 	mockPostService := &MockPostService{}
 	mockUserService := &MockUserService{}
-	service := NewService(mockRepo, mockPostService, mockUserService)
+	service := NewService(mockRepo, mockPostService, mockUserService, nil)
 
 	err := service.DeleteComment(ctx, "non-existent-comment")
 	if err == nil {

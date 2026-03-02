@@ -119,13 +119,7 @@
             {{ else if and $showUserSidebar $isPostFormPage .ShowSidebar }}
             <div class="page-layout-three-col">
                 <aside class="sidebar-left">
-                    {{ if .ShowPostSidebar }}
-                    {{ if eq .Title "Create Post" }}
-                    {{ template "post-create-sidebar-cards" . }}
-                    {{ else }}
-                    {{ template "post-sidebar-cards" . }}
-                    {{ end }}
-                    {{ end }}
+                    {{ template "post-form-sidebar-content" . }}
                 </aside>
                 <div class="main-content">
                     {{ template "content" . }}
@@ -154,13 +148,7 @@
                     {{ if .ShowFilter }}
                     {{ template "filter-card" . }}
                     {{ end }}
-                    {{ if .ShowPostSidebar }}
-                    {{ if eq .Title "Create Post" }}
-                    {{ template "post-create-sidebar-cards" . }}
-                    {{ else }}
-                    {{ template "post-sidebar-cards" . }}
-                    {{ end }}
-                    {{ end }}
+                    {{ template "post-form-sidebar-content" . }}
                 </aside>
                 <div class="main-content">
                     {{ template "content" . }}
@@ -175,7 +163,7 @@
 
     <footer>
         <div class="container">
-            <p>&copy; Forum Authors.</p>
+            <p>&copy; <span id="current-year"></span> Forum Authors.</p>
             <p><a href="/health" class="category-tag">Health Status</a></p>
         </div>
     </footer>
@@ -183,6 +171,9 @@
     <script src="/static/js/utils.js"></script>
     <script src="/static/js/modal.js"></script>
     <script src="/static/js/main.js"></script>
+    <script>
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+    </script>
     {{block "scripts" .}}{{end}}
 
     <!-- HTML Templates for JS dynamic content (6.1) -->
@@ -294,9 +285,9 @@
 {{/* Filter Card Component - Shows filtering options */}}
 {{define "filter-card"}}
 <div class="filters">
-    <h2>{{if eq .Title "My Comments"}}Filter Comments{{else if eq .Title "My Activity"}}Filter Activity{{else}}Filter Posts{{end}}</h2>
+    <h2>{{if eq .FilterMode "comments"}}Filter Comments{{else if eq .FilterMode "activity"}}Filter Activity{{else}}Filter Posts{{end}}</h2>
     <form method="GET" action="{{.FilterAction}}">
-        {{if eq .Title "My Activity"}}
+        {{if eq .FilterMode "activity"}}
         <div class="filter-group">
             <label for="activity_type">Activity Type:</label>
             <select name="activity_type" id="activity_type">
@@ -490,6 +481,16 @@
         data-date-filter="{{if .DateFilter}}{{.DateFilter}}{{end}}">Show More</button>
 {{end}}
 
+{{define "post-form-sidebar-content"}}
+{{if .ShowPostSidebar}}
+{{if eq .PostSidebarMode "create"}}
+{{template "post-create-sidebar-cards" .}}
+{{else}}
+{{template "post-sidebar-cards" .}}
+{{end}}
+{{end}}
+{{end}}
+
 {{/* Post Edit Page Side Cards*/}}
 {{define "post-sidebar-cards"}}
 <div class="user-card">
@@ -509,7 +510,7 @@
     <div class="form-group">
         <label for="image">{{if .Post.ImageURL}}Replace Image{{else}}Add Image{{end}} (Optional)</label>
         <div class="file-input-wrapper">
-            <label for="image" class="file-input-label">Choose File</label>
+            <label for="image" class="file-input-label btn btn-primary btn-small">Choose File</label>
             <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif,image/webp" form="post-edit-form">
             <span class="file-name" id="file-name-display">No file chosen</span>
         </div>
@@ -548,7 +549,7 @@
     <div class="form-group">
         <label for="image">Add Image (Optional)</label>
         <div class="file-input-wrapper">
-            <label for="image" class="file-input-label">Choose File</label>
+            <label for="image" class="file-input-label btn btn-primary btn-small">Choose File</label>
             <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif,image/webp" form="post-create-form">
             <span class="file-name" id="file-name-display">No file chosen</span>
         </div>

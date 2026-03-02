@@ -153,11 +153,6 @@ func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
 
 // CreatePostAPI handles post creation requests.
 func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		platformErrors.WriteErrorJSON(w, http.StatusMethodNotAllowed, "Method not allowed")
-		return
-	}
-
 	// Get user PUBLIC ID (UUID) from context (set by RequireAuth middleware)
 	userPublicID := authPorts.GetUserID(r.Context())
 	if userPublicID == "" {
@@ -215,11 +210,6 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 
 // GetPostAPI handles post retrieval requests.
 func (h *HTTPHandler) GetPostAPI(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		platformErrors.WriteErrorJSON(w, http.StatusMethodNotAllowed, "Method not allowed")
-		return
-	}
-
 	ctx := r.Context()
 
 	// Extract post ID from path variable (Go 1.22+ pattern)
@@ -415,15 +405,8 @@ func (h *HTTPHandler) DeletePostAPI(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ListPostsAPI handles listing posts with filters.
-func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		platformErrors.WriteErrorJSON(w, http.StatusMethodNotAllowed, "Method not allowed")
-		return
-	}
-
-	currentUserPublicID := authPorts.GetUserID(r.Context())
-	limit := 50
+func parseListPagination(r *http.Request, defaultLimit int) (int, int) {
+	limit := defaultLimit
 	offset := 0
 
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
@@ -431,13 +414,20 @@ func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 			limit = parsedLimit
 		}
 	}
+
 	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
 		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
 			offset = parsedOffset
 		}
 	}
 
-	filterParams := postDomain.FilterParams{
+	return limit, offset
+}
+
+func buildListFilterOptions(r *http.Request, currentUserPublicID string, defaultLimit int) listFilterOptions {
+	limit, offset := parseListPagination(r, defaultLimit)
+
+	filterOptions := listFilterOptions{
 		Category:       r.URL.Query().Get("category"),
 		UserID:         r.URL.Query().Get("user"),
 		ActivityType:   r.URL.Query().Get("activity_type"),
@@ -452,14 +442,23 @@ func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 		Offset:         offset,
 		CurrentUserID:  currentUserPublicID,
 	}
-	if filterParams.Commenter == "" && filterParams.CommentedPosts && currentUserPublicID != "" {
-		filterParams.Commenter = currentUserPublicID
+	if filterOptions.Commenter == "" && filterOptions.CommentedPosts && currentUserPublicID != "" {
+		filterOptions.Commenter = currentUserPublicID
 	}
 
-	filter := h.filterService.BuildFilter(r.Context(), filterParams)
+	return filterOptions
+}
 
-	// Get posts
-	posts, err := h.postService.ListPosts(r.Context(), filter)
+func (h *HTTPHandler) listPostsForRequest(r *http.Request, currentUserPublicID string, defaultLimit int) ([]*postDomain.Post, error) {
+	filterOptions := buildListFilterOptions(r, currentUserPublicID, defaultLimit)
+	filter := buildPostFilter(filterOptions)
+	return h.postService.ListPosts(r.Context(), filter)
+}
+
+// ListPostsAPI handles listing posts with filters.
+func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
+	currentUserPublicID := authPorts.GetUserID(r.Context())
+	posts, err := h.listPostsForRequest(r, currentUserPublicID, 50)
 	if err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve posts")
 		return
@@ -474,63 +473,8 @@ func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 
 // LoadMorePostsAPI handles loading additional posts for the homepage.
 func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		platformErrors.WriteErrorJSON(w, http.StatusMethodNotAllowed, "Method not allowed")
-		return
-	}
-
-	ctx := r.Context()
-
-	// Get user PUBLIC ID (UUID) from session cookie if available.
-	var userPublicID string
-	cookie, err := r.Cookie("session_token")
-	if err == nil && cookie.Value != "" {
-		if session, err := h.authService.ValidateSession(ctx, cookie.Value); err == nil && session != nil {
-			user, err := h.userService.GetByID(ctx, session.UserID)
-			if err == nil && user != nil {
-				userPublicID = user.PublicID
-			}
-		}
-	}
-
-	limit := 20 // Load 20 posts at a time
-	offset := 0
-
-	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
-		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
-		}
-	}
-
-	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
-		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
-			offset = parsedOffset
-		}
-	}
-
-	filterParams := postDomain.FilterParams{
-		Category:       r.URL.Query().Get("category"),
-		UserID:         r.URL.Query().Get("user"),
-		ActivityType:   r.URL.Query().Get("activity_type"),
-		ReactionType:   r.URL.Query().Get("reaction_type"),
-		MyPosts:        r.URL.Query().Get("my_posts") == "true",
-		LikedPosts:     r.URL.Query().Get("liked_posts") == "true",
-		DislikedPosts:  r.URL.Query().Get("disliked_posts") == "true",
-		CommentedPosts: r.URL.Query().Get("commented_posts") == "true",
-		Commenter:      r.URL.Query().Get("commenter"),
-		DateFilter:     r.URL.Query().Get("date_filter"),
-		Limit:          limit,
-		Offset:         offset,
-		CurrentUserID:  userPublicID,
-	}
-	if filterParams.Commenter == "" && filterParams.CommentedPosts && userPublicID != "" {
-		filterParams.Commenter = userPublicID
-	}
-
-	filter := h.filterService.BuildFilter(r.Context(), filterParams)
-
-	// Get posts
-	posts, err := h.postService.ListPosts(r.Context(), filter)
+	currentUserPublicID := authPorts.GetUserID(r.Context())
+	posts, err := h.listPostsForRequest(r, currentUserPublicID, 20)
 	if err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve posts")
 		return
@@ -546,7 +490,6 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 		previewPost["UserID"] = post.UserPublicID
 		previewPost["UserPublicID"] = post.UserPublicID
 		previewPost["AuthorUsername"] = post.AuthorUsername
-		previewPost["Author"] = post.AuthorUsername
 		previewPost["Title"] = post.Title
 		previewPost["Content"] = createPostPreview(post.Content)
 		previewPost["ImageURL"] = post.ImageURL

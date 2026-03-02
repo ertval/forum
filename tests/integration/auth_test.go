@@ -48,6 +48,7 @@ func TestAuthIntegration(t *testing.T) {
 			email TEXT UNIQUE NOT NULL,
 			username TEXT UNIQUE NOT NULL,
 			password_hash TEXT NOT NULL,
+			avatar_path TEXT DEFAULT '',
 			role TEXT NOT NULL DEFAULT 'user',
 			oauth_provider TEXT,
 			oauth_provider_id TEXT,

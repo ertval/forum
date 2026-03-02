@@ -3,50 +3,26 @@
     <h2>System Health Status</h2>
     <p>This page shows the current status of the application's core dependencies and module API endpoints.</p>
 
-    <!-- Core Services -->
-    <h3>Core Services</h3>
+    {{range .HealthSections}}
+    <h3>{{.Title}}</h3>
     <table>
         <thead>
             <tr>
-                <th>Service</th>
+                <th>{{.ColName}}</th>
                 <th>Status</th>
             </tr>
         </thead>
         <tbody>
-            {{range $service, $status := .Health}}
-                {{if eq $service "database"}}
-                    <tr>
-                        <td>Database</td>
-                        <td>
-                            <span class="status-badge status-{{$status}}">{{$status}}</span>
-                        </td>
-                    </tr>
-                {{end}}
-            {{end}}
-        </tbody>
-    </table>
-
-    <!-- Module API Endpoints -->
-    <h3>Module API Status</h3>
-    <table>
-        <thead>
+            {{range .Rows}}
             <tr>
-                <th>Module</th>
-                <th>Status</th>
+                <td>{{.Label}}</td>
+                <td>
+                    <span class="status-badge status-{{.Status}}">{{.Status}}</span>
+                </td>
             </tr>
-        </thead>
-        <tbody>
-            {{range $service, $status := .Health}}
-                {{if and (ne $service "database")}}
-                    <tr>
-                        <td>{{$service}}</td>
-                        <td>
-                            <span class="status-badge status-{{$status}}">{{$status}}</span>
-                        </td>
-                    </tr>
-                {{end}}
             {{end}}
         </tbody>
     </table>
+    {{end}}
 </div>
 {{end}}

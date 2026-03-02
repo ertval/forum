@@ -171,23 +171,57 @@ document.addEventListener('DOMContentLoaded', function() {
         const article = document.createElement('article');
         article.className = 'comment';
         article.id = `comment-${safeCommentId}`;
-        article.innerHTML = `
-            <div class="comment-header">
-                <span class="comment-author">${safeAuthor}</span>
-                <span class="comment-date">${formattedDate}</span>
-            </div>
-            <div class="comment-content">${safeContent}</div>
-            <div class="comment-actions">
-                <div class="comment-reactions">
-                    <button class="btn-like-comment" data-comment-id="${safeCommentId}">👍 (0)</button>
-                    <button class="btn-dislike-comment" data-comment-id="${safeCommentId}">👎 (0)</button>
-                </div>
-                <div class="comment-owner-actions">
-                    <button class="btn btn-secondary btn-edit-comment" data-comment-id="${safeCommentId}">Edit</button>
-                    <button class="btn btn-danger btn-delete-comment" data-comment-id="${safeCommentId}">Delete</button>
-                </div>
-            </div>
-        `;
+
+        const header = document.createElement('div');
+        header.className = 'comment-header';
+        const author = document.createElement('span');
+        author.className = 'comment-author';
+        author.textContent = safeAuthor;
+        const date = document.createElement('span');
+        date.className = 'comment-date';
+        date.textContent = formattedDate;
+        header.appendChild(author);
+        header.appendChild(date);
+
+        const content = document.createElement('div');
+        content.className = 'comment-content';
+        content.textContent = safeContent;
+
+        const actions = document.createElement('div');
+        actions.className = 'comment-actions';
+
+        const reactions = document.createElement('div');
+        reactions.className = 'comment-reactions';
+        const likeBtn = document.createElement('button');
+        likeBtn.className = 'btn-like-comment';
+        likeBtn.setAttribute('data-comment-id', safeCommentId);
+        likeBtn.textContent = '👍 (0)';
+        const dislikeBtn = document.createElement('button');
+        dislikeBtn.className = 'btn-dislike-comment';
+        dislikeBtn.setAttribute('data-comment-id', safeCommentId);
+        dislikeBtn.textContent = '👎 (0)';
+        reactions.appendChild(likeBtn);
+        reactions.appendChild(dislikeBtn);
+
+        const ownerActions = document.createElement('div');
+        ownerActions.className = 'comment-owner-actions';
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-secondary btn-edit-comment';
+        editBtn.setAttribute('data-comment-id', safeCommentId);
+        editBtn.textContent = 'Edit';
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-danger btn-delete-comment';
+        deleteBtn.setAttribute('data-comment-id', safeCommentId);
+        deleteBtn.textContent = 'Delete';
+        ownerActions.appendChild(editBtn);
+        ownerActions.appendChild(deleteBtn);
+
+        actions.appendChild(reactions);
+        actions.appendChild(ownerActions);
+
+        article.appendChild(header);
+        article.appendChild(content);
+        article.appendChild(actions);
         return article;
     }
 

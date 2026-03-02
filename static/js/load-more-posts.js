@@ -115,14 +115,6 @@
             const postDate = new Date(post.CreatedAt);
             const formattedDate = postDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
-            const categoriesHtml = (post.Categories || []).map(cat => {
-                const safeCat = window.escapeHtml(cat);
-                if (compact) {
-                    return `<a class="category-tag-compact" href="?category=${encodeURIComponent(cat)}">${safeCat}</a>`;
-                }
-                return `<a class="category-tag" href="/board?category=${encodeURIComponent(cat)}">${safeCat}</a>`;
-            }).join('');
-
             const likeCount = parseInt(post.LikeCount, 10) || 0;
             const dislikeCount = parseInt(post.DislikeCount, 10) || 0;
             const commentCount = parseInt(post.CommentCount, 10) || 0;
@@ -131,32 +123,94 @@
             const cls = compact ? 'post-card-compact' : 'post-card';
             el.className = `${cls} clickable-card`;
             el.setAttribute('data-href', `/posts/${safePostId}`);
-            el.innerHTML = `
-                <div class="post-header${prefix}">
-                    <h3><a href="/posts/${safePostId}">${safeTitle}</a></h3>
-                    <div class="post-meta${prefix}">
-                        <span class="author${prefix}">by ${safeAuthor}</span>
-                        <span class="date${prefix}">${formattedDate}</span>
-                    </div>
-                </div>
-                ${safeImageURL ? `<div class="post-image${prefix}"><img src="${safeImageURL}" alt="${safeTitle}"></div>` : ''}
-                <div class="post-content${prefix}"><p>${safeContent}</p></div>
-                <div class="post-footer${prefix}">
-                    <div class="categories${prefix}">${categoriesHtml}</div>
-                    <div class="post-actions${prefix}">
-                        <button class="btn-like" data-post-id="${safePostId}" aria-label="Like this post" title="Like">👍 ${likeCount}</button>
-                        <button class="btn-dislike" data-post-id="${safePostId}" aria-label="Dislike this post" title="Dislike">👎 ${dislikeCount}</button>
-                        <span class="comments${prefix}">💬 ${commentCount}</span>
-                    </div>
-                </div>
-            `;
+
+            const header = document.createElement('div');
+            header.className = `post-header${prefix}`;
+
+            const heading = document.createElement('h3');
+            const link = document.createElement('a');
+            link.href = `/posts/${safePostId}`;
+            link.textContent = safeTitle;
+            heading.appendChild(link);
+            header.appendChild(heading);
+
+            const meta = document.createElement('div');
+            meta.className = `post-meta${prefix}`;
+            const author = document.createElement('span');
+            author.className = `author${prefix}`;
+            author.textContent = `by ${safeAuthor}`;
+            const date = document.createElement('span');
+            date.className = `date${prefix}`;
+            date.textContent = formattedDate;
+            meta.appendChild(author);
+            meta.appendChild(date);
+            header.appendChild(meta);
+            el.appendChild(header);
+
+            if (safeImageURL) {
+                const imageWrap = document.createElement('div');
+                imageWrap.className = `post-image${prefix}`;
+                const image = document.createElement('img');
+                image.src = safeImageURL;
+                image.alt = safeTitle;
+                imageWrap.appendChild(image);
+                el.appendChild(imageWrap);
+            }
+
+            const contentWrap = document.createElement('div');
+            contentWrap.className = `post-content${prefix}`;
+            const contentP = document.createElement('p');
+            contentP.textContent = safeContent;
+            contentWrap.appendChild(contentP);
+            el.appendChild(contentWrap);
+
+            const footer = document.createElement('div');
+            footer.className = `post-footer${prefix}`;
+            const categoriesContainer = document.createElement('div');
+            categoriesContainer.className = `categories${prefix}`;
+
+            (post.Categories || []).forEach(cat => {
+                const safeCat = window.escapeHtml(cat);
+                const categoryLink = document.createElement('a');
+                categoryLink.className = compact ? 'category-tag-compact' : 'category-tag';
+                categoryLink.href = compact ? `?category=${encodeURIComponent(cat)}` : `/board?category=${encodeURIComponent(cat)}`;
+                categoryLink.textContent = safeCat;
+                categoriesContainer.appendChild(categoryLink);
+            });
+
+            const actions = document.createElement('div');
+            actions.className = `post-actions${prefix}`;
+
+            const likeBtn = document.createElement('button');
+            likeBtn.className = 'btn-like';
+            likeBtn.setAttribute('data-post-id', safePostId);
+            likeBtn.setAttribute('aria-label', 'Like this post');
+            likeBtn.setAttribute('title', 'Like');
+            likeBtn.textContent = `👍 ${likeCount}`;
+
+            const dislikeBtn = document.createElement('button');
+            dislikeBtn.className = 'btn-dislike';
+            dislikeBtn.setAttribute('data-post-id', safePostId);
+            dislikeBtn.setAttribute('aria-label', 'Dislike this post');
+            dislikeBtn.setAttribute('title', 'Dislike');
+            dislikeBtn.textContent = `👎 ${dislikeCount}`;
+
+            const comments = document.createElement('span');
+            comments.className = `comments${prefix}`;
+            comments.textContent = `💬 ${commentCount}`;
+
+            actions.appendChild(likeBtn);
+            actions.appendChild(dislikeBtn);
+            actions.appendChild(comments);
+            footer.appendChild(categoriesContainer);
+            footer.appendChild(actions);
+            el.appendChild(footer);
+
             return el;
         }
 
         async function fetchPosts(params) {
-            const response = await fetch(`/api/posts/load-more?${params}`);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            return await response.json();
+            return await window.api.request(`/api/posts/load-more?${params}`);
         }
 
         const BATCH_SIZE = 20; // load 20 posts per click

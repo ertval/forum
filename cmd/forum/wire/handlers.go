@@ -25,6 +25,7 @@ type Handlers struct {
 	Reaction     *reactionAdapters.HTTPHandler
 	Moderation   *moderationAdapters.HTTPHandler
 	Notification *notificationAdapters.HTTPHandler
+	Templates    *template.Template
 }
 
 // initHandlers creates all HTTP handler instances with unified dependency injection.
@@ -55,5 +56,6 @@ func initHandlers(services *ServiceContainer, cfg *config.Config) (*Handlers, er
 		Reaction:     reactionAdapters.NewHTTPHandler(services, templates),
 		Moderation:   moderationAdapters.NewHTTPHandler(services, templates),
 		Notification: notificationAdapters.NewHTTPHandler(services, templates),
+		Templates:    templates,
 	}, nil
 }
