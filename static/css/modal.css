@@ -124,14 +124,3 @@
     outline: 2px solid #a0c8e0;
     outline-offset: 2px;
 }
-
-/* Animation for modal shake on invalid action */
-@keyframes modalShake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-5px); }
-    75% { transform: translateX(5px); }
-}
-
-.modal.shake {
-    animation: modalShake 0.3s ease;
-}

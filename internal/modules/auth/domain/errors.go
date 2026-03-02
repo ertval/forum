@@ -1,4 +1,4 @@
-// Package domain contains the core business entities for the auth module.
+// Package domain contains error definitions for the auth module.
 package domain
 
 import "errors"

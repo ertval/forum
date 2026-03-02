@@ -1,4 +1,4 @@
-// Package domain contains core entities for the comment module.
+// Package domain contains the core business entities for the comment module.
 package domain
 
 import (

@@ -32,107 +32,118 @@ type healthTableSection struct {
 	ColName string
 }
 
-func HealthAPI(checker *health.Checker) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Perform checks
-		results := checker.Check(r.Context())
+// HealthHandler handles health check HTTP requests.
+// It follows the same RegisterRoutes pattern as module handlers.
+type HealthHandler struct {
+	checker          *health.Checker
+	templates        *templates.Registry
+	authFunc         func(r *http.Request) (publicID string, username string)
+	getUserWithStats func(r *http.Request) map[string]interface{}
+}
 
-		// Determine overall status — only critical checks affect readiness
-		criticalHealthy := true
-		for key, status := range results {
-			if criticalChecks[key] && status != "up" {
-				criticalHealthy = false
-				break
-			}
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		if !criticalHealthy {
-			w.WriteHeader(http.StatusServiceUnavailable)
-		} else {
-			w.WriteHeader(http.StatusOK)
-		}
-
-		json.NewEncoder(w).Encode(results)
+// NewHealthHandler creates a new health handler with the given dependencies.
+func NewHealthHandler(
+	checker *health.Checker,
+	tmpl *templates.Registry,
+	authFunc func(r *http.Request) (string, string),
+	getUserWithStats func(r *http.Request) map[string]interface{},
+) *HealthHandler {
+	return &HealthHandler{
+		checker:          checker,
+		templates:        tmpl,
+		authFunc:         authFunc,
+		getUserWithStats: getUserWithStats,
 	}
 }
 
-// HealthPageConfig holds dependencies for the health UI page handler.
-type HealthPageConfig struct {
-	Checker          *health.Checker
-	Templates        *templates.Registry
-	AuthFunc         func(r *http.Request) (publicID string, username string)
-	GetUserWithStats func(r *http.Request) map[string]interface{}
+// RegisterRoutes registers all health check routes on the given router.
+func (h *HealthHandler) RegisterRoutes(router *http.ServeMux) {
+	router.HandleFunc("GET /health", h.HealthPage)
+	router.HandleFunc("GET /health-api", h.HealthAPI)
+}
+
+// HealthAPI returns health check results as JSON.
+func (h *HealthHandler) HealthAPI(w http.ResponseWriter, r *http.Request) {
+	results := h.checker.Check(r.Context())
+
+	// Determine overall status — only critical checks affect readiness
+	criticalHealthy := true
+	for key, status := range results {
+		if criticalChecks[key] && status != "up" {
+			criticalHealthy = false
+			break
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if !criticalHealthy {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+
+	json.NewEncoder(w).Encode(results)
 }
 
 // HealthPage renders an HTML page with the system's health status.
-// Now accepts shared templates and auth function to preserve session.
-func HealthPage(cfg HealthPageConfig) http.HandlerFunc {
-	if cfg.Templates == nil || cfg.Templates.Lookup("health") == nil {
-		return func(w http.ResponseWriter, r *http.Request) {
-			http.Error(w, "Health templates not available", http.StatusInternalServerError)
+func (h *HealthHandler) HealthPage(w http.ResponseWriter, r *http.Request) {
+	if h.templates == nil || h.templates.Lookup("health") == nil {
+		http.Error(w, "Health templates not available", http.StatusInternalServerError)
+		return
+	}
+
+	results := h.checker.Check(r.Context())
+
+	// Get current user if logged in
+	var currentUser interface{}
+	if h.getUserWithStats != nil {
+		currentUser = h.getUserWithStats(r)
+	} else if h.authFunc != nil {
+		if publicID, username := h.authFunc(r); publicID != "" {
+			currentUser = map[string]interface{}{
+				"PublicID": publicID,
+				"Username": username,
+			}
 		}
 	}
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Perform checks
-		results := cfg.Checker.Check(r.Context())
+	// Prepare data for the template
+	moduleRows := []healthTableRow{
+		{Label: "auth_api", Status: results["auth_api"]},
+		{Label: "post_api", Status: results["post_api"]},
+		{Label: "user_api", Status: results["user_api"]},
+		{Label: "comment_api", Status: results["comment_api"]},
+		{Label: "reaction_api", Status: results["reaction_api"]},
+		{Label: "moderation_api", Status: results["moderation_api"]},
+		{Label: "notification_api", Status: results["notification_api"]},
+	}
 
-		// Get current user if logged in
-		var currentUser interface{}
-		if cfg.GetUserWithStats != nil {
-			// Use full user data with stats if available
-			currentUser = cfg.GetUserWithStats(r)
-		} else if cfg.AuthFunc != nil {
-			// Fall back to basic auth info
-			if publicID, username := cfg.AuthFunc(r); publicID != "" {
-				currentUser = map[string]interface{}{
-					"PublicID": publicID,
-					"Username": username,
-				}
-			}
-		}
-
-		// Prepare data for the template
-		moduleRows := []healthTableRow{
-			{Label: "auth_api", Status: results["auth_api"]},
-			{Label: "post_api", Status: results["post_api"]},
-			{Label: "user_api", Status: results["user_api"]},
-			{Label: "comment_api", Status: results["comment_api"]},
-			{Label: "reaction_api", Status: results["reaction_api"]},
-			{Label: "moderation_api", Status: results["moderation_api"]},
-			{Label: "notification_api", Status: results["notification_api"]},
-		}
-
-		healthSections := []healthTableSection{
-			{
-				Title:   "Core Services",
-				ColName: "Service",
-				Rows: []healthTableRow{
-					{Label: "Database", Status: results["database"]},
-				},
+	healthSections := []healthTableSection{
+		{
+			Title:   "Core Services",
+			ColName: "Service",
+			Rows: []healthTableRow{
+				{Label: "Database", Status: results["database"]},
 			},
-			{
-				Title:   "Module API Status",
-				ColName: "Module",
-				Rows:    moduleRows,
-			},
-		}
+		},
+		{
+			Title:   "Module API Status",
+			ColName: "Module",
+			Rows:    moduleRows,
+		},
+	}
 
-		data := map[string]interface{}{
-			"Title":           "Health Status",
-			"HideUserSidebar": true,
-			"Health":          results,
-			"HealthSections":  healthSections,
-			"User":            currentUser,
-			// Health page should not show the sidebar even when user is present
-			"ShowSidebar": false,
-		}
+	data := map[string]interface{}{
+		"Title":           "Health Status",
+		"HideUserSidebar": true,
+		"Health":          results,
+		"HealthSections":  healthSections,
+		"User":            currentUser,
+		"ShowSidebar":     false,
+	}
 
-		// Execute the health template from the registry
-		w.Header().Set("Content-Type", "text/html")
-		if err := cfg.Templates.ExecuteTemplate(w, "health", "base", data); err != nil {
-			http.Error(w, "Could not execute template", http.StatusInternalServerError)
-		}
+	w.Header().Set("Content-Type", "text/html")
+	if err := h.templates.ExecuteTemplate(w, "health", "base", data); err != nil {
+		http.Error(w, "Could not execute template", http.StatusInternalServerError)
 	}
 }

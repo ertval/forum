@@ -1,5 +1,5 @@
 // OUTPUT PORT - Repository Interface
-// Package ports defines the output ports for the post module.
+// Package ports defines the output ports (data access contracts) for the post module.
 package ports
 
 import (

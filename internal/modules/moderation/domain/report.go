@@ -1,5 +1,5 @@
 // [OPTIONAL FEATURE: forum-moderation]
-// Package domain contains core entities for the moderation module.
+// Package domain contains the core business entities for the moderation module.
 package domain
 
 import (
@@ -58,16 +58,16 @@ func IsValidTargetType(targetType string) bool {
 	}
 }
 
-// IsValid checks if the report is valid.
-func (r *Report) IsValid() bool {
+// Validate checks if the report is valid and returns an error describing the failure.
+func (r *Report) Validate() error {
 	if !IsValidTargetType(r.TargetType) {
-		return false
+		return ErrInvalidTargetType
 	}
 	if !IsValidStatus(r.Status) {
-		return false
+		return ErrInvalidReportStatus
 	}
 	if strings.TrimSpace(r.Reason) == "" {
-		return false
+		return ErrInvalidReason
 	}
-	return true
+	return nil
 }

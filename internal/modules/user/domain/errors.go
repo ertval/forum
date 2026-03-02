@@ -1,4 +1,4 @@
-// Package domain contains the core business entities for the user module.
+// Package domain contains error definitions for the user module.
 package domain
 
 import "errors"

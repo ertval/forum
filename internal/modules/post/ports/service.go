@@ -1,5 +1,5 @@
 // INPUT PORT - Service Interface
-// Package ports defines the input ports for the post module.
+// Package ports defines the input ports (use cases) for the post module.
 package ports
 
 import (

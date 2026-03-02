@@ -172,15 +172,6 @@
         }
     }
 
-    /**
-     * Escape HTML to prevent XSS
-     */
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
     // Convenience functions for common dialogs
     window.confirmDelete = function(itemType) {
         return window.showConfirmModal({

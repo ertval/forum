@@ -16,12 +16,12 @@ func TestHealthAPI_IncludesNotificationStatusWhenRoutesRegistered(t *testing.T) 
 	router.Handle("PUT /api/notifications/{id}/read", http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 
 	checker := health.NewChecker(nil, router)
-	handler := HealthAPI(checker)
+	handler := NewHealthHandler(checker, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/health-api", nil)
 	rec := httptest.NewRecorder()
 
-	handler.ServeHTTP(rec, req)
+	handler.HealthAPI(rec, req)
 
 	var body map[string]string
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
@@ -75,11 +75,11 @@ func TestHealthAPI_ReadinessIgnoresOptionalChecks(t *testing.T) {
 	router.Handle("PUT /api/notifications/{id}/read", http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 
 	checker := health.NewChecker(conn.DB(), router)
-	handler := HealthAPI(checker)
+	handler := NewHealthHandler(checker, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/health-api", nil)
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
+	handler.HealthAPI(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status code = %d, want %d", rec.Code, http.StatusOK)

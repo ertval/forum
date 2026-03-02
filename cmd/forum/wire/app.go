@@ -136,14 +136,14 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *
 	// Create health checker after routes are registered
 	healthChecker := health.NewChecker(db, server.Router())
 
-	// Register health check routes with proper configuration
-	server.Router().Handle("GET /health", httpserver.HealthPage(httpserver.HealthPageConfig{
-		Checker:          healthChecker,
-		Templates:        handlers.Templates,
-		AuthFunc:         handlers.Auth.GetCurrentUser,
-		GetUserWithStats: handlers.Post.GetUserWithStats,
-	}))
-	server.Router().Handle("GET /health-api", httpserver.HealthAPI(healthChecker))
+	// Register health check routes with the same pattern as module routes
+	healthHandler := httpserver.NewHealthHandler(
+		healthChecker,
+		handlers.Templates,
+		handlers.Auth.GetCurrentUser,
+		handlers.Post.GetUserWithStats,
+	)
+	healthHandler.RegisterRoutes(server.Router())
 
 	// Serve static files (optional - skip if directory doesn't exist or isn't a directory)
 	if info, err := os.Stat("./static"); err == nil && info.IsDir() {

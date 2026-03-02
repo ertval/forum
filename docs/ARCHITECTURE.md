@@ -356,10 +356,13 @@ Shared infrastructure in `internal/platform/`:
 | config | Environment variable loading |
 | database | SQLite connection, migrations |
 | logger | Structured logging (JSON) |
-| httpserver | HTTP server, middleware, TLS, security headers |
+| httpserver | HTTP server, middleware, TLS, security headers, health handler |
+| health | Health checker (database + route verification) |
 | errors | Common errors, HTTP status mapping |
 | validator | Input validation |
 | upload | Image upload handling |
+
+**Health handler** follows the same `RegisterRoutes(router)` pattern as module handlers, keeping route registration consistent across the codebase.
 
 ---
 

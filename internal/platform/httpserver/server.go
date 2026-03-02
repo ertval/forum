@@ -89,7 +89,7 @@ func (s *Server) Start() error {
 	// Serve HTTP asynchronously
 	go func() {
 		if err := s.httpServer.Serve(httpLn); err != nil && err != http.ErrServerClosed {
-			// Error during serving is not recoverable at this point
+			fmt.Fprintf(os.Stderr, "HTTP serve error: %v\n", err)
 		}
 	}()
 
@@ -103,7 +103,7 @@ func (s *Server) Start() error {
 
 		go func() {
 			if err := s.tlsServer.ServeTLS(tlsLn, s.config.Security.TLSCertFile, s.config.Security.TLSKeyFile); err != nil && err != http.ErrServerClosed {
-				// Error during serving is not recoverable at this point
+				fmt.Fprintf(os.Stderr, "HTTPS serve error: %v\n", err)
 			}
 		}()
 	}

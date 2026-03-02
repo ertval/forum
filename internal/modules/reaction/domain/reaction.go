@@ -1,4 +1,4 @@
-// Package domain contains core entities for the reaction module.
+// Package domain contains the core business entities for the reaction module.
 package domain
 
 import "time"

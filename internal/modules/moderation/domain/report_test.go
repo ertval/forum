@@ -5,11 +5,11 @@ import (
 	"time"
 )
 
-func TestReport_IsValid(t *testing.T) {
+func TestReport_Validate(t *testing.T) {
 	tests := []struct {
-		name     string
-		report   *Report
-		expected bool
+		name      string
+		report    *Report
+		expectErr bool
 	}{
 		{
 			name: "valid post report",
@@ -22,7 +22,7 @@ func TestReport_IsValid(t *testing.T) {
 				Status:     StatusPending,
 				CreatedAt:  time.Now(),
 			},
-			expected: true,
+			expectErr: false,
 		},
 		{
 			name: "valid comment report",
@@ -35,7 +35,7 @@ func TestReport_IsValid(t *testing.T) {
 				Status:     StatusPending,
 				CreatedAt:  time.Now(),
 			},
-			expected: true,
+			expectErr: false,
 		},
 		{
 			name: "invalid target type",
@@ -48,7 +48,7 @@ func TestReport_IsValid(t *testing.T) {
 				Status:     StatusPending,
 				CreatedAt:  time.Now(),
 			},
-			expected: false,
+			expectErr: true,
 		},
 		{
 			name: "empty target type",
@@ -61,7 +61,7 @@ func TestReport_IsValid(t *testing.T) {
 				Status:     StatusPending,
 				CreatedAt:  time.Now(),
 			},
-			expected: false,
+			expectErr: true,
 		},
 		{
 			name: "empty reason",
@@ -74,7 +74,7 @@ func TestReport_IsValid(t *testing.T) {
 				Status:     StatusPending,
 				CreatedAt:  time.Now(),
 			},
-			expected: false,
+			expectErr: true,
 		},
 		{
 			name: "invalid status",
@@ -87,15 +87,15 @@ func TestReport_IsValid(t *testing.T) {
 				Status:     "unknown",
 				CreatedAt:  time.Now(),
 			},
-			expected: false,
+			expectErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.report.IsValid()
-			if result != tt.expected {
-				t.Errorf("IsValid() = %v, want %v", result, tt.expected)
+			err := tt.report.Validate()
+			if (err != nil) != tt.expectErr {
+				t.Errorf("Validate() error = %v, expectErr %v", err, tt.expectErr)
 			}
 		})
 	}

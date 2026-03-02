@@ -25,9 +25,16 @@ type responseWriter struct {
 	size   int
 }
 
+// Unwrap returns the underlying ResponseWriter for http.ResponseController compatibility.
+func (rw *responseWriter) Unwrap() http.ResponseWriter {
+	return rw.ResponseWriter
+}
+
 // WriteHeader captures the status code and delegates to the underlying writer.
 func (rw *responseWriter) WriteHeader(status int) {
-	rw.status = status
+	if rw.status == 0 {
+		rw.status = status
+	}
 	rw.ResponseWriter.WriteHeader(status)
 }
 
@@ -195,6 +202,7 @@ type rateLimiter struct {
 	trustProxy bool
 	entryCount int64 // atomic counter for entries
 	done       chan struct{}
+	stopOnce   sync.Once
 }
 
 // ipEntry tracks requests for a single IP with its own lock.
@@ -354,8 +362,9 @@ func (rl *rateLimiter) cleanup() {
 }
 
 // Stop gracefully shuts down the rate limiter's cleanup goroutine.
+// Safe to call multiple times.
 func (rl *rateLimiter) Stop() {
-	close(rl.done)
+	rl.stopOnce.Do(func() { close(rl.done) })
 }
 
 // NOTE: Authentication and Authorization middleware are intentionally NOT here.

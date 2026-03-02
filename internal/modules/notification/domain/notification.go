@@ -1,5 +1,5 @@
 // [OPTIONAL FEATURE: forum-advanced-features]
-// Package domain contains core entities for the notification module.
+// Package domain contains the core business entities for the notification module.
 package domain
 
 import "time"

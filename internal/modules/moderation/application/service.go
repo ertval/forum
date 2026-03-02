@@ -1,6 +1,5 @@
-// BUSINESS LOGIC - Application Service
 // [OPTIONAL FEATURE: forum-moderation]
-// Package application implements moderation service business logic.
+// Package application implements the moderation service business logic.
 package application
 
 import (
@@ -55,8 +54,8 @@ func (s *Service) CreateReport(ctx context.Context, reporterID int, targetPublic
 		PublicTargetID: targetPublicID,
 	}
 
-	if !report.IsValid() {
-		return nil, domain.ErrInvalidReason
+	if err := report.Validate(); err != nil {
+		return nil, err
 	}
 
 	if err := s.reportRepo.Create(ctx, report); err != nil {

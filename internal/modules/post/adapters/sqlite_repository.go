@@ -550,11 +550,7 @@ func repeatPlaceholders(count int) string {
 	if count <= 0 {
 		return ""
 	}
-	result := ""
-	for i := 0; i < count; i++ {
-		result += ", ?"
-	}
-	return result
+	return strings.Repeat(", ?", count)
 }
 
 func normalizeImagePath(path string) string {
