@@ -2,7 +2,6 @@
 package wire
 
 import (
-	"html/template"
 	"os"
 
 	platformTemplates "forum/internal/platform/templates"
@@ -25,67 +24,45 @@ type Handlers struct {
 	Reaction     *reactionAdapters.HTTPHandler
 	Moderation   *moderationAdapters.HTTPHandler
 	Notification *notificationAdapters.HTTPHandler
-	Templates    *template.Template
+	Templates    *platformTemplates.Registry
+}
+
+// pageTemplates lists all page templates that use base.html as a layout.
+// Adding a new page template only requires adding an entry here.
+var pageTemplates = []platformTemplates.TemplateEntry{
+	{Key: "home", Files: []string{"templates/base.html", "templates/home.html"}},
+	{Key: "board", Files: []string{"templates/base.html", "templates/board.html"}},
+	{Key: "post_detail", Files: []string{"templates/base.html", "templates/post_detail.html"}},
+	{Key: "post_create", Files: []string{"templates/base.html", "templates/post_create.html"}},
+	{Key: "post_edit", Files: []string{"templates/base.html", "templates/post_edit.html"}},
+	{Key: "activity", Files: []string{"templates/base.html", "templates/activity.html"}},
+	{Key: "comments", Files: []string{"templates/base.html", "templates/comments.html"}},
+	{Key: "settings", Files: []string{"templates/base.html", "templates/settings.html"}},
+	{Key: "login", Files: []string{"templates/base.html", "templates/login.html"}},
+	{Key: "register", Files: []string{"templates/base.html", "templates/register.html"}},
+	{Key: "health", Files: []string{"templates/base.html", "templates/health.html"}},
 }
 
 // initHandlers creates all HTTP handler instances with unified dependency injection.
 // Returns error if templates directory exists but contains invalid templates.
 func initHandlers(services *ServiceContainer) (*Handlers, error) {
-	// Parse HTML templates once for handlers that still use *html/template.Template
-	var htmlTemplates *template.Template
+	registry := platformTemplates.NewRegistry()
 
-	// Create shared template registry for handlers using platform/templates.Registry
-	templateRegistry := platformTemplates.NewRegistry()
-
-	// Check if templates directory exists
+	// Parse all page templates if the templates directory exists (skip for API-only mode)
 	if info, err := os.Stat("templates"); err == nil && info.IsDir() {
-		// Directory exists - parse templates (errors are fatal)
-		htmlTemplates, err = template.ParseGlob("templates/*.html")
-		if err != nil {
-			return nil, err
-		}
-
-		if _, err = templateRegistry.GetOrParse("post_detail", "templates/base.html", "templates/post_detail.html"); err != nil {
-			return nil, err
-		}
-		if _, err = templateRegistry.GetOrParse("home", "templates/base.html", "templates/home.html"); err != nil {
-			return nil, err
-		}
-		if _, err = templateRegistry.GetOrParse("board", "templates/base.html", "templates/board.html"); err != nil {
-			return nil, err
-		}
-		if _, err = templateRegistry.GetOrParse("post_create", "templates/base.html", "templates/post_create.html"); err != nil {
-			return nil, err
-		}
-		if _, err = templateRegistry.GetOrParse("post_edit", "templates/base.html", "templates/post_edit.html"); err != nil {
-			return nil, err
-		}
-		if _, err = templateRegistry.GetOrParse("activity", "templates/base.html", "templates/activity.html"); err != nil {
-			return nil, err
-		}
-		if _, err = templateRegistry.GetOrParse("comments", "templates/base.html", "templates/comments.html"); err != nil {
-			return nil, err
-		}
-		if _, err = templateRegistry.GetOrParse("settings", "templates/base.html", "templates/settings.html"); err != nil {
-			return nil, err
-		}
-		if _, err = templateRegistry.GetOrParse("login", "templates/base.html", "templates/login.html"); err != nil {
-			return nil, err
-		}
-		if _, err = templateRegistry.GetOrParse("register", "templates/base.html", "templates/register.html"); err != nil {
+		if err := registry.LoadAll(pageTemplates); err != nil {
 			return nil, err
 		}
 	}
-	// If directory doesn't exist, htmlTemplates remain nil (API-only mode)
 
 	return &Handlers{
-		Auth:         authAdapters.NewHTTPHandler(services, templateRegistry),
-		User:         userAdapters.NewHTTPHandler(services, templateRegistry),
-		Post:         postAdapters.NewHTTPHandler(services, templateRegistry),
-		Comment:      commentAdapters.NewHTTPHandler(services, templateRegistry),
-		Reaction:     reactionAdapters.NewHTTPHandler(services, templateRegistry),
-		Moderation:   moderationAdapters.NewHTTPHandler(services, templateRegistry),
-		Notification: notificationAdapters.NewHTTPHandler(services, templateRegistry),
-		Templates:    htmlTemplates,
+		Auth:         authAdapters.NewHTTPHandler(services, registry),
+		User:         userAdapters.NewHTTPHandler(services, registry),
+		Post:         postAdapters.NewHTTPHandler(services, registry),
+		Comment:      commentAdapters.NewHTTPHandler(services, registry),
+		Reaction:     reactionAdapters.NewHTTPHandler(services, registry),
+		Moderation:   moderationAdapters.NewHTTPHandler(services, registry),
+		Notification: notificationAdapters.NewHTTPHandler(services, registry),
+		Templates:    registry,
 	}, nil
 }

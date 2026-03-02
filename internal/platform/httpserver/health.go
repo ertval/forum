@@ -2,10 +2,10 @@ package httpserver
 
 import (
 	"encoding/json"
-	"html/template"
 	"net/http"
 
 	"forum/internal/platform/health"
+	"forum/internal/platform/templates"
 )
 
 // criticalChecks lists health check keys that must be "up" for the
@@ -59,18 +59,16 @@ func HealthAPI(checker *health.Checker) http.HandlerFunc {
 
 // HealthPageConfig holds dependencies for the health UI page handler.
 type HealthPageConfig struct {
-	Checker  *health.Checker
-	Templates *template.Template
-	AuthFunc func(r *http.Request) (publicID string, username string)
-	// GetUserWithStats returns full user data including stats for template rendering.
-	// If nil, only basic auth info (ID, Username) will be shown.
+	Checker          *health.Checker
+	Templates        *templates.Registry
+	AuthFunc         func(r *http.Request) (publicID string, username string)
 	GetUserWithStats func(r *http.Request) map[string]interface{}
 }
 
 // HealthPage renders an HTML page with the system's health status.
 // Now accepts shared templates and auth function to preserve session.
 func HealthPage(cfg HealthPageConfig) http.HandlerFunc {
-	if cfg.Templates == nil {
+	if cfg.Templates == nil || cfg.Templates.Lookup("health") == nil {
 		return func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Health templates not available", http.StatusInternalServerError)
 		}
@@ -131,9 +129,9 @@ func HealthPage(cfg HealthPageConfig) http.HandlerFunc {
 			"ShowSidebar": false,
 		}
 
-		// Execute the shared pre-parsed template set
+		// Execute the health template from the registry
 		w.Header().Set("Content-Type", "text/html")
-		if err := cfg.Templates.ExecuteTemplate(w, "base", data); err != nil {
+		if err := cfg.Templates.ExecuteTemplate(w, "health", "base", data); err != nil {
 			http.Error(w, "Could not execute template", http.StatusInternalServerError)
 		}
 	}

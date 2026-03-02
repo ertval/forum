@@ -2,8 +2,6 @@
 package wire
 
 import (
-	"context"
-
 	authAdapters "forum/internal/modules/auth/adapters"
 	authApp "forum/internal/modules/auth/application"
 	commentApp "forum/internal/modules/comment/application"
@@ -27,8 +25,8 @@ import (
 )
 
 // ServiceContainer holds all application services for dependency injection.
-// This provides a unified way to pass dependencies to handlers.
-// Fields are lowercase (private) with public accessor methods for interface satisfaction.
+// Fields are private with public accessor methods for interface segregation.
+// Each handler declares a local interface with only the accessors it needs.
 type ServiceContainer struct {
 	auth           authPorts.AuthService
 	authMiddleware authPorts.AuthMiddleware
@@ -45,12 +43,7 @@ type ServiceContainer struct {
 	uploadDir      string
 }
 
-// Service accessor methods satisfy handler-specific interfaces.
-// Each handler declares only the services it needs, e.g.:
-//
-//	type ServiceContainer interface { Auth() authPorts.AuthService }
-//
-// This pattern enables compile-time dependency verification and interface segregation.
+// Service accessor methods.
 func (sc *ServiceContainer) Auth() authPorts.AuthService                   { return sc.auth }
 func (sc *ServiceContainer) AuthMiddleware() authPorts.AuthMiddleware      { return sc.authMiddleware }
 func (sc *ServiceContainer) User() userPorts.UserService                   { return sc.user }
@@ -62,32 +55,47 @@ func (sc *ServiceContainer) Moderation() moderationPorts.ModerationService { ret
 func (sc *ServiceContainer) Notification() notificationPorts.NotificationService {
 	return sc.notification
 }
-func (sc *ServiceContainer) Logger() *logger.Logger { return sc.logger }
-func (sc *ServiceContainer) SessionCookieName() string {
-	if sc.sessionCookie == "" {
-		return "session_token"
-	}
-	return sc.sessionCookie
-}
-func (sc *ServiceContainer) SecureCookies() bool { return sc.secureCookies }
-func (sc *ServiceContainer) UploadDir() string {
-	if sc.uploadDir == "" {
-		return "./static/uploads"
-	}
-	return sc.uploadDir
-}
+func (sc *ServiceContainer) Logger() *logger.Logger    { return sc.logger }
+func (sc *ServiceContainer) SessionCookieName() string { return sc.sessionCookie }
+func (sc *ServiceContainer) SecureCookies() bool       { return sc.secureCookies }
+func (sc *ServiceContainer) UploadDir() string         { return sc.uploadDir }
 
-// initServices creates a ServiceContainer with all service instances and their dependencies.
+// initServices creates a ServiceContainer with all service instances.
 func initServices(repos *Repositories, cfg *config.Config, lgr *logger.Logger) *ServiceContainer {
+	// Simple services (single repository dependency)
 	userService := userApp.NewService(repos.User)
 	categoryService := postApp.NewCategoryService(repos.Category)
 	moderationService := moderationApp.NewService(repos.Moderation)
 	notificationService := notificationApp.NewService(repos.Notification)
 
-	authService := buildAuthService(repos, userService, cfg)
-	postService := buildPostService(repos, userService, cfg)
-	reactionService := buildReactionService(repos, userService, notificationService)
-	commentService := buildCommentService(repos, postService, userService, notificationService)
+	// Services with cross-module adapters
+	imageHandler := upload.NewImageHandler(cfg.Upload.UploadDir, cfg.Upload.MaxSize)
+
+	authService := authApp.NewService(
+		repos.Session,
+		authUserAdapter{user: userService},
+		cfg.Session.Duration,
+	)
+
+	postService := postApp.NewService(
+		repos.Post, repos.Category, userService, imageHandler, cfg.Upload.MaxSize,
+	)
+
+	commentService := commentApp.NewService(
+		repos.Comment,
+		commentPostAdapter{post: postService},
+		commentUserAdapter{user: userService},
+		notificationService,
+	)
+
+	reactionService := reactionApp.NewService(
+		repos.Reaction,
+		reactionPostAdapter{post: repos.Post},
+		reactionCommentAdapter{comment: repos.Comment},
+		userService,
+		notificationService,
+	)
+
 	authMiddleware := authAdapters.NewAuthMiddleware(authService, userService, cfg.Session.CookieName)
 
 	return &ServiceContainer{
@@ -105,124 +113,4 @@ func initServices(repos *Repositories, cfg *config.Config, lgr *logger.Logger) *
 		secureCookies:  cfg.Session.Secure,
 		uploadDir:      cfg.Upload.UploadDir,
 	}
-}
-
-func buildAuthService(repos *Repositories, userService userPorts.UserService, cfg *config.Config) authPorts.AuthService {
-	// Adapter keeps auth application layer isolated from the broader user service contract.
-	// This anti-corruption boundary prevents tight coupling when interfaces evolve independently.
-	return authApp.NewService(repos.Session, authUserServiceAdapter{user: userService}, cfg.Session.Duration)
-}
-
-func buildPostService(repos *Repositories, userService userPorts.UserService, cfg *config.Config) postPorts.PostService {
-	imageHandler := upload.NewImageHandler(cfg.Upload.UploadDir, cfg.Upload.MaxSize)
-	return postApp.NewService(repos.Post, repos.Category, userService, imageHandler, cfg.Upload.MaxSize)
-}
-
-func buildReactionService(
-	repos *Repositories,
-	userService userPorts.UserService,
-	notificationService notificationPorts.NotificationService,
-) reactionPorts.ReactionService {
-	// Adapters map repository methods to the exact reaction port shape.
-	// This avoids leaking repository/interface mismatch into the reaction domain service.
-	return reactionApp.NewService(
-		repos.Reaction,
-		reactionPostRepositoryAdapter{post: repos.Post},
-		reactionCommentRepositoryAdapter{comment: repos.Comment},
-		userService,
-		notificationService,
-	)
-}
-
-func buildCommentService(
-	repos *Repositories,
-	postService postPorts.PostService,
-	userService userPorts.UserService,
-	notificationService notificationPorts.NotificationService,
-) commentPorts.CommentService {
-	// Adapters form an anti-corruption boundary between comment ports and external service contracts.
-	// This keeps comment service dependencies stable without forcing cross-module interface rewrites.
-	return commentApp.NewService(
-		repos.Comment,
-		commentPostServiceAdapter{post: postService},
-		commentUserServiceAdapter{user: userService},
-		notificationService,
-	)
-}
-
-type authUserServiceAdapter struct {
-	user userPorts.UserService
-}
-
-func (a authUserServiceAdapter) ExistsByEmail(ctx context.Context, email string) (bool, error) {
-	return a.user.ExistsByEmail(ctx, email)
-}
-
-func (a authUserServiceAdapter) ExistsByUsername(ctx context.Context, username string) (bool, error) {
-	return a.user.ExistsByUsername(ctx, username)
-}
-
-func (a authUserServiceAdapter) CreateUser(ctx context.Context, email, username, passwordHash string) (int, error) {
-	return a.user.CreateUser(ctx, email, username, passwordHash)
-}
-
-func (a authUserServiceAdapter) GetAuthUserByEmail(ctx context.Context, email string) (*authApp.AuthUserRecord, error) {
-	user, err := a.user.GetByEmail(ctx, email)
-	if err != nil {
-		return nil, err
-	}
-	return &authApp.AuthUserRecord{ID: user.ID, PasswordHash: user.PasswordHash}, nil
-}
-
-type commentPostServiceAdapter struct {
-	post postPorts.PostService
-}
-
-func (a commentPostServiceAdapter) GetPostForComment(ctx context.Context, postID string) (*commentApp.PostRecord, error) {
-	post, err := a.post.GetPost(ctx, postID)
-	if err != nil {
-		return nil, err
-	}
-	return &commentApp.PostRecord{ID: post.ID, PublicID: post.PublicID, UserID: post.UserID}, nil
-}
-
-type commentUserServiceAdapter struct {
-	user userPorts.UserService
-}
-
-func (a commentUserServiceAdapter) ResolveUserIDByPublicID(ctx context.Context, publicID string) (int, error) {
-	user, err := a.user.GetByPublicID(ctx, publicID)
-	if err != nil {
-		return 0, err
-	}
-	return user.ID, nil
-}
-
-func (a commentUserServiceAdapter) IncrementCommentCount(ctx context.Context, userID int) error {
-	return a.user.IncrementCommentCount(ctx, userID)
-}
-
-func (a commentUserServiceAdapter) DecrementCommentCount(ctx context.Context, userID int) error {
-	return a.user.DecrementCommentCount(ctx, userID)
-}
-
-type reactionPostRepositoryAdapter struct {
-	post postPorts.PostRepository
-}
-
-func (a reactionPostRepositoryAdapter) GetPostForReaction(ctx context.Context, postID string) (*reactionApp.PostRecord, error) {
-	post, err := a.post.GetByID(ctx, postID)
-	if err != nil {
-		return nil, err
-	}
-	return &reactionApp.PostRecord{UserID: post.UserID}, nil
-}
-
-type reactionCommentRepositoryAdapter struct {
-	comment commentPorts.CommentRepository
-}
-
-func (a reactionCommentRepositoryAdapter) EnsureCommentExists(ctx context.Context, commentPublicID string) error {
-	_, err := a.comment.GetByPublicID(ctx, commentPublicID)
-	return err
 }
