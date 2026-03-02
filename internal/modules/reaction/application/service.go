@@ -7,11 +7,8 @@ import (
 	"log"
 	"time"
 
-	commentDomain "forum/internal/modules/comment/domain"
-	postDomain "forum/internal/modules/post/domain"
 	"forum/internal/modules/reaction/domain"
 	"forum/internal/modules/reaction/ports"
-	"forum/internal/platform/async"
 )
 
 // Notification type constants mirrored locally to avoid cross-module port imports.
@@ -20,16 +17,20 @@ const (
 	notifTypeDislike = "dislike"
 )
 
+type PostRecord struct {
+	UserID int
+}
+
 // postRepository defines the minimal post data access required by the reaction service.
 // This avoids a direct import of the post module's ports package.
 type postRepository interface {
-	GetByID(ctx context.Context, postID string) (*postDomain.Post, error)
+	GetPostForReaction(ctx context.Context, postID string) (*PostRecord, error)
 }
 
 // commentRepository defines the minimal comment data access required by the reaction service.
 // This avoids a direct import of the comment module's ports package.
 type commentRepository interface {
-	GetByPublicID(ctx context.Context, commentPublicID string) (*commentDomain.Comment, error)
+	EnsureCommentExists(ctx context.Context, commentPublicID string) error
 }
 
 // userService defines the minimal user operations required by the reaction service.
@@ -105,15 +106,15 @@ func (s *Service) React(ctx context.Context, userID int, targetPublicID string, 
 
 	if removed {
 		// Reaction was toggled off — decrement user's reaction count
-		async.Run(func(ctx context.Context) error {
-			return s.userService.DecrementReactionCount(ctx, userID)
-		}, fmt.Sprintf("decrement reaction count for user %d", userID))
+		runInBackground(fmt.Sprintf("decrement reaction count for user %d", userID), func() error {
+			return s.userService.DecrementReactionCount(context.Background(), userID)
+		})
 		return nil
 	}
 
 	// Reaction was created or updated — send notification for posts
 	if s.notificationService != nil && targetType == "post" {
-		post, postErr := s.postRepo.GetByID(ctx, targetPublicID)
+		post, postErr := s.postRepo.GetPostForReaction(ctx, targetPublicID)
 		if postErr == nil && post.UserID != userID {
 			notificationType := notifTypeLike
 			message := "Someone liked your post"
@@ -128,9 +129,9 @@ func (s *Service) React(ctx context.Context, userID int, targetPublicID string, 
 	}
 
 	// Increment user's reaction count asynchronously (non-blocking)
-	async.Run(func(ctx context.Context) error {
-		return s.userService.IncrementReactionCount(ctx, userID)
-	}, fmt.Sprintf("increment reaction count for user %d", userID))
+	runInBackground(fmt.Sprintf("increment reaction count for user %d", userID), func() error {
+		return s.userService.IncrementReactionCount(context.Background(), userID)
+	})
 
 	return nil
 }
@@ -154,9 +155,9 @@ func (s *Service) RemoveReaction(ctx context.Context, userID int, targetPublicID
 	}
 
 	// Decrement user's reaction count asynchronously (non-blocking)
-	async.Run(func(ctx context.Context) error {
-		return s.userService.DecrementReactionCount(ctx, userID)
-	}, fmt.Sprintf("decrement reaction count for user %d", userID))
+	runInBackground(fmt.Sprintf("decrement reaction count for user %d", userID), func() error {
+		return s.userService.DecrementReactionCount(context.Background(), userID)
+	})
 
 	return nil
 }
@@ -171,12 +172,12 @@ func (s *Service) GetReactions(ctx context.Context, targetPublicID string, targe
 	// Verify target exists
 	switch targetType {
 	case "post":
-		_, err := s.postRepo.GetByID(ctx, targetPublicID)
+		_, err := s.postRepo.GetPostForReaction(ctx, targetPublicID)
 		if err != nil {
 			return nil, err
 		}
 	case "comment":
-		_, err := s.commentRepo.GetByPublicID(ctx, targetPublicID)
+		err := s.commentRepo.EnsureCommentExists(ctx, targetPublicID)
 		if err != nil {
 			return nil, err
 		}
@@ -195,12 +196,12 @@ func (s *Service) CountReactions(ctx context.Context, targetPublicID string, tar
 	// Verify target exists
 	switch targetType {
 	case "post":
-		_, err := s.postRepo.GetByID(ctx, targetPublicID)
+		_, err := s.postRepo.GetPostForReaction(ctx, targetPublicID)
 		if err != nil {
 			return 0, 0, err
 		}
 	case "comment":
-		_, err := s.commentRepo.GetByPublicID(ctx, targetPublicID)
+		err := s.commentRepo.EnsureCommentExists(ctx, targetPublicID)
 		if err != nil {
 			return 0, 0, err
 		}
@@ -255,16 +256,24 @@ func (s *Service) GetByUserAndTargetPublicID(ctx context.Context, userID int, ta
 	// Verify target exists
 	switch targetType {
 	case "post":
-		_, err := s.postRepo.GetByID(ctx, targetPublicID)
+		_, err := s.postRepo.GetPostForReaction(ctx, targetPublicID)
 		if err != nil {
 			return nil, err
 		}
 	case "comment":
-		_, err := s.commentRepo.GetByPublicID(ctx, targetPublicID)
+		err := s.commentRepo.EnsureCommentExists(ctx, targetPublicID)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	return s.reactionRepo.GetByUserAndTargetPublicID(ctx, userID, targetPublicID, targetType)
+}
+
+func runInBackground(action string, fn func() error) {
+	go func() {
+		if err := fn(); err != nil {
+			log.Printf("WARNING: background action failed (%s): %v", action, err)
+		}
+	}()
 }

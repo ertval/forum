@@ -4,7 +4,7 @@
 
 A modular monolith web forum built with Go, following **Hexagonal Architecture** (Ports and Adapters). Clean boundaries, testable components, idiomatic Go.
 
-**Status**: Production-ready MVP with auth, posts, categories, comments, filtering, and image upload. Test coverage is broad and continuously maintained.
+**Status**: Production-ready core forum with auth, user, post, comment, reaction, notification, activity, filtering, and image upload. Moderation remains partial, and OAuth social login is deferred.
 
 **Stack**: Go 1.24+ | SQLite (CGO required) | Minimal deps (uuid, bcrypt, sqlite3)
 
@@ -66,11 +66,14 @@ internal/modules/{module}/
     └── sqlite_repository.go  # Database access
 ```
 
+**Current exception (documented and intentional):** API-only modules may omit `http_handler_page.go`. In this repository, `moderation`, `notification`, and `reaction` are API-only handlers at this time.
+
 ### Handler File Organization
 
 1. **http_handler.go** - Base handler struct, `ServiceContainer` interface, `NewHTTPHandler()`, `RegisterRoutes()`
 2. **http_handler_api.go** - JSON API handlers with `API` suffix (e.g., `CreatePostAPI`)
 3. **http_handler_page.go** - HTML page handlers with `Page` suffix (e.g., `LoginPage`)
+4. **API-only exception** - Modules without HTML pages keep `http_handler.go` + `http_handler_api.go` only
 
 ### File Header Markers
 
@@ -93,6 +96,9 @@ Auth:     POST /api/auth/register, /login, /logout | GET /api/auth/session
 Posts:    GET/POST /api/posts | GET/PUT/DELETE /api/posts/{id}
 Comments: GET/POST /api/comments/posts/{post_id} | GET/PUT/DELETE /api/comments/{id}
 Reactions: POST/DELETE /api/reactions | GET /api/reactions/{targetType}/{targetId}
+Notifications: GET /api/notifications | PUT /api/notifications/{id}/read | PUT /api/notifications/read-all
+Activity: GET /api/activity
+Moderation: POST/GET /api/moderation/reports | PUT /api/moderation/reports/{report_id}
 ```
 
 ---
@@ -107,12 +113,13 @@ Reactions: POST/DELETE /api/reactions | GET /api/reactions/{targetType}/{targetI
 | **post** | Full CRUD, categories, filtering, image upload |
 | **comment** | Full CRUD with ownership validation, my comments page |
 | **reaction** | Like/dislike toggles for posts/comments with counts |
+| **notification** | Notification creation/list/read flows and APIs |
 
-### Scaffolded (Partial Implementation)
+### Partial / Deferred
 | Module | Description |
 |--------|-------------|
-| **moderation** | Reports, roles - minimal implementation |
-| **notification** | User notifications - minimal implementation |
+| **moderation** | Core report routes exist; full lifecycle/response workflow still partial |
+| **oauth (social auth)** | Deferred (GitHub/Google integration not implemented in current release) |
 
 ---
 
@@ -297,17 +304,19 @@ Infrastructure concerns that span all modules are handled in `internal/platform/
 
 ## Dependency Rules
 
+Current repository convention:
+
 ```
-adapters    ─┐
-             ├─► Can import: domain, ports
-application ─┘
+domain       ───► stdlib only
 
-ports       ───► Can import: domain only
+ports        ───► domain + stdlib
 
-domain      ───► Can import: NOTHING (stdlib only)
+application  ───► own domain/ports + other modules' ports + selected internal/platform utilities
+
+adapters     ───► ports + domain + internal/platform
 ```
 
-**Module Communication**: Via service interfaces only
+**Module Communication Rule**: Cross-module access goes through exported `ports` interfaces; do not import another module's `application` or `adapters` packages.
 
 ```go
 // ✅ Import service interface
@@ -326,7 +335,7 @@ All wiring in `cmd/forum/wire/`:
 ```
 wire/
 ├── app.go          # Main app lifecycle
-├── repos.go        # Repository initialization
+├── repositories.go # Repository initialization
 ├── services.go     # ServiceContainer with all services
 └── handlers.go     # HTTP handler initialization
 ```
@@ -358,11 +367,13 @@ Shared infrastructure in `internal/platform/`:
 
 **SQLite** with migrations in `migrations/`:
 ```
-001_auth_create_sessions.sql
-002_user_create_users.sql
-003_post_create_tables.sql
-004_comment_create_comments.sql
-005_reaction_create_reactions.sql
+001_auth.sql
+002_user.sql
+003_post.sql
+004_comment.sql
+005_reaction.sql
+006_moderation.sql
+007_notification.sql
 ```
 
 **Running Migrations:**
@@ -370,7 +381,7 @@ Shared infrastructure in `internal/platform/`:
 - Manual: Run `make migrate` or `bash scripts/seed/run_migrations.sh`
 - The migrator creates a `schema_migrations` table to track applied migrations
 - Already-applied migrations are automatically skipped
-- See `migrations/MIGRATIONS_GUIDE.md` for detailed migration authoring guidelines
+- See `migrations/README.md` for migration authoring guidelines and conventions
 
 ---
 

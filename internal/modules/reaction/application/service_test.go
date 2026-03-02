@@ -183,6 +183,14 @@ func (m *MockPostRepository) GetByID(ctx context.Context, postID string) (*postD
 	return nil, fmt.Errorf("post not found")
 }
 
+func (m *MockPostRepository) GetPostForReaction(ctx context.Context, postID string) (*PostRecord, error) {
+	post, err := m.GetByID(ctx, postID)
+	if err != nil {
+		return nil, err
+	}
+	return &PostRecord{UserID: post.UserID}, nil
+}
+
 func (m *MockPostRepository) Update(ctx context.Context, post *postDomain.Post) error {
 	if m.posts == nil {
 		m.posts = make(map[string]*postDomain.Post)
@@ -241,6 +249,11 @@ func (m *MockCommentRepository) GetByPublicID(ctx context.Context, commentPublic
 		return comment, nil
 	}
 	return nil, fmt.Errorf("comment not found")
+}
+
+func (m *MockCommentRepository) EnsureCommentExists(ctx context.Context, commentPublicID string) error {
+	_, err := m.GetByPublicID(ctx, commentPublicID)
+	return err
 }
 
 func (m *MockCommentRepository) Update(ctx context.Context, comment *commentDomain.Comment) error {

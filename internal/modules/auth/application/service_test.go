@@ -84,6 +84,14 @@ func (m *MockUserService) GetByEmail(ctx context.Context, email string) (*userDo
 	return nil, errors.New("user not found")
 }
 
+func (m *MockUserService) GetAuthUserByEmail(ctx context.Context, email string) (*AuthUserRecord, error) {
+	user, err := m.GetByEmail(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+	return &AuthUserRecord{ID: user.ID, PasswordHash: user.PasswordHash}, nil
+}
+
 func (m *MockUserService) UpdateRole(ctx context.Context, userID int, newRole userDomain.Role) error {
 	return nil
 }

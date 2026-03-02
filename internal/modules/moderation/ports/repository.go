@@ -23,4 +23,7 @@ type ReportRepository interface {
 	// Update updates an existing report in the repository.
 	// Uses internal ID from the report entity.
 	Update(ctx context.Context, report *domain.Report) error
+
+	// ResolveTargetID resolves target public UUID to internal INT ID by target type.
+	ResolveTargetID(ctx context.Context, targetType, targetPublicID string) (int, error)
 }

@@ -8,21 +8,13 @@ import (
 
 // This test file verifies that the interfaces are properly defined and can be implemented
 func TestModerationServiceInterface(t *testing.T) {
-	// This test ensures that the ModerationService interface is properly defined
-	// and that we can create a variable of the interface type
-
 	var moderationService ModerationService
-	if moderationService != nil {
-		t.Error("ModerationService interface should be usable as a nil variable")
-	}
+	_ = moderationService
 }
 
 func TestReportRepositoryInterface(t *testing.T) {
-	// This test ensures that the ReportRepository interface is properly defined
 	var reportRepo ReportRepository
-	if reportRepo != nil {
-		t.Error("ReportRepository interface should be usable as a nil variable")
-	}
+	_ = reportRepo
 }
 
 // Mock implementations for interface compatibility testing
@@ -32,12 +24,12 @@ type mockModerationService struct{}
 var _ ModerationService = (*mockModerationService)(nil)
 var _ ReportRepository = (*mockReportRepository)(nil)
 
-func (m *mockModerationService) CreateReport(ctx context.Context, reporterID int, targetPublicID string, targetType, reason string) error {
-	return nil
+func (m *mockModerationService) CreateReport(ctx context.Context, reporterID int, targetPublicID string, targetType, reason string) (*domain.Report, error) {
+	return nil, nil
 }
 
-func (m *mockModerationService) ReviewReport(ctx context.Context, reportPublicID string, decision string) error {
-	return nil
+func (m *mockModerationService) ReviewReport(ctx context.Context, moderatorID int, reportPublicID string, status, response string) (*domain.Report, error) {
+	return nil, nil
 }
 
 func (m *mockModerationService) ListReports(ctx context.Context, status string) ([]*domain.Report, error) {
@@ -62,6 +54,10 @@ func (m *mockReportRepository) GetByPublicID(ctx context.Context, reportPublicID
 	return nil, nil
 }
 
+func (m *mockReportRepository) ResolveTargetID(ctx context.Context, targetType, targetPublicID string) (int, error) {
+	return 0, nil
+}
+
 func TestModerationServiceInterfaceMethods(t *testing.T) {
 	// Create context for testing
 	ctx := context.Background()
@@ -71,12 +67,12 @@ func TestModerationServiceInterfaceMethods(t *testing.T) {
 
 	// Test each method signature
 	// Use public ID string for target
-	err := service.CreateReport(ctx, 1, "pub-1", "post", "reason")
+	_, err := service.CreateReport(ctx, 1, "pub-1", "post", "reason")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
 
-	err = service.ReviewReport(ctx, "pub-1", "decision")
+	_, err = service.ReviewReport(ctx, 1, "pub-1", "reviewed", "decision")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
@@ -119,6 +115,12 @@ func TestReportRepositoryInterfaceMethods(t *testing.T) {
 
 	// Test GetByPublicID method
 	report, err = repo.GetByPublicID(ctx, "pub-1")
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	// Test ResolveTargetID method
+	_, err = repo.ResolveTargetID(ctx, "post", "pub-1")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}

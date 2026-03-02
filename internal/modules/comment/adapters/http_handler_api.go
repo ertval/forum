@@ -5,7 +5,9 @@ package adapters
 
 import (
 	"errors"
+	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	authPorts "forum/internal/modules/auth/ports"
@@ -16,12 +18,14 @@ import (
 // RegisterAPIRoutes registers all comment API routes with the router.
 func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
 	authMiddleware := h.middlewareProvider.RequireAuth()
+	optionalAuth := h.middlewareProvider.OptionalAuth()
 
 	// Protected API routes (require authentication)
 	router.Handle("POST /api/comments/posts/{post_id}", authMiddleware(http.HandlerFunc(h.CreateCommentAPI)))
 	router.Handle("PUT /api/comments/{id}", authMiddleware(http.HandlerFunc(h.UpdateCommentAPI)))
 	router.Handle("DELETE /api/comments/{id}", authMiddleware(http.HandlerFunc(h.DeleteCommentAPI)))
 	router.Handle("GET /api/activity", authMiddleware(http.HandlerFunc(h.GetActivityAPI)))
+	router.Handle("GET /api/comments/load-more", optionalAuth(http.HandlerFunc(h.LoadMoreCommentsAPI)))
 
 	// Public API routes (no authentication required)
 	// GET /api/comments/{id} - Get comment (public)
@@ -183,6 +187,11 @@ func (h *HTTPHandler) UpdateCommentAPI(w http.ResponseWriter, r *http.Request) {
 		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
 		return
 	}
+	currentUser, err := h.userService.GetByPublicID(r.Context(), userPublicID)
+	if err != nil || currentUser == nil {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
+		return
+	}
 
 	// Parse request body
 	var req struct {
@@ -271,6 +280,12 @@ func (h *HTTPHandler) DeleteCommentAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	currentUser, err := h.userService.GetByPublicID(r.Context(), userPublicID)
+	if err != nil || currentUser == nil {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
+		return
+	}
+
 	// For authorization check, first get the existing comment to verify ownership
 	existingComment, err := h.commentService.GetComment(r.Context(), commentPublicID)
 	if err != nil {
@@ -283,7 +298,8 @@ func (h *HTTPHandler) DeleteCommentAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if the user is the owner of the comment
-	if existingComment.UserID != userID {
+	canDeleteAny := currentUser.Role == "moderator" || currentUser.Role == "admin"
+	if existingComment.UserID != userID && !canDeleteAny {
 		platformErrors.WriteErrorJSON(w, http.StatusForbidden, "Not authorized to delete this comment")
 		return
 	}
@@ -362,4 +378,122 @@ func (h *HTTPHandler) ListCommentsByPostAPI(w http.ResponseWriter, r *http.Reque
 	}{
 		Comments: commentsResp,
 	})
+}
+
+// LoadMoreCommentsAPI handles loading additional comments for the My Comments page.
+func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get user PUBLIC ID (UUID) from session cookie.
+	var userPublicID string
+	cookie, err := r.Cookie("session_token")
+	if err == nil && cookie.Value != "" {
+		if session, err := h.authService.ValidateSession(ctx, cookie.Value); err == nil && session != nil {
+			user, err := h.userService.GetByID(ctx, session.UserID)
+			if err == nil && user != nil {
+				userPublicID = user.PublicID
+			}
+		}
+	}
+
+	if userPublicID == "" {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	limit := DefaultPaginationLimit
+	offset := 0
+
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= MaxPaginationLimit {
+			limit = l
+		}
+	}
+
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
+	comments, err := h.commentService.ListCommentsByUserPaginated(ctx, userPublicID, limit, offset)
+	if err != nil {
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve comments")
+		return
+	}
+
+	commentsData := make([]map[string]interface{}, 0, len(comments))
+
+	uniquePostIDs := make(map[string]struct{})
+	for _, comment := range comments {
+		if comment.PublicPostID != "" {
+			uniquePostIDs[comment.PublicPostID] = struct{}{}
+		}
+	}
+
+	type postInfo struct {
+		Title          string
+		AuthorUsername string
+	}
+	postCache := make(map[string]postInfo, len(uniquePostIDs))
+	for pid := range uniquePostIDs {
+		post, err := h.postService.GetPost(ctx, pid)
+		if err == nil && post != nil {
+			postCache[pid] = postInfo{Title: post.Title, AuthorUsername: post.AuthorUsername}
+		}
+	}
+
+	type reactionCounts struct {
+		likes    int
+		dislikes int
+	}
+	reactionCache := make(map[string]reactionCounts, len(comments))
+	if h.reactionService != nil && len(comments) > 0 {
+		commentIDs := make([]string, 0, len(comments))
+		for _, comment := range comments {
+			commentIDs = append(commentIDs, comment.PublicID)
+		}
+		batchCounts, err := h.reactionService.CountReactionsBatch(ctx, commentIDs, "comment")
+		if err != nil {
+			log.Printf("Error batch counting reactions for load-more comments: %v", err)
+		} else {
+			for id, counts := range batchCounts {
+				reactionCache[id] = reactionCounts{
+					likes:    counts["like"],
+					dislikes: counts["dislike"],
+				}
+			}
+		}
+	}
+
+	for _, comment := range comments {
+		authorUsername := comment.AuthorUsername
+
+		postTitle := "Post not found"
+		postAuthorUsername := "Unknown"
+		if pi, ok := postCache[comment.PublicPostID]; ok {
+			postTitle = pi.Title
+			postAuthorUsername = pi.AuthorUsername
+		} else if comment.PublicPostID == "" {
+			postTitle = "Post ID unknown"
+		}
+
+		rc := reactionCache[comment.PublicID]
+
+		commentData := map[string]interface{}{
+			"PublicID":           comment.PublicID,
+			"AuthorUsername":     authorUsername,
+			"Content":            comment.Content,
+			"PostPublicID":       comment.PublicPostID,
+			"PostTitle":          postTitle,
+			"PostAuthorUsername": postAuthorUsername,
+			"CreatedAt":          comment.CreatedAt,
+			"UpdatedAt":          comment.UpdatedAt,
+			"Likes":              rc.likes,
+			"Dislikes":           rc.dislikes,
+		}
+		commentsData = append(commentsData, commentData)
+	}
+
+	h.writeJSON(w, http.StatusOK, commentsData)
 }

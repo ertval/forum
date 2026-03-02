@@ -171,6 +171,17 @@ func (m *MockUserService) GetByPublicID(ctx context.Context, publicID string) (*
 	return nil, nil
 }
 
+func (m *MockUserService) ResolveUserIDByPublicID(ctx context.Context, publicID string) (int, error) {
+	user, err := m.GetByPublicID(ctx, publicID)
+	if err != nil {
+		return 0, err
+	}
+	if user == nil {
+		return 0, nil
+	}
+	return user.ID, nil
+}
+
 func (m *MockUserService) GetByUsername(ctx context.Context, username string) (*userDomain.User, error) {
 	return nil, nil
 }
@@ -233,6 +244,14 @@ func (m *MockPostService) GetPost(ctx context.Context, publicID string) (*postDo
 		PublicID: publicID,
 		UserID:   1, // Author ID
 	}, nil
+}
+
+func (m *MockPostService) GetPostForComment(ctx context.Context, publicID string) (*PostRecord, error) {
+	post, err := m.GetPost(ctx, publicID)
+	if err != nil {
+		return nil, err
+	}
+	return &PostRecord{ID: post.ID, PublicID: post.PublicID, UserID: post.UserID}, nil
 }
 
 func (m *MockPostService) CreatePost(ctx context.Context, userID int, title, content string, categories []string, imageData []byte) (*postDomain.Post, error) {

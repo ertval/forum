@@ -71,10 +71,21 @@ func initServices(repos *Repositories, cfg *config.Config, lgr *logger.Logger) *
 	imageHandler := upload.NewImageHandler(cfg.Upload.UploadDir, cfg.Upload.MaxSize)
 
 	// Layer 2: Domain services (depend on Layer 1 services)
-	authService := authApp.NewService(repos.Session, userService, cfg.Session.Duration)
+	authService := authApp.NewService(repos.Session, authUserServiceAdapter{user: userService}, cfg.Session.Duration)
 	postService := postApp.NewService(repos.Post, repos.Category, userService, imageHandler, cfg.Upload.MaxSize)
-	reactionService := reactionApp.NewService(repos.Reaction, repos.Post, repos.Comment, userService, notificationService)
-	commentService := commentApp.NewService(repos.Comment, postService, userService, notificationService)
+	reactionService := reactionApp.NewService(
+		repos.Reaction,
+		reactionPostRepositoryAdapter{post: repos.Post},
+		reactionCommentRepositoryAdapter{comment: repos.Comment},
+		userService,
+		notificationService,
+	)
+	commentService := commentApp.NewService(
+		repos.Comment,
+		commentPostServiceAdapter{post: postService},
+		commentUserServiceAdapter{user: userService},
+		notificationService,
+	)
 
 	// Layer 3: Cross-cutting middleware (depend on services)
 	authMiddleware := authAdapters.NewAuthMiddleware(authService, userService, cfg.Session.CookieName)

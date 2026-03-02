@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"errors"
-	"fmt"
 	"forum/internal/modules/moderation/domain"
 	"testing"
 	"time"
@@ -11,11 +10,12 @@ import (
 
 // MockReportRepository implements ReportRepository for testing
 type MockReportRepository struct {
-	reports  map[int]*domain.Report
-	listFn   func(ctx context.Context, status string) ([]*domain.Report, error)
-	createFn func(ctx context.Context, report *domain.Report) error
-	updateFn func(ctx context.Context, report *domain.Report) error
-	getFn    func(ctx context.Context, reportPublicID string) (*domain.Report, error)
+	reports   map[int]*domain.Report
+	listFn    func(ctx context.Context, status string) ([]*domain.Report, error)
+	createFn  func(ctx context.Context, report *domain.Report) error
+	updateFn  func(ctx context.Context, report *domain.Report) error
+	getFn     func(ctx context.Context, reportPublicID string) (*domain.Report, error)
+	resolveFn func(ctx context.Context, targetType, targetPublicID string) (int, error)
 }
 
 func (m *MockReportRepository) List(ctx context.Context, status string) ([]*domain.Report, error) {
@@ -40,6 +40,12 @@ func (m *MockReportRepository) Create(ctx context.Context, report *domain.Report
 	if m.reports == nil {
 		m.reports = make(map[int]*domain.Report)
 	}
+	if report.ID == 0 {
+		report.ID = len(m.reports) + 1
+	}
+	if report.PublicID == "" {
+		report.PublicID = "report-public-id"
+	}
 	m.reports[report.ID] = report
 	return nil
 }
@@ -56,52 +62,128 @@ func (m *MockReportRepository) Update(ctx context.Context, report *domain.Report
 	return nil
 }
 
-// Implement the new interface method expected by ports.ReportRepository
 func (m *MockReportRepository) GetByPublicID(ctx context.Context, reportPublicID string) (*domain.Report, error) {
 	if m.getFn != nil {
 		return m.getFn(ctx, reportPublicID)
 	}
-
-	// Try to parse public ID as an int suffix for our simple mock storage
-	// expected format in tests: "pub-<id>"
-	var id int
-	n, _ := fmt.Sscanf(reportPublicID, "pub-%d", &id)
-	if n == 1 {
-		if report, exists := m.reports[id]; exists {
+	for _, report := range m.reports {
+		if report.PublicID == reportPublicID {
 			return report, nil
 		}
 	}
 	return nil, domain.ErrReportNotFound
 }
 
+func (m *MockReportRepository) ResolveTargetID(ctx context.Context, targetType, targetPublicID string) (int, error) {
+	if m.resolveFn != nil {
+		return m.resolveFn(ctx, targetType, targetPublicID)
+	}
+	if targetPublicID == "" {
+		return 0, domain.ErrInvalidTarget
+	}
+	return 100, nil
+}
+
 func TestService_CreateReport(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := &MockReportRepository{}
+	mockRepo := &MockReportRepository{reports: map[int]*domain.Report{}}
 	service := NewService(mockRepo)
 
-	// Test the current implementation (returns not implemented error)
-	err := service.CreateReport(ctx, 1, "pub-10", "post", "Inappropriate content")
-	if err == nil {
-		t.Error("Expected 'not implemented' error, got nil")
-	}
-	if !errors.Is(err, domain.ErrNotImplemented) {
-		t.Errorf("Expected ErrNotImplemented, got %v", err)
-	}
+	t.Run("creates report", func(t *testing.T) {
+		report, err := service.CreateReport(ctx, 1, "post-public-id", "post", "Inappropriate content")
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if report == nil || report.PublicID == "" {
+			t.Fatalf("expected report with public id, got %#v", report)
+		}
+		if report.Status != domain.StatusPending {
+			t.Fatalf("status = %q, want %q", report.Status, domain.StatusPending)
+		}
+		if report.TargetID != 100 {
+			t.Fatalf("target id = %d, want 100", report.TargetID)
+		}
+	})
+
+	t.Run("invalid target type", func(t *testing.T) {
+		_, err := service.CreateReport(ctx, 1, "post-public-id", "invalid", "reason")
+		if !errors.Is(err, domain.ErrInvalidTargetType) {
+			t.Fatalf("expected ErrInvalidTargetType, got %v", err)
+		}
+	})
+
+	t.Run("empty reason", func(t *testing.T) {
+		_, err := service.CreateReport(ctx, 1, "post-public-id", "post", "   ")
+		if !errors.Is(err, domain.ErrInvalidReason) {
+			t.Fatalf("expected ErrInvalidReason, got %v", err)
+		}
+	})
+
+	t.Run("invalid target", func(t *testing.T) {
+		mockRepo.resolveFn = func(ctx context.Context, targetType, targetPublicID string) (int, error) {
+			return 0, domain.ErrInvalidTarget
+		}
+		_, err := service.CreateReport(ctx, 1, "unknown", "post", "reason")
+		if !errors.Is(err, domain.ErrInvalidTarget) {
+			t.Fatalf("expected ErrInvalidTarget, got %v", err)
+		}
+	})
 }
 
 func TestService_ReviewReport(t *testing.T) {
 	ctx := context.Background()
-	mockRepo := &MockReportRepository{}
-	service := NewService(mockRepo)
 
-	// Test the current implementation (returns not implemented error)
-	err := service.ReviewReport(ctx, "pub-1", "resolved")
-	if err == nil {
-		t.Error("Expected 'not implemented' error, got nil")
-	}
-	if !errors.Is(err, domain.ErrNotImplemented) {
-		t.Errorf("Expected ErrNotImplemented, got %v", err)
-	}
+	t.Run("reviews report", func(t *testing.T) {
+		now := time.Now()
+		report := &domain.Report{
+			ID:        1,
+			PublicID:  "report-public-id",
+			Status:    domain.StatusPending,
+			CreatedAt: now,
+		}
+		mockRepo := &MockReportRepository{
+			reports: map[int]*domain.Report{1: report},
+			getFn: func(ctx context.Context, reportPublicID string) (*domain.Report, error) {
+				if reportPublicID != "report-public-id" {
+					return nil, domain.ErrReportNotFound
+				}
+				return report, nil
+			},
+		}
+		service := NewService(mockRepo)
+
+		updated, err := service.ReviewReport(ctx, 42, "report-public-id", domain.StatusResolved, "Handled")
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if updated.Status != domain.StatusResolved {
+			t.Fatalf("status = %q, want %q", updated.Status, domain.StatusResolved)
+		}
+		if updated.ModeratorID == nil || *updated.ModeratorID != 42 {
+			t.Fatalf("moderator id = %v, want 42", updated.ModeratorID)
+		}
+		if updated.ReviewedAt == nil {
+			t.Fatal("expected reviewed_at to be set")
+		}
+	})
+
+	t.Run("invalid review status", func(t *testing.T) {
+		mockRepo := &MockReportRepository{}
+		service := NewService(mockRepo)
+		_, err := service.ReviewReport(ctx, 1, "report-public-id", domain.StatusPending, "")
+		if !errors.Is(err, domain.ErrInvalidReportStatus) {
+			t.Fatalf("expected ErrInvalidReportStatus, got %v", err)
+		}
+	})
+
+	t.Run("report not found", func(t *testing.T) {
+		mockRepo := &MockReportRepository{}
+		service := NewService(mockRepo)
+		_, err := service.ReviewReport(ctx, 1, "missing", domain.StatusReviewed, "")
+		if !errors.Is(err, domain.ErrReportNotFound) {
+			t.Fatalf("expected ErrReportNotFound, got %v", err)
+		}
+	})
 }
 
 func TestService_ListReports(t *testing.T) {
@@ -160,6 +242,13 @@ func TestService_ListReports(t *testing.T) {
 		// Verify the returned report has the correct status
 		if len(result) > 0 && result[0].Status != domain.StatusReviewed {
 			t.Errorf("Expected Status %s, got %s", domain.StatusReviewed, result[0].Status)
+		}
+	})
+
+	t.Run("invalid status filter", func(t *testing.T) {
+		_, err := service.ListReports(ctx, "nope")
+		if !errors.Is(err, domain.ErrInvalidReportStatus) {
+			t.Fatalf("expected ErrInvalidReportStatus, got %v", err)
 		}
 	})
 }

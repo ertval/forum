@@ -1,5 +1,7 @@
 ## authentication
 
+> Repository scope note (2026-03-02): OAuth (Google/GitHub) is explicitly deferred in the current implementation scope. This requirement remains documented for future completion and audit traceability.
+
 ### Objectives
 
 The goal of this project is to implement, into your forum, new ways of authentication. You have to be able to register and to login using at least Google and Github authentication tools.

@@ -63,6 +63,32 @@ func TestReport_IsValid(t *testing.T) {
 			},
 			expected: false,
 		},
+		{
+			name: "empty reason",
+			report: &Report{
+				ID:         1,
+				ReporterID: 1,
+				TargetID:   10,
+				TargetType: "post",
+				Reason:     "   ",
+				Status:     StatusPending,
+				CreatedAt:  time.Now(),
+			},
+			expected: false,
+		},
+		{
+			name: "invalid status",
+			report: &Report{
+				ID:         1,
+				ReporterID: 1,
+				TargetID:   10,
+				TargetType: "post",
+				Reason:     "Inappropriate content",
+				Status:     "unknown",
+				CreatedAt:  time.Now(),
+			},
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -80,10 +106,12 @@ func TestReport_StructFields(t *testing.T) {
 	report := &Report{
 		ID:         1,
 		ReporterID: 10,
+		PublicID:   "report-public-id",
 		TargetID:   5,
 		TargetType: "post",
 		Reason:     "Inappropriate content",
 		Status:     StatusPending,
+		Response:   "",
 		CreatedAt:  now,
 	}
 
@@ -92,6 +120,9 @@ func TestReport_StructFields(t *testing.T) {
 	}
 	if report.ReporterID != 10 {
 		t.Errorf("Expected ReporterID 10, got %d", report.ReporterID)
+	}
+	if report.PublicID != "report-public-id" {
+		t.Errorf("Expected PublicID 'report-public-id', got '%s'", report.PublicID)
 	}
 	if report.TargetID != 5 {
 		t.Errorf("Expected TargetID 5, got %d", report.TargetID)
@@ -119,5 +150,23 @@ func TestReportStatusConstants(t *testing.T) {
 	}
 	if StatusResolved != "resolved" {
 		t.Errorf("Expected StatusResolved to be 'resolved', got '%s'", StatusResolved)
+	}
+}
+
+func TestHelpers(t *testing.T) {
+	if !IsValidStatus(StatusPending) {
+		t.Fatal("expected pending status to be valid")
+	}
+	if IsValidStatus("unknown") {
+		t.Fatal("expected unknown status to be invalid")
+	}
+	if !IsValidTargetType("post") || !IsValidTargetType("comment") {
+		t.Fatal("expected post/comment target types to be valid")
+	}
+	if IsValidTargetType("user") {
+		t.Fatal("expected user target type to be invalid")
+	}
+	if NormalizeStatus("  ReSolVed ") != StatusResolved {
+		t.Fatalf("expected normalized status to be %q", StatusResolved)
 	}
 }

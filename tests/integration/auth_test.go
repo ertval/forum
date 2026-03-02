@@ -12,10 +12,38 @@ import (
 	authDomain "forum/internal/modules/auth/domain"
 	userAdapters "forum/internal/modules/user/adapters"
 	userApp "forum/internal/modules/user/application"
+	userDomain "forum/internal/modules/user/domain"
 	"forum/internal/platform/config"
 
 	_ "github.com/mattn/go-sqlite3" // Import SQLite driver
 )
+
+type authUserServiceAdapter struct {
+	user *userApp.Service
+}
+
+func (a authUserServiceAdapter) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	return a.user.ExistsByEmail(ctx, email)
+}
+
+func (a authUserServiceAdapter) ExistsByUsername(ctx context.Context, username string) (bool, error) {
+	return a.user.ExistsByUsername(ctx, username)
+}
+
+func (a authUserServiceAdapter) CreateUser(ctx context.Context, email, username, passwordHash string) (int, error) {
+	return a.user.CreateUser(ctx, email, username, passwordHash)
+}
+
+func (a authUserServiceAdapter) GetAuthUserByEmail(ctx context.Context, email string) (*application.AuthUserRecord, error) {
+	user, err := a.user.GetByEmail(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, userDomain.ErrUserNotFound
+	}
+	return &application.AuthUserRecord{ID: user.ID, PasswordHash: user.PasswordHash}, nil
+}
 
 // TestAuthIntegration tests the authentication system end-to-end
 // using in-memory components to avoid requiring a running server
@@ -81,7 +109,7 @@ func TestAuthIntegration(t *testing.T) {
 	}
 
 	// Setup service
-	authService := application.NewService(sessionRepo, userService, cfg.Session.Duration)
+	authService := application.NewService(sessionRepo, authUserServiceAdapter{user: userService}, cfg.Session.Duration)
 
 	t.Run("Register and Login User", func(t *testing.T) {
 		// Test registration

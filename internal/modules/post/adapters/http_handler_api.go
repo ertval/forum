@@ -254,6 +254,11 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
 		return
 	}
+	currentUser, err := h.userService.GetByPublicID(r.Context(), userPublicID)
+	if err != nil || currentUser == nil {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
+		return
+	}
 
 	// Extract post ID from URL
 	postID := r.PathValue("id")
@@ -366,6 +371,12 @@ func (h *HTTPHandler) DeletePostAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	currentUser, err := h.userService.GetByPublicID(r.Context(), userPublicID)
+	if err != nil || currentUser == nil {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
+		return
+	}
+
 	// Extract post ID from URL
 	postID := r.PathValue("id")
 	if postID == "" {
@@ -387,7 +398,8 @@ func (h *HTTPHandler) DeletePostAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if post.UserID != userID {
+	canDeleteAny := currentUser.Role == "moderator" || currentUser.Role == "admin"
+	if post.UserID != userID && !canDeleteAny {
 		platformErrors.WriteErrorJSON(w, http.StatusForbidden, "You can only delete your own posts")
 		return
 	}

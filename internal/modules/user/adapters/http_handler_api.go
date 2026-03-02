@@ -84,6 +84,22 @@ type updateRoleRequest struct {
 // UpdateRoleAPI handles updating a user's role.
 // Requires admin permissions (checked via middleware in production).
 func (h *HTTPHandler) UpdateRoleAPI(w http.ResponseWriter, r *http.Request) {
+	requesterPublicID := authPorts.GetUserID(r.Context())
+	if requesterPublicID == "" {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	requester, err := h.userService.GetByPublicID(r.Context(), requesterPublicID)
+	if err != nil || requester == nil {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "invalid user")
+		return
+	}
+	if requester.Role != domain.RoleAdmin {
+		platformErrors.WriteErrorJSON(w, http.StatusForbidden, "admin role required")
+		return
+	}
+
 	publicID := r.PathValue("id")
 	if publicID == "" {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "user id is required")

@@ -12,7 +12,6 @@ import (
 
 	"forum/internal/modules/auth/domain"
 	authPort "forum/internal/modules/auth/ports"
-	userDomain "forum/internal/modules/user/domain"
 
 	"github.com/gofrs/uuid/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -22,13 +21,18 @@ import (
 // (must start with a letter, followed by letters/digits/underscores/hyphens).
 var authUsernamePartRegex = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`)
 
+type AuthUserRecord struct {
+	ID           int
+	PasswordHash string
+}
+
 // userService defines the minimal user operations required by the auth service.
 // This avoids a direct import of the user module's ports package.
 type userService interface {
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
 	ExistsByUsername(ctx context.Context, username string) (bool, error)
 	CreateUser(ctx context.Context, email, username, passwordHash string) (userID int, err error)
-	GetByEmail(ctx context.Context, email string) (*userDomain.User, error)
+	GetAuthUserByEmail(ctx context.Context, email string) (*AuthUserRecord, error)
 }
 
 // Service implements the AuthService interface.
@@ -137,7 +141,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (*domain.Se
 	email = strings.ToLower(strings.TrimSpace(sanitize(email)))
 
 	// 2. Retrieve user by email
-	user, err := s.userService.GetByEmail(ctx, email)
+	user, err := s.userService.GetAuthUserByEmail(ctx, email)
 	if err != nil {
 		// If user doesn't exist, return invalid credentials to avoid user enumeration
 		return nil, domain.ErrInvalidCredentials

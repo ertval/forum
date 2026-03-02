@@ -9,12 +9,10 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	commentDomain "forum/internal/modules/comment/domain"
-	postDomain "forum/internal/modules/post/domain"
 	platformErrors "forum/internal/platform/errors"
 )
 
@@ -31,10 +29,6 @@ func (h *HTTPHandler) RegisterPageRoutes(router *http.ServeMux) {
 	authMiddleware := h.middlewareProvider.RequireAuth()
 	router.Handle("GET /comments", authMiddleware(http.HandlerFunc(h.MyCommentsPage)))
 	router.Handle("GET /activity", authMiddleware(http.HandlerFunc(h.ActivityPage)))
-
-	// Protected API route for loading more comments (requires authentication)
-	optionalAuth := h.middlewareProvider.OptionalAuth()
-	router.Handle("GET /api/comments/load-more", optionalAuth(http.HandlerFunc(h.LoadMoreCommentsAPI)))
 
 	// Form submission routes
 	// POST /posts/{post_id}/comments - Create comment via form
@@ -470,155 +464,18 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Write error: %v", err)
 	}
 }
-
-// LoadMoreCommentsAPI handles loading additional comments for the My Comments page.
-func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	// Get user PUBLIC ID (UUID) from session cookie.
-	var userPublicID string
-	cookie, err := r.Cookie("session_token")
-	if err == nil && cookie.Value != "" {
-		if session, err := h.authService.ValidateSession(ctx, cookie.Value); err == nil && session != nil {
-			user, err := h.userService.GetByID(ctx, session.UserID)
-			if err == nil && user != nil {
-				userPublicID = user.PublicID
-			}
-		}
-	}
-
-	if userPublicID == "" {
-		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
-		return
-	}
-
-	// Parse pagination parameters
-	limit := DefaultPaginationLimit
-	offset := 0
-
-	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
-		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= MaxPaginationLimit {
-			limit = l
-		}
-	}
-
-	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
-		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
-			offset = o
-		}
-	}
-
-	// Fetch comments using paginated method
-	comments, err := h.commentService.ListCommentsByUserPaginated(ctx, userPublicID, limit, offset)
-	if err != nil {
-		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve comments")
-		return
-	}
-
-	// Enrich comments with post information using batch lookups
-	commentsData := make([]map[string]interface{}, 0, len(comments))
-
-	// Batch: collect unique post IDs
-	uniquePostIDs := make(map[string]struct{})
-	for _, comment := range comments {
-		if comment.PublicPostID != "" {
-			uniquePostIDs[comment.PublicPostID] = struct{}{}
-		}
-	}
-
-	type postInfo struct {
-		Title          string
-		AuthorUsername string
-	}
-	postCache := make(map[string]postInfo, len(uniquePostIDs))
-	for pid := range uniquePostIDs {
-		post, err := h.postService.GetPost(ctx, pid)
-		if err == nil && post != nil {
-			postCache[pid] = postInfo{Title: post.Title, AuthorUsername: post.AuthorUsername}
-		}
-	}
-
-	// Batch fetch reaction counts for all comments in a single query
-	type reactionCounts struct {
-		likes    int
-		dislikes int
-	}
-	reactionCache := make(map[string]reactionCounts, len(comments))
-	if h.reactionService != nil && len(comments) > 0 {
-		commentIDs := make([]string, 0, len(comments))
-		for _, comment := range comments {
-			commentIDs = append(commentIDs, comment.PublicID)
-		}
-		batchCounts, err := h.reactionService.CountReactionsBatch(ctx, commentIDs, "comment")
-		if err != nil {
-			log.Printf("Error batch counting reactions for load-more comments: %v", err)
-		} else {
-			for id, counts := range batchCounts {
-				reactionCache[id] = reactionCounts{
-					likes:    counts["like"],
-					dislikes: counts["dislike"],
-				}
-			}
-		}
-	}
-
-	for _, comment := range comments {
-		// Author data is populated by the repository JOIN query
-		authorUsername := comment.AuthorUsername
-
-		postTitle := "Post not found"
-		postAuthorUsername := "Unknown"
-		if pi, ok := postCache[comment.PublicPostID]; ok {
-			postTitle = pi.Title
-			postAuthorUsername = pi.AuthorUsername
-		} else if comment.PublicPostID == "" {
-			postTitle = "Post ID unknown"
-		}
-
-		rc := reactionCache[comment.PublicID]
-
-		commentData := map[string]interface{}{
-			"PublicID":           comment.PublicID,
-			"AuthorUsername":     authorUsername,
-			"Content":            comment.Content,
-			"PostPublicID":       comment.PublicPostID,
-			"PostTitle":          postTitle,
-			"PostAuthorUsername": postAuthorUsername,
-			"CreatedAt":          comment.CreatedAt,
-			"UpdatedAt":          comment.UpdatedAt,
-			"Likes":              rc.likes,
-			"Dislikes":           rc.dislikes,
-		}
-		commentsData = append(commentsData, commentData)
-	}
-
-	h.writeJSON(w, http.StatusOK, commentsData)
-}
-
 func (h *HTTPHandler) aggregateUserActivity(ctx context.Context, userPublicID string, filters activityFilters) (map[string]interface{}, error) {
-	createdPosts, err := h.postService.ListPosts(ctx, postDomain.PostFilter{
-		UserID: userPublicID,
-		Limit:  50,
-		Offset: 0,
-	})
+	createdPosts, err := h.listCreatedPostsForActivity(ctx, userPublicID)
 	if err != nil {
 		return nil, err
 	}
 
-	likedPosts, err := h.postService.ListPosts(ctx, postDomain.PostFilter{
-		LikedByUserID: userPublicID,
-		Limit:         50,
-		Offset:        0,
-	})
+	likedPosts, err := h.listLikedPostsForActivity(ctx, userPublicID)
 	if err != nil {
 		return nil, err
 	}
 
-	dislikedPosts, err := h.postService.ListPosts(ctx, postDomain.PostFilter{
-		DislikedByUserID: userPublicID,
-		Limit:            50,
-		Offset:           0,
-	})
+	dislikedPosts, err := h.listDislikedPostsForActivity(ctx, userPublicID)
 	if err != nil {
 		return nil, err
 	}
@@ -651,12 +508,10 @@ func (h *HTTPHandler) aggregateUserActivity(ctx context.Context, userPublicID st
 	commentItems := make([]map[string]interface{}, 0, len(commentsFromService))
 
 	// Fetch all posts the user has commented on in one query to avoid per-comment lookups.
-	postCache := make(map[string]*postDomain.Post)
-	commentedPosts, err := h.postService.ListPosts(ctx, postDomain.PostFilter{
-		CommenterID: userPublicID,
-	})
+	postCache := make(map[string]*activityPostView)
+	commentedPosts, err := h.listCommentedPostsForActivity(ctx, userPublicID)
 	if err == nil {
-		postCache = make(map[string]*postDomain.Post, len(commentedPosts))
+		postCache = make(map[string]*activityPostView, len(commentedPosts))
 		for _, post := range commentedPosts {
 			if post != nil {
 				postCache[post.PublicID] = post
@@ -671,7 +526,7 @@ func (h *HTTPHandler) aggregateUserActivity(ctx context.Context, userPublicID st
 		if _, ok := postCache[comment.PublicPostID]; ok {
 			continue
 		}
-		post, getErr := h.postService.GetPost(ctx, comment.PublicPostID)
+		post, getErr := h.getPostViewForActivity(ctx, comment.PublicPostID)
 		if getErr == nil && post != nil {
 			postCache[comment.PublicPostID] = post
 		}

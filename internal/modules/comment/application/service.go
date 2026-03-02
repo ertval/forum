@@ -9,24 +9,27 @@ import (
 
 	"forum/internal/modules/comment/domain"
 	"forum/internal/modules/comment/ports"
-	postDomain "forum/internal/modules/post/domain"
-	userDomain "forum/internal/modules/user/domain"
-	"forum/internal/platform/async"
 )
 
 // Notification type constants mirrored locally to avoid cross-module port imports.
 const notifTypeComment = "comment"
 
+type PostRecord struct {
+	ID       int
+	PublicID string
+	UserID   int
+}
+
 // postService defines the minimal post operations required by the comment service.
 // This avoids a direct import of the post module's ports package.
 type postService interface {
-	GetPost(ctx context.Context, postID string) (*postDomain.Post, error)
+	GetPostForComment(ctx context.Context, postID string) (*PostRecord, error)
 }
 
 // userService defines the minimal user operations required by the comment service.
 // This avoids a direct import of the user module's ports package.
 type userService interface {
-	GetByPublicID(ctx context.Context, publicID string) (*userDomain.User, error)
+	ResolveUserIDByPublicID(ctx context.Context, publicID string) (int, error)
 	IncrementCommentCount(ctx context.Context, userID int) error
 	DecrementCommentCount(ctx context.Context, userID int) error
 }
@@ -58,7 +61,7 @@ func NewService(commentRepo ports.CommentRepository, postService postService, us
 // CreateComment creates a new comment.
 func (s *Service) CreateComment(ctx context.Context, postPublicID string, userID int, content string) (*domain.Comment, error) {
 	// Get the post to get its internal ID
-	post, err := s.postService.GetPost(ctx, postPublicID)
+	post, err := s.postService.GetPostForComment(ctx, postPublicID)
 	if err != nil {
 		return nil, fmt.Errorf("post not found: %w", err)
 	}
@@ -90,10 +93,9 @@ func (s *Service) CreateComment(ctx context.Context, postPublicID string, userID
 		}
 	}
 
-	// Increment user's comment count asynchronously (non-blocking)
-	async.Run(func(ctx context.Context) error {
-		return s.userService.IncrementCommentCount(ctx, userID)
-	}, fmt.Sprintf("increment comment count for user %d", userID))
+	runInBackground(fmt.Sprintf("increment comment count for user %d", userID), func() error {
+		return s.userService.IncrementCommentCount(context.Background(), userID)
+	})
 
 	return comment, nil
 }
@@ -142,10 +144,9 @@ func (s *Service) DeleteComment(ctx context.Context, commentPublicID string) err
 		return err
 	}
 
-	// Decrement user's comment count asynchronously (non-blocking)
-	async.Run(func(ctx context.Context) error {
-		return s.userService.DecrementCommentCount(ctx, comment.UserID)
-	}, fmt.Sprintf("decrement comment count for user %d", comment.UserID))
+	runInBackground(fmt.Sprintf("decrement comment count for user %d", comment.UserID), func() error {
+		return s.userService.DecrementCommentCount(context.Background(), comment.UserID)
+	})
 
 	return nil
 }
@@ -158,23 +159,31 @@ func (s *Service) ListCommentsByPost(ctx context.Context, postPublicID string) (
 // ListCommentsByUser retrieves all comments made by a specific user.
 func (s *Service) ListCommentsByUser(ctx context.Context, userPublicID string) ([]*domain.Comment, error) {
 	// First get the internal user ID from the public ID
-	user, err := s.userService.GetByPublicID(ctx, userPublicID)
+	userID, err := s.userService.ResolveUserIDByPublicID(ctx, userPublicID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
 	// Call the repository to get comments by user ID
-	return s.commentRepo.ListByUser(ctx, user.ID)
+	return s.commentRepo.ListByUser(ctx, userID)
 }
 
 // ListCommentsByUserPaginated retrieves comments made by a user with pagination.
 func (s *Service) ListCommentsByUserPaginated(ctx context.Context, userPublicID string, limit, offset int) ([]*domain.Comment, error) {
 	// First get the internal user ID from the public ID
-	user, err := s.userService.GetByPublicID(ctx, userPublicID)
+	userID, err := s.userService.ResolveUserIDByPublicID(ctx, userPublicID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
 	// Call the repository to get comments by user ID with pagination
-	return s.commentRepo.ListByUserPaginated(ctx, user.ID, limit, offset)
+	return s.commentRepo.ListByUserPaginated(ctx, userID, limit, offset)
+}
+
+func runInBackground(action string, fn func() error) {
+	go func() {
+		if err := fn(); err != nil {
+			log.Printf("WARNING: background action failed (%s): %v", action, err)
+		}
+	}()
 }

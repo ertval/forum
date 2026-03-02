@@ -295,6 +295,9 @@ func TestListUsersAPI_Success(t *testing.T) {
 func TestUpdateRoleAPI_Success(t *testing.T) {
 	mockService := &MockUserService{
 		getByPublicIDFn: func(ctx context.Context, publicID string) (*domain.User, error) {
+			if publicID == "admin-uuid" {
+				return &domain.User{ID: 99, PublicID: publicID, Role: domain.RoleAdmin}, nil
+			}
 			return &domain.User{ID: 1, PublicID: publicID, Role: domain.RoleUser}, nil
 		},
 		updateRoleFn: func(ctx context.Context, userID int, newRole domain.Role) error {
@@ -308,6 +311,7 @@ func TestUpdateRoleAPI_Success(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/api/users/test-uuid/role", body)
 	req.SetPathValue("id", "test-uuid")
 	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(context.WithValue(req.Context(), authPorts.UserIDKey, "admin-uuid"))
 	rec := httptest.NewRecorder()
 
 	handler.UpdateRoleAPI(rec, req)
@@ -320,6 +324,9 @@ func TestUpdateRoleAPI_Success(t *testing.T) {
 func TestUpdateRoleAPI_InvalidRole(t *testing.T) {
 	mockService := &MockUserService{
 		getByPublicIDFn: func(ctx context.Context, publicID string) (*domain.User, error) {
+			if publicID == "admin-uuid" {
+				return &domain.User{ID: 99, PublicID: publicID, Role: domain.RoleAdmin}, nil
+			}
 			return &domain.User{ID: 1, PublicID: publicID}, nil
 		},
 	}
@@ -330,6 +337,7 @@ func TestUpdateRoleAPI_InvalidRole(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/api/users/test-uuid/role", body)
 	req.SetPathValue("id", "test-uuid")
 	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(context.WithValue(req.Context(), authPorts.UserIDKey, "admin-uuid"))
 	rec := httptest.NewRecorder()
 
 	handler.UpdateRoleAPI(rec, req)
@@ -342,6 +350,9 @@ func TestUpdateRoleAPI_InvalidRole(t *testing.T) {
 func TestUpdateRoleAPI_UserNotFound(t *testing.T) {
 	mockService := &MockUserService{
 		getByPublicIDFn: func(ctx context.Context, publicID string) (*domain.User, error) {
+			if publicID == "admin-uuid" {
+				return &domain.User{ID: 99, PublicID: publicID, Role: domain.RoleAdmin}, nil
+			}
 			return nil, nil
 		},
 	}
@@ -352,6 +363,7 @@ func TestUpdateRoleAPI_UserNotFound(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/api/users/nonexistent/role", body)
 	req.SetPathValue("id", "nonexistent")
 	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(context.WithValue(req.Context(), authPorts.UserIDKey, "admin-uuid"))
 	rec := httptest.NewRecorder()
 
 	handler.UpdateRoleAPI(rec, req)

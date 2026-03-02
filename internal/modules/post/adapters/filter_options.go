@@ -1,3 +1,4 @@
+// INPUT ADAPTER - HTTP Filter Options
 package adapters
 
 import (

@@ -1,3 +1,4 @@
+// INPUT ADAPTER - HTTP Middleware
 // Package adapters provides HTTP middleware for authentication.
 package adapters
 
