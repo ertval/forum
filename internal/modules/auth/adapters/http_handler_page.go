@@ -4,6 +4,7 @@
 package adapters
 
 import (
+	"bytes"
 	"net/http"
 
 	platformErrors "forum/internal/platform/errors"
@@ -33,10 +34,12 @@ func (h *HTTPHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
 		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", nil)
 		return
 	}
+	buf.WriteTo(w)
 }
 
 // RegisterPage renders the registration page.
@@ -56,16 +59,18 @@ func (h *HTTPHandler) RegisterPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
 		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", nil)
 		return
 	}
+	buf.WriteTo(w)
 }
 
 // LogoutPage handles the frontend logout by invalidating the session and redirecting.
 func (h *HTTPHandler) LogoutPage(w http.ResponseWriter, r *http.Request) {
 	// Get session token from cookie
-	cookie, err := r.Cookie("session_token")
+	cookie, err := r.Cookie(h.cookieName)
 	if err == nil && cookie.Value != "" {
 		// Call the service to logout the user (invalidate the session)
 		_ = h.authService.Logout(r.Context(), cookie.Value) // We ignore the error for frontend UX
@@ -73,7 +78,7 @@ func (h *HTTPHandler) LogoutPage(w http.ResponseWriter, r *http.Request) {
 
 	// Clear the session cookie
 	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token",
+		Name:     h.cookieName,
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1, // Delete the cookie

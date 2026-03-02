@@ -6,15 +6,15 @@
 .comments-section {
     margin-top: 2rem;
     padding-top: 2rem;
-    border-top: 1px solid #c0d0e0;
+    border-top: 1px solid var(--color-border-blue);
 }
 
 .comment {
-    background: #ffffff;
+    background: var(--color-bg-light);
     padding: 1rem;
     border-radius: 8px;
     margin-bottom: 1rem;
-    border: 1px solid #d3e0ea;
+    border: 1px solid var(--color-secondary);
     border-left: 3px solid var(--color-primary);
 }
 
@@ -60,18 +60,18 @@
 
 .comment-author {
     font-weight: 600;
-    color: #5a5a5a;
+    color: var(--color-text);
 }
 
 .comment-date {
-    color: #7a7a7a;
+    color: var(--color-text-muted);
 }
 
 /* Comment context link styled like post titles */
 .comment-context {
     margin-bottom: 0.75rem;
     font-size: 0.9rem;
-    color: #7a7a7a;
+    color: var(--color-text-muted);
 }
 
 .comment-context p {
@@ -79,11 +79,11 @@
 }
 
 .comment-post-link {
-    color: #5a5a5a;
+    color: var(--color-text);
     text-decoration: none;
     font-size: 1rem;
     font-weight: 600;
-    transition: color 0.3s ease;
+    transition: color var(--transition-normal);
 }
 
 .comment-post-link:hover {
@@ -92,12 +92,12 @@
 
 .comment-post-author {
     font-weight: 600;
-    color: #5a5a5a;
+    color: var(--color-text);
 }
 
 .comment-content {
     margin: 0.5rem 0;
-    color: #5a5a5a;
+    color: var(--color-text);
 }
 
 .activity-post-footer {
@@ -129,47 +129,47 @@
 }
 
 .comment-reactions button {
-    background: #e0f7e9;
-    border: 1px solid #c2e6d6;
+    background: var(--color-reaction-bg);
+    border: 1px solid var(--color-reaction-border);
     padding: 0.35rem 0.75rem;
     border-radius: 16px;
     cursor: pointer;
     font-size: 0.85rem;
-    color: #5a5a5a;
-    transition: all 0.3s ease;
+    color: var(--color-text);
+    transition: all var(--transition-normal);
     display: flex;
     align-items: center;
     gap: 0.25rem;
 }
 
 .comment-reactions button:hover {
-    background: #b5ead7;
-    color: #5a5a5a;
+    background: var(--color-primary-light);
+    color: var(--color-text);
     transform: translateY(-1px);
 }
 
 .comment-reactions button.active {
-    background: #80cbc4;
+    background: var(--color-reaction-active);
     color: white;
 }
 
 .comment-reactions button.active:hover {
-    background: #5a9e97;
+    background: var(--color-reaction-active-hover);
 }
 
 /* Edit comment textarea style */
 .edit-comment-textarea {
     width: 100%;
     padding: 0.75rem;
-    border: 1px solid #c5d0b8;
+    border: 1px solid var(--color-form-border);
     border-radius: 8px;
     font-size: 1rem;
     font-family: inherit;
-    color: #5a5a5a;
-    background-color: #ffffff;
+    color: var(--color-text);
+    background-color: var(--color-bg-light);
     resize: vertical;
     margin: 0.5rem 0;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal);
 }
 
 .edit-comment-textarea:focus {
@@ -194,14 +194,14 @@
 .comment-form {
     margin: 1.5rem 0;
     padding: 1.5rem;
-    background: #ffffff;
+    background: var(--color-bg-light);
     border-radius: 8px;
-    border: 1px solid #d3e0ea;
+    border: 1px solid var(--color-secondary);
 }
 
 .comment-form h3 {
     margin-bottom: 1rem;
-    color: #5a5a5a;
+    color: var(--color-text);
 }
 
 .comment-form form {
@@ -213,12 +213,12 @@
 .comment-form textarea {
     width: 100%;
     padding: 0.75rem;
-    border: 1px solid #c5d0b8;
+    border: 1px solid var(--color-form-border);
     border-radius: 8px;
     font-size: 1rem;
-    transition: all 0.3s ease;
-    background-color: #ffffff;
-    color: #5a5a5a;
+    transition: all var(--transition-normal);
+    background-color: var(--color-bg-light);
+    color: var(--color-text);
     font-family: inherit;
     resize: vertical;
     min-height: 100px;
@@ -243,6 +243,6 @@
 .no-comments {
     text-align: center;
     padding: 2rem;
-    color: #7a7a7a;
+    color: var(--color-text-muted);
     font-style: italic;
 }

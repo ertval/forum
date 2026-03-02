@@ -5,14 +5,12 @@ package adapters
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	authPorts "forum/internal/modules/auth/ports"
 	"forum/internal/modules/moderation/ports"
 	userDomain "forum/internal/modules/user/domain"
 	userPorts "forum/internal/modules/user/ports"
 	platformTemplates "forum/internal/platform/templates"
-	"mime"
 	"net/http"
 )
 
@@ -61,23 +59,6 @@ func (h *HTTPHandler) LookupInternalID(ctx context.Context, publicID string) (in
 		return 0, fmt.Errorf("user not found")
 	}
 	return user.ID, nil
-}
-
-func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(data)
-}
-
-func (h *HTTPHandler) parseJSON(r *http.Request, v any) error {
-	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	if err != nil || mediaType != "application/json" {
-		return fmt.Errorf("content type is not application/json")
-	}
-
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	return decoder.Decode(v)
 }
 
 // RegisterRoutes registers all moderation routes.

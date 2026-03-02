@@ -9,11 +9,39 @@ import (
 	"fmt"
 	"forum/internal/modules/moderation/domain"
 	"forum/internal/modules/moderation/ports"
+	"forum/internal/platform/database"
 	"strings"
 	"time"
 
 	"github.com/gofrs/uuid/v5"
 )
+
+// Report SQL constants.
+const reportBaseSelectQuery = `
+		SELECT
+			r.id,
+			r.public_id,
+			r.reporter_id,
+			r.moderator_id,
+			r.target_id,
+			r.target_type,
+			r.reason,
+			r.status,
+			COALESCE(r.response, '') AS response,
+			r.created_at,
+			r.reviewed_at,
+			COALESCE(reporter.public_id, '') AS reporter_public_id,
+			COALESCE(moderator.public_id, '') AS moderator_public_id,
+			CASE
+				WHEN r.target_type = 'post' THEN COALESCE(p.public_id, '')
+				WHEN r.target_type = 'comment' THEN COALESCE(c.public_id, '')
+				ELSE ''
+			END AS target_public_id
+		FROM reports r
+		LEFT JOIN users reporter ON reporter.id = r.reporter_id
+		LEFT JOIN users moderator ON moderator.id = r.moderator_id
+		LEFT JOIN posts p ON r.target_type = 'post' AND p.id = r.target_id
+		LEFT JOIN comments c ON r.target_type = 'comment' AND c.id = r.target_id`
 
 // SQLiteReportRepository implements the ReportRepository interface using SQLite.
 type SQLiteReportRepository struct {
@@ -59,42 +87,21 @@ func (r *SQLiteReportRepository) Create(ctx context.Context, report *domain.Repo
 		return fmt.Errorf("insert report: %w", err)
 	}
 
-	id, err := result.LastInsertId()
+	lastID, err := result.LastInsertId()
 	if err != nil {
 		return fmt.Errorf("read report insert id: %w", err)
 	}
-	report.ID = int(id)
+	report.ID, err = database.SafeInt64ToInt(lastID)
+	if err != nil {
+		return fmt.Errorf("last insert id overflow: %w", err)
+	}
 
 	return nil
 }
 
 // GetByPublicID retrieves a report by its public UUID.
 func (r *SQLiteReportRepository) GetByPublicID(ctx context.Context, reportPublicID string) (*domain.Report, error) {
-	report, err := r.queryReports(ctx, `
-		SELECT
-			r.id,
-			r.public_id,
-			r.reporter_id,
-			r.moderator_id,
-			r.target_id,
-			r.target_type,
-			r.reason,
-			r.status,
-			COALESCE(r.response, '') AS response,
-			r.created_at,
-			r.reviewed_at,
-			COALESCE(reporter.public_id, '') AS reporter_public_id,
-			COALESCE(moderator.public_id, '') AS moderator_public_id,
-			CASE
-				WHEN r.target_type = 'post' THEN COALESCE(p.public_id, '')
-				WHEN r.target_type = 'comment' THEN COALESCE(c.public_id, '')
-				ELSE ''
-			END AS target_public_id
-		FROM reports r
-		LEFT JOIN users reporter ON reporter.id = r.reporter_id
-		LEFT JOIN users moderator ON moderator.id = r.moderator_id
-		LEFT JOIN posts p ON r.target_type = 'post' AND p.id = r.target_id
-		LEFT JOIN comments c ON r.target_type = 'comment' AND c.id = r.target_id
+	report, err := r.queryReports(ctx, reportBaseSelectQuery+`
 		WHERE r.public_id = ?
 	`, reportPublicID)
 	if err != nil {
@@ -110,38 +117,12 @@ func (r *SQLiteReportRepository) GetByPublicID(ctx context.Context, reportPublic
 // List retrieves reports filtered by status.
 func (r *SQLiteReportRepository) List(ctx context.Context, status string) ([]*domain.Report, error) {
 	status = domain.NormalizeStatus(status)
-	baseQuery := `
-		SELECT
-			r.id,
-			r.public_id,
-			r.reporter_id,
-			r.moderator_id,
-			r.target_id,
-			r.target_type,
-			r.reason,
-			r.status,
-			COALESCE(r.response, '') AS response,
-			r.created_at,
-			r.reviewed_at,
-			COALESCE(reporter.public_id, '') AS reporter_public_id,
-			COALESCE(moderator.public_id, '') AS moderator_public_id,
-			CASE
-				WHEN r.target_type = 'post' THEN COALESCE(p.public_id, '')
-				WHEN r.target_type = 'comment' THEN COALESCE(c.public_id, '')
-				ELSE ''
-			END AS target_public_id
-		FROM reports r
-		LEFT JOIN users reporter ON reporter.id = r.reporter_id
-		LEFT JOIN users moderator ON moderator.id = r.moderator_id
-		LEFT JOIN posts p ON r.target_type = 'post' AND p.id = r.target_id
-		LEFT JOIN comments c ON r.target_type = 'comment' AND c.id = r.target_id
-	`
 
 	if status == "" {
-		return r.queryReports(ctx, baseQuery+" ORDER BY r.created_at DESC")
+		return r.queryReports(ctx, reportBaseSelectQuery+" ORDER BY r.created_at DESC")
 	}
 
-	return r.queryReports(ctx, baseQuery+" WHERE r.status = ? ORDER BY r.created_at DESC", status)
+	return r.queryReports(ctx, reportBaseSelectQuery+" WHERE r.status = ? ORDER BY r.created_at DESC", status)
 }
 
 // Update updates an existing report.
@@ -205,7 +186,7 @@ func (r *SQLiteReportRepository) queryReports(ctx context.Context, query string,
 	}
 	defer rows.Close()
 
-	reports := make([]*domain.Report, 0)
+	reports := make([]*domain.Report, 0, 16)
 	for rows.Next() {
 		var report domain.Report
 		var moderatorID sql.NullInt64

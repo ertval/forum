@@ -291,10 +291,8 @@ func (rl *rateLimiter) allow(ip string) bool {
 	now := time.Now()
 	windowStart := now.Add(-rl.window)
 
-	// Get or create entry for this IP
-	val, loaded := rl.entries.LoadOrStore(ip, &ipEntry{
-		requests: []time.Time{now},
-	})
+	// Get or create entry for this IP (empty; first request recorded under mutex)
+	val, loaded := rl.entries.LoadOrStore(ip, &ipEntry{})
 
 	if !loaded {
 		// New entry - check if we're at capacity
@@ -305,9 +303,9 @@ func (rl *rateLimiter) allow(ip string) bool {
 			atomic.AddInt64(&rl.entryCount, -1)
 			return false // Reject to prevent DoS via IP spoofing
 		}
-		return true // First request for this IP, always allowed
 	}
 
+	// All requests (including the first) go through the mutex-protected path
 	entry := val.(*ipEntry)
 	entry.mu.Lock()
 	defer entry.mu.Unlock()

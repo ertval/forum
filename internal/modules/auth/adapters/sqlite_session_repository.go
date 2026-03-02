@@ -6,24 +6,68 @@ package adapters
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"forum/internal/modules/auth/domain"
 	"forum/internal/modules/auth/ports"
+	"forum/internal/platform/database"
 
 	"github.com/gofrs/uuid/v5"
 )
 
 // SQLiteSessionRepository implements the SessionRepository interface using SQLite.
+// Frequently-executed queries use prepared statements to avoid repeated parsing.
 type SQLiteSessionRepository struct {
-	db *sql.DB
+	db             *sql.DB
+	stmtGetByToken *sql.Stmt
+	stmtCreate     *sql.Stmt
+	stmtDelete     *sql.Stmt
 }
 
 // NewSQLiteSessionRepository creates a new SQLite session repository.
-func NewSQLiteSessionRepository(db *sql.DB) ports.SessionRepository {
-	return &SQLiteSessionRepository{
-		db: db,
+// Prepared statements are created for the most frequently executed queries.
+func NewSQLiteSessionRepository(db *sql.DB) (ports.SessionRepository, error) {
+	repo := &SQLiteSessionRepository{db: db}
+	var err error
+
+	repo.stmtGetByToken, err = db.Prepare(
+		`SELECT id, public_id, user_id, token, expires_at, created_at, ip_address, user_agent
+		 FROM sessions WHERE token = ?`)
+	if err != nil {
+		return nil, fmt.Errorf("prepare get by token: %w", err)
 	}
+
+	repo.stmtCreate, err = db.Prepare(
+		`INSERT INTO sessions (public_id, user_id, token, expires_at, created_at, ip_address, user_agent)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`)
+	if err != nil {
+		repo.Close()
+		return nil, fmt.Errorf("prepare create: %w", err)
+	}
+
+	repo.stmtDelete, err = db.Prepare(`DELETE FROM sessions WHERE token = ?`)
+	if err != nil {
+		repo.Close()
+		return nil, fmt.Errorf("prepare delete: %w", err)
+	}
+
+	return repo, nil
+}
+
+// Close releases all prepared statements held by the repository.
+func (r *SQLiteSessionRepository) Close() error {
+	var errs []error
+	if r.stmtGetByToken != nil {
+		errs = append(errs, r.stmtGetByToken.Close())
+	}
+	if r.stmtCreate != nil {
+		errs = append(errs, r.stmtCreate.Close())
+	}
+	if r.stmtDelete != nil {
+		errs = append(errs, r.stmtDelete.Close())
+	}
+	return errors.Join(errs...)
 }
 
 // Create stores a new session in the database.
@@ -37,10 +81,7 @@ func (r *SQLiteSessionRepository) Create(ctx context.Context, session *domain.Se
 		session.PublicID = publicID.String()
 	}
 
-	query := `INSERT INTO sessions (public_id, user_id, token, expires_at, created_at, ip_address, user_agent) 
-              VALUES (?, ?, ?, ?, ?, ?, ?)`
-
-	result, err := r.db.ExecContext(ctx, query,
+	result, err := r.stmtCreate.ExecContext(ctx,
 		session.PublicID,
 		session.UserID,
 		session.Token,
@@ -54,21 +95,21 @@ func (r *SQLiteSessionRepository) Create(ctx context.Context, session *domain.Se
 	}
 
 	// Get the auto-generated internal ID
-	id, err := result.LastInsertId()
+	lastID, err := result.LastInsertId()
 	if err != nil {
 		return err
 	}
 
-	session.ID = int(id)
+	session.ID, err = database.SafeInt64ToInt(lastID)
+	if err != nil {
+		return fmt.Errorf("last insert id overflow: %w", err)
+	}
 	return nil
 }
 
 // GetByToken retrieves a session by its token.
 func (r *SQLiteSessionRepository) GetByToken(ctx context.Context, token string) (*domain.Session, error) {
-	query := `SELECT id, public_id, user_id, token, expires_at, created_at, ip_address, user_agent
-              FROM sessions WHERE token = ?`
-
-	row := r.db.QueryRowContext(ctx, query, token)
+	row := r.stmtGetByToken.QueryRowContext(ctx, token)
 
 	var session domain.Session
 	err := row.Scan(
@@ -133,15 +174,25 @@ func (r *SQLiteSessionRepository) GetByUserID(ctx context.Context, userID int) (
 func (r *SQLiteSessionRepository) Update(ctx context.Context, session *domain.Session) error {
 	query := `UPDATE sessions SET expires_at = ? WHERE token = ?`
 
-	_, err := r.db.ExecContext(ctx, query, session.ExpiresAt, session.Token)
-	return err
+	result, err := r.db.ExecContext(ctx, query, session.ExpiresAt, session.Token)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return domain.ErrSessionNotFound
+	}
+
+	return nil
 }
 
 // Delete removes a session from the database by its token.
 func (r *SQLiteSessionRepository) Delete(ctx context.Context, token string) error {
-	query := `DELETE FROM sessions WHERE token = ?`
-
-	result, err := r.db.ExecContext(ctx, query, token)
+	result, err := r.stmtDelete.ExecContext(ctx, token)
 	if err != nil {
 		return err
 	}

@@ -33,9 +33,10 @@
             const templateId = compact ? 'post-card-compact-template' : 'post-card-template';
             const template = document.getElementById(templateId);
 
-            // Fallback: if template element not found, create manually
+            // Fallback: if template element not found, log error
             if (!template) {
-                return createPostElementFallback(post, compact);
+                console.error(`Template element #${templateId} not found. Ensure base.html includes post card templates.`);
+                return document.createElement('article');
             }
 
             const clone = template.content.cloneNode(true);
@@ -102,118 +103,11 @@
             return article;
         }
 
-        // Fallback for when template elements are not available
-        function createPostElementFallback(post, compact) {
-            const el = document.createElement('article');
-
-            const safePostId = window.escapeHtml(post.PublicID);
-            const safeTitle = window.escapeHtml(post.Title);
-            const safeAuthor = window.escapeHtml(post.AuthorUsername);
-            const safeContent = window.escapeHtml(post.Content);
-            const safeImageURL = post.ImageURL ? window.escapeHtml(post.ImageURL) : '';
-
-            const postDate = new Date(post.CreatedAt);
-            const formattedDate = postDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-
-            const likeCount = parseInt(post.LikeCount, 10) || 0;
-            const dislikeCount = parseInt(post.DislikeCount, 10) || 0;
-            const commentCount = parseInt(post.CommentCount, 10) || 0;
-
-            const prefix = compact ? '-compact' : '';
-            const cls = compact ? 'post-card-compact' : 'post-card';
-            el.className = `${cls} clickable-card`;
-            el.setAttribute('data-href', `/posts/${safePostId}`);
-
-            const header = document.createElement('div');
-            header.className = `post-header${prefix}`;
-
-            const heading = document.createElement('h3');
-            const link = document.createElement('a');
-            link.href = `/posts/${safePostId}`;
-            link.textContent = safeTitle;
-            heading.appendChild(link);
-            header.appendChild(heading);
-
-            const meta = document.createElement('div');
-            meta.className = `post-meta${prefix}`;
-            const author = document.createElement('span');
-            author.className = `author${prefix}`;
-            author.textContent = `by ${safeAuthor}`;
-            const date = document.createElement('span');
-            date.className = `date${prefix}`;
-            date.textContent = formattedDate;
-            meta.appendChild(author);
-            meta.appendChild(date);
-            header.appendChild(meta);
-            el.appendChild(header);
-
-            if (safeImageURL) {
-                const imageWrap = document.createElement('div');
-                imageWrap.className = `post-image${prefix}`;
-                const image = document.createElement('img');
-                image.src = safeImageURL;
-                image.alt = safeTitle;
-                imageWrap.appendChild(image);
-                el.appendChild(imageWrap);
-            }
-
-            const contentWrap = document.createElement('div');
-            contentWrap.className = `post-content${prefix}`;
-            const contentP = document.createElement('p');
-            contentP.textContent = safeContent;
-            contentWrap.appendChild(contentP);
-            el.appendChild(contentWrap);
-
-            const footer = document.createElement('div');
-            footer.className = `post-footer${prefix}`;
-            const categoriesContainer = document.createElement('div');
-            categoriesContainer.className = `categories${prefix}`;
-
-            (post.Categories || []).forEach(cat => {
-                const safeCat = window.escapeHtml(cat);
-                const categoryLink = document.createElement('a');
-                categoryLink.className = compact ? 'category-tag-compact' : 'category-tag';
-                categoryLink.href = compact ? `?category=${encodeURIComponent(cat)}` : `/board?category=${encodeURIComponent(cat)}`;
-                categoryLink.textContent = safeCat;
-                categoriesContainer.appendChild(categoryLink);
-            });
-
-            const actions = document.createElement('div');
-            actions.className = `post-actions${prefix}`;
-
-            const likeBtn = document.createElement('button');
-            likeBtn.className = 'btn-like';
-            likeBtn.setAttribute('data-post-id', safePostId);
-            likeBtn.setAttribute('aria-label', 'Like this post');
-            likeBtn.setAttribute('title', 'Like');
-            likeBtn.textContent = `👍 ${likeCount}`;
-
-            const dislikeBtn = document.createElement('button');
-            dislikeBtn.className = 'btn-dislike';
-            dislikeBtn.setAttribute('data-post-id', safePostId);
-            dislikeBtn.setAttribute('aria-label', 'Dislike this post');
-            dislikeBtn.setAttribute('title', 'Dislike');
-            dislikeBtn.textContent = `👎 ${dislikeCount}`;
-
-            const comments = document.createElement('span');
-            comments.className = `comments${prefix}`;
-            comments.textContent = `💬 ${commentCount}`;
-
-            actions.appendChild(likeBtn);
-            actions.appendChild(dislikeBtn);
-            actions.appendChild(comments);
-            footer.appendChild(categoriesContainer);
-            footer.appendChild(actions);
-            el.appendChild(footer);
-
-            return el;
-        }
-
         async function fetchPosts(params) {
             return await window.api.request(`/api/posts/load-more?${params}`);
         }
 
-        const BATCH_SIZE = 20; // load 20 posts per click
+        const BATCH_SIZE = window.FORUM_CONSTANTS?.BATCH_SIZE || 20;
 
         // Load more (single page load)
         async function loadMorePosts() {

@@ -116,7 +116,7 @@ func (v *Validator) Password(field, value string, minLength int) {
 		return // If too short, just report length first
 	}
 
-	var missing []string
+	missing := make([]string, 0, 3)
 	hasUpper, hasLower, hasDigit := false, false, false
 	for _, r := range value {
 		if unicode.IsUpper(r) {

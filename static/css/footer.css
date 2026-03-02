@@ -3,10 +3,10 @@
    ========================================================================== */
 
 footer {
-    background: linear-gradient(135deg, #d3e0ea 0%, #e0f0f7 100%); /* Soft Blue gradient */
-    color: #5a5a5a;
+    background: var(--gradient-blue-light); /* Soft Blue gradient */
+    color: var(--color-text);
     padding: 0.5rem 0; /* Narrower padding */
-    border-top: 1px solid #c0d0e0;
+    border-top: 1px solid var(--color-border-blue);
 }
 
 footer .container {

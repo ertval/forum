@@ -23,50 +23,36 @@
         }
     }
 
-    // Function to handle post reactions
-    async function handlePostReaction(postId, reactionType, likeBtn, dislikeBtn) {
+    // Unified reaction handler for both posts and comments
+    async function handleReaction(targetType, targetId, reactionType, likeBtn, dislikeBtn) {
         window.clearError('page-errors');
         try {
             await window.api.request('/api/reactions', {
                 method: 'POST',
                 body: JSON.stringify({
-                    target_type: 'post',
-                    target_id: postId,
+                    target_type: targetType,
+                    target_id: targetId,
                     type: reactionType
                 })
             });
-            await refreshCounts('post', postId, likeBtn, dislikeBtn);
+            await refreshCounts(targetType, targetId, likeBtn, dislikeBtn);
         } catch (error) {
             if (error && error.status === 401) {
-                window.showError('Please login to react to posts', 'page-errors');
+                window.showError(`Please login to react to ${targetType}s`, 'page-errors');
                 return;
             }
-            console.error(`Reaction error (${reactionType}):`, error);
-            window.showError(error.message || `An error occurred while ${reactionType}ing the post`, 'page-errors');
+            console.error(`Reaction error (${targetType}/${reactionType}):`, error);
+            window.showError(error.message || `An error occurred while ${reactionType}ing the ${targetType}`, 'page-errors');
         }
     }
 
-    // Function to handle comment reactions
-    async function handleCommentReaction(commentId, reactionType, likeBtn, dislikeBtn) {
-        window.clearError('page-errors');
-        try {
-            await window.api.request('/api/reactions', {
-                method: 'POST',
-                body: JSON.stringify({
-                    target_type: 'comment',
-                    target_id: commentId,
-                    type: reactionType
-                })
-            });
-            await refreshCounts('comment', commentId, likeBtn, dislikeBtn);
-        } catch (error) {
-            if (error && error.status === 401) {
-                window.showError('Please login to react to comments', 'page-errors');
-                return;
-            }
-            console.error(`Comment reaction error (${reactionType}):`, error);
-            window.showError(error.message || `An error occurred while ${reactionType}ing the comment`, 'page-errors');
-        }
+    // Convenience wrappers for backward compatibility
+    function handlePostReaction(postId, reactionType, likeBtn, dislikeBtn) {
+        return handleReaction('post', postId, reactionType, likeBtn, dislikeBtn);
+    }
+
+    function handleCommentReaction(commentId, reactionType, likeBtn, dislikeBtn) {
+        return handleReaction('comment', commentId, reactionType, likeBtn, dislikeBtn);
     }
 
     // Event delegation for reaction buttons

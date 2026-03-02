@@ -5,11 +5,8 @@ package adapters
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"mime"
 	"net/http"
-	"os"
 
 	authPorts "forum/internal/modules/auth/ports"
 	commentPorts "forum/internal/modules/comment/ports"
@@ -17,7 +14,6 @@ import (
 	reactionPorts "forum/internal/modules/reaction/ports"
 	userPorts "forum/internal/modules/user/ports"
 	"forum/internal/platform/httpserver"
-	logger "forum/internal/platform/logger"
 	platformTemplates "forum/internal/platform/templates"
 )
 
@@ -38,6 +34,7 @@ type HTTPHandler struct {
 	reactionService    reactionPorts.ReactionService
 	middlewareProvider authPorts.AuthMiddleware
 	templates          *platformTemplates.Registry
+	cookieName         string
 }
 
 // ServiceContainer defines the minimal interface needed by this handler.
@@ -49,10 +46,16 @@ type ServiceContainer interface {
 	Category() postPorts.CategoryService
 	Reaction() reactionPorts.ReactionService
 	AuthMiddleware() authPorts.AuthMiddleware
+	SessionCookieName() string
 }
 
 // NewHTTPHandler creates a new HTTP handler for comments with unified dependency injection.
 func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Registry) *HTTPHandler {
+	cookieName := services.SessionCookieName()
+	if cookieName == "" {
+		cookieName = "session_token"
+	}
+
 	return &HTTPHandler{
 		commentService:     services.Comment(),
 		authService:        services.Auth(),
@@ -62,6 +65,7 @@ func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Regi
 		reactionService:    services.Reaction(),
 		middlewareProvider: services.AuthMiddleware(),
 		templates:          templates,
+		cookieName:         cookieName,
 	}
 }
 
@@ -107,7 +111,7 @@ func (h *HTTPHandler) buildCurrentUser(ctx context.Context, userID int) map[stri
 // GetCurrentUser extracts user info from session cookie (helper for other handlers).
 // Returns userID and username, or (0, "") if not authenticated.
 func (h *HTTPHandler) GetCurrentUser(r *http.Request) (userID int, username string) {
-	cookie, err := r.Cookie("session_token")
+	cookie, err := r.Cookie(h.cookieName)
 	if err != nil || cookie.Value == "" {
 		return 0, ""
 	}
@@ -135,36 +139,4 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 
 	// Register page routes (includes form submission routes)
 	h.RegisterPageRoutes(router)
-}
-
-// writeJSON writes a JSON response.
-func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		// Log the error, but don't send it to the client
-		cfg := &logger.Config{
-			TimePrecision: logger.TimePrecisionSeconds,
-		}
-		lgr := logger.NewWithConfig(logger.ErrorLevel, os.Stderr, cfg)
-		lgr.Error("Failed to encode JSON response",
-			logger.Error(err),
-			logger.String("method", "writeJSON"))
-	}
-}
-
-// parseJSON parses JSON request body.
-func (h *HTTPHandler) parseJSON(r *http.Request, v interface{}) error {
-	// Check if content type is JSON
-	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	if err != nil || mediaType != "application/json" {
-		return fmt.Errorf("content type is not application/json")
-	}
-
-	// Decode the JSON
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields() // This makes parsing stricter
-
-	return decoder.Decode(v)
 }

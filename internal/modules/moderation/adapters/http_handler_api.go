@@ -11,6 +11,7 @@ import (
 	authPorts "forum/internal/modules/auth/ports"
 	"forum/internal/modules/moderation/domain"
 	platformErrors "forum/internal/platform/errors"
+	"forum/internal/platform/httpjson"
 )
 
 // RegisterAPIRoutes registers all moderation API routes with the router.
@@ -46,7 +47,7 @@ func (h *HTTPHandler) CreateReportAPI(w http.ResponseWriter, r *http.Request) {
 		TargetID   string `json:"target_id"`
 		Reason     string `json:"reason"`
 	}
-	if err := h.parseJSON(r, &req); err != nil {
+	if err := httpjson.ParseJSON(r, &req); err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -75,7 +76,7 @@ func (h *HTTPHandler) CreateReportAPI(w http.ResponseWriter, r *http.Request) {
 		report.PublicTargetID = req.TargetID
 	}
 
-	h.writeJSON(w, http.StatusCreated, report)
+	httpjson.WriteJSON(w, http.StatusCreated, report)
 }
 
 // ListReportsAPI handles listing reports.
@@ -96,7 +97,7 @@ func (h *HTTPHandler) ListReportsAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.writeJSON(w, http.StatusOK, map[string]any{
+	httpjson.WriteJSON(w, http.StatusOK, map[string]any{
 		"reports": reports,
 		"count":   len(reports),
 	})
@@ -121,7 +122,7 @@ func (h *HTTPHandler) ReviewReportAPI(w http.ResponseWriter, r *http.Request) {
 		Decision string `json:"decision"`
 		Response string `json:"response"`
 	}
-	if err := h.parseJSON(r, &req); err != nil {
+	if err := httpjson.ParseJSON(r, &req); err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -150,7 +151,7 @@ func (h *HTTPHandler) ReviewReportAPI(w http.ResponseWriter, r *http.Request) {
 		report.PublicModeratorID = moderator.PublicID
 	}
 
-	h.writeJSON(w, http.StatusOK, report)
+	httpjson.WriteJSON(w, http.StatusOK, report)
 }
 
 func (h *HTTPHandler) requireModerator(r *http.Request) (*userView, error) {

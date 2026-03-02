@@ -195,62 +195,13 @@ document.addEventListener('DOMContentLoaded', function() {
             return article;
         }
 
-        // Fallback: build element manually
-        const article = document.createElement('article');
-        article.className = 'comment';
-        article.id = `comment-${safeCommentId}`;
-
-        const header = document.createElement('div');
-        header.className = 'comment-header';
-        const author = document.createElement('span');
-        author.className = 'comment-author';
-        author.textContent = safeAuthor;
-        const date = document.createElement('span');
-        date.className = 'comment-date';
-        date.textContent = formattedDate;
-        header.appendChild(author);
-        header.appendChild(date);
-
-        const content = document.createElement('div');
-        content.className = 'comment-content';
-        content.textContent = safeContent;
-
-        const actions = document.createElement('div');
-        actions.className = 'comment-actions';
-
-        const reactions = document.createElement('div');
-        reactions.className = 'comment-reactions';
-        const likeBtn = document.createElement('button');
-        likeBtn.className = 'btn-like-comment';
-        likeBtn.setAttribute('data-comment-id', safeCommentId);
-        likeBtn.textContent = '👍 (0)';
-        const dislikeBtn = document.createElement('button');
-        dislikeBtn.className = 'btn-dislike-comment';
-        dislikeBtn.setAttribute('data-comment-id', safeCommentId);
-        dislikeBtn.textContent = '👎 (0)';
-        reactions.appendChild(likeBtn);
-        reactions.appendChild(dislikeBtn);
-
-        const ownerActions = document.createElement('div');
-        ownerActions.className = 'comment-owner-actions';
-        const editBtn = document.createElement('button');
-        editBtn.className = 'btn btn-secondary btn-edit-comment';
-        editBtn.setAttribute('data-comment-id', safeCommentId);
-        editBtn.textContent = 'Edit';
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'btn btn-danger btn-delete-comment';
-        deleteBtn.setAttribute('data-comment-id', safeCommentId);
-        deleteBtn.textContent = 'Delete';
-        ownerActions.appendChild(editBtn);
-        ownerActions.appendChild(deleteBtn);
-
-        actions.appendChild(reactions);
-        actions.appendChild(ownerActions);
-
-        article.appendChild(header);
-        article.appendChild(content);
-        article.appendChild(actions);
-        return article;
+        // Template should always exist in post_detail.html
+        console.error('Template element #comment-template not found. Ensure post_detail.html includes the template.');
+        const fallback = document.createElement('article');
+        fallback.className = 'comment';
+        fallback.id = `comment-${safeCommentId}`;
+        fallback.textContent = safeContent;
+        return fallback;
     }
 
     // Handle the global deletePost function that is called from inline onclick

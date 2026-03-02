@@ -74,6 +74,10 @@ func (m *mockReactionRepository) CountByTargetPublicID(ctx context.Context, targ
 	return 0, nil
 }
 
+func (m *mockReactionRepository) CountLikesAndDislikesByTargetPublicID(ctx context.Context, targetPublicID string, targetType string) (likes, dislikes int, err error) {
+	return 0, 0, nil
+}
+
 func (m *mockReactionRepository) CountByUserID(ctx context.Context, userID int) (int, error) {
 	return 0, nil
 }

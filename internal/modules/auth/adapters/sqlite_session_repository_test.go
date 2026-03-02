@@ -25,6 +25,16 @@ user_agent TEXT
 	return err
 }
 
+// Helper to create session repository for tests, failing the test on error.
+func mustNewSessionRepo(t *testing.T, db *sql.DB) *SQLiteSessionRepository {
+	t.Helper()
+	repo, err := NewSQLiteSessionRepository(db)
+	if err != nil {
+		t.Fatalf("Failed to create session repository: %v", err)
+	}
+	return repo.(*SQLiteSessionRepository)
+}
+
 func TestSQLiteSessionRepository_Create(t *testing.T) {
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
@@ -36,7 +46,7 @@ func TestSQLiteSessionRepository_Create(t *testing.T) {
 		t.Fatalf("Failed to create table: %v", err)
 	}
 
-	repo := NewSQLiteSessionRepository(db)
+	repo := mustNewSessionRepo(t, db)
 
 	session := &domain.Session{
 		// ID and PublicID will be set by repository
@@ -88,7 +98,7 @@ func TestSQLiteSessionRepository_GetByToken(t *testing.T) {
 		t.Fatalf("Failed to create table: %v", err)
 	}
 
-	repo := NewSQLiteSessionRepository(db)
+	repo := mustNewSessionRepo(t, db)
 
 	// Insert a session using repository
 	session := &domain.Session{
@@ -147,7 +157,7 @@ func TestSQLiteSessionRepository_GetByToken_NotFound(t *testing.T) {
 		t.Fatalf("Failed to create table: %v", err)
 	}
 
-	repo := NewSQLiteSessionRepository(db)
+	repo := mustNewSessionRepo(t, db)
 
 	ctx := context.Background()
 	_, err = repo.GetByToken(ctx, "non-existent-token")
@@ -169,7 +179,7 @@ func TestSQLiteSessionRepository_GetByUserID(t *testing.T) {
 		t.Fatalf("Failed to create table: %v", err)
 	}
 
-	repo := NewSQLiteSessionRepository(db)
+	repo := mustNewSessionRepo(t, db)
 
 	// Insert test sessions
 	userID := 1
@@ -237,7 +247,7 @@ func TestSQLiteSessionRepository_Update(t *testing.T) {
 		t.Fatalf("Failed to create table: %v", err)
 	}
 
-	repo := NewSQLiteSessionRepository(db)
+	repo := mustNewSessionRepo(t, db)
 
 	// Insert a session
 	session := &domain.Session{
@@ -288,7 +298,7 @@ func TestSQLiteSessionRepository_Delete(t *testing.T) {
 		t.Fatalf("Failed to create table: %v", err)
 	}
 
-	repo := NewSQLiteSessionRepository(db)
+	repo := mustNewSessionRepo(t, db)
 
 	// Insert a session
 	session := &domain.Session{
@@ -333,7 +343,7 @@ func TestSQLiteSessionRepository_Delete_NotFound(t *testing.T) {
 		t.Fatalf("Failed to create table: %v", err)
 	}
 
-	repo := NewSQLiteSessionRepository(db)
+	repo := mustNewSessionRepo(t, db)
 
 	ctx := context.Background()
 	err = repo.Delete(ctx, "non-existent-token")
@@ -355,7 +365,7 @@ func TestSQLiteSessionRepository_DeleteByUserID(t *testing.T) {
 		t.Fatalf("Failed to create table: %v", err)
 	}
 
-	repo := NewSQLiteSessionRepository(db)
+	repo := mustNewSessionRepo(t, db)
 
 	// Insert test sessions
 	userID1 := 1

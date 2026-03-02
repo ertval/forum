@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"forum/internal/modules/post/domain"
 	"forum/internal/modules/post/ports"
+	"forum/internal/platform/database"
 	"strings"
 	"time"
 
@@ -67,7 +68,10 @@ func (r *SQLitePostRepository) Create(ctx context.Context, post *domain.Post) er
 	if err != nil {
 		return fmt.Errorf("failed to get post ID: %w", err)
 	}
-	post.ID = int(postID)
+	post.ID, err = database.SafeInt64ToInt(postID)
+	if err != nil {
+		return fmt.Errorf("post last insert id overflow: %w", err)
+	}
 
 	// Insert post-category associations
 	for _, categoryName := range post.Categories {
@@ -96,28 +100,11 @@ func (r *SQLitePostRepository) GetByID(ctx context.Context, postID string) (*dom
 			p.id, p.public_id, p.title, p.content, p.author_id, p.image_path,
 			p.created_at, p.updated_at,
 			u.public_id as user_public_id, u.username,
-			COALESCE(like_counts.count, 0) as like_count,
-			COALESCE(dislike_counts.count, 0) as dislike_count,
-			COALESCE(comment_counts.count, 0) as comment_count
+			(SELECT COUNT(*) FROM reactions WHERE target_id = p.id AND target_type = 'post' AND type = 'like') as like_count,
+			(SELECT COUNT(*) FROM reactions WHERE target_id = p.id AND target_type = 'post' AND type = 'dislike') as dislike_count,
+			(SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count
 		FROM posts p
 		LEFT JOIN users u ON p.author_id = u.id
-		LEFT JOIN (
-			SELECT target_id, COUNT(*) as count 
-			FROM reactions 
-			WHERE target_type = 'post' AND type = 'like'
-			GROUP BY target_id
-		) like_counts ON p.id = like_counts.target_id
-		LEFT JOIN (
-			SELECT target_id, COUNT(*) as count 
-			FROM reactions 
-			WHERE target_type = 'post' AND type = 'dislike'
-			GROUP BY target_id
-		) dislike_counts ON p.id = dislike_counts.target_id
-		LEFT JOIN (
-			SELECT post_id, COUNT(*) as count 
-			FROM comments 
-			GROUP BY post_id
-		) comment_counts ON p.id = comment_counts.post_id
 		WHERE p.public_id = ?
 	`
 
@@ -290,28 +277,11 @@ func (r *SQLitePostRepository) List(ctx context.Context, filter domain.PostFilte
 			p.id, p.public_id, p.title, p.content, p.author_id, p.image_path, 
 			p.created_at, p.updated_at,
 			u.public_id as user_public_id, u.username,
-			COALESCE(like_counts.count, 0) as like_count,
-			COALESCE(dislike_counts.count, 0) as dislike_count,
-			COALESCE(comment_counts.count, 0) as comment_count
+			(SELECT COUNT(*) FROM reactions WHERE target_id = p.id AND target_type = 'post' AND type = 'like') as like_count,
+			(SELECT COUNT(*) FROM reactions WHERE target_id = p.id AND target_type = 'post' AND type = 'dislike') as dislike_count,
+			(SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count
 		FROM posts p
 		LEFT JOIN users u ON p.author_id = u.id
-		LEFT JOIN (
-			SELECT target_id, COUNT(*) as count 
-			FROM reactions 
-			WHERE target_type = 'post' AND type = 'like'
-			GROUP BY target_id
-		) like_counts ON p.id = like_counts.target_id
-		LEFT JOIN (
-			SELECT target_id, COUNT(*) as count 
-			FROM reactions 
-			WHERE target_type = 'post' AND type = 'dislike'
-			GROUP BY target_id
-		) dislike_counts ON p.id = dislike_counts.target_id
-		LEFT JOIN (
-			SELECT post_id, COUNT(*) as count 
-			FROM comments 
-			GROUP BY post_id
-		) comment_counts ON p.id = comment_counts.post_id
 	`
 
 	var conditions []string
@@ -601,11 +571,14 @@ func (r *SQLiteCategoryRepository) Create(ctx context.Context, category *domain.
 	}
 
 	// Get the auto-generated internal ID
-	id, err := result.LastInsertId()
+	lastID, err := result.LastInsertId()
 	if err != nil {
 		return fmt.Errorf("failed to get category ID: %w", err)
 	}
-	category.ID = int(id)
+	category.ID, err = database.SafeInt64ToInt(lastID)
+	if err != nil {
+		return fmt.Errorf("category last insert id overflow: %w", err)
+	}
 
 	return nil
 }

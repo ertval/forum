@@ -3,6 +3,7 @@
 package adapters
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"net/http"
@@ -234,8 +235,11 @@ func (h *HTTPHandler) renderSettingsPage(w http.ResponseWriter, statusCode int, 
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(statusCode)
-	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
 		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		return
 	}
+	w.WriteHeader(statusCode)
+	buf.WriteTo(w)
 }

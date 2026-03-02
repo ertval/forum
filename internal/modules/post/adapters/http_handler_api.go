@@ -13,6 +13,7 @@ import (
 	authPorts "forum/internal/modules/auth/ports"
 	postDomain "forum/internal/modules/post/domain"
 	platformErrors "forum/internal/platform/errors"
+	"forum/internal/platform/httpjson"
 	logger "forum/internal/platform/logger"
 	"forum/internal/platform/upload"
 )
@@ -205,7 +206,7 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.writeJSON(w, http.StatusCreated, post)
+	httpjson.WriteJSON(w, http.StatusCreated, post)
 }
 
 // GetPostAPI handles post retrieval requests.
@@ -236,7 +237,7 @@ func (h *HTTPHandler) GetPostAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return JSON for API requests
-	h.writeJSON(w, http.StatusOK, post)
+	httpjson.WriteJSON(w, http.StatusOK, post)
 }
 
 // UpdatePostAPI handles post update requests.
@@ -480,7 +481,7 @@ func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"posts": posts,
 	}
-	h.writeJSON(w, http.StatusOK, response)
+	httpjson.WriteJSON(w, http.StatusOK, response)
 }
 
 // LoadMorePostsAPI handles loading additional posts for the homepage.
@@ -515,5 +516,5 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 		previewPosts[i] = previewPost
 	}
 
-	h.writeJSON(w, http.StatusOK, previewPosts)
+	httpjson.WriteJSON(w, http.StatusOK, previewPosts)
 }

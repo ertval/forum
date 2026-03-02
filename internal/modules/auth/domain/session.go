@@ -94,7 +94,7 @@ func (c *Credentials) Validate() error {
 		}
 	}
 
-	var missing []string
+	missing := make([]string, 0, 3)
 	if !hasUpper {
 		missing = append(missing, "an uppercase letter")
 	}

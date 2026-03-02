@@ -57,7 +57,6 @@ func (s *Service) CreateUser(ctx context.Context, email, username, passwordHash 
 }
 
 // GetByID retrieves a user by their internal ID (for internal use only).
-// TODO: Implement user retrieval.
 func (s *Service) GetByID(ctx context.Context, userID int) (*domain.User, error) {
 	return s.userRepo.GetByID(ctx, userID)
 }
@@ -68,13 +67,11 @@ func (s *Service) GetByPublicID(ctx context.Context, publicID string) (*domain.U
 }
 
 // GetByUsername retrieves a user by their username.
-// TODO: Implement username-based retrieval.
 func (s *Service) GetByUsername(ctx context.Context, username string) (*domain.User, error) {
 	return s.userRepo.GetByUsername(ctx, username)
 }
 
 // GetByEmail retrieves a user by their email address.
-// TODO: Implement email-based retrieval.
 func (s *Service) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	return s.userRepo.GetByEmail(ctx, email)
 }
@@ -178,7 +175,7 @@ func userValidatePassword(password string, minLen int) (string, bool) {
 			hasDigit = true
 		}
 	}
-	var missing []string
+	missing := make([]string, 0, 3)
 	if !hasUpper {
 		missing = append(missing, "an uppercase letter")
 	}
@@ -222,7 +219,6 @@ func userSanitize(input string) string {
 }
 
 // ListUsers returns a paginated list of users.
-// TODO: Implement user listing.
 func (s *Service) ListUsers(ctx context.Context, offset, limit int) ([]*domain.User, error) {
 	return s.userRepo.List(ctx, offset, limit)
 }

@@ -75,7 +75,7 @@
     font-size: 1.75rem;
     text-align: center;
     margin-bottom: 1.25rem;
-    color: #5a5a5a;
+    color: var(--color-text);
 }
 
 .home-posts-grid {
@@ -122,18 +122,18 @@ body[data-page="no-user-sidebar"] .user-menu-container {
     background: transparent;
     border: none;
     cursor: pointer;
-    color: #5a5a5a;
+    color: var(--color-text);
     font-weight: 500;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal);
 }
 
 .user-menu-btn:hover {
-    background: linear-gradient(135deg, #e8f4fa 0%, #f0f8fc 100%);
+    background: var(--gradient-blue-lighter);
 }
 
 /* Clicked / active state for user-menu button */
 .user-menu-btn.active {
-    background: linear-gradient(135deg, #e8f4fa 0%, #f0f8fc 100%);
+    background: var(--gradient-blue-lighter);
     transform: translateY(1px);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
     color: #2b6b97;
@@ -154,10 +154,10 @@ body[data-page="no-user-sidebar"] .user-menu-container {
     position: absolute;
     top: 100%;
     right: 0;
-    background: #ffffff;
+    background: var(--color-bg-light);
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-    border: 1px solid #c0d0e0;
+    border: 1px solid var(--color-border-blue);
     min-width: 280px;
     z-index: 1000;
     padding: 1rem;
@@ -174,14 +174,14 @@ body[data-page="no-user-sidebar"] .user-menu-container {
     gap: 1rem;
     margin-bottom: 1rem;
     padding-bottom: 1rem;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--color-border);
 }
 
 .user-menu-dropdown .user-avatar {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #d3e0ea 0%, #e0f0f7 100%);
+    background: var(--gradient-blue-light);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -189,13 +189,13 @@ body[data-page="no-user-sidebar"] .user-menu-container {
 
 .user-menu-dropdown .user-details .username {
     font-weight: 600;
-    color: #5a5a5a;
+    color: var(--color-text);
     font-size: 0.95rem;
 }
 
 .user-menu-dropdown .user-details .user-email {
     font-size: 0.8rem;
-    color: #7a7a7a;
+    color: var(--color-text-muted);
 }
 
 .user-menu-dropdown .user-stats {
@@ -215,12 +215,12 @@ body[data-page="no-user-sidebar"] .user-menu-container {
 .user-menu-dropdown .stat-value {
     font-size: 1.1rem;
     font-weight: 600;
-    color: #5a5a5a;
+    color: var(--color-text);
 }
 
 .user-menu-dropdown .stat-label {
     font-size: 0.75rem;
-    color: #7a7a7a;
+    color: var(--color-text-muted);
 }
 
 .user-menu-dropdown .user-actions {

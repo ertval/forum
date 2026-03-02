@@ -9,13 +9,14 @@
         let offset = parseInt(loadMoreBtn.getAttribute('data-offset')) || 0;
         const category = loadMoreBtn.getAttribute('data-category') || '';
         const dateFilter = loadMoreBtn.getAttribute('data-date-filter') || '';
-        const BATCH_SIZE = 20;
+        const BATCH_SIZE = window.FORUM_CONSTANTS?.BATCH_SIZE || 20;
 
         function createCommentElement(comment) {
             // Use HTML <template> element for cloning instead of innerHTML
             const template = document.getElementById('comment-list-template');
             if (!template) {
-                return createCommentElementFallback(comment);
+                console.error('Template element #comment-list-template not found. Ensure comments.html includes the template.');
+                return document.createElement('article');
             }
 
             const clone = template.content.cloneNode(true);
@@ -65,100 +66,6 @@
             const deleteBtn = clone.querySelector('[data-field="delete-btn"]');
             deleteBtn.setAttribute('data-comment-id', safeCommentId);
 
-            return article;
-        }
-
-        // Fallback when template element is not available
-        function createCommentElementFallback(comment) {
-            const article = document.createElement('article');
-            article.className = 'comment';
-            article.id = `comment-${comment.PublicID}`;
-
-            const commentDate = new Date(comment.CreatedAt);
-            const formattedDate = commentDate.toLocaleDateString('en-US', {
-                year: 'numeric', month: 'short', day: '2-digit',
-                hour: 'numeric', minute: '2-digit', hour12: true
-            });
-
-            const safePostTitle = window.escapeHtml(comment.PostTitle);
-            const safePostAuthor = window.escapeHtml(comment.PostAuthorUsername);
-            const safeAuthor = window.escapeHtml(comment.AuthorUsername);
-            const safeContent = window.escapeHtml(comment.Content);
-            const safePostId = window.escapeHtml(comment.PostPublicID);
-            const safeCommentId = window.escapeHtml(comment.PublicID);
-
-            const contextDiv = document.createElement('div');
-            contextDiv.className = 'comment-context';
-            const contextP = document.createElement('p');
-            contextP.append('On post: ');
-            const postLink = document.createElement('a');
-            postLink.className = 'comment-post-link';
-            postLink.href = `/posts/${safePostId}`;
-            postLink.textContent = safePostTitle;
-            contextP.appendChild(postLink);
-            contextP.append(' by ');
-            const postAuthor = document.createElement('span');
-            postAuthor.className = 'comment-post-author';
-            postAuthor.textContent = safePostAuthor;
-            contextP.appendChild(postAuthor);
-            contextDiv.appendChild(contextP);
-
-            const headerDiv = document.createElement('div');
-            headerDiv.className = 'comment-header';
-            const authorSpan = document.createElement('span');
-            authorSpan.className = 'comment-author';
-            authorSpan.textContent = safeAuthor;
-            const dateSpan = document.createElement('span');
-            dateSpan.className = 'comment-date';
-            dateSpan.textContent = formattedDate;
-            headerDiv.appendChild(authorSpan);
-            headerDiv.appendChild(dateSpan);
-
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'comment-content';
-            contentDiv.textContent = safeContent;
-
-            const actionsDiv = document.createElement('div');
-            actionsDiv.className = 'comment-actions';
-            const reactionsDiv = document.createElement('div');
-            reactionsDiv.className = 'comment-reactions';
-
-            const likeBtn = document.createElement('button');
-            likeBtn.className = 'btn-like-comment';
-            likeBtn.setAttribute('data-comment-id', safeCommentId);
-            likeBtn.textContent = `👍 (${parseInt(comment.Likes, 10) || 0})`;
-
-            const dislikeBtn = document.createElement('button');
-            dislikeBtn.className = 'btn-dislike-comment';
-            dislikeBtn.setAttribute('data-comment-id', safeCommentId);
-            dislikeBtn.textContent = `👎 (${parseInt(comment.Dislikes, 10) || 0})`;
-
-            reactionsDiv.appendChild(likeBtn);
-            reactionsDiv.appendChild(dislikeBtn);
-
-            const ownerActionsDiv = document.createElement('div');
-            ownerActionsDiv.className = 'comment-owner-actions';
-
-            const editBtn = document.createElement('button');
-            editBtn.className = 'btn btn-secondary btn-edit-comment';
-            editBtn.setAttribute('data-comment-id', safeCommentId);
-            editBtn.textContent = 'Edit';
-
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'btn btn-danger btn-delete-comment';
-            deleteBtn.setAttribute('data-comment-id', safeCommentId);
-            deleteBtn.textContent = 'Delete';
-
-            ownerActionsDiv.appendChild(editBtn);
-            ownerActionsDiv.appendChild(deleteBtn);
-
-            actionsDiv.appendChild(reactionsDiv);
-            actionsDiv.appendChild(ownerActionsDiv);
-
-            article.appendChild(contextDiv);
-            article.appendChild(headerDiv);
-            article.appendChild(contentDiv);
-            article.appendChild(actionsDiv);
             return article;
         }
 

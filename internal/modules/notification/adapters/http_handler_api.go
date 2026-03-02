@@ -4,10 +4,11 @@
 package adapters
 
 import (
-	"encoding/json"
+	"net/http"
+
 	authPorts "forum/internal/modules/auth/ports"
 	"forum/internal/modules/notification/domain"
-	"net/http"
+	"forum/internal/platform/httpjson"
 
 	platformErrors "forum/internal/platform/errors"
 )
@@ -51,14 +52,11 @@ func (h *HTTPHandler) GetNotificationsAPI(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+	httpjson.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"notifications": notifications,
 		"count":         len(notifications),
 		"unread_count":  unreadCount,
-	}); err != nil {
-		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to encode notifications")
-	}
+	})
 }
 
 // MarkAsReadAPI handles marking notifications as read.

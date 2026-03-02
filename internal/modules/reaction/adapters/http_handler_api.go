@@ -3,13 +3,13 @@
 package adapters
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
 	authPorts "forum/internal/modules/auth/ports"
 	"forum/internal/modules/reaction/domain"
 	platformErrors "forum/internal/platform/errors"
+	"forum/internal/platform/httpjson"
 	"forum/internal/platform/logger"
 )
 
@@ -57,7 +57,7 @@ func (h *HTTPHandler) AddReactionAPI(w http.ResponseWriter, r *http.Request) {
 		Type       domain.ReactionType `json:"type"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httpjson.ParseJSON(r, &req); err != nil {
 		h.logger.Error("Invalid request body for reaction", logger.String("user_id", userPublicID), logger.Error(err))
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -112,7 +112,7 @@ func (h *HTTPHandler) AddReactionAPI(w http.ResponseWriter, r *http.Request) {
 		logger.String("reaction_type", string(req.Type)))
 
 	// Return success
-	h.writeJSON(w, http.StatusOK, struct {
+	httpjson.WriteJSON(w, http.StatusOK, struct {
 		Message string `json:"message"`
 	}{
 		Message: "Reaction added successfully",
@@ -147,7 +147,7 @@ func (h *HTTPHandler) RemoveReactionAPI(w http.ResponseWriter, r *http.Request) 
 		TargetID   string `json:"target_id"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httpjson.ParseJSON(r, &req); err != nil {
 		h.logger.Error("Invalid request body for reaction removal", logger.String("user_id", userPublicID), logger.Error(err))
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return
@@ -234,7 +234,7 @@ func (h *HTTPHandler) GetReactionsAPI(w http.ResponseWriter, r *http.Request) {
 		logger.Int("reaction_count", len(reactions)))
 
 	// Return the reactions
-	h.writeJSON(w, http.StatusOK, reactions)
+	httpjson.WriteJSON(w, http.StatusOK, reactions)
 }
 
 // CountReactionsAPI handles counting reactions for a target.
@@ -289,14 +289,5 @@ func (h *HTTPHandler) CountReactionsAPI(w http.ResponseWriter, r *http.Request) 
 		Dislikes:   dislikes,
 	}
 
-	h.writeJSON(w, http.StatusOK, response)
-}
-
-// writeJSON writes a JSON response.
-func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		h.logger.Error("Error encoding JSON response", logger.Error(err))
-	}
+	httpjson.WriteJSON(w, http.StatusOK, response)
 }

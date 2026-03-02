@@ -4,18 +4,18 @@
 
 /* User Card */
 .user-card {
-    background: #ffffff;
+    background: var(--color-bg-light);
     padding: 1.5rem;
     border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-soft);
     height: fit-content;
-    border: 1px solid #c0d0e0;
+    border: 1px solid var(--color-border-blue);
 }
 
 .user-card h2 {
     font-size: 1.2rem;
     margin-bottom: 1rem;
-    color: #5a5a5a;
+    color: var(--color-text);
     text-align: center;
 }
 
@@ -25,14 +25,14 @@
     gap: 1rem;
     margin-bottom: 1rem;
     padding-bottom: 1rem;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--color-border);
 }
 
 .user-avatar {
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #d3e0ea 0%, #e0f0f7 100%);
+    background: var(--gradient-blue-light);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -55,14 +55,14 @@
 
 .user-details .username {
     font-weight: 600;
-    color: #5a5a5a;
+    color: var(--color-text);
     margin-bottom: 0.25rem;
     font-size: 1rem;
 }
 
 .user-details .user-email {
     font-size: 0.85rem;
-    color: #7a7a7a;
+    color: var(--color-text-muted);
 }
 
 .user-stats {
@@ -82,12 +82,12 @@
 .stat-value {
     font-size: 1.3rem;
     font-weight: 600;
-    color: #5a5a5a;
+    color: var(--color-text);
 }
 
 .stat-label {
     font-size: 0.8rem;
-    color: #7a7a7a;
+    color: var(--color-text-muted);
 }
 
 .user-actions {
@@ -138,18 +138,18 @@
 
 /* Filters Card */
 .filters {
-    background: #ffffff;
+    background: var(--color-bg-light);
     padding: 1.5rem;
     border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-soft);
     height: fit-content;
-    border: 1px solid #c0d0e0;
+    border: 1px solid var(--color-border-blue);
 }
 
 .filters h2 {
     font-size: 1.2rem;
     margin-bottom: 1rem;
-    color: #5a5a5a;
+    color: var(--color-text);
     text-align: center;
 }
 
@@ -161,19 +161,19 @@
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 500;
-    color: #5a5a5a;
+    color: var(--color-text);
 }
 
 .filter-group select,
 .filter-group input[type="text"] {
     width: 100%;
     padding: 0.75rem;
-    border: 1px solid #c5d0b8;
+    border: 1px solid var(--color-form-border);
     border-radius: 8px;
     font-size: 0.95rem;
-    background-color: #f0f4e8;
-    color: #5a5a5a;
-    transition: all 0.3s ease;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    transition: all var(--transition-normal);
 }
 
 .filter-group select:focus,

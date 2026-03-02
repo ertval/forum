@@ -5,7 +5,6 @@ package adapters
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -32,6 +31,7 @@ type HTTPHandler struct {
 	reactionService    reactionPorts.ReactionService
 	templates          *platformTemplates.Registry
 	logger             *logger.Logger
+	cookieName         string
 }
 
 // ServiceContainer defines the minimal interface needed by this handler.
@@ -43,6 +43,7 @@ type ServiceContainer interface {
 	AuthMiddleware() authPorts.AuthMiddleware
 	Comment() commentPorts.CommentService
 	Reaction() reactionPorts.ReactionService
+	SessionCookieName() string
 }
 
 // NewHTTPHandler creates a new HTTP handler for posts with unified dependency injection.
@@ -50,6 +51,11 @@ func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Regi
 	lgr := logger.New(logger.InfoLevel, os.Stderr)
 	if provider, ok := any(services).(interface{ Logger() *logger.Logger }); ok && provider.Logger() != nil {
 		lgr = provider.Logger()
+	}
+
+	cookieName := services.SessionCookieName()
+	if cookieName == "" {
+		cookieName = "session_token"
 	}
 
 	return &HTTPHandler{
@@ -62,6 +68,7 @@ func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Regi
 		reactionService:    services.Reaction(),
 		templates:          templates,
 		logger:             lgr,
+		cookieName:         cookieName,
 	}
 }
 
@@ -112,7 +119,7 @@ func (h *HTTPHandler) buildCurrentUser(ctx context.Context, userID int) map[stri
 // GetUserWithStats extracts user info with stats from session cookie (for external handlers).
 // Returns a map with full user data including stats, or nil if not authenticated.
 func (h *HTTPHandler) GetUserWithStats(r *http.Request) map[string]interface{} {
-	cookie, err := r.Cookie("session_token")
+	cookie, err := r.Cookie(h.cookieName)
 	if err != nil || cookie.Value == "" {
 		return nil
 	}
@@ -136,7 +143,7 @@ func (h *HTTPHandler) getInternalUserID(ctx context.Context, userPublicID string
 // buildPageTitle creates a dynamic page title based on active filters.
 func (h *HTTPHandler) buildPageTitle(filterParams listFilterOptions) string {
 	// Build title parts: [My] [Category] Posts [TimePeriod]
-	var parts []string
+	parts := make([]string, 0, 4)
 	activityType, reactionType := resolveBoardActivityFilters(filterParams)
 
 	// Add activity-specific prefix
@@ -239,15 +246,6 @@ func (h *HTTPHandler) RegisterRoutes(router *http.ServeMux) {
 
 	// Register page routes
 	h.RegisterPageRoutes(router)
-}
-
-// writeJSON writes a JSON response.
-func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		h.logger.Error("Error encoding JSON response", logger.Error(err))
-	}
 }
 
 // createPostPreview creates a preview of the post content with a fixed length.

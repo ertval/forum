@@ -10,26 +10,26 @@
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 500;
-    color: #5a5a5a;
+    color: var(--color-text);
 }
 
 .form-group small.form-hint {
     display: block;
     margin-top: 0.25rem;
     font-size: 0.875rem;
-    color: #7a7a7a;
+    color: var(--color-text-muted);
     font-style: italic;
 }
 
 .form-group input {
     width: 100%;
     padding: 0.75rem;
-    border: 1px solid #c5d0b8;
+    border: 1px solid var(--color-form-border);
     border-radius: 8px;
     font-size: 1rem;
-    transition: all 0.3s ease;
-    background-color: #ffffff;
-    color: #5a5a5a;
+    transition: all var(--transition-normal);
+    background-color: var(--color-bg-light);
+    color: var(--color-text);
 }
 
 .form-group input:focus {
@@ -41,12 +41,12 @@
 .form-group textarea {
     width: 100%;
     padding: 0.75rem;
-    border: 1px solid #c5d0b8;
+    border: 1px solid var(--color-form-border);
     border-radius: 8px;
     font-size: 1rem;
-    transition: all 0.3s ease;
-    background-color: #ffffff;
-    color: #5a5a5a;
+    transition: all var(--transition-normal);
+    background-color: var(--color-bg-light);
+    color: var(--color-text);
     font-family: inherit;
     resize: vertical;
 }
@@ -84,15 +84,15 @@
     display: flex;
     align-items: center;
     padding: 0.5rem 0.75rem;
-    background-color: #f9f9f9;
-    border: 1px solid #e0e0e0;
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-border);
     border-radius: 6px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--transition-fast);
 }
 
 .category-checkbox:hover {
-    background-color: #e8f4f0;
+    background-color: var(--color-reaction-bg);
     border-color: var(--color-primary);
 }
 
@@ -104,7 +104,7 @@
 }
 
 .category-checkbox input[type="checkbox"]:checked + span {
-    color: #2d7a5e;
+    color: var(--color-success-dark);
     font-weight: 500;
 }
 
@@ -152,16 +152,16 @@
 .current-image {
     margin-bottom: 1rem;
     padding: 0.75rem;
-    background-color: #f9f9f9;
+    background-color: var(--color-bg);
     border-radius: 8px;
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--color-border);
     text-align: center;
 }
 
 .current-image p {
     margin-bottom: 0.5rem;
     font-weight: 500;
-    color: #5a5a5a;
+    color: var(--color-text);
 }
 
 .current-image img {
@@ -199,7 +199,7 @@
     display: block;
     margin-top: 0.5rem;
     font-size: 0.85rem;
-    color: #7a7a7a;
+    color: var(--color-text-muted);
     text-align: center;
     word-break: break-all;
 }
@@ -220,7 +220,7 @@
     font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal);
     box-shadow: 0 2px 4px rgba(198, 40, 40, 0.2);
     width: 100%;
 }

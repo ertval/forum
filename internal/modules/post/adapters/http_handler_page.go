@@ -79,7 +79,7 @@ func (h *HTTPHandler) renderPostListPage(w http.ResponseWriter, r *http.Request,
 	ctx := r.Context()
 
 	// Get session token from cookie
-	cookie, err := r.Cookie("session_token")
+	cookie, err := r.Cookie(h.cookieName)
 	var currentUser any = nil
 
 	if err == nil && cookie.Value != "" {
@@ -195,10 +195,12 @@ func (h *HTTPHandler) renderPostListPage(w http.ResponseWriter, r *http.Request,
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
 		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 		return
 	}
+	buf.WriteTo(w)
 }
 
 // PostDetailPage handles post detail page rendering with comments.
@@ -233,7 +235,7 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 
 	// Get current user if logged in
 	var currentUser interface{}
-	cookie, err := r.Cookie("session_token")
+	cookie, err := r.Cookie(h.cookieName)
 	if err == nil && cookie.Value != "" {
 		if session, err := h.authService.ValidateSession(ctx, cookie.Value); err == nil && session != nil {
 			currentUser = h.buildCurrentUser(ctx, session.UserID)
@@ -241,19 +243,32 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 	}
 
 	// Fetch comments for this post from the comment service
-	var comments []interface{}
+	comments := make([]interface{}, 0, 16)
 	if h.commentService != nil {
 		commentsFromService, err := h.commentService.ListCommentsByPost(ctx, post.PublicID)
 		if err == nil {
+			// Batch-fetch reaction counts for all comments in a single query
+			commentReactionCounts := make(map[string]map[string]int)
+			if h.reactionService != nil && len(commentsFromService) > 0 {
+				commentIDs := make([]string, 0, len(commentsFromService))
+				for _, c := range commentsFromService {
+					commentIDs = append(commentIDs, c.PublicID)
+				}
+				if batchCounts, batchErr := h.reactionService.CountReactionsBatch(ctx, commentIDs, "comment"); batchErr == nil {
+					commentReactionCounts = batchCounts
+				}
+			}
+
 			for _, comment := range commentsFromService {
 				// Author data is already populated by the repository JOIN query
 				authorUsername := comment.AuthorUsername
 				authorPublicID := comment.PublicUserID
 
-				// Get reaction counts for this comment
+				// Look up reaction counts from the batch result
 				likes, dislikes := 0, 0
-				if h.reactionService != nil {
-					likes, dislikes, _ = h.reactionService.CountReactions(ctx, comment.PublicID, "comment")
+				if counts, ok := commentReactionCounts[comment.PublicID]; ok {
+					likes = counts["like"]
+					dislikes = counts["dislike"]
 				}
 
 				commentData := map[string]interface{}{
@@ -351,9 +366,12 @@ func (h *HTTPHandler) CreatePostPage(w http.ResponseWriter, r *http.Request) {
 
 	// Render template
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
 		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
+		return
 	}
+	buf.WriteTo(w)
 }
 
 // EditPostPage renders the post edit form.
@@ -430,7 +448,10 @@ func (h *HTTPHandler) EditPostPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
 		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
+		return
 	}
+	buf.WriteTo(w)
 }

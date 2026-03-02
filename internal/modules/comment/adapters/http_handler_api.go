@@ -13,6 +13,7 @@ import (
 	authPorts "forum/internal/modules/auth/ports"
 	commentDomain "forum/internal/modules/comment/domain"
 	platformErrors "forum/internal/platform/errors"
+	"forum/internal/platform/httpjson"
 )
 
 // RegisterAPIRoutes registers all comment API routes with the router.
@@ -50,7 +51,7 @@ func (h *HTTPHandler) GetActivityAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.writeJSON(w, http.StatusOK, activity)
+	httpjson.WriteJSON(w, http.StatusOK, activity)
 }
 
 // CreateCommentAPI handles comment creation requests.
@@ -80,7 +81,7 @@ func (h *HTTPHandler) CreateCommentAPI(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Content string `json:"content"`
 	}
-	if err := h.parseJSON(r, &req); err != nil {
+	if err := httpjson.ParseJSON(r, &req); err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -120,7 +121,7 @@ func (h *HTTPHandler) CreateCommentAPI(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: comment.CreatedAt.Format(time.RFC3339),
 	}
 
-	h.writeJSON(w, http.StatusCreated, resp)
+	httpjson.WriteJSON(w, http.StatusCreated, resp)
 }
 
 // GetCommentAPI handles comment retrieval requests.
@@ -162,7 +163,7 @@ func (h *HTTPHandler) GetCommentAPI(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: comment.UpdatedAt.Format(time.RFC3339),
 	}
 
-	h.writeJSON(w, http.StatusOK, resp)
+	httpjson.WriteJSON(w, http.StatusOK, resp)
 }
 
 // UpdateCommentAPI handles comment update requests.
@@ -197,7 +198,7 @@ func (h *HTTPHandler) UpdateCommentAPI(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Content string `json:"content"`
 	}
-	if err := h.parseJSON(r, &req); err != nil {
+	if err := httpjson.ParseJSON(r, &req); err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -254,7 +255,7 @@ func (h *HTTPHandler) UpdateCommentAPI(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: time.Now().Format(time.RFC3339),
 	}
 
-	h.writeJSON(w, http.StatusOK, resp)
+	httpjson.WriteJSON(w, http.StatusOK, resp)
 }
 
 // DeleteCommentAPI handles comment deletion requests.
@@ -366,7 +367,7 @@ func (h *HTTPHandler) ListCommentsByPostAPI(w http.ResponseWriter, r *http.Reque
 		commentsResp = append(commentsResp, commentResp)
 	}
 
-	h.writeJSON(w, http.StatusOK, struct {
+	httpjson.WriteJSON(w, http.StatusOK, struct {
 		Comments []struct {
 			ID        string `json:"id"`
 			PostID    string `json:"post_id"`
@@ -386,7 +387,7 @@ func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request
 
 	// Get user PUBLIC ID (UUID) from session cookie.
 	var userPublicID string
-	cookie, err := r.Cookie("session_token")
+	cookie, err := r.Cookie(h.cookieName)
 	if err == nil && cookie.Value != "" {
 		if session, err := h.authService.ValidateSession(ctx, cookie.Value); err == nil && session != nil {
 			user, err := h.userService.GetByID(ctx, session.UserID)
@@ -495,5 +496,5 @@ func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request
 		commentsData = append(commentsData, commentData)
 	}
 
-	h.writeJSON(w, http.StatusOK, commentsData)
+	httpjson.WriteJSON(w, http.StatusOK, commentsData)
 }

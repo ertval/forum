@@ -14,6 +14,47 @@ import (
 	"github.com/gofrs/uuid/v5"
 )
 
+// Reaction SQL constants.
+const reactionColumns = `id, public_id, user_id, target_id, target_type, type, created_at`
+
+// targetTableForType maps a target type to its database table name.
+// Returns empty string for invalid target types.
+func targetTableForType(targetType string) string {
+	switch targetType {
+	case "post":
+		return "posts"
+	case "comment":
+		return "comments"
+	default:
+		return ""
+	}
+}
+
+// scanReaction scans a reaction row from any scanner.
+func scanReaction(scanner interface{ Scan(dest ...any) error }) (*domain.Reaction, error) {
+	var reaction domain.Reaction
+	var createdAt sql.NullTime
+
+	err := scanner.Scan(
+		&reaction.ID,
+		&reaction.PublicID,
+		&reaction.UserID,
+		&reaction.TargetID,
+		&reaction.TargetType,
+		&reaction.Type,
+		&createdAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if createdAt.Valid {
+		reaction.CreatedAt = createdAt.Time
+	}
+
+	return &reaction, nil
+}
+
 // SQLiteReactionRepository implements the ReactionRepository interface using SQLite.
 type SQLiteReactionRepository struct {
 	db *sql.DB
@@ -27,18 +68,13 @@ func NewSQLiteReactionRepository(db *sql.DB) ports.ReactionRepository {
 // resolveTargetID resolves a public UUID to an internal integer ID for a post or comment.
 // Returns domain.ErrTargetNotFound if the target does not exist.
 func (r *SQLiteReactionRepository) resolveTargetID(ctx context.Context, publicID, targetType string) (int, error) {
-	var query string
-	switch targetType {
-	case "post":
-		query = "SELECT id FROM posts WHERE public_id = ?"
-	case "comment":
-		query = "SELECT id FROM comments WHERE public_id = ?"
-	default:
+	table := targetTableForType(targetType)
+	if table == "" {
 		return 0, domain.ErrInvalidTarget
 	}
 
 	var id int
-	err := r.db.QueryRowContext(ctx, query, publicID).Scan(&id)
+	err := r.db.QueryRowContext(ctx, "SELECT id FROM "+table+" WHERE public_id = ?", publicID).Scan(&id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return 0, domain.ErrTargetNotFound
@@ -50,18 +86,13 @@ func (r *SQLiteReactionRepository) resolveTargetID(ctx context.Context, publicID
 
 // resolveTargetIDTx resolves a public UUID to an internal integer ID within a transaction.
 func (r *SQLiteReactionRepository) resolveTargetIDTx(ctx context.Context, tx *sql.Tx, publicID, targetType string) (int, error) {
-	var query string
-	switch targetType {
-	case "post":
-		query = "SELECT id FROM posts WHERE public_id = ?"
-	case "comment":
-		query = "SELECT id FROM comments WHERE public_id = ?"
-	default:
+	table := targetTableForType(targetType)
+	if table == "" {
 		return 0, domain.ErrInvalidTarget
 	}
 
 	var id int
-	err := tx.QueryRowContext(ctx, query, publicID).Scan(&id)
+	err := tx.QueryRowContext(ctx, "SELECT id FROM "+table+" WHERE public_id = ?", publicID).Scan(&id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return 0, domain.ErrTargetNotFound
@@ -104,13 +135,7 @@ func (r *SQLiteReactionRepository) DeleteByTargetPublicID(ctx context.Context, u
 		return domain.ErrInvalidTarget
 	}
 
-	var targetTable string
-	switch targetType {
-	case "post":
-		targetTable = "posts"
-	case "comment":
-		targetTable = "comments"
-	}
+	targetTable := targetTableForType(targetType)
 
 	// Delete directly using target public UUID resolution in a subquery.
 	deleteQuery := fmt.Sprintf(`
@@ -161,12 +186,9 @@ func (r *SQLiteReactionRepository) GetByTargetPublicID(ctx context.Context, targ
 	}
 
 	// Get all reactions for this target
-	selectQuery := `
-		SELECT id, public_id, user_id, target_id, target_type, type, created_at
-		FROM reactions
+	selectQuery := `SELECT ` + reactionColumns + ` FROM reactions
 		WHERE target_id = ? AND target_type = ?
-		ORDER BY created_at DESC
-	`
+		ORDER BY created_at DESC`
 
 	rows, err := r.db.QueryContext(ctx, selectQuery, targetID, targetType)
 	if err != nil {
@@ -176,27 +198,11 @@ func (r *SQLiteReactionRepository) GetByTargetPublicID(ctx context.Context, targ
 
 	var reactions []*domain.Reaction
 	for rows.Next() {
-		var reaction domain.Reaction
-		var createdAt sql.NullTime
-
-		err := rows.Scan(
-			&reaction.ID,
-			&reaction.PublicID,
-			&reaction.UserID,
-			&reaction.TargetID,
-			&reaction.TargetType,
-			&reaction.Type,
-			&createdAt,
-		)
-		if err != nil {
-			return nil, err
+		reaction, scanErr := scanReaction(rows)
+		if scanErr != nil {
+			return nil, scanErr
 		}
-
-		if createdAt.Valid {
-			reaction.CreatedAt = createdAt.Time
-		}
-
-		reactions = append(reactions, &reaction)
+		reactions = append(reactions, reaction)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -220,36 +226,18 @@ func (r *SQLiteReactionRepository) GetByUserAndTargetPublicID(ctx context.Contex
 	}
 
 	// Get the user's reaction for this target
-	selectQuery := `
-		SELECT id, public_id, user_id, target_id, target_type, type, created_at
-		FROM reactions
-		WHERE user_id = ? AND target_id = ? AND target_type = ?
-	`
+	selectQuery := `SELECT ` + reactionColumns + ` FROM reactions
+		WHERE user_id = ? AND target_id = ? AND target_type = ?`
 
-	var reaction domain.Reaction
-	var createdAt sql.NullTime
-
-	err = r.db.QueryRowContext(ctx, selectQuery, userID, targetID, targetType).Scan(
-		&reaction.ID,
-		&reaction.PublicID,
-		&reaction.UserID,
-		&reaction.TargetID,
-		&reaction.TargetType,
-		&reaction.Type,
-		&createdAt,
-	)
-	if err != nil {
-		if err == sql.ErrNoRows {
+	reaction, scanErr := scanReaction(r.db.QueryRowContext(ctx, selectQuery, userID, targetID, targetType))
+	if scanErr != nil {
+		if scanErr == sql.ErrNoRows {
 			return nil, domain.ErrReactionNotFound
 		}
-		return nil, err
+		return nil, scanErr
 	}
 
-	if createdAt.Valid {
-		reaction.CreatedAt = createdAt.Time
-	}
-
-	return &reaction, nil
+	return reaction, nil
 }
 
 // CountByTargetPublicID returns the number of reactions of a specific type for a target by its public UUID.
@@ -286,6 +274,35 @@ func (r *SQLiteReactionRepository) CountByTargetPublicID(ctx context.Context, ta
 	return count, nil
 }
 
+// CountLikesAndDislikesByTargetPublicID returns both likes and dislikes in a single query.
+func (r *SQLiteReactionRepository) CountLikesAndDislikesByTargetPublicID(ctx context.Context, targetPublicID string, targetType string) (likes, dislikes int, err error) {
+	// Validate target type
+	if targetType != "post" && targetType != "comment" {
+		return 0, 0, domain.ErrInvalidTarget
+	}
+
+	// Resolve target ID once
+	targetID, err := r.resolveTargetID(ctx, targetPublicID, targetType)
+	if err != nil {
+		if err == domain.ErrTargetNotFound {
+			return 0, 0, nil // Target doesn't exist, return zero counts
+		}
+		return 0, 0, err
+	}
+
+	// Count both in one query
+	query := `SELECT
+		COALESCE(SUM(CASE WHEN type = 'like' THEN 1 ELSE 0 END), 0) as likes,
+		COALESCE(SUM(CASE WHEN type = 'dislike' THEN 1 ELSE 0 END), 0) as dislikes
+	FROM reactions WHERE target_id = ? AND target_type = ?`
+
+	err = r.db.QueryRowContext(ctx, query, targetID, targetType).Scan(&likes, &dislikes)
+	if err != nil {
+		return 0, 0, err
+	}
+	return likes, dislikes, nil
+}
+
 // CountByUserID returns the total number of reactions given by a user.
 func (r *SQLiteReactionRepository) CountByUserID(ctx context.Context, userID int) (int, error) {
 	query := `SELECT COUNT(*) FROM reactions WHERE user_id = ?`
@@ -306,13 +323,7 @@ func (r *SQLiteReactionRepository) CountBatchByTargetPublicIDs(ctx context.Conte
 		return make(map[string]map[string]int), nil
 	}
 
-	var targetTable string
-	switch targetType {
-	case "post":
-		targetTable = "posts"
-	case "comment":
-		targetTable = "comments"
-	}
+	targetTable := targetTableForType(targetType)
 
 	placeholders := strings.Repeat("?,", len(targetPublicIDs))
 	placeholders = placeholders[:len(placeholders)-1]

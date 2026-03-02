@@ -4,16 +4,13 @@
 package adapters
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
-	"log"
-	"mime"
 	"net/http"
 	"time"
 
 	authDomain "forum/internal/modules/auth/domain"
 	platformErrors "forum/internal/platform/errors"
+	"forum/internal/platform/httpjson"
 )
 
 func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
@@ -36,7 +33,7 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 
-	if err := h.parseJSON(r, &req); err != nil {
+	if err := httpjson.ParseJSON(r, &req); err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -79,22 +76,22 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return success response with public UUID
+	// Return success response with public UUID (token is in HttpOnly cookie only)
 	resp := struct {
 		ID       string `json:"id"`
 		UserID   string `json:"user_id"`
 		Email    string `json:"email"`
 		Username string `json:"username"`
-		Token    string `json:"token"`
+		Message  string `json:"message"`
 	}{
 		ID:       user.PublicID,
 		UserID:   user.PublicID,
 		Email:    req.Email,
 		Username: req.Username,
-		Token:    session.Token,
+		Message:  "Registration successful",
 	}
 
-	h.writeJSON(w, http.StatusCreated, resp)
+	httpjson.WriteJSON(w, http.StatusCreated, resp)
 }
 
 // LoginAPI handles user login API requests.
@@ -104,7 +101,7 @@ func (h *HTTPHandler) LoginAPI(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 
-	if err := h.parseJSON(r, &req); err != nil {
+	if err := httpjson.ParseJSON(r, &req); err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -134,22 +131,22 @@ func (h *HTTPHandler) LoginAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return success response with public UUID
+	// Return success response with public UUID (token is in HttpOnly cookie only)
 	resp := struct {
 		ID       string `json:"id"`
 		UserID   string `json:"user_id"`
 		Email    string `json:"email"`
 		Username string `json:"username"`
-		Token    string `json:"token"`
+		Message  string `json:"message"`
 	}{
 		ID:       user.PublicID,
 		UserID:   user.PublicID,
 		Email:    user.Email,
 		Username: user.Username,
-		Token:    session.Token,
+		Message:  "Login successful",
 	}
 
-	h.writeJSON(w, http.StatusOK, resp)
+	httpjson.WriteJSON(w, http.StatusOK, resp)
 }
 
 // LogoutAPI handles user logout requests.
@@ -180,7 +177,7 @@ func (h *HTTPHandler) LogoutAPI(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Return success response
-	h.writeJSON(w, http.StatusOK, struct {
+	httpjson.WriteJSON(w, http.StatusOK, struct {
 		Message string `json:"message"`
 	}{
 		Message: "Successfully logged out",
@@ -210,42 +207,14 @@ func (h *HTTPHandler) GetSessionAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return session info with public UUID
+	// Return session info with public UUID (token is in HttpOnly cookie only)
 	resp := struct {
 		UserID    string    `json:"user_id"`
-		Token     string    `json:"token"`
 		ExpiresAt time.Time `json:"expires_at"`
 	}{
 		UserID:    user.PublicID,
-		Token:     session.Token,
 		ExpiresAt: session.ExpiresAt,
 	}
 
-	h.writeJSON(w, http.StatusOK, resp)
-}
-
-// writeJSON writes a JSON response.
-func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		// Log the error, but don't send it to the client
-		log.Printf("Error encoding JSON response: %v", err)
-	}
-}
-
-// parseJSON parses JSON request body.
-func (h *HTTPHandler) parseJSON(r *http.Request, v interface{}) error {
-	// Check if content type is JSON
-	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	if err != nil || mediaType != "application/json" {
-		return fmt.Errorf("content type is not application/json")
-	}
-
-	// Decode the JSON
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields() // This makes parsing stricter
-
-	return decoder.Decode(v)
+	httpjson.WriteJSON(w, http.StatusOK, resp)
 }

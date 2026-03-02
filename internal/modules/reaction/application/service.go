@@ -9,6 +9,7 @@ import (
 
 	"forum/internal/modules/reaction/domain"
 	"forum/internal/modules/reaction/ports"
+	"forum/internal/platform/async"
 )
 
 // Notification type constants mirrored locally to avoid cross-module port imports.
@@ -106,9 +107,9 @@ func (s *Service) React(ctx context.Context, userID int, targetPublicID string, 
 
 	if removed {
 		// Reaction was toggled off — decrement user's reaction count
-		runInBackground(fmt.Sprintf("decrement reaction count for user %d", userID), func() error {
-			return s.userService.DecrementReactionCount(context.Background(), userID)
-		})
+		async.Run(func(ctx context.Context) error {
+			return s.userService.DecrementReactionCount(ctx, userID)
+		}, fmt.Sprintf("decrement reaction count for user %d", userID))
 		return nil
 	}
 
@@ -129,9 +130,9 @@ func (s *Service) React(ctx context.Context, userID int, targetPublicID string, 
 	}
 
 	// Increment user's reaction count asynchronously (non-blocking)
-	runInBackground(fmt.Sprintf("increment reaction count for user %d", userID), func() error {
-		return s.userService.IncrementReactionCount(context.Background(), userID)
-	})
+	async.Run(func(ctx context.Context) error {
+		return s.userService.IncrementReactionCount(ctx, userID)
+	}, fmt.Sprintf("increment reaction count for user %d", userID))
 
 	return nil
 }
@@ -155,9 +156,9 @@ func (s *Service) RemoveReaction(ctx context.Context, userID int, targetPublicID
 	}
 
 	// Decrement user's reaction count asynchronously (non-blocking)
-	runInBackground(fmt.Sprintf("decrement reaction count for user %d", userID), func() error {
-		return s.userService.DecrementReactionCount(context.Background(), userID)
-	})
+	async.Run(func(ctx context.Context) error {
+		return s.userService.DecrementReactionCount(ctx, userID)
+	}, fmt.Sprintf("decrement reaction count for user %d", userID))
 
 	return nil
 }
@@ -187,39 +188,14 @@ func (s *Service) GetReactions(ctx context.Context, targetPublicID string, targe
 }
 
 // CountReactions returns the count of likes and dislikes for a target.
+// Uses a single optimized query that resolves the target once and counts both types.
 func (s *Service) CountReactions(ctx context.Context, targetPublicID string, targetType string) (likes, dislikes int, err error) {
 	// Validate inputs
 	if targetType != "post" && targetType != "comment" {
 		return 0, 0, domain.ErrInvalidTarget
 	}
 
-	// Verify target exists
-	switch targetType {
-	case "post":
-		_, err := s.postRepo.GetPostForReaction(ctx, targetPublicID)
-		if err != nil {
-			return 0, 0, err
-		}
-	case "comment":
-		err := s.commentRepo.EnsureCommentExists(ctx, targetPublicID)
-		if err != nil {
-			return 0, 0, err
-		}
-	}
-
-	// Count likes
-	likes, err = s.reactionRepo.CountByTargetPublicID(ctx, targetPublicID, targetType, domain.ReactionLike)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	// Count dislikes
-	dislikes, err = s.reactionRepo.CountByTargetPublicID(ctx, targetPublicID, targetType, domain.ReactionDislike)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	return likes, dislikes, nil
+	return s.reactionRepo.CountLikesAndDislikesByTargetPublicID(ctx, targetPublicID, targetType)
 }
 
 // GetUserReactionCount returns the total number of reactions given by a user.
@@ -270,10 +246,4 @@ func (s *Service) GetByUserAndTargetPublicID(ctx context.Context, userID int, ta
 	return s.reactionRepo.GetByUserAndTargetPublicID(ctx, userID, targetPublicID, targetType)
 }
 
-func runInBackground(action string, fn func() error) {
-	go func() {
-		if err := fn(); err != nil {
-			log.Printf("WARNING: background action failed (%s): %v", action, err)
-		}
-	}()
-}
+

@@ -9,6 +9,7 @@ import (
 
 	"forum/internal/modules/comment/domain"
 	"forum/internal/modules/comment/ports"
+	"forum/internal/platform/async"
 )
 
 // Notification type constants mirrored locally to avoid cross-module port imports.
@@ -93,9 +94,9 @@ func (s *Service) CreateComment(ctx context.Context, postPublicID string, userID
 		}
 	}
 
-	runInBackground(fmt.Sprintf("increment comment count for user %d", userID), func() error {
-		return s.userService.IncrementCommentCount(context.Background(), userID)
-	})
+	async.Run(func(ctx context.Context) error {
+		return s.userService.IncrementCommentCount(ctx, userID)
+	}, fmt.Sprintf("increment comment count for user %d", userID))
 
 	return comment, nil
 }
@@ -144,9 +145,9 @@ func (s *Service) DeleteComment(ctx context.Context, commentPublicID string) err
 		return err
 	}
 
-	runInBackground(fmt.Sprintf("decrement comment count for user %d", comment.UserID), func() error {
-		return s.userService.DecrementCommentCount(context.Background(), comment.UserID)
-	})
+	async.Run(func(ctx context.Context) error {
+		return s.userService.DecrementCommentCount(ctx, comment.UserID)
+	}, fmt.Sprintf("decrement comment count for user %d", comment.UserID))
 
 	return nil
 }
@@ -180,10 +181,4 @@ func (s *Service) ListCommentsByUserPaginated(ctx context.Context, userPublicID 
 	return s.commentRepo.ListByUserPaginated(ctx, userID, limit, offset)
 }
 
-func runInBackground(action string, fn func() error) {
-	go func() {
-		if err := fn(); err != nil {
-			log.Printf("WARNING: background action failed (%s): %v", action, err)
-		}
-	}()
-}
+

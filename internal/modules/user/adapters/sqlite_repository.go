@@ -9,6 +9,7 @@ import (
 
 	"forum/internal/modules/user/domain"
 	"forum/internal/modules/user/ports"
+	"forum/internal/platform/database"
 
 	"github.com/gofrs/uuid/v5"
 )
@@ -65,12 +66,15 @@ func (r *SQLiteUserRepository) Create(ctx context.Context, user *domain.User) er
 	}
 
 	// Get the auto-generated ID and set it in the user object
-	id, err := result.LastInsertId()
+	lastID, err := result.LastInsertId()
 	if err != nil {
 		return err
 	}
 
-	user.ID = int(id)
+	user.ID, err = database.SafeInt64ToInt(lastID)
+	if err != nil {
+		return fmt.Errorf("last insert id overflow: %w", err)
+	}
 	return nil
 }
 
@@ -132,7 +136,7 @@ func (r *SQLiteUserRepository) Update(ctx context.Context, user *domain.User) er
 		      SET email=?, username=?, password_hash=?, avatar_path=?, role=?, post_count=?, comment_count=?, is_active=?, updated_at=?
 		      WHERE id=?`
 
-	_, err := r.db.ExecContext(ctx, query,
+	result, err := r.db.ExecContext(ctx, query,
 		user.Email,
 		user.Username,
 		user.PasswordHash,
@@ -144,8 +148,19 @@ func (r *SQLiteUserRepository) Update(ctx context.Context, user *domain.User) er
 		user.UpdatedAt,
 		user.ID,
 	)
+	if err != nil {
+		return err
+	}
 
-	return err
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return domain.ErrUserNotFound
+	}
+
+	return nil
 }
 
 // scanUser scans a user row from any scanner (works with both *sql.Row and *sql.Rows).
@@ -199,7 +214,7 @@ func (r *SQLiteUserRepository) Delete(ctx context.Context, userID int) error {
 	}
 
 	if rowsAffected == 0 {
-		return sql.ErrNoRows
+		return domain.ErrUserNotFound
 	}
 
 	return nil
@@ -223,7 +238,7 @@ func (r *SQLiteUserRepository) List(ctx context.Context, offset, limit int) ([]*
 	}
 	defer rows.Close()
 
-	var users []*domain.User
+	users := make([]*domain.User, 0, 16)
 	for rows.Next() {
 		user, scanErr := scanUser(rows)
 		if scanErr != nil {

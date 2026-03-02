@@ -3,13 +3,12 @@
 package adapters
 
 import (
-	"encoding/json"
-	"log"
 	"net/http"
 
 	authPorts "forum/internal/modules/auth/ports"
 	"forum/internal/modules/user/domain"
 	platformErrors "forum/internal/platform/errors"
+	"forum/internal/platform/httpjson"
 )
 
 // RegisterAPIRoutes registers all user API routes with the router.
@@ -49,10 +48,7 @@ func (h *HTTPHandler) GetUserAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return user profile (sensitive fields filtered by JSON tags)
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(user); err != nil {
-		log.Printf("Error encoding JSON response: %v", err)
-	}
+	httpjson.WriteJSON(w, http.StatusOK, user)
 }
 
 // ListUsersAPI handles listing users with pagination.
@@ -67,13 +63,10 @@ func (h *HTTPHandler) ListUsersAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+	httpjson.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"users": users,
 		"count": len(users),
-	}); err != nil {
-		log.Printf("Error encoding JSON response: %v", err)
-	}
+	})
 }
 
 // updateRoleRequest represents the request body for role update.
@@ -107,7 +100,7 @@ func (h *HTTPHandler) UpdateRoleAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req updateRoleRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := httpjson.ParseJSON(r, &req); err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -136,11 +129,7 @@ func (h *HTTPHandler) UpdateRoleAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(map[string]string{"message": "role updated successfully"}); err != nil {
-		log.Printf("Error encoding JSON response: %v", err)
-	}
+	httpjson.WriteJSON(w, http.StatusOK, map[string]string{"message": "role updated successfully"})
 }
 
 // DeactivateUserAPI handles deactivating a user account.
@@ -163,11 +152,7 @@ func (h *HTTPHandler) DeactivateUserAPI(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(map[string]string{"message": "user deactivated successfully"}); err != nil {
-		log.Printf("Error encoding JSON response: %v", err)
-	}
+	httpjson.WriteJSON(w, http.StatusOK, map[string]string{"message": "user deactivated successfully"})
 }
 
 // ActivateUserAPI handles activating a user account.
@@ -190,11 +175,7 @@ func (h *HTTPHandler) ActivateUserAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(map[string]string{"message": "user activated successfully"}); err != nil {
-		log.Printf("Error encoding JSON response: %v", err)
-	}
+	httpjson.WriteJSON(w, http.StatusOK, map[string]string{"message": "user activated successfully"})
 }
 
 // UpdateSettingsAPI handles settings update requests (JSON API).
@@ -211,12 +192,8 @@ func (h *HTTPHandler) UpdateSettingsAPI(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(map[string]any{
+	httpjson.WriteJSON(w, http.StatusOK, map[string]any{
 		"message": "settings updated successfully",
 		"user":    updatedUser,
-	}); err != nil {
-		log.Printf("Error encoding JSON response: %v", err)
-	}
+	})
 }

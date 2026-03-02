@@ -55,20 +55,8 @@ func TestAuthIntegration(t *testing.T) {
 	}
 	defer db.Close()
 
-	// Initialize config
-	cfg := &config.Config{
-		Session: config.SessionConfig{
-			Duration: 24 * time.Hour, // 24 hours
-		},
-	}
-
-	// Setup repositories
-	sessionRepo := authAdapters.NewSQLiteSessionRepository(db)
-	userRepo := userAdapters.NewSQLiteUserRepository(db)
-	userService := userApp.NewService(userRepo)
-
 	// Create required tables manually since we're not running migrations in memory
-	// This replicates what the migrations do
+	// This must happen BEFORE creating repositories that prepare statements.
 	_, err = db.Exec(`
 		CREATE TABLE users (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -107,6 +95,21 @@ func TestAuthIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create tables: %v", err)
 	}
+
+	// Initialize config
+	cfg := &config.Config{
+		Session: config.SessionConfig{
+			Duration: 24 * time.Hour, // 24 hours
+		},
+	}
+
+	// Setup repositories (after tables exist, since prepared statements need the schema)
+	sessionRepo, err := authAdapters.NewSQLiteSessionRepository(db)
+	if err != nil {
+		t.Fatalf("Failed to create session repository: %v", err)
+	}
+	userRepo := userAdapters.NewSQLiteUserRepository(db)
+	userService := userApp.NewService(userRepo)
 
 	// Setup service
 	authService := application.NewService(sessionRepo, authUserServiceAdapter{user: userService}, cfg.Session.Duration)

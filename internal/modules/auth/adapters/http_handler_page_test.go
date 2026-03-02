@@ -43,6 +43,7 @@ func TestLogoutPage_UsesSecureCookiesFlag(t *testing.T) {
 	h := &HTTPHandler{
 		authService:   mockAuth,
 		secureCookies: true,
+		cookieName:    "session_token",
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/logout", nil)

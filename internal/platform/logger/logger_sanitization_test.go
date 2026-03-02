@@ -7,15 +7,10 @@ import (
 )
 
 func newHumanTestLogger(buf *bytes.Buffer) *Logger {
-	return &Logger{
-		level:  InfoLevel,
-		output: buf,
-		human:  true,
-		config: &Config{
-			MaxLineWidth: 0,
-			Colorize:     false,
-		},
-	}
+	return newLogger(InfoLevel, buf, true, &Config{
+		MaxLineWidth: 0,
+		Colorize:     false,
+	})
 }
 
 func TestHumanOutput_SanitizesMessageAndFields(t *testing.T) {

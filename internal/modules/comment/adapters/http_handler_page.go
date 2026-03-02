@@ -41,7 +41,7 @@ func (h *HTTPHandler) RegisterPageRoutes(router *http.ServeMux) {
 func (h *HTTPHandler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	cookie, err := r.Cookie("session_token")
+	cookie, err := r.Cookie(h.cookieName)
 	if err != nil || cookie.Value == "" {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
@@ -109,10 +109,12 @@ func (h *HTTPHandler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
 		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 		return
 	}
+	buf.WriteTo(w)
 }
 
 func parseActivityFilters(r *http.Request) activityFilters {
@@ -257,7 +259,7 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 
 	// Get current user if logged in
 	var currentUser interface{}
-	cookie, err := r.Cookie("session_token")
+	cookie, err := r.Cookie(h.cookieName)
 	if err != nil || cookie.Value == "" {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
@@ -285,7 +287,7 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch comments made by this user (with pagination)
-	var comments []interface{}
+	comments := make([]interface{}, 0, 16)
 	var hasMoreComments bool
 	if h.commentService != nil {
 		currentUserInfo, ok := currentUser.(map[string]interface{})

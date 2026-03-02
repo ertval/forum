@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	authDomain "forum/internal/modules/auth/domain"
+	"forum/internal/platform/httpjson"
 )
 
 type registerAPIAuthServiceStub struct {
@@ -82,15 +83,14 @@ func TestRegisterAPI_StatusMapping_UsesSentinelErrors(t *testing.T) {
 }
 
 func TestAuthHTTPHandler_parseJSON_AcceptsCharsetSuffix(t *testing.T) {
-	h := &HTTPHandler{}
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"user@example.com"}`))
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 
 	var payload struct {
 		Email string `json:"email"`
 	}
-	if err := h.parseJSON(req, &payload); err != nil {
-		t.Fatalf("parseJSON returned error: %v", err)
+	if err := httpjson.ParseJSON(req, &payload); err != nil {
+		t.Fatalf("ParseJSON returned error: %v", err)
 	}
 	if payload.Email != "user@example.com" {
 		t.Fatalf("expected decoded email, got %q", payload.Email)
@@ -98,14 +98,13 @@ func TestAuthHTTPHandler_parseJSON_AcceptsCharsetSuffix(t *testing.T) {
 }
 
 func TestAuthHTTPHandler_parseJSON_RejectsNonJSONMediaType(t *testing.T) {
-	h := &HTTPHandler{}
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"user@example.com"}`))
 	req.Header.Set("Content-Type", "application/jsonx")
 
 	var payload struct {
 		Email string `json:"email"`
 	}
-	if err := h.parseJSON(req, &payload); err == nil {
-		t.Fatal("expected parseJSON to reject non-application/json media type")
+	if err := httpjson.ParseJSON(req, &payload); err == nil {
+		t.Fatal("expected ParseJSON to reject non-application/json media type")
 	}
 }

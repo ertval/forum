@@ -12,7 +12,7 @@
 
 .post-detail .post-header h1 {
     font-size: 1.8rem;
-    color: #4a4a4a;
+    color: var(--color-text-dark);
     margin-bottom: 0.5rem;
 }
 
@@ -20,10 +20,10 @@
     display: flex;
     gap: 1.5rem;
     font-size: 0.9rem;
-    color: #6a85a8;
+    color: var(--color-text-muted);
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
-    border-bottom: 1px solid #c0d0e0;
+    border-bottom: 1px solid var(--color-border-blue);
 }
 
 .post-categories {
@@ -32,7 +32,7 @@
 
 .post-detail-content {
     margin: 1.5rem 0;
-    color: #5a5a5a;
+    color: var(--color-text);
     line-height: 1.7;
     font-size: 1.05rem;
     word-wrap: break-word;
@@ -60,7 +60,7 @@
     align-items: center;
     margin-top: 1.5rem;
     padding-top: 1.5rem;
-    border-top: 1px solid #c0d0e0;
+    border-top: 1px solid var(--color-border-blue);
 }
 
 .reactions {
@@ -69,32 +69,32 @@
 }
 
 .reactions button {
-    background: #e0f7e9;
+    background: var(--color-reaction-bg);
     border: none;
     padding: 0.5rem 1rem;
     border-radius: 20px;
     cursor: pointer;
     font-size: 0.95rem;
-    color: #5a5a5a;
-    transition: all 0.3s ease;
-    border: 1px solid #c2e6d6;
+    color: var(--color-text);
+    transition: all var(--transition-normal);
+    border: 1px solid var(--color-reaction-border);
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
 .reactions button:hover {
-    background: #b5ead7;
-    color: #5a5a5a;
+    background: var(--color-primary-light);
+    color: var(--color-text);
 }
 
 .reactions button.active {
-    background: #80cbc4;
+    background: var(--color-reaction-active);
     color: white;
 }
 
 .reactions button.active:hover {
-    background: #5a9e97;
+    background: var(--color-reaction-active-hover);
 }
 
 .post-owner-actions {
@@ -107,9 +107,9 @@
     max-width: 800px;
     margin: 0 auto;
     padding: 1.5rem;
-    background: #ffffff;
+    background: var(--color-bg-light);
     border-radius: 12px;
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--color-border);
 }
 
 /* Responsive - Post Detail */

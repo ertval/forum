@@ -184,3 +184,76 @@ Provide your analysis in the following format:
 - Password not meeting security requirements should be more informative, providing specific feedback on what criteria were not met (e.g., "Password must be at least 8 characters long and include a mix of letters and numbers"). Implement this enhanced validation feedback in the registration and password update processes, ensuring that it adheres to the project's architectural standards and best practices for user input validation in Go.
 - The avatar is not persistant in all pages. If i select the activity page i see the default avatar and not the one uploaded.
 - When i run the up through docker run -p 8080:8080 i cant access the forum and get a connection reset error. Make sure we can run the app through docker run properly, and not only using compose and document the changes by udating the docs.Also there seems to be another bug with docker run that we get a new container every time we run the command, instead of reusing the same one (this does not happen with docker compose). Make sure to fix this issue as well and update the documentation accordingly.
+
+- fix these issues by spwaninng a new subagent to implement each one of them in parallel, (TDD, 90% coverage, idiomatic Go, Hexagonal Architecture). After implementing each feature, ask them to test their work and update the roadmap and readme to reflect the new functionality and any changes made.
+- merge any extra migrations into the core ones, one per module, and make sure they are properly ordered and documented.
+- Check the repo and make sure any code that should be in modules is not found in the platform dir. Check what is suposed to be where and fix this. (httpjson is in platform but it is internal to our modules as a shared utility.)
+- fix these and any other problems you can see. The problems console should be empty after you are done. [{
+	"resource": "/workspaces/forum/internal/modules/notification/adapters/sqlite_repository.go",
+	"owner": "_generated_diagnostic_collection_name_#1",
+	"code": {
+		"value": "default",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/gopls/internal/analysis/unusedfunc",
+			"scheme": "https",
+			"authority": "pkg.go.dev"
+		}
+	},
+	"severity": 2,
+	"message": "function \"scanNotification\" is unused",
+	"source": "unusedfunc",
+	"startLineNumber": 34,
+	"startColumn": 6,
+	"endLineNumber": 34,
+	"endColumn": 22,
+	"modelVersionId": 4,
+	"tags": [
+		1
+	],
+	"origin": "extHost2"
+},{
+	"resource": "/workspaces/forum/internal/modules/reaction/application/service_test.go",
+	"owner": "_generated_diagnostic_collection_name_#1",
+	"code": {
+		"value": "default",
+		"target": {
+			"$mid": 1,
+			"path": "/docs/checks/",
+			"scheme": "https",
+			"authority": "staticcheck.dev",
+			"fragment": "QF1003"
+		}
+	},
+	"severity": 2,
+	"message": "could use tagged switch on reaction.Type",
+	"source": "QF1003",
+	"startLineNumber": 141,
+	"startColumn": 4,
+	"endLineNumber": 141,
+	"endColumn": 43,
+	"modelVersionId": 5,
+	"origin": "extHost2"
+},{
+	"resource": "/workspaces/forum/internal/platform/logger/pretty.go",
+	"owner": "_generated_diagnostic_collection_name_#1",
+	"code": {
+		"value": "unusedparams",
+		"target": {
+			"$mid": 1,
+			"path": "/golang.org/x/tools/gopls/internal/analysis/unusedparams",
+			"scheme": "https",
+			"authority": "pkg.go.dev",
+			"fragment": "unusedparams"
+		}
+	},
+	"severity": 2,
+	"message": "unused parameter: level",
+	"source": "unusedparams",
+	"startLineNumber": 104,
+	"startColumn": 35,
+	"endLineNumber": 104,
+	"endColumn": 46,
+	"modelVersionId": 199,
+	"origin": "extHost2"
+}]

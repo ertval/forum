@@ -3,6 +3,7 @@
 package templates
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
 	"io"
@@ -90,12 +91,17 @@ func (r *Registry) LoadAll(entries []TemplateEntry) error {
 }
 
 // ExecuteTemplate looks up a cached template by key and executes the named
-// template definition within it. This is a convenience method that combines
-// Lookup + ExecuteTemplate for callers that don't need the raw *template.Template.
+// template definition within it. Rendering is done to an internal buffer first
+// so that partial output is never written to w on error.
 func (r *Registry) ExecuteTemplate(w io.Writer, key string, name string, data interface{}) error {
 	tmpl := r.Lookup(key)
 	if tmpl == nil {
 		return fmt.Errorf("template %q not found in registry", key)
 	}
-	return tmpl.ExecuteTemplate(w, name, data)
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, name, data); err != nil {
+		return err
+	}
+	_, err := buf.WriteTo(w)
+	return err
 }

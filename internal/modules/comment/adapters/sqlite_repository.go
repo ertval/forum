@@ -13,6 +13,32 @@ import (
 	"github.com/gofrs/uuid/v5"
 )
 
+// Comment SQL constants.
+const commentSelectColumns = `c.id, c.public_id, c.post_id, c.author_id, c.content, c.created_at, c.updated_at,
+		       COALESCE(p.public_id, '') AS post_public_id, COALESCE(u.public_id, '') AS user_public_id,
+		       COALESCE(u.username, '') AS author_username`
+
+// scanComment scans a comment row from any scanner.
+func scanComment(scanner interface{ Scan(dest ...any) error }) (*domain.Comment, error) {
+	var comment domain.Comment
+	err := scanner.Scan(
+		&comment.ID,
+		&comment.PublicID,
+		&comment.PostID,
+		&comment.UserID,
+		&comment.Content,
+		&comment.CreatedAt,
+		&comment.UpdatedAt,
+		&comment.PublicPostID,
+		&comment.PublicUserID,
+		&comment.AuthorUsername,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &comment, nil
+}
+
 // SQLiteCommentRepository implements the CommentRepository interface using SQLite.
 type SQLiteCommentRepository struct {
 	db *sql.DB
@@ -45,28 +71,14 @@ func (r *SQLiteCommentRepository) Create(ctx context.Context, comment *domain.Co
 // GetByPublicID retrieves a comment by its public UUID.
 func (r *SQLiteCommentRepository) GetByPublicID(ctx context.Context, commentPublicID string) (*domain.Comment, error) {
 	row := r.db.QueryRowContext(ctx, `
-		SELECT c.id, c.public_id, c.post_id, c.author_id, c.content, c.created_at, c.updated_at,
-		       COALESCE(p.public_id, '') AS post_public_id, COALESCE(u.public_id, '') AS user_public_id,
-		       COALESCE(u.username, '') AS author_username
+		SELECT `+commentSelectColumns+`
 		FROM comments c
 		LEFT JOIN posts p ON c.post_id = p.id
 		LEFT JOIN users u ON c.author_id = u.id
 		WHERE c.public_id = ?
 	`, commentPublicID)
 
-	var comment domain.Comment
-	err := row.Scan(
-		&comment.ID,
-		&comment.PublicID,
-		&comment.PostID,
-		&comment.UserID,
-		&comment.Content,
-		&comment.CreatedAt,
-		&comment.UpdatedAt,
-		&comment.PublicPostID,
-		&comment.PublicUserID,
-		&comment.AuthorUsername,
-	)
+	comment, err := scanComment(row)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, domain.ErrCommentNotFound
@@ -74,26 +86,50 @@ func (r *SQLiteCommentRepository) GetByPublicID(ctx context.Context, commentPubl
 		return nil, err
 	}
 
-	return &comment, nil
+	return comment, nil
 }
 
 // Update updates an existing comment.
 func (r *SQLiteCommentRepository) Update(ctx context.Context, comment *domain.Comment) error {
-	_, err := r.db.ExecContext(ctx, `
+	result, err := r.db.ExecContext(ctx, `
 		UPDATE comments
 		SET content = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE public_id = ?
 	`, comment.Content, comment.PublicID)
-	return err
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return domain.ErrCommentNotFound
+	}
+
+	return nil
 }
 
 // DeleteByPublicID removes a comment by its public UUID.
 func (r *SQLiteCommentRepository) DeleteByPublicID(ctx context.Context, commentPublicID string) error {
-	_, err := r.db.ExecContext(ctx, `
+	result, err := r.db.ExecContext(ctx, `
 		DELETE FROM comments
 		WHERE public_id = ?
 	`, commentPublicID)
-	return err
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return domain.ErrCommentNotFound
+	}
+
+	return nil
 }
 
 // ListByPostPublicID retrieves all comments for a post by the post's public UUID.
@@ -107,6 +143,7 @@ func (r *SQLiteCommentRepository) ListByPostPublicID(ctx context.Context, postPu
 		LEFT JOIN users u ON c.author_id = u.id
 		WHERE p.public_id = ?
 		ORDER BY c.created_at ASC
+		LIMIT 1000
 	`, postPublicID)
 	if err != nil {
 		return nil, err
@@ -155,6 +192,7 @@ func (r *SQLiteCommentRepository) ListByUser(ctx context.Context, userID int) ([
 		LEFT JOIN users u ON c.author_id = u.id
 		WHERE c.author_id = ?
 		ORDER BY c.created_at DESC
+		LIMIT 1000
 	`
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
@@ -195,17 +233,13 @@ func (r *SQLiteCommentRepository) ListByUser(ctx context.Context, userID int) ([
 
 // ListByUserPaginated retrieves comments made by a user with limit and offset.
 func (r *SQLiteCommentRepository) ListByUserPaginated(ctx context.Context, userID int, limit, offset int) ([]*domain.Comment, error) {
-	query := `
-		SELECT c.id, c.public_id, c.post_id, c.author_id, c.content, c.created_at, c.updated_at,
-		       p.public_id AS post_public_id, COALESCE(u.public_id, '') AS user_public_id,
-		       COALESCE(u.username, '') AS author_username
+	query := `SELECT ` + commentSelectColumns + `
 		FROM comments c
 		INNER JOIN posts p ON c.post_id = p.id
 		LEFT JOIN users u ON c.author_id = u.id
 		WHERE c.author_id = ?
 		ORDER BY c.created_at DESC
-		LIMIT ? OFFSET ?
-	`
+		LIMIT ? OFFSET ?`
 
 	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
 	if err != nil {
@@ -215,25 +249,11 @@ func (r *SQLiteCommentRepository) ListByUserPaginated(ctx context.Context, userI
 
 	comments := make([]*domain.Comment, 0)
 	for rows.Next() {
-		var comment domain.Comment
-		var postPublicID string
-		err := rows.Scan(
-			&comment.ID,
-			&comment.PublicID,
-			&comment.PostID,
-			&comment.UserID,
-			&comment.Content,
-			&comment.CreatedAt,
-			&comment.UpdatedAt,
-			&postPublicID,
-			&comment.PublicUserID,
-			&comment.AuthorUsername,
-		)
-		if err != nil {
-			return nil, err
+		comment, scanErr := scanComment(rows)
+		if scanErr != nil {
+			return nil, scanErr
 		}
-		comment.PublicPostID = postPublicID
-		comments = append(comments, &comment)
+		comments = append(comments, comment)
 	}
 
 	if err := rows.Err(); err != nil {

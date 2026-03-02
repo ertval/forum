@@ -52,7 +52,11 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 	}
 
 	// 2. Initialize Repositories (Output Adapters)
-	repos := initRepositories(db.DB())
+	repos, err := initRepositories(db.DB())
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("initialize repositories: %w", err)
+	}
 
 	// 3. Initialize Services (Application Layer)
 	services := initServices(repos, cfg, lgr)
@@ -84,7 +88,11 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 func initDatabase(cfg *config.Config, lgr *logger.Logger) (*database.Connection, error) {
 	lgr.Info("Connecting to database")
 
-	dbConn, err := database.NewConnection(cfg.Database.Path)
+	dbConn, err := database.NewConnectionWithConfig(cfg.Database.Path, database.ConnectionConfig{
+		MaxOpenConns:    cfg.Database.MaxOpenConns,
+		MaxIdleConns:    cfg.Database.MaxIdleConns,
+		ConnMaxLifetime: cfg.Database.ConnMaxLifetime,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("database connection: %w", err)
 	}

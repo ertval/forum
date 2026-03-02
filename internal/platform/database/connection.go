@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -20,10 +21,28 @@ type Connection struct {
 	db *sql.DB
 }
 
-// NewConnection creates a new SQLite database connection manager.
-// It ensures the parent directory for the database file exists, opens the
-// connection and returns a Connection wrapper.
+// ConnectionConfig holds connection pool settings for the database.
+type ConnectionConfig struct {
+	MaxOpenConns    int           // Maximum number of open connections
+	MaxIdleConns    int           // Maximum number of idle connections
+	ConnMaxLifetime time.Duration // Maximum connection lifetime
+}
+
+// NewConnection creates a new SQLite database connection manager with default
+// pool settings. It ensures the parent directory for the database file exists,
+// opens the connection and returns a Connection wrapper.
 func NewConnection(dsn string) (*Connection, error) {
+	return NewConnectionWithConfig(dsn, ConnectionConfig{
+		MaxOpenConns:    10,
+		MaxIdleConns:    5,
+		ConnMaxLifetime: 30 * time.Minute,
+	})
+}
+
+// NewConnectionWithConfig creates a new SQLite database connection manager
+// with the provided pool configuration. It ensures the parent directory for
+// the database file exists, opens the connection and returns a Connection wrapper.
+func NewConnectionWithConfig(dsn string, cfg ConnectionConfig) (*Connection, error) {
 	// If the DSN is a simple file path (e.g. './data/forum.db'), ensure its
 	// parent directory exists. For more complex DSNs (file:... with params)
 	// try to extract the file portion up to the first '?' char.
@@ -63,6 +82,17 @@ func NewConnection(dsn string) (*Connection, error) {
 	if _, err := db.Exec("PRAGMA journal_mode = WAL;"); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to set journal_mode=WAL: %w", err)
+	}
+
+	// Apply connection pool settings
+	if cfg.MaxOpenConns > 0 {
+		db.SetMaxOpenConns(cfg.MaxOpenConns)
+	}
+	if cfg.MaxIdleConns > 0 {
+		db.SetMaxIdleConns(cfg.MaxIdleConns)
+	}
+	if cfg.ConnMaxLifetime > 0 {
+		db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
 	}
 
 	return &Connection{db: db}, nil

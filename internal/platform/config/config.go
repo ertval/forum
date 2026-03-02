@@ -4,12 +4,25 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"time"
 )
+
+// generateDevSecret creates a random development secret.
+func generateDevSecret() string {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		// Fallback to a reasonable default if crypto/rand fails (shouldn't happen)
+		return "dev-fallback-secret-do-not-use-in-production"
+	}
+	return hex.EncodeToString(b)
+}
 
 // Config represents the application configuration.
 // All configuration values are loaded from environment variables with sensible defaults.
@@ -102,7 +115,11 @@ func Load() (*Config, error) {
 	cfg.Database.MaxIdleConns = getEnvInt("DATABASE_MAX_IDLE_CONNS", 25)
 	cfg.Database.ConnMaxLifetime = getEnvDuration("DATABASE_CONN_MAX_LIFETIME", 5*time.Minute)
 
-	cfg.Session.Secret = getEnvString("SESSION_SECRET", "defaultsecret")
+	sessionSecret := getEnvString("SESSION_SECRET", "")
+	if sessionSecret == "" {
+		sessionSecret = generateDevSecret()
+	}
+	cfg.Session.Secret = sessionSecret
 	cfg.Session.Duration = getEnvDuration("SESSION_DURATION", 24*time.Hour)
 	cfg.Session.CookieName = getEnvString("SESSION_COOKIE_NAME", "session_token")
 	cfg.Session.Secure = getEnvBool("SESSION_SECURE", false)
@@ -226,4 +243,10 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+// IsDefaultSecret returns true if the session secret was not explicitly configured.
+// Callers can use this to log warnings.
+func (c *Config) IsDefaultSecret() bool {
+	return os.Getenv("SESSION_SECRET") == ""
 }

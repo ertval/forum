@@ -97,7 +97,10 @@ func TestAuthModule_NoInternalIDExposure(t *testing.T) {
 	}
 
 	// Setup repositories and services
-	sessionRepo := authAdapters.NewSQLiteSessionRepository(db)
+	sessionRepo, err := authAdapters.NewSQLiteSessionRepository(db)
+	if err != nil {
+		t.Fatalf("Failed to create session repository: %v", err)
+	}
 	userRepo := userAdapters.NewSQLiteUserRepository(db)
 	userService := userApp.NewService(userRepo)
 

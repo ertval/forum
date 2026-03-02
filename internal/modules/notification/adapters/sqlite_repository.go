@@ -13,6 +13,55 @@ import (
 	"github.com/gofrs/uuid/v5"
 )
 
+// Notification SQL constants.
+const (
+	insertNotificationColumns = `(public_id, user_id, actor_id, target_id, type, message, read, created_at)`
+
+	insertNotificationWithTimestamp = `INSERT INTO notifications ` + insertNotificationColumns + `
+		VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+
+	insertNotificationExplicit = `INSERT INTO notifications ` + insertNotificationColumns + `
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+
+	notificationSelectQuery = `SELECT n.id, n.public_id, n.user_id, n.actor_id, n.type, n.message, n.target_id, n.read, n.created_at,
+		       p.public_id as target_public_id, u.public_id as actor_public_id
+		FROM notifications n
+		LEFT JOIN posts p ON n.target_id = p.id
+		LEFT JOIN users u ON n.actor_id = u.id`
+)
+
+// scanNotification scans a notification row from any scanner.
+func scanNotification(scanner interface{ Scan(dest ...any) error }) (*domain.Notification, error) {
+	var notification domain.Notification
+	var targetPublicID sql.NullString
+	var actorPublicID sql.NullString
+
+	if err := scanner.Scan(
+		&notification.ID,
+		&notification.PublicID,
+		&notification.UserID,
+		&notification.ActorID,
+		&notification.Type,
+		&notification.Message,
+		&notification.TargetID,
+		&notification.IsRead,
+		&notification.CreatedAt,
+		&targetPublicID,
+		&actorPublicID,
+	); err != nil {
+		return nil, err
+	}
+
+	if targetPublicID.Valid {
+		notification.PublicTargetID = targetPublicID.String
+	}
+	if actorPublicID.Valid {
+		notification.PublicActorID = actorPublicID.String
+	}
+
+	return &notification, nil
+}
+
 // SQLiteNotificationRepository implements the NotificationRepository interface using SQLite.
 type SQLiteNotificationRepository struct {
 	db *sql.DB
@@ -47,21 +96,13 @@ func (r *SQLiteNotificationRepository) Create(ctx context.Context, notification 
 		createdAt = sql.NullTime{}.Time
 	}
 
-	if createdAt.IsZero() {
-		_, err = r.db.ExecContext(ctx, `
-			INSERT INTO notifications (public_id, user_id, actor_id, target_id, type, message, read, created_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-		`, notification.PublicID, notification.UserID, notification.ActorID, notification.TargetID, notification.Type, notification.Message, notification.IsRead)
-		if err != nil {
-			return fmt.Errorf("insert notification: %w", err)
-		}
-		return nil
-	}
+	baseArgs := []any{notification.PublicID, notification.UserID, notification.ActorID, notification.TargetID, notification.Type, notification.Message, notification.IsRead}
 
-	_, err = r.db.ExecContext(ctx, `
-		INSERT INTO notifications (public_id, user_id, actor_id, target_id, type, message, read, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-	`, notification.PublicID, notification.UserID, notification.ActorID, notification.TargetID, notification.Type, notification.Message, notification.IsRead, createdAt)
+	if createdAt.IsZero() {
+		_, err = r.db.ExecContext(ctx, insertNotificationWithTimestamp, baseArgs...)
+	} else {
+		_, err = r.db.ExecContext(ctx, insertNotificationExplicit, append(baseArgs, createdAt)...)
+	}
 	if err != nil {
 		return fmt.Errorf("insert notification: %w", err)
 	}
@@ -79,6 +120,7 @@ func (r *SQLiteNotificationRepository) GetByUserID(ctx context.Context, userID i
 		LEFT JOIN users u ON n.actor_id = u.id
 		WHERE n.user_id = ?
 		ORDER BY n.created_at DESC
+		LIMIT 100
 	`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("query notifications: %w", err)

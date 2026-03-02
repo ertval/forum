@@ -29,6 +29,12 @@ func main() {
 	}
 	lgr := logger.New(logLevel, os.Stdout)
 
+	// 2a. Warn if session secret is not explicitly configured outside development
+	if cfg.IsDefaultSecret() && cfg.Server.Environment != "development" {
+		lgr.Warn("session.secret.default",
+			logger.String("warning", "SESSION_SECRET not set, using auto-generated secret. Set SESSION_SECRET env var for production use."))
+	}
+
 	// 3. Initialize Application (all wiring happens in wire package)
 	app, err := wire.InitializeApp(cfg, lgr)
 	if err != nil {

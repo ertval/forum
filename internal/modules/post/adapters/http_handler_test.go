@@ -21,6 +21,7 @@ import (
 	reactionPorts "forum/internal/modules/reaction/ports"
 	userDomain "forum/internal/modules/user/domain"
 	userPorts "forum/internal/modules/user/ports"
+	"forum/internal/platform/httpjson"
 	platformTemplates "forum/internal/platform/templates"
 )
 
@@ -302,6 +303,10 @@ func (m *mockServiceContainer) Comment() commentPorts.CommentService {
 
 func (m *mockServiceContainer) Reaction() reactionPorts.ReactionService {
 	return m.reactionService
+}
+
+func (m *mockServiceContainer) SessionCookieName() string {
+	return "session_token"
 }
 
 func createTestHandler(postSvc *mockPostService, catSvc *mockCategoryService, authSvc *mockAuthService, userSvc *mockUserService) *HTTPHandler {
@@ -1284,12 +1289,10 @@ func TestHTTPHandler_getInternalUserID_Empty(t *testing.T) {
 }
 
 func TestHTTPHandler_writeJSON(t *testing.T) {
-	handler := &HTTPHandler{}
-
 	w := httptest.NewRecorder()
 	data := map[string]string{"test": "value"}
 
-	handler.writeJSON(w, http.StatusOK, data)
+	httpjson.WriteJSON(w, http.StatusOK, data)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", w.Code)

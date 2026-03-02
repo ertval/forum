@@ -10,6 +10,37 @@ import (
 	"strings"
 )
 
+// applyColor applies colorization depending on the config.
+func applyColor(s, color string, cfg *Config) string {
+	if cfg == nil {
+		// default to color enabled for terminal output
+		if color == "" {
+			return s
+		}
+		return color + s + colorReset
+	}
+	if !cfg.Colorize || color == "" {
+		return s
+	}
+	return color + s + colorReset
+}
+
+// colorForLevel returns the ANSI color for a log level.
+func colorForLevel(l Level) string {
+	switch l {
+	case DebugLevel:
+		return colorMagenta
+	case InfoLevel:
+		return colorGreen
+	case WarnLevel:
+		return colorYellow
+	case ErrorLevel:
+		return colorRed
+	default:
+		return colorWhite
+	}
+}
+
 // colorForStatusCode returns a color based on HTTP status code ranges.
 func colorForStatusCode(code int) string {
 	switch {
@@ -70,7 +101,7 @@ func formatBytes(bytes int) string {
 // formatHTTPRequest creates a compact, colorful one-line log for HTTP requests.
 // Format: TS PROTO STATUS METHOD PATH?QUERY (SIZEb, DURms) [IP]
 // Example: 18:33:58 🔒 ✓ 200 GET /board?my_posts=true (6.4kb, 1ms) [127.0.0.1]
-func (l *Logger) formatHTTPRequest(ts string, level Level, data map[string]any) string {
+func formatHTTPRequest(ts string, level Level, data map[string]any, cfg *Config) string {
 	// Extract fields
 	method := getStringField(data, "method", "???")
 	path := getStringField(data, "path", "/")
@@ -126,14 +157,14 @@ func (l *Logger) formatHTTPRequest(ts string, level Level, data map[string]any) 
 		protoIndicator = "🔓"
 		protoColor = colorYellow
 	}
-	protoPart := l.applyColor(protoIndicator, protoColor)
+	protoPart := applyColor(protoIndicator, protoColor, cfg)
 
-	statusPart := l.applyColor(fmt.Sprintf("%s %d", statusIndicator, status), statusColor)
-	methodPart := l.applyColor(fmt.Sprintf("%-4s", method), methodColor)
+	statusPart := applyColor(fmt.Sprintf("%s %d", statusIndicator, status), statusColor, cfg)
+	methodPart := applyColor(fmt.Sprintf("%-4s", method), methodColor, cfg)
 
 	// Dim the metadata for less important info
-	metaPart := l.applyColor(fmt.Sprintf("(%s, %dms)", sizeStr, durationMs), colorWhite)
-	ipPart := l.applyColor(fmt.Sprintf("[%s]", ip), colorWhite)
+	metaPart := applyColor(fmt.Sprintf("(%s, %dms)", sizeStr, durationMs), colorWhite, cfg)
+	ipPart := applyColor(fmt.Sprintf("[%s]", ip), colorWhite, cfg)
 
 	return fmt.Sprintf("%s %s %s %s %s %s %s", ts, protoPart, statusPart, methodPart, fullPath, metaPart, ipPart)
 }
