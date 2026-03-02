@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	commentDomain "forum/internal/modules/comment/domain"
+	platformErrors "forum/internal/platform/errors"
 )
 
 // RegisterFormRoutes registers all comment form routes with the router.
@@ -24,21 +25,21 @@ func (h *HTTPHandler) CreateCommentForm(w http.ResponseWriter, r *http.Request) 
 	// Get userID from session
 	userID, _ := h.GetCurrentUser(r)
 	if userID == 0 {
-		http.Error(w, "Authentication required", http.StatusUnauthorized)
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
 	// Extract post ID from URL path using PathValue (Go 1.22+ pattern)
 	postPublicID := r.PathValue("post_id")
 	if postPublicID == "" {
-		http.Error(w, "Post ID is required", http.StatusBadRequest)
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Post ID is required")
 		return
 	}
 
 	// Parse form data (content)
 	content := strings.TrimSpace(r.FormValue("content"))
 	if content == "" {
-		http.Error(w, "Comment content is required", http.StatusBadRequest)
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Comment content is required")
 		return
 	}
 
@@ -47,10 +48,10 @@ func (h *HTTPHandler) CreateCommentForm(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		// Map domain errors to HTTP status codes
 		if errors.Is(err, commentDomain.ErrEmptyContent) || errors.Is(err, commentDomain.ErrContentTooLong) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		http.Error(w, "Failed to create comment", http.StatusInternalServerError)
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to create comment")
 		return
 	}
 
@@ -63,14 +64,14 @@ func (h *HTTPHandler) DeleteCommentForm(w http.ResponseWriter, r *http.Request) 
 	// Get userID from session
 	userID, _ := h.GetCurrentUser(r)
 	if userID == 0 {
-		http.Error(w, "Authentication required", http.StatusUnauthorized)
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
 
 	// Extract comment ID from URL path using PathValue (Go 1.22+ pattern)
 	commentPublicID := r.PathValue("id")
 	if commentPublicID == "" {
-		http.Error(w, "Comment ID is required", http.StatusBadRequest)
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Comment ID is required")
 		return
 	}
 
@@ -78,16 +79,16 @@ func (h *HTTPHandler) DeleteCommentForm(w http.ResponseWriter, r *http.Request) 
 	existingComment, err := h.commentService.GetComment(r.Context(), commentPublicID)
 	if err != nil {
 		if errors.Is(err, commentDomain.ErrCommentNotFound) {
-			http.Error(w, "Comment not found", http.StatusNotFound)
+			platformErrors.WriteErrorJSON(w, http.StatusNotFound, "Comment not found")
 			return
 		}
-		http.Error(w, "Failed to retrieve comment", http.StatusInternalServerError)
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve comment")
 		return
 	}
 
 	// Check if the user is the owner of the comment
 	if existingComment.UserID != userID {
-		http.Error(w, "Not authorized to delete this comment", http.StatusForbidden)
+		platformErrors.WriteErrorJSON(w, http.StatusForbidden, "Not authorized to delete this comment")
 		return
 	}
 
@@ -95,10 +96,10 @@ func (h *HTTPHandler) DeleteCommentForm(w http.ResponseWriter, r *http.Request) 
 	err = h.commentService.DeleteComment(r.Context(), commentPublicID)
 	if err != nil {
 		if errors.Is(err, commentDomain.ErrCommentNotFound) {
-			http.Error(w, "Comment not found", http.StatusNotFound)
+			platformErrors.WriteErrorJSON(w, http.StatusNotFound, "Comment not found")
 			return
 		}
-		http.Error(w, "Failed to delete comment", http.StatusInternalServerError)
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to delete comment")
 		return
 	}
 

@@ -337,10 +337,21 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 				dislikes int
 			}
 			reactionCache := make(map[string]reactionCounts, len(commentsFromService))
-			if h.reactionService != nil {
-				for _, comment := range commentsFromService {
-					likes, dislikes, _ := h.reactionService.CountReactions(ctx, comment.PublicID, "comment")
-					reactionCache[comment.PublicID] = reactionCounts{likes: likes, dislikes: dislikes}
+			if h.reactionService != nil && len(commentsFromService) > 0 {
+				commentIDs := make([]string, 0, len(commentsFromService))
+				for _, c := range commentsFromService {
+					commentIDs = append(commentIDs, c.PublicID)
+				}
+				batchCounts, err := h.reactionService.CountReactionsBatch(ctx, commentIDs, "comment")
+				if err != nil {
+					log.Printf("Error batch counting reactions for my comments: %v", err)
+				} else {
+					for id, counts := range batchCounts {
+						reactionCache[id] = reactionCounts{
+							likes:    counts["like"],
+							dislikes: counts["dislike"],
+						}
+					}
 				}
 			}
 
@@ -511,6 +522,30 @@ func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request
 		}
 	}
 
+	// Batch fetch reaction counts for all comments in a single query
+	type reactionCounts struct {
+		likes    int
+		dislikes int
+	}
+	reactionCache := make(map[string]reactionCounts, len(comments))
+	if h.reactionService != nil && len(comments) > 0 {
+		commentIDs := make([]string, 0, len(comments))
+		for _, comment := range comments {
+			commentIDs = append(commentIDs, comment.PublicID)
+		}
+		batchCounts, err := h.reactionService.CountReactionsBatch(ctx, commentIDs, "comment")
+		if err != nil {
+			log.Printf("Error batch counting reactions for load-more comments: %v", err)
+		} else {
+			for id, counts := range batchCounts {
+				reactionCache[id] = reactionCounts{
+					likes:    counts["like"],
+					dislikes: counts["dislike"],
+				}
+			}
+		}
+	}
+
 	for _, comment := range comments {
 		// Author data is populated by the repository JOIN query
 		authorUsername := comment.AuthorUsername
@@ -524,11 +559,7 @@ func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request
 			postTitle = "Post ID unknown"
 		}
 
-		// Get reaction counts for this comment
-		likes, dislikes := 0, 0
-		if h.reactionService != nil {
-			likes, dislikes, _ = h.reactionService.CountReactions(ctx, comment.PublicID, "comment")
-		}
+		rc := reactionCache[comment.PublicID]
 
 		commentData := map[string]interface{}{
 			"PublicID":           comment.PublicID,
@@ -539,8 +570,8 @@ func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request
 			"PostAuthorUsername": postAuthorUsername,
 			"CreatedAt":          comment.CreatedAt,
 			"UpdatedAt":          comment.UpdatedAt,
-			"Likes":              likes,
-			"Dislikes":           dislikes,
+			"Likes":              rc.likes,
+			"Dislikes":           rc.dislikes,
 		}
 		commentsData = append(commentsData, commentData)
 	}

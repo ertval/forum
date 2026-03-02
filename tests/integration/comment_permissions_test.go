@@ -94,11 +94,6 @@ func TestAuthorizedCommentCreation(t *testing.T) {
 	w := httptest.NewRecorder()
 	app.Server.Router().ServeHTTP(w, req)
 
-	// Handle test environment issues gracefully
-	if w.Code == http.StatusInternalServerError {
-		t.Skipf("Skipping - comment creation fails in in-memory SQLite test environment: %s", w.Body.String())
-	}
-
 	// Should return 201 Created
 	if w.Code != http.StatusCreated {
 		t.Errorf("Expected 201 Created for authenticated comment creation, got %d: %s", w.Code, w.Body.String())

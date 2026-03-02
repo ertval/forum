@@ -5,12 +5,12 @@ package adapters
 
 import (
 	"bytes"
-	"log"
 	"net/http"
 
 	authPorts "forum/internal/modules/auth/ports"
 	postDomain "forum/internal/modules/post/domain"
 	platformErrors "forum/internal/platform/errors"
+	logger "forum/internal/platform/logger"
 	"forum/internal/platform/templates"
 )
 
@@ -153,11 +153,9 @@ func (h *HTTPHandler) renderPostListPage(w http.ResponseWriter, r *http.Request,
 
 	// Fetch all categories for filter dropdown
 	var categories []*postDomain.Category
-	if h.categoryService != nil {
-		categories, err = h.categoryService.List(ctx)
-		if err != nil {
-			categories = []*postDomain.Category{}
-		}
+	categories, err = h.categoryService.List(ctx)
+	if err != nil {
+		categories = []*postDomain.Category{}
 	}
 
 	// Prepare template data for page
@@ -287,12 +285,12 @@ func (h *HTTPHandler) renderPostDetail(w http.ResponseWriter, r *http.Request, p
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
-		log.Printf("Template error: %v", err)
+		h.logger.Error("Template error", logger.Error(err))
 		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 		return
 	}
 	if _, err := buf.WriteTo(w); err != nil {
-		log.Printf("Write error: %v", err)
+		h.logger.Error("Write error", logger.Error(err))
 	}
 }
 

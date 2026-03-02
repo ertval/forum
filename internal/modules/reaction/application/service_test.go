@@ -129,6 +129,10 @@ func (m *MockReactionRepository) CountByUserID(ctx context.Context, userID int) 
 	return count, nil
 }
 
+func (m *MockReactionRepository) CountBatchByTargetPublicIDs(ctx context.Context, targetPublicIDs []string, targetType string) (map[string]map[string]int, error) {
+	return make(map[string]map[string]int), nil
+}
+
 func (m *MockReactionRepository) ToggleReaction(ctx context.Context, reaction *domain.Reaction) (bool, error) {
 	if m.reactions == nil {
 		m.reactions = make(map[string]*domain.Reaction)

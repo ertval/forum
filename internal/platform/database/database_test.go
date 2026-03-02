@@ -67,19 +67,9 @@ func TestNewConnection(t *testing.T) {
 					t.Error("NewConnection().DB() returned nil database")
 				}
 
-				// Test Ping
-				if err := conn.Ping(); err != nil {
-					t.Errorf("Connection.Ping() failed: %v", err)
-				}
-
 				// Test Close
 				if err := conn.Close(); err != nil {
 					t.Errorf("Connection.Close() failed: %v", err)
-				}
-
-				// Ping should fail after close
-				if err := conn.Ping(); err == nil {
-					t.Error("Connection.Ping() should fail after Close()")
 				}
 			}
 		})
@@ -145,33 +135,6 @@ func TestConnection_Close(t *testing.T) {
 	if err := conn.Close(); err != nil {
 		t.Errorf("Second Close() failed: %v", err)
 	}
-}
-
-func TestConnection_Ping(t *testing.T) {
-	t.Run("successful ping", func(t *testing.T) {
-		conn, err := NewConnection(":memory:")
-		if err != nil {
-			t.Fatalf("NewConnection() failed: %v", err)
-		}
-		defer conn.Close()
-
-		if err := conn.Ping(); err != nil {
-			t.Errorf("Ping() failed: %v", err)
-		}
-	})
-
-	t.Run("ping after close", func(t *testing.T) {
-		conn, err := NewConnection(":memory:")
-		if err != nil {
-			t.Fatalf("NewConnection() failed: %v", err)
-		}
-
-		conn.Close()
-
-		if err := conn.Ping(); err == nil {
-			t.Error("Ping() should fail after Close()")
-		}
-	})
 }
 
 // TestStringsIndexByte tests the standard library function we now use
@@ -727,31 +690,6 @@ DROP TABLE atomic_users;`
 	}
 }
 
-func TestMigrator_Version(t *testing.T) {
-	conn, err := NewConnection(":memory:")
-	if err != nil {
-		t.Fatalf("NewConnection() failed: %v", err)
-	}
-	defer conn.Close()
-
-	migrator := NewMigrator(conn)
-
-	// First run Migrate to create the schema_migrations table
-	tmpDir := t.TempDir()
-	if err := migrator.Migrate(tmpDir); err != nil {
-		t.Fatalf("Migrate() failed: %v", err)
-	}
-
-	// Version should return 0 when no migrations are applied
-	version, err := migrator.Version()
-	if err != nil {
-		t.Errorf("Version() error = %v, expected nil", err)
-	}
-	if version != 0 {
-		t.Errorf("Version() = %d, expected 0 (no migrations applied)", version)
-	}
-}
-
 // TestMigrator_WithRealMigrations tests the migrator with actual project migration files
 func TestMigrator_WithRealMigrations(t *testing.T) {
 	// Skip if migrations directory doesn't exist
@@ -784,6 +722,4 @@ func TestMigrator_WithRealMigrations(t *testing.T) {
 	t.Logf("Successfully applied %d migrations", count)
 }
 
-// Note: transaction-related tests were moved to `transaction_test.go` to avoid
-// duplicate declarations across test files. The transaction test implementations
-// live in that file; keep this placeholder comment here to explain the split.
+

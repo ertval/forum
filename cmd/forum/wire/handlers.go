@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"forum/internal/platform/config"
+	logger "forum/internal/platform/logger"
 
 	authAdapters "forum/internal/modules/auth/adapters"
 	commentAdapters "forum/internal/modules/comment/adapters"
@@ -47,11 +48,12 @@ func initHandlers(services *ServiceContainer, cfg *config.Config) (*Handlers, er
 	// Cookie security is determined by config (from environment)
 	// In production, cfg.Session.Secure should be true
 	secureCookies := cfg.Session.Secure
+	sessionCookieName := cfg.Session.CookieName
 
 	return &Handlers{
-		Auth:         authAdapters.NewHTTPHandler(services, templates, secureCookies),
+		Auth:         authAdapters.NewHTTPHandler(services, templates, secureCookies, sessionCookieName),
 		User:         userAdapters.NewHTTPHandler(services, templates),
-		Post:         postAdapters.NewHTTPHandler(services, templates),
+		Post:         postAdapters.NewHTTPHandler(services, templates, logger.New(logger.InfoLevel, os.Stderr)),
 		Comment:      commentAdapters.NewHTTPHandler(services, templates),
 		Reaction:     reactionAdapters.NewHTTPHandler(services, templates),
 		Moderation:   moderationAdapters.NewHTTPHandler(services, templates),

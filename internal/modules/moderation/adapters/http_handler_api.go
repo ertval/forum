@@ -18,8 +18,8 @@ func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
 	router.Handle("POST /api/moderation/reports", authMiddleware(http.HandlerFunc(h.CreateReportAPI)))
 	// GET /api/moderation/reports - List reports (filtered by status)
 	router.Handle("GET /api/moderation/reports", authMiddleware(http.HandlerFunc(h.ListReportsAPI)))
-	// PUT /api/moderation/reports/{id} - Review report
-	router.Handle("PUT /api/moderation/reports/{id}", authMiddleware(http.HandlerFunc(h.ReviewReportAPI)))
+	// PUT /api/moderation/reports/{report_id} - Review report
+	router.Handle("PUT /api/moderation/reports/{report_id}", authMiddleware(http.HandlerFunc(h.ReviewReportAPI)))
 }
 
 // CreateReportAPI handles creating a new report.

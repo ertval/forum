@@ -27,10 +27,6 @@ func WriteErrorJSON(w http.ResponseWriter, status int, message string) {
 		logger.Int("status", status),
 		logger.String("error", message))
 
-	// Set JSON content type
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
 	// Create error response
 	errResp := struct {
 		Error string `json:"error"`
@@ -38,11 +34,14 @@ func WriteErrorJSON(w http.ResponseWriter, status int, message string) {
 		Error: message,
 	}
 
-	// Write JSON response with fallback to plain text if encoding fails (CRIT-3)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+
 	if err := json.NewEncoder(w).Encode(errResp); err != nil {
 		// JSON encoding failed - log and send plain text fallback
 		errLogger.Error("failed to encode error response", logger.Error(err))
-		// Note: headers already sent, but we can try to write something useful
-		// The client may receive a partial/malformed response in this edge case
+		// Best-effort fallback write for clients when JSON encoding fails.
+		// Status/header may already be written by the server at this point.
+		_, _ = w.Write([]byte(message + "\n"))
 	}
 }

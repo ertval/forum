@@ -77,7 +77,7 @@ func initServices(repos *Repositories, cfg *config.Config, lgr *logger.Logger) *
 	commentService := commentApp.NewService(repos.Comment, postService, userService, notificationService)
 
 	// Layer 3: Cross-cutting middleware (depend on services)
-	authMiddleware := authAdapters.NewAuthMiddleware(authService, userService)
+	authMiddleware := authAdapters.NewAuthMiddleware(authService, userService, cfg.Session.CookieName)
 
 	return &ServiceContainer{
 		auth:           authService,

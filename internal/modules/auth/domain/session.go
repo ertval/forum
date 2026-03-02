@@ -29,6 +29,20 @@ func (s *Session) IsValid() bool {
 	return s.ID > 0 && s.UserID > 0 && !s.IsExpired()
 }
 
+// Validate checks that the session has the required fields set.
+func (s *Session) Validate() error {
+	if s.Token == "" {
+		return ErrInvalidSession
+	}
+	if s.UserID <= 0 {
+		return ErrInvalidSession
+	}
+	if s.ExpiresAt.IsZero() {
+		return ErrInvalidSession
+	}
+	return nil
+}
+
 // Credentials represents user credentials for authentication.
 type Credentials struct {
 	Email    string // User's email address

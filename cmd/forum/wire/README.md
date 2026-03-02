@@ -16,7 +16,7 @@ cmd/forum/
 │
 └── wire/                # Dependency injection
     ├── app.go           # Main orchestration
-    ├── repos.go         # Repository initialization
+    ├── repositories.go  # Repository initialization
     ├── services.go      # Service initialization + config injection
     ├── handlers.go      # Handler initialization
     └── README.md        # This file
@@ -137,7 +137,7 @@ internal/modules/yourmodule/
 └── adapters/       # HTTP handlers + DB repos
 ```
 
-### 2. Update wire/repos.go
+### 2. Update wire/repositories.go
 
 ```go
 type Repositories struct {

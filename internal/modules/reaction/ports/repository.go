@@ -28,6 +28,10 @@ type ReactionRepository interface {
 	// CountByUserID returns the total number of reactions given by a user.
 	CountByUserID(ctx context.Context, userID int) (int, error)
 
+	// CountBatchByTargetPublicIDs returns like and dislike counts for multiple targets in a single query.
+	// The result is a map keyed by targetPublicID, with inner maps of reaction type ("like"/"dislike") -> count.
+	CountBatchByTargetPublicIDs(ctx context.Context, targetPublicIDs []string, targetType string) (map[string]map[string]int, error)
+
 	// ToggleReaction atomically handles the full reaction toggle flow in a single transaction.
 	// It resolves the target, checks for an existing reaction, and either:
 	// - Deletes the reaction if the same type already exists (toggle off, removed=true)

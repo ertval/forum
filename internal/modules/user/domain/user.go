@@ -90,6 +90,20 @@ func (u *User) HasPermission(action Permission) bool {
 	return false
 }
 
+// Validate checks that the user entity has the required fields set.
+func (u *User) Validate() error {
+	if u.PublicID == "" {
+		return ErrInvalidPublicID
+	}
+	if u.Username == "" {
+		return ErrInvalidUsername
+	}
+	if u.Email == "" {
+		return ErrInvalidEmail
+	}
+	return nil
+}
+
 // CanModerate checks if the user can perform moderation actions.
 func (u *User) CanModerate() bool {
 	return u.Role == RoleModerator || u.Role == RoleAdmin

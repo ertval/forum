@@ -100,22 +100,28 @@ func ValidateImage(data []byte, maxSize int64) (string, error) {
 type ImageHandler struct {
 	uploadDir string
 	maxSize   int64
+	initErr   error
 }
 
 // NewImageHandler creates a new ImageHandler with the specified upload directory and max size.
 // The upload directory is created if it does not already exist.
 func NewImageHandler(uploadDir string, maxSize int64) *ImageHandler {
 	// Ensure the upload directory exists once at construction time.
-	_ = os.MkdirAll(uploadDir, 0755)
+	initErr := os.MkdirAll(uploadDir, 0755)
 	return &ImageHandler{
 		uploadDir: uploadDir,
 		maxSize:   maxSize,
+		initErr:   initErr,
 	}
 }
 
 // Save saves image data to disk and returns the filename (not full path).
 // The filename is a UUID with the appropriate extension based on the image type.
 func (h *ImageHandler) Save(data []byte) (string, error) {
+	if h.initErr != nil {
+		return "", h.initErr
+	}
+
 	// Validate image and get MIME type in one pass
 	mimeType, err := ValidateImage(data, h.maxSize)
 	if err != nil {
@@ -162,6 +168,10 @@ func (h *ImageHandler) Save(data []byte) (string, error) {
 // Delete removes an image file from disk.
 // It returns nil if the file doesn't exist (idempotent).
 func (h *ImageHandler) Delete(filename string) error {
+	if h.initErr != nil {
+		return h.initErr
+	}
+
 	// Security: prevent path traversal
 	if err := validateFilename(filename); err != nil {
 		return err
@@ -169,16 +179,17 @@ func (h *ImageHandler) Delete(filename string) error {
 
 	fullPath := filepath.Join(h.uploadDir, filename)
 
-	// Verify the resolved path is still within upload directory
-	absPath, err := filepath.Abs(fullPath)
-	if err != nil {
-		return err
-	}
+	// Verify the resolved path is within the upload directory using rel path
 	absUploadDir, err := filepath.Abs(h.uploadDir)
 	if err != nil {
 		return err
 	}
-	if !strings.HasPrefix(absPath, absUploadDir) {
+	absPath, err := filepath.Abs(fullPath)
+	if err != nil {
+		return err
+	}
+	rel, err := filepath.Rel(absUploadDir, absPath)
+	if err != nil || strings.HasPrefix(rel, "..") {
 		return ErrPathTraversal
 	}
 

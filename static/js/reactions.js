@@ -2,27 +2,30 @@
 'use strict';
 
 (function() {
-    // Helper function to show inline error messages
-    function showPageError(message) {
-        const pageErrors = document.getElementById('page-errors');
-        if (pageErrors) {
-            // SECURITY: Escape message to prevent XSS from reflected error content
-            pageErrors.innerHTML = `<p class="error">${window.escapeHtml(message)}</p>`;
-            pageErrors.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } else {
-            // Fallback for pages without page-errors div
-            alert(message);
+    // Update a button's displayed count by replacing the "(N)" pattern in its text.
+    function updateButtonCount(btn, newCount) {
+        if (!btn) return;
+        btn.textContent = btn.textContent.replace(/\(\d+\)/, `(${newCount})`);
+    }
+
+    // Fetch updated counts from the server and apply them to the like/dislike buttons.
+    async function refreshCounts(targetType, targetId, likeBtn, dislikeBtn) {
+        try {
+            const data = await window.api.request(`/api/reactions/${targetType}/${targetId}/count`);
+            if (data && typeof data.likes === 'number') {
+                updateButtonCount(likeBtn, data.likes);
+            }
+            if (data && typeof data.dislikes === 'number') {
+                updateButtonCount(dislikeBtn, data.dislikes);
+            }
+        } catch (err) {
+            console.error('Failed to refresh reaction counts:', err);
         }
     }
 
-    function clearPageError() {
-        const pageErrors = document.getElementById('page-errors');
-        if (pageErrors) pageErrors.innerHTML = '';
-    }
-
     // Function to handle post reactions
-    async function handlePostReaction(postId, reactionType) {
-        clearPageError();
+    async function handlePostReaction(postId, reactionType, likeBtn, dislikeBtn) {
+        window.clearError('page-errors');
         try {
             await window.api.request('/api/reactions', {
                 method: 'POST',
@@ -32,20 +35,20 @@
                     type: reactionType
                 })
             });
-            window.location.reload();
+            await refreshCounts('post', postId, likeBtn, dislikeBtn);
         } catch (error) {
             if (error && error.status === 401) {
-                showPageError('Please login to react to posts');
+                window.showError('Please login to react to posts', 'page-errors');
                 return;
             }
             console.error(`Reaction error (${reactionType}):`, error);
-            showPageError(error.message || `An error occurred while ${reactionType}ing the post`);
+            window.showError(error.message || `An error occurred while ${reactionType}ing the post`, 'page-errors');
         }
     }
 
     // Function to handle comment reactions
-    async function handleCommentReaction(commentId, reactionType) {
-        clearPageError();
+    async function handleCommentReaction(commentId, reactionType, likeBtn, dislikeBtn) {
+        window.clearError('page-errors');
         try {
             await window.api.request('/api/reactions', {
                 method: 'POST',
@@ -55,14 +58,14 @@
                     type: reactionType
                 })
             });
-            window.location.reload();
+            await refreshCounts('comment', commentId, likeBtn, dislikeBtn);
         } catch (error) {
             if (error && error.status === 401) {
-                showPageError('Please login to react to comments');
+                window.showError('Please login to react to comments', 'page-errors');
                 return;
             }
             console.error(`Comment reaction error (${reactionType}):`, error);
-            showPageError(error.message || `An error occurred while ${reactionType}ing the comment`);
+            window.showError(error.message || `An error occurred while ${reactionType}ing the comment`, 'page-errors');
         }
     }
 
@@ -78,7 +81,10 @@
                 e.preventDefault();
                 e.stopPropagation(); // Prevent card click navigation
                 const postId = btn.getAttribute('data-post-id');
-                if (postId) await handlePostReaction(postId, 'like');
+                if (postId) {
+                    const dislikeBtn = document.querySelector(`.btn-dislike[data-post-id="${postId}"]`);
+                    await handlePostReaction(postId, 'like', btn, dislikeBtn);
+                }
             }
 
             // Handle post dislikes
@@ -86,21 +92,30 @@
                 e.preventDefault();
                 e.stopPropagation(); // Prevent card click navigation
                 const postId = btn.getAttribute('data-post-id');
-                if (postId) await handlePostReaction(postId, 'dislike');
+                if (postId) {
+                    const likeBtn = document.querySelector(`.btn-like[data-post-id="${postId}"]`);
+                    await handlePostReaction(postId, 'dislike', likeBtn, btn);
+                }
             }
 
             // Handle comment likes
             if (btn.classList.contains('btn-like-comment')) {
                 e.preventDefault();
                 const commentId = btn.getAttribute('data-comment-id');
-                if (commentId) await handleCommentReaction(commentId, 'like');
+                if (commentId) {
+                    const dislikeBtn = document.querySelector(`.btn-dislike-comment[data-comment-id="${commentId}"]`);
+                    await handleCommentReaction(commentId, 'like', btn, dislikeBtn);
+                }
             }
 
             // Handle comment dislikes
             if (btn.classList.contains('btn-dislike-comment')) {
                 e.preventDefault();
                 const commentId = btn.getAttribute('data-comment-id');
-                if (commentId) await handleCommentReaction(commentId, 'dislike');
+                if (commentId) {
+                    const likeBtn = document.querySelector(`.btn-like-comment[data-comment-id="${commentId}"]`);
+                    await handleCommentReaction(commentId, 'dislike', likeBtn, btn);
+                }
             }
         });
     });

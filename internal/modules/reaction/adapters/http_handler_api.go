@@ -5,7 +5,6 @@ package adapters
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 
 	authPorts "forum/internal/modules/auth/ports"
@@ -113,8 +112,11 @@ func (h *HTTPHandler) AddReactionAPI(w http.ResponseWriter, r *http.Request) {
 		logger.String("reaction_type", string(req.Type)))
 
 	// Return success
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `{"message": "Reaction added successfully"}`)
+	h.writeJSON(w, http.StatusOK, struct {
+		Message string `json:"message"`
+	}{
+		Message: "Reaction added successfully",
+	})
 }
 
 // RemoveReactionAPI handles removing a reaction from a post or comment.

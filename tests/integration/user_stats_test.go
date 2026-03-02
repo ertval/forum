@@ -59,9 +59,6 @@ func TestUserStats_PostAndCommentCounts(t *testing.T) {
 	w = httptest.NewRecorder()
 	app.Server.Router().ServeHTTP(w, req)
 
-	if w.Code == http.StatusInternalServerError {
-		t.Skipf("Skipping - failed to create comment in flaky test environment: %s", w.Body.String())
-	}
 	if w.Code != http.StatusCreated {
 		t.Fatalf("Failed to create comment: %d - %s", w.Code, w.Body.String())
 	}

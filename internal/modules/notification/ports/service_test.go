@@ -6,6 +6,10 @@ import (
 	"testing"
 )
 
+// Compile-time interface satisfaction checks.
+var _ NotificationService = (*mockNotificationService)(nil)
+var _ NotificationRepository = (*mockNotificationRepository)(nil)
+
 // This test file verifies that the interfaces are properly defined and can be implemented
 func TestNotificationServiceInterface(t *testing.T) {
 	var _ NotificationService = (*mockNotificationService)(nil)

@@ -79,7 +79,7 @@ func (s *Service) React(ctx context.Context, userID int, targetPublicID string, 
 		// Reaction was toggled off — decrement user's reaction count
 		async.Run(func(ctx context.Context) error {
 			return s.userService.DecrementReactionCount(ctx, userID)
-		}, 5*time.Second, fmt.Sprintf("decrement reaction count for user %d", userID))
+		}, fmt.Sprintf("decrement reaction count for user %d", userID))
 		return nil
 	}
 
@@ -102,7 +102,7 @@ func (s *Service) React(ctx context.Context, userID int, targetPublicID string, 
 	// Increment user's reaction count asynchronously (non-blocking)
 	async.Run(func(ctx context.Context) error {
 		return s.userService.IncrementReactionCount(ctx, userID)
-	}, 5*time.Second, fmt.Sprintf("increment reaction count for user %d", userID))
+	}, fmt.Sprintf("increment reaction count for user %d", userID))
 
 	return nil
 }
@@ -128,7 +128,7 @@ func (s *Service) RemoveReaction(ctx context.Context, userID int, targetPublicID
 	// Decrement user's reaction count asynchronously (non-blocking)
 	async.Run(func(ctx context.Context) error {
 		return s.userService.DecrementReactionCount(ctx, userID)
-	}, 5*time.Second, fmt.Sprintf("decrement reaction count for user %d", userID))
+	}, fmt.Sprintf("decrement reaction count for user %d", userID))
 
 	return nil
 }
@@ -200,6 +200,17 @@ func (s *Service) GetUserReactionCount(ctx context.Context, userID int) (int, er
 	}
 
 	return s.reactionRepo.CountByUserID(ctx, userID)
+}
+
+// CountReactionsBatch returns likes/dislikes counts for multiple targets in a single query.
+func (s *Service) CountReactionsBatch(ctx context.Context, targetPublicIDs []string, targetType string) (map[string]map[string]int, error) {
+	if targetType != "post" && targetType != "comment" {
+		return nil, domain.ErrInvalidTarget
+	}
+	if len(targetPublicIDs) == 0 {
+		return make(map[string]map[string]int), nil
+	}
+	return s.reactionRepo.CountBatchByTargetPublicIDs(ctx, targetPublicIDs, targetType)
 }
 
 // GetByUserAndTargetPublicID retrieves a user's reaction for a specific target by target's public UUID.

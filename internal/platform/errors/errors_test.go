@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -74,6 +75,54 @@ func TestWriteErrorJSON(t *testing.T) {
 				t.Errorf("WriteErrorJSON() body = %v, want %v", got, want)
 			}
 		})
+	}
+}
+
+type flakyResponseWriter struct {
+	header      http.Header
+	status      int
+	writeCount  int
+	body        []byte
+	failFirst   bool
+}
+
+func newFlakyResponseWriter(failFirst bool) *flakyResponseWriter {
+	return &flakyResponseWriter{
+		header:    make(http.Header),
+		failFirst: failFirst,
+	}
+}
+
+func (w *flakyResponseWriter) Header() http.Header {
+	return w.header
+}
+
+func (w *flakyResponseWriter) WriteHeader(statusCode int) {
+	w.status = statusCode
+}
+
+func (w *flakyResponseWriter) Write(p []byte) (int, error) {
+	w.writeCount++
+	if w.failFirst && w.writeCount == 1 {
+		return 0, io.ErrClosedPipe
+	}
+	w.body = append(w.body, p...)
+	return len(p), nil
+}
+
+func TestWriteErrorJSON_FallbackBodyWhenJSONEncodeFails(t *testing.T) {
+	w := newFlakyResponseWriter(true)
+
+	WriteErrorJSON(w, http.StatusBadRequest, "fallback message")
+
+	if w.status != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", w.status, http.StatusBadRequest)
+	}
+	if got := string(w.body); got != "fallback message\n" {
+		t.Fatalf("fallback body = %q, want %q", got, "fallback message\\n")
+	}
+	if w.writeCount < 2 {
+		t.Fatalf("expected fallback write attempt after encode failure, writeCount=%d", w.writeCount)
 	}
 }
 

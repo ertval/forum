@@ -459,3 +459,17 @@ func TestValidateFilename(t *testing.T) {
 		})
 	}
 }
+
+func TestImageHandler_ConstructorMkdirErrorIsNotIgnored(t *testing.T) {
+	base := t.TempDir()
+	notDir := filepath.Join(base, "uploads-file")
+	if err := os.WriteFile(notDir, []byte("x"), 0644); err != nil {
+		t.Fatalf("failed to create blocking file: %v", err)
+	}
+
+	handler := NewImageHandler(filepath.Join(notDir, "child"), testMaxImageSize)
+
+	if _, err := handler.Save(jpegMagic); err == nil {
+		t.Fatal("expected Save to return constructor mkdir error, got nil")
+	}
+}

@@ -1,19 +1,13 @@
 // JavaScript functions for post detail page
 'use strict';
 
-// Helper function to show inline error messages
+// Helper function to show inline error messages (delegates to shared utility)
 function showPageError(message) {
-    const pageErrors = document.getElementById('page-errors');
-    if (pageErrors) {
-        // SECURITY: Escape message to prevent XSS from reflected error content
-        pageErrors.innerHTML = `<p class="error">${window.escapeHtml(message)}</p>`;
-        pageErrors.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    window.showError(message, 'page-errors');
 }
 
 function clearPageError() {
-    const pageErrors = document.getElementById('page-errors');
-    if (pageErrors) pageErrors.innerHTML = '';
+    window.clearError('page-errors');
 }
 
 // Helper function to update user comment count in sidebar and dropdown

@@ -6,6 +6,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
+
 	"forum/internal/modules/reaction/domain"
 	"forum/internal/modules/reaction/ports"
 
@@ -293,6 +295,67 @@ func (r *SQLiteReactionRepository) CountByUserID(ctx context.Context, userID int
 		return 0, err
 	}
 	return count, nil
+}
+
+// CountBatchByTargetPublicIDs returns like and dislike counts for multiple targets in a single query.
+func (r *SQLiteReactionRepository) CountBatchByTargetPublicIDs(ctx context.Context, targetPublicIDs []string, targetType string) (map[string]map[string]int, error) {
+	if targetType != "post" && targetType != "comment" {
+		return nil, domain.ErrInvalidTarget
+	}
+	if len(targetPublicIDs) == 0 {
+		return make(map[string]map[string]int), nil
+	}
+
+	var targetTable string
+	switch targetType {
+	case "post":
+		targetTable = "posts"
+	case "comment":
+		targetTable = "comments"
+	}
+
+	placeholders := strings.Repeat("?,", len(targetPublicIDs))
+	placeholders = placeholders[:len(placeholders)-1]
+
+	query := fmt.Sprintf(`
+		SELECT t.public_id, COALESCE(r.type, ''), COUNT(r.id)
+		FROM %s t
+		LEFT JOIN reactions r ON r.target_id = t.id AND r.target_type = ?
+		WHERE t.public_id IN (%s)
+		GROUP BY t.public_id, r.type
+	`, targetTable, placeholders)
+
+	args := make([]interface{}, 0, 1+len(targetPublicIDs))
+	args = append(args, targetType)
+	for _, id := range targetPublicIDs {
+		args = append(args, id)
+	}
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]map[string]int)
+	for rows.Next() {
+		var publicID, reactionType string
+		var count int
+		if err := rows.Scan(&publicID, &reactionType, &count); err != nil {
+			return nil, err
+		}
+		if _, ok := result[publicID]; !ok {
+			result[publicID] = make(map[string]int)
+		}
+		if reactionType != "" {
+			result[publicID][reactionType] = count
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating batch reaction counts: %w", err)
+	}
+
+	return result, nil
 }
 
 // ToggleReaction atomically handles the full reaction toggle flow in a single transaction.

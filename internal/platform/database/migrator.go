@@ -18,7 +18,6 @@ type Migrator struct {
 }
 
 // NewMigrator creates a new database migrator.
-// TODO: Implement migrator initialization.
 func NewMigrator(conn *Connection) *Migrator {
 	return &Migrator{
 		conn: conn,
@@ -27,7 +26,6 @@ func NewMigrator(conn *Connection) *Migrator {
 
 // Migrate runs all pending migrations.
 // Migrations are executed in order based on their version numbers.
-// TODO: Implement migration execution logic.
 func (m *Migrator) Migrate(migrationsPath string) error {
 	// Ensure schema_migrations table exists
 	_, err := m.conn.DB().Exec(`
@@ -150,14 +148,4 @@ func extractUpSQL(content string) string {
 	return strings.TrimSpace(content[upIdx:downIdx])
 }
 
-// Version returns the current database schema version.
-func (m *Migrator) Version() (int, error) {
-	var version int
-	err := m.conn.DB().QueryRow(
-		"SELECT COALESCE(MAX(version), 0) FROM schema_migrations",
-	).Scan(&version)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get schema version: %w", err)
-	}
-	return version, nil
-}
+

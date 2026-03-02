@@ -1,7 +1,7 @@
 // Forum Application JavaScript
 'use strict';
 
-// User Menu Dropdown Toggle
+// === DROPDOWN MENU ===
 // The script is loaded at the end of body, so DOM is already ready
 (function() {
     const userMenuBtn = document.getElementById('user-menu-btn');
@@ -37,7 +37,7 @@
     }
 })();
 
-// Notification Badge - Fetch unread count and update badge in user card/dropdown
+// === NOTIFICATION BADGE ===
 (function() {
     const notificationBadges = document.querySelectorAll('[data-notification-badge]');
     if (!notificationBadges.length) {
@@ -65,17 +65,7 @@
     // Check if we are on the activity page — if so, mark all as read
     var isActivityPage = window.location.pathname === '/activity';
 
-    fetch('/api/notifications', {
-        headers: {
-            Accept: 'application/json'
-        }
-    })
-        .then(function(response) {
-            if (!response.ok) {
-                throw new Error('Failed to load notifications');
-            }
-            return response.json();
-        })
+    window.api.request('/api/notifications')
         .then(function(payload) {
             var unreadCount = 0;
             if (typeof payload.unread_count === 'number') {
@@ -91,10 +81,7 @@
 
             // On the activity page, mark all notifications as read
             if (isActivityPage && unreadCount > 0) {
-                fetch('/api/notifications/read-all', {
-                    method: 'PUT',
-                    headers: { Accept: 'application/json' }
-                })
+                window.api.request('/api/notifications/read-all', { method: 'PUT' })
                     .then(function() {
                         updateBadges(0);
                     })
@@ -110,8 +97,7 @@
         });
 })();
 
-// Clickable Card - Makes entire post card clickable (except links and buttons)
-// Using event delegation for reliability with dynamically loaded content
+// === CLICKABLE CARDS ===
 (function() {
     document.addEventListener('click', function(event) {
         // Find the closest clickable-card ancestor
@@ -137,7 +123,7 @@
     });
 })();
 
-// Avatar Preview - Show preview of selected avatar image before saving
+// === AVATAR PREVIEW ===
 (function() {
     var avatarInput = document.getElementById('avatar');
     var previewContainer = document.getElementById('avatar-preview');
@@ -174,7 +160,7 @@
         });
     }
 
-    // Remove Avatar button
+    // === AVATAR REMOVAL ===
     var removeBtn = document.getElementById('remove-avatar-btn');
     var deleteField = document.getElementById('delete_avatar');
 

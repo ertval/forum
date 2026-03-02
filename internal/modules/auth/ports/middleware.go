@@ -45,16 +45,6 @@ func GetUserID(ctx context.Context) string {
 	return userID
 }
 
-// GetUsername extracts username from request context.
-// Returns empty string if not authenticated.
-func GetUsername(ctx context.Context) string {
-	username, ok := ctx.Value(UsernameKey).(string)
-	if !ok {
-		return ""
-	}
-	return username
-}
-
 // IsAuthenticated checks if the request is authenticated.
 func IsAuthenticated(ctx context.Context) bool {
 	return GetUserID(ctx) != ""

@@ -19,11 +19,6 @@ func TestTLSConfig(t *testing.T) {
 		t.Errorf("MaxVersion = %x, want %x (TLS 1.3)", cfg.MaxVersion, tls.VersionTLS13)
 	}
 
-	// Test PreferServerCipherSuites
-	if !cfg.PreferServerCipherSuites {
-		t.Error("PreferServerCipherSuites should be true")
-	}
-
 	// Test that cipher suites are configured
 	if len(cfg.CipherSuites) == 0 {
 		t.Error("CipherSuites should not be empty")

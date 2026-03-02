@@ -84,7 +84,6 @@ type UploadConfig struct {
 
 // Load loads configuration from environment variables and config files.
 // It returns a Config struct with all values populated.
-// TODO: Implement configuration loading logic.
 func Load() (*Config, error) {
 	// Initialize Config with default values
 	cfg := &Config{}

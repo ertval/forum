@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 // Level represents the log level.
@@ -258,7 +259,7 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 
 		// Check if this is an HTTP request log for compact formatting
 		if msg == "http.request" {
-			out := l.formatHTTPRequest(ts, level, data)
+			out := l.formatHTTPRequest(ts, level, sanitizeFieldValuesForPlainText(data))
 			out += "\n"
 			_, _ = l.output.Write([]byte(out))
 			return
@@ -280,7 +281,7 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 		levelColored := l.applyColor(levelLabel, colorForLevel(level))
 
 		// colorize message when it's important (server start/stop, errors, etc.)
-		msgStr := fmt.Sprintf("%s", entry["msg"])
+		msgStr := sanitizePlainText(fmt.Sprintf("%s", entry["msg"]))
 		msgColor := colorForMessage(level)
 		if msgColor != "" {
 			msgStr = l.applyColor(msgStr, msgColor)
@@ -309,7 +310,8 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 				}
 
 				// prepare value string and optionally color status codes or URLs
-				valStr := fmt.Sprintf("%v", v)
+				keyStr := sanitizePlainText(k)
+				valStr := sanitizePlainText(fmt.Sprintf("%v", v))
 				valColor := ""
 
 				// color URL-like values for better visibility and clickability
@@ -354,9 +356,9 @@ func (l *Logger) log(level Level, msg string, fields ...Field) {
 						out += " " + valStr
 					}
 				} else if valColor != "" {
-					out += fmt.Sprintf(" %s:%s", k, l.applyColor(valStr, valColor))
+					out += fmt.Sprintf(" %s:%s", keyStr, l.applyColor(valStr, valColor))
 				} else {
-					out += fmt.Sprintf(" %s:%v", k, v)
+					out += fmt.Sprintf(" %s:%s", keyStr, valStr)
 				}
 			}
 		}
@@ -434,4 +436,49 @@ func truncateToWidth(s string, width int) string {
 	}
 	truncated := string(rs[:width-1]) + "…"
 	return truncated
+}
+
+func sanitizeFieldValuesForPlainText(data map[string]any) map[string]any {
+	if len(data) == 0 {
+		return data
+	}
+
+	sanitized := make(map[string]any, len(data))
+	for key, value := range data {
+		if strValue, ok := value.(string); ok {
+			sanitized[key] = sanitizePlainText(strValue)
+			continue
+		}
+		sanitized[key] = value
+	}
+
+	return sanitized
+}
+
+func sanitizePlainText(input string) string {
+	if input == "" {
+		return input
+	}
+
+	var builder strings.Builder
+	builder.Grow(len(input))
+
+	for _, r := range input {
+		switch r {
+		case '\n':
+			builder.WriteString(`\n`)
+		case '\r':
+			builder.WriteString(`\r`)
+		case '\t':
+			builder.WriteString(`\t`)
+		default:
+			if unicode.IsControl(r) {
+				builder.WriteRune(' ')
+				continue
+			}
+			builder.WriteRune(r)
+		}
+	}
+
+	return builder.String()
 }

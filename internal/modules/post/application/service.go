@@ -86,7 +86,7 @@ func (s *Service) CreatePost(ctx context.Context, userID int, title, content str
 	// Increment user's post count asynchronously (non-blocking)
 	async.Run(func(ctx context.Context) error {
 		return s.userService.IncrementPostCount(ctx, userID)
-	}, 5*time.Second, fmt.Sprintf("increment post count for user %d", userID))
+	}, fmt.Sprintf("increment post count for user %d", userID))
 
 	return post, nil
 }
@@ -152,7 +152,7 @@ func (s *Service) DeletePost(ctx context.Context, postID string) error {
 	// Decrement user's post count asynchronously (non-blocking)
 	async.Run(func(ctx context.Context) error {
 		return s.userService.DecrementPostCount(ctx, post.UserID)
-	}, 5*time.Second, fmt.Sprintf("decrement post count for user %d", post.UserID))
+	}, fmt.Sprintf("decrement post count for user %d", post.UserID))
 
 	return nil
 }

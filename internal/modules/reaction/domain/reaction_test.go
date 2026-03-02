@@ -61,6 +61,32 @@ func TestReaction_IsValid(t *testing.T) {
 			},
 			expected: false,
 		},
+		{
+			name: "zero UserID returns ErrInvalidUserID",
+			reaction: &Reaction{
+				ID:             1,
+				UserID:         0,
+				TargetID:       10,
+				PublicTargetID: "target-uuid-3",
+				TargetType:     "post",
+				Type:           ReactionLike,
+				CreatedAt:      time.Now(),
+			},
+			expected: false,
+		},
+		{
+			name: "empty PublicTargetID returns ErrInvalidTargetID",
+			reaction: &Reaction{
+				ID:             1,
+				UserID:         5,
+				TargetID:       10,
+				PublicTargetID: "",
+				TargetType:     "post",
+				Type:           ReactionLike,
+				CreatedAt:      time.Now(),
+			},
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {

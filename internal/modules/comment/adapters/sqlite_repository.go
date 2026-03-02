@@ -163,7 +163,7 @@ func (r *SQLiteCommentRepository) ListByUser(ctx context.Context, userID int) ([
 	}
 	defer rows.Close()
 
-	var comments []*domain.Comment
+	comments := make([]*domain.Comment, 0)
 	for rows.Next() {
 		var comment domain.Comment
 		var postPublicID string
@@ -213,7 +213,7 @@ func (r *SQLiteCommentRepository) ListByUserPaginated(ctx context.Context, userI
 	}
 	defer rows.Close()
 
-	var comments []*domain.Comment
+	comments := make([]*domain.Comment, 0)
 	for rows.Next() {
 		var comment domain.Comment
 		var postPublicID string

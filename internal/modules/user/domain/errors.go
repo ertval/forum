@@ -34,6 +34,9 @@ var (
 
 	// ErrUsernameAlreadyExists is returned when another user already has the username.
 	ErrUsernameAlreadyExists = errors.New("username already exists")
+
+	// ErrInvalidPublicID is returned when the public identifier is empty or invalid.
+	ErrInvalidPublicID = errors.New("invalid public id")
 )
 
 // PasswordValidationError provides specific feedback about which password

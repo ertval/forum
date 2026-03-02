@@ -28,6 +28,23 @@ const (
 	TypeReply   = "reply"   // Someone replied to user's comment
 )
 
+// Validate checks that the notification has the required fields set.
+func (n *Notification) Validate() error {
+	if n.PublicID == "" {
+		return ErrInvalidPublicID
+	}
+	if n.UserID <= 0 {
+		return ErrInvalidUserID
+	}
+	if n.Message == "" {
+		return ErrInvalidMessage
+	}
+	if n.Type != TypeLike && n.Type != TypeDislike && n.Type != TypeComment && n.Type != TypeReply {
+		return ErrInvalidNotificationType
+	}
+	return nil
+}
+
 // MarkAsRead marks the notification as read.
 func (n *Notification) MarkAsRead() {
 	n.IsRead = true

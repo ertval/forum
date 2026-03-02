@@ -186,8 +186,8 @@ func TestContextStoresPublicIDs(t *testing.T) {
 				if isUUID {
 					t.Errorf("Test case expected to fail but value is valid UUID: %s", tc.storedValue)
 				}
-				if isInteger {
-					t.Logf("CORRECTLY DETECTED: Integer string in context: %s", tc.storedValue)
+				if !isInteger {
+					t.Errorf("Expected invalid test case to be integer-like, got: %s", tc.storedValue)
 				}
 			}
 		})
@@ -242,8 +242,11 @@ func TestGetUserIDReturnsUUID(t *testing.T) {
 					t.Errorf("SECURITY VIOLATION: GetUserID returned integer string: %s", userID)
 				}
 			} else {
-				if isInteger {
-					t.Logf("DETECTED VULNERABILITY: GetUserID returns integer: %s", userID)
+				if isUUID {
+					t.Errorf("Expected non-UUID for invalid case, got UUID: %s", userID)
+				}
+				if !isInteger {
+					t.Errorf("Expected invalid case to return integer-like string, got: %s", userID)
 				}
 			}
 		})
@@ -303,14 +306,8 @@ func TestOwnershipCheckUsesSameIDType(t *testing.T) {
 			}
 
 			if matches != tc.shouldMatch {
-				if !tc.shouldMatch && matches {
-					t.Errorf("UNEXPECTED: IDs matched when they shouldn't: %v == %s", tc.userID, tc.resourceOwner)
-				} else if tc.shouldMatch && !matches {
-					t.Errorf("SECURITY VULNERABILITY: Ownership check failed due to type mismatch: %v (%T) != %s",
-						tc.userID, tc.userID, tc.resourceOwner)
-				}
-			} else {
-				t.Logf("✓ %s", tc.description)
+				t.Errorf("ownership result mismatch (%s): got %v want %v for userID=%v (%T), owner=%s",
+					tc.description, matches, tc.shouldMatch, tc.userID, tc.userID, tc.resourceOwner)
 			}
 		})
 	}
@@ -340,15 +337,16 @@ func TestMiddlewareDoesNotLeakInternalIDs(t *testing.T) {
 
 		if !uuidPattern.MatchString(correctContextValue) {
 			t.Errorf("Context value is not a UUID: %s", correctContextValue)
-		} else {
-			t.Logf("✓ Correct behavior: Middleware stores UUID in context: %s", correctContextValue)
 		}
 
 		// Verify that integer strings would fail this check
 		vulnerableValue := "123"
 		intPattern := regexp.MustCompile(`^\d+$`)
-		if intPattern.MatchString(vulnerableValue) && !uuidPattern.MatchString(vulnerableValue) {
-			t.Logf("✓ Integer string correctly detected as NOT a UUID: %s", vulnerableValue)
+		if !intPattern.MatchString(vulnerableValue) {
+			t.Errorf("expected vulnerable value to be integer-like: %s", vulnerableValue)
+		}
+		if uuidPattern.MatchString(vulnerableValue) {
+			t.Errorf("expected vulnerable value not to match UUID pattern: %s", vulnerableValue)
 		}
 	})
 }
@@ -394,10 +392,9 @@ func TestHTMLResponsesDoNotContainIntIDs(t *testing.T) {
 
 			if tc.shouldPass && hasIntID {
 				t.Errorf("SECURITY VIOLATION: HTML contains integer ID: %s", tc.html)
-			} else if !tc.shouldPass && !hasIntID {
+			}
+			if !tc.shouldPass && !hasIntID {
 				t.Errorf("Test expected to detect integer ID but didn't find any in: %s", tc.html)
-			} else if !tc.shouldPass && hasIntID {
-				t.Logf("✓ CORRECTLY DETECTED integer ID exposure in HTML")
 			}
 		})
 	}
@@ -462,15 +459,11 @@ func TestHandlerBuildCurrentUserReturnsUUID(t *testing.T) {
 					if !isValid && intPattern.MatchString(s) {
 						if tc.shouldPass {
 							t.Errorf("SECURITY VIOLATION: PublicID field is integer string: %s", s)
-						} else {
-							t.Logf("DETECTED VULNERABILITY: PublicID field is integer string: %s", s)
 						}
 					}
 				} else {
 					if tc.shouldPass {
 						t.Errorf("PublicID field has unexpected type: %T", v)
-					} else {
-						t.Logf("DETECTED VULNERABILITY: PublicID field has unexpected type: %T", v)
 					}
 				}
 			} else {
@@ -487,23 +480,17 @@ func TestHandlerBuildCurrentUserReturnsUUID(t *testing.T) {
 					if !isValid && intPattern.MatchString(v) {
 						if tc.shouldPass {
 							t.Errorf("SECURITY VIOLATION: ID field is integer string: %s", v)
-						} else {
-							t.Logf("DETECTED VULNERABILITY: ID field is integer string: %s", v)
 						}
 					}
 				case int:
 					isValid = false
 					if tc.shouldPass {
 						t.Errorf("SECURITY VIOLATION: ID field is integer: %d", v)
-					} else {
-						t.Logf("DETECTED VULNERABILITY: ID field is integer: %d", v)
 					}
 				default:
 					isValid = false
 					if tc.shouldPass {
 						t.Errorf("ID field has unexpected type: %T", v)
-					} else {
-						t.Logf("DETECTED VULNERABILITY: ID field has unexpected type: %T", v)
 					}
 				}
 			}

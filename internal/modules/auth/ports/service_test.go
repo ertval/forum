@@ -160,6 +160,9 @@ func TestAuthServiceInterfaceMethods(t *testing.T) {
 // Mock implementation for interface testing
 type mockAuthService struct{}
 
+// Compile-time interface satisfaction check.
+var _ AuthService = (*mockAuthService)(nil)
+
 func (m *mockAuthService) Register(ctx context.Context, email, username, password string) (int, *domain.Session, error) {
 	return 0, nil, domain.ErrInvalidCredentials
 }

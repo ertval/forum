@@ -4,9 +4,11 @@ package adapters
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	authPorts "forum/internal/modules/auth/ports"
 	userPorts "forum/internal/modules/user/ports"
+	platformErrors "forum/internal/platform/errors"
 )
 
 // AuthMiddleware implements authPorts.AuthMiddleware.
@@ -14,13 +16,19 @@ import (
 type AuthMiddleware struct {
 	authService authPorts.AuthService
 	userService userPorts.UserService
+	cookieName  string
 }
 
 // NewAuthMiddleware creates a new AuthMiddleware.
-func NewAuthMiddleware(authService authPorts.AuthService, userService userPorts.UserService) *AuthMiddleware {
+func NewAuthMiddleware(authService authPorts.AuthService, userService userPorts.UserService, cookieName string) *AuthMiddleware {
+	if cookieName == "" {
+		cookieName = "forum_session"
+	}
+
 	return &AuthMiddleware{
 		authService: authService,
 		userService: userService,
+		cookieName:  cookieName,
 	}
 }
 
@@ -29,7 +37,7 @@ func NewAuthMiddleware(authService authPorts.AuthService, userService userPorts.
 // or the original context and ok=false otherwise.
 // SECURITY: Stores PublicID (UUID) in context, never internal INT ID.
 func (p *AuthMiddleware) resolveAuth(r *http.Request) (context.Context, bool) {
-	cookie, err := r.Cookie("session_token")
+	cookie, err := r.Cookie(p.cookieName)
 	if err != nil {
 		return r.Context(), false
 	}
@@ -56,6 +64,11 @@ func (p *AuthMiddleware) RequireAuth() authPorts.Middleware {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, ok := p.resolveAuth(r)
 			if !ok {
+				if strings.HasPrefix(r.URL.Path, "/api/") {
+					platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Unauthorized")
+					return
+				}
+
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return
 			}

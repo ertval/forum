@@ -204,20 +204,6 @@
     word-break: break-all;
 }
 
-.image-actions {
-    margin-top: 0.75rem;
-}
-
-.remove-image-checkbox {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    color: #d32f2f;
-}
-
-.remove-image-checkbox input {
-    margin-right: 0.5rem;
-}
 
 /* Remove image button */
 .btn-remove-image {

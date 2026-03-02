@@ -137,12 +137,6 @@ func TestPostListIDs(t *testing.T) {
 	app.Server.Router().ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
-		// Some environments may return server errors (500) due to template/DB
-		// differences; make the test resilient by skipping when the server
-		// returns an internal error so CI doesn't fail on environment quirks.
-		if w.Code == http.StatusInternalServerError {
-			t.Skipf("Skipping posts list assertions due to server error: %d - %s", w.Code, w.Body.String())
-		}
 		t.Fatalf("Failed to get posts list: %d - %s", w.Code, w.Body.String())
 	}
 
@@ -198,17 +192,28 @@ func TestUserModuleIDHandling(t *testing.T) {
 	// Register a user
 	sessionToken := registerAndLogin(t, app, "idtest@example.com", "Id Test User", "Password123")
 
-	// Get user info via auth validation to see if user IDs are handled properly
-	req := httptest.NewRequest("GET", "/", nil)
+	// Use auth session API to validate authenticated user ID handling deterministically.
+	req := httptest.NewRequest("GET", "/api/auth/session", nil)
 	req.AddCookie(&http.Cookie{Name: "session_token", Value: sessionToken})
 	w := httptest.NewRecorder()
 	app.Server.Router().ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
-		if w.Code == http.StatusInternalServerError {
-			t.Skipf("Skipping homepage assertion due to server error: %d - %s", w.Code, w.Body.String())
-		}
-		t.Errorf("Failed to access homepage with session: %d", w.Code)
+		t.Fatalf("Failed to access session API with session: %d - %s", w.Code, w.Body.String())
+	}
+
+	var sessionResp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&sessionResp); err != nil {
+		t.Fatalf("Failed to decode session response: %v", err)
+	}
+
+	idVal, ok := sessionResp["user_id"].(string)
+	if !ok || idVal == "" {
+		t.Fatalf("Expected non-empty string user_id, got: %#v", sessionResp["user_id"])
+	}
+
+	if !strings.Contains(idVal, "-") || len(idVal) != 36 {
+		t.Errorf("Expected user_id UUID format, got: %s", idVal)
 	}
 }
 
@@ -240,11 +245,6 @@ func TestRouteParameterHandling(t *testing.T) {
 	req = httptest.NewRequest("GET", "/api/posts/"+invalidID, nil)
 	w = httptest.NewRecorder()
 	app.Server.Router().ServeHTTP(w, req)
-
-	// Handle test environment issues gracefully
-	if w.Code == http.StatusInternalServerError {
-		t.Skipf("Skipped - invalid ID returns 500 instead of 404 in flaky test environment: %s", w.Body.String())
-	}
 
 	// Should return not found (not an internal server error about ID format)
 	if w.Code != http.StatusNotFound && w.Code != http.StatusBadRequest {

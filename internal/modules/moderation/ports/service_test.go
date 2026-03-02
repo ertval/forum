@@ -28,6 +28,10 @@ func TestReportRepositoryInterface(t *testing.T) {
 // Mock implementations for interface compatibility testing
 type mockModerationService struct{}
 
+// Compile-time interface satisfaction checks.
+var _ ModerationService = (*mockModerationService)(nil)
+var _ ReportRepository = (*mockReportRepository)(nil)
+
 func (m *mockModerationService) CreateReport(ctx context.Context, reporterID int, targetPublicID string, targetType, reason string) error {
 	return nil
 }

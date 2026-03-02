@@ -19,9 +19,6 @@ func TLSConfig() *tls.Config {
 		// Maximum TLS version - Allow TLS 1.3 for best security
 		MaxVersion: tls.VersionTLS13,
 
-		// Prefer server's cipher suite order
-		PreferServerCipherSuites: true,
-
 		// Secure cipher suites ordered by preference
 		// All use AEAD (GCM or ChaCha20-Poly1305) and ECDHE for forward secrecy
 		CipherSuites: []uint16{

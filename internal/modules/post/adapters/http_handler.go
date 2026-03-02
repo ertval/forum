@@ -8,9 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"log"
 	"net/http"
-	"os"
 	"strings"
 
 	authPorts "forum/internal/modules/auth/ports"
@@ -47,7 +45,7 @@ type ServiceContainer interface {
 }
 
 // NewHTTPHandler creates a new HTTP handler for posts with unified dependency injection.
-func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
+func NewHTTPHandler(services ServiceContainer, templates *template.Template, log *logger.Logger) *HTTPHandler {
 	return &HTTPHandler{
 		postService:        services.Post(),
 		categoryService:    services.Category(),
@@ -57,7 +55,7 @@ func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HT
 		commentService:     services.Comment(),
 		reactionService:    services.Reaction(),
 		templates:          templates,
-		logger:             logger.New(logger.InfoLevel, os.Stderr),
+		logger:             log,
 	}
 }
 
@@ -242,7 +240,7 @@ func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interfac
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
-		log.Printf("Error encoding JSON response: %v", err)
+		h.logger.Error("Error encoding JSON response", logger.Error(err))
 	}
 }
 

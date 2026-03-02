@@ -17,4 +17,10 @@ var (
 
 	// ErrInvalidTarget is returned when target data is invalid.
 	ErrInvalidTarget = errors.New("invalid target")
+
+	// ErrInvalidMessage is returned when the notification message is empty.
+	ErrInvalidMessage = errors.New("invalid message")
+
+	// ErrInvalidPublicID is returned when the public identifier is empty or invalid.
+	ErrInvalidPublicID = errors.New("invalid public id")
 )

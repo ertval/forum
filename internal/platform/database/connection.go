@@ -82,11 +82,3 @@ func (c *Connection) Close() error {
 	}
 	return nil
 }
-
-// Ping checks if the database connection is alive.
-func (c *Connection) Ping() error {
-	if c.db != nil {
-		return c.db.Ping()
-	}
-	return nil
-}

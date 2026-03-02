@@ -1,3 +1,4 @@
+// BUSINESS LOGIC - Application Service
 // [OPTIONAL FEATURE: forum-moderation]
 // Package application implements moderation service business logic.
 package application

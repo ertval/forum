@@ -72,7 +72,7 @@ func (s *Service) CreateComment(ctx context.Context, postPublicID string, userID
 	// Increment user's comment count asynchronously (non-blocking)
 	async.Run(func(ctx context.Context) error {
 		return s.userService.IncrementCommentCount(ctx, userID)
-	}, 5*time.Second, fmt.Sprintf("increment comment count for user %d", userID))
+	}, fmt.Sprintf("increment comment count for user %d", userID))
 
 	return comment, nil
 }
@@ -124,7 +124,7 @@ func (s *Service) DeleteComment(ctx context.Context, commentPublicID string) err
 	// Decrement user's comment count asynchronously (non-blocking)
 	async.Run(func(ctx context.Context) error {
 		return s.userService.DecrementCommentCount(ctx, comment.UserID)
-	}, 5*time.Second, fmt.Sprintf("decrement comment count for user %d", comment.UserID))
+	}, fmt.Sprintf("decrement comment count for user %d", comment.UserID))
 
 	return nil
 }

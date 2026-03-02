@@ -28,4 +28,8 @@ type ReactionService interface {
 
 	// GetByUserAndTargetPublicID retrieves a user's reaction for a specific target by target's public UUID.
 	GetByUserAndTargetPublicID(ctx context.Context, userID int, targetPublicID string, targetType string) (*domain.Reaction, error)
+
+	// CountReactionsBatch returns likes/dislikes counts for multiple targets in a single query.
+	// The result is a map keyed by targetPublicID, with inner maps of reaction type ("like"/"dislike") -> count.
+	CountReactionsBatch(ctx context.Context, targetPublicIDs []string, targetType string) (map[string]map[string]int, error)
 }

@@ -48,6 +48,10 @@ func (m *mockReactionService) GetByUserAndTargetPublicID(ctx context.Context, us
 	return nil, nil
 }
 
+func (m *mockReactionService) CountReactionsBatch(ctx context.Context, targetPublicIDs []string, targetType string) (map[string]map[string]int, error) {
+	return make(map[string]map[string]int), nil
+}
+
 type mockReactionRepository struct{}
 
 func (m *mockReactionRepository) Create(ctx context.Context, reaction *domain.Reaction) error {
@@ -76,6 +80,10 @@ func (m *mockReactionRepository) CountByUserID(ctx context.Context, userID int) 
 
 func (m *mockReactionRepository) ToggleReaction(ctx context.Context, reaction *domain.Reaction) (removed bool, err error) {
 	return false, nil
+}
+
+func (m *mockReactionRepository) CountBatchByTargetPublicIDs(ctx context.Context, targetPublicIDs []string, targetType string) (map[string]map[string]int, error) {
+	return make(map[string]map[string]int), nil
 }
 
 // Compile-time interface satisfaction checks
