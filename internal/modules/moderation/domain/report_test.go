@@ -136,6 +136,9 @@ func TestReport_StructFields(t *testing.T) {
 	if report.Status != StatusPending {
 		t.Errorf("Expected Status '%s', got '%s'", StatusPending, report.Status)
 	}
+	if report.Response != "" {
+		t.Errorf("Expected Response '', got '%s'", report.Response)
+	}
 	if !report.CreatedAt.Equal(now) {
 		t.Errorf("Expected CreatedAt %v, got %v", now, report.CreatedAt)
 	}

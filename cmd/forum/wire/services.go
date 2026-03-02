@@ -79,33 +79,15 @@ func (sc *ServiceContainer) UploadDir() string {
 
 // initServices creates a ServiceContainer with all service instances and their dependencies.
 func initServices(repos *Repositories, cfg *config.Config, lgr *logger.Logger) *ServiceContainer {
-	// Layer 1: Foundation services (no inter-service dependencies)
 	userService := userApp.NewService(repos.User)
 	categoryService := postApp.NewCategoryService(repos.Category)
 	moderationService := moderationApp.NewService(repos.Moderation)
 	notificationService := notificationApp.NewService(repos.Notification)
 
-	// Layer 1b: Infrastructure adapters (config-driven, no service dependencies)
-	imageHandler := upload.NewImageHandler(cfg.Upload.UploadDir, cfg.Upload.MaxSize)
-
-	// Layer 2: Domain services (depend on Layer 1 services)
-	authService := authApp.NewService(repos.Session, authUserServiceAdapter{user: userService}, cfg.Session.Duration)
-	postService := postApp.NewService(repos.Post, repos.Category, userService, imageHandler, cfg.Upload.MaxSize)
-	reactionService := reactionApp.NewService(
-		repos.Reaction,
-		reactionPostRepositoryAdapter{post: repos.Post},
-		reactionCommentRepositoryAdapter{comment: repos.Comment},
-		userService,
-		notificationService,
-	)
-	commentService := commentApp.NewService(
-		repos.Comment,
-		commentPostServiceAdapter{post: postService},
-		commentUserServiceAdapter{user: userService},
-		notificationService,
-	)
-
-	// Layer 3: Cross-cutting middleware (depend on services)
+	authService := buildAuthService(repos, userService, cfg)
+	postService := buildPostService(repos, userService, cfg)
+	reactionService := buildReactionService(repos, userService, notificationService)
+	commentService := buildCommentService(repos, postService, userService, notificationService)
 	authMiddleware := authAdapters.NewAuthMiddleware(authService, userService, cfg.Session.CookieName)
 
 	return &ServiceContainer{
@@ -123,6 +105,49 @@ func initServices(repos *Repositories, cfg *config.Config, lgr *logger.Logger) *
 		secureCookies:  cfg.Session.Secure,
 		uploadDir:      cfg.Upload.UploadDir,
 	}
+}
+
+func buildAuthService(repos *Repositories, userService userPorts.UserService, cfg *config.Config) authPorts.AuthService {
+	// Adapter keeps auth application layer isolated from the broader user service contract.
+	// This anti-corruption boundary prevents tight coupling when interfaces evolve independently.
+	return authApp.NewService(repos.Session, authUserServiceAdapter{user: userService}, cfg.Session.Duration)
+}
+
+func buildPostService(repos *Repositories, userService userPorts.UserService, cfg *config.Config) postPorts.PostService {
+	imageHandler := upload.NewImageHandler(cfg.Upload.UploadDir, cfg.Upload.MaxSize)
+	return postApp.NewService(repos.Post, repos.Category, userService, imageHandler, cfg.Upload.MaxSize)
+}
+
+func buildReactionService(
+	repos *Repositories,
+	userService userPorts.UserService,
+	notificationService notificationPorts.NotificationService,
+) reactionPorts.ReactionService {
+	// Adapters map repository methods to the exact reaction port shape.
+	// This avoids leaking repository/interface mismatch into the reaction domain service.
+	return reactionApp.NewService(
+		repos.Reaction,
+		reactionPostRepositoryAdapter{post: repos.Post},
+		reactionCommentRepositoryAdapter{comment: repos.Comment},
+		userService,
+		notificationService,
+	)
+}
+
+func buildCommentService(
+	repos *Repositories,
+	postService postPorts.PostService,
+	userService userPorts.UserService,
+	notificationService notificationPorts.NotificationService,
+) commentPorts.CommentService {
+	// Adapters form an anti-corruption boundary between comment ports and external service contracts.
+	// This keeps comment service dependencies stable without forcing cross-module interface rewrites.
+	return commentApp.NewService(
+		repos.Comment,
+		commentPostServiceAdapter{post: postService},
+		commentUserServiceAdapter{user: userService},
+		notificationService,
+	)
 }
 
 type authUserServiceAdapter struct {
