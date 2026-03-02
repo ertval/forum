@@ -25,22 +25,22 @@ PRAGMA foreign_keys = ON;
 -- Password for all test users is "Password123" (bcrypt hash below)
 -- Hash generated via: go run scripts/verify_password/main.go -generate -cost 10 Password123
 -- =============================================================================
-INSERT OR IGNORE INTO users (public_id, email, username, password_hash, role, oauth_provider, oauth_provider_id, post_count, comment_count, reaction_count, created_at, updated_at, is_active) VALUES
+INSERT OR IGNORE INTO users (public_id, email, username, password_hash, avatar_path, role, oauth_provider, oauth_provider_id, post_count, comment_count, reaction_count, created_at, updated_at, is_active) VALUES
 -- Primary test user (use for most tests)
-('test-user-0001-0001-000000000001', 'testuser@example.com', 'Test User', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', 'user', NULL, NULL, 3, 5, 0, datetime('now', '-7 days'), datetime('now', '-7 days'), 1),
+('test-user-0001-0001-000000000001', 'testuser@example.com', 'Test User', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', NULL, 'user', NULL, NULL, 3, 5, 0, datetime('now', '-7 days'), datetime('now', '-7 days'), 1),
 -- Secondary test user (for permission/ownership tests)
-('test-user-0002-0002-000000000002', 'testuser2@example.com', 'Second User', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', 'user', NULL, NULL, 2, 4, 0, datetime('now', '-5 days'), datetime('now', '-5 days'), 1),
+('test-user-0002-0002-000000000002', 'testuser2@example.com', 'Second User', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', NULL, 'user', NULL, NULL, 2, 4, 0, datetime('now', '-5 days'), datetime('now', '-5 days'), 1),
 -- Regular users
-('550e8400-e29b-41d4-a716-446655440001', 'alice@example.com', 'Alice Smith', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', 'user', NULL, NULL, 3, 5, 0, datetime('now', '-7 days'), datetime('now', '-7 days'), 1),
-('550e8400-e29b-41d4-a716-446655440002', 'bob@example.com', 'Bob Johnson', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', 'user', NULL, NULL, 2, 4, 0, datetime('now', '-5 days'), datetime('now', '-5 days'), 1),
-('550e8400-e29b-41d4-a716-446655440003', 'charlie@example.com', 'Charlie Brown', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', 'user', NULL, NULL, 2, 3, 0, datetime('now', '-3 days'), datetime('now', '-3 days'), 1),
-('550e8400-e29b-41d4-a716-446655440004', 'diana@example.com', 'Diana Ross', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', 'user', NULL, NULL, 1, 2, 0, datetime('now', '-10 days'), datetime('now', '-10 days'), 1),
+('550e8400-e29b-41d4-a716-446655440001', 'alice@example.com', 'Alice Smith', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', NULL, 'user', NULL, NULL, 3, 5, 0, datetime('now', '-7 days'), datetime('now', '-7 days'), 1),
+('550e8400-e29b-41d4-a716-446655440002', 'bob@example.com', 'Bob Johnson', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', NULL, 'user', NULL, NULL, 2, 4, 0, datetime('now', '-5 days'), datetime('now', '-5 days'), 1),
+('550e8400-e29b-41d4-a716-446655440003', 'charlie@example.com', 'Charlie Brown', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', NULL, 'user', NULL, NULL, 2, 3, 0, datetime('now', '-3 days'), datetime('now', '-3 days'), 1),
+('550e8400-e29b-41d4-a716-446655440004', 'diana@example.com', 'Diana Ross', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', NULL, 'user', NULL, NULL, 1, 2, 0, datetime('now', '-10 days'), datetime('now', '-10 days'), 1),
 -- Moderator account
-('550e8400-e29b-41d4-a716-446655440005', 'eve@example.com', 'Eve Williams', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', 'moderator', NULL, NULL, 1, 1, 0, datetime('now', '-8 days'), datetime('now', '-8 days'), 1),
-('550e8400-e29b-41d4-a716-446655440006', 'frank@example.com', 'Frank Miller', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', 'user', NULL, NULL, 1, 1, 0, datetime('now', '-6 days'), datetime('now', '-6 days'), 1),
-('550e8400-e29b-41d4-a716-446655440007', 'grace@example.com', 'Grace Taylor', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', 'user', NULL, NULL, 1, 1, 0, datetime('now', '-4 days'), datetime('now', '-4 days'), 1),
+('550e8400-e29b-41d4-a716-446655440005', 'eve@example.com', 'Eve Williams', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', NULL, 'moderator', NULL, NULL, 1, 1, 0, datetime('now', '-8 days'), datetime('now', '-8 days'), 1),
+('550e8400-e29b-41d4-a716-446655440006', 'frank@example.com', 'Frank Miller', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', NULL, 'user', NULL, NULL, 1, 1, 0, datetime('now', '-6 days'), datetime('now', '-6 days'), 1),
+('550e8400-e29b-41d4-a716-446655440007', 'grace@example.com', 'Grace Taylor', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', NULL, 'user', NULL, NULL, 1, 1, 0, datetime('now', '-4 days'), datetime('now', '-4 days'), 1),
 -- Administrator account
-('550e8400-e29b-41d4-a716-446655440008', 'henry@example.com', 'Henry Admin', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', 'admin', NULL, NULL, 1, 1, 0, datetime('now', '-2 days'), datetime('now', '-2 days'), 1);
+('550e8400-e29b-41d4-a716-446655440008', 'henry@example.com', 'Henry Admin', '$2a$10$bZS78X4eAhO6Y9361MBW6uBFfeXKeP7e5ntWZB5FhFPNnjXm88MW6', NULL, 'admin', NULL, NULL, 1, 1, 0, datetime('now', '-2 days'), datetime('now', '-2 days'), 1);
 
 -- =============================================================================
 -- CATEGORIES - Required for post creation tests
