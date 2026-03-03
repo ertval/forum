@@ -36,6 +36,9 @@ CREATE INDEX idx_posts_public_id ON posts(public_id);
 CREATE INDEX idx_posts_author ON posts(author_id);
 CREATE INDEX idx_posts_created_at ON posts(created_at DESC);
 CREATE INDEX idx_post_categories_category ON post_categories(category_id);
+-- Categories: name is queried case-insensitively (WHERE LOWER(name) = LOWER(?))
+-- The existing UNIQUE constraint index doesn't optimize case-insensitive lookups.
+CREATE INDEX IF NOT EXISTS idx_categories_name_nocase ON categories(name COLLATE NOCASE);
 
 -- +migrate Down
 DROP INDEX IF EXISTS idx_post_categories_category;
@@ -46,3 +49,4 @@ DROP INDEX IF EXISTS idx_categories_public_id;
 DROP TABLE IF EXISTS post_categories;
 DROP TABLE IF EXISTS posts;
 DROP TABLE IF EXISTS categories;
+DROP INDEX IF EXISTS idx_categories_name_nocase;
