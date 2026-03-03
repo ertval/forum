@@ -2,6 +2,7 @@ package adapters
 
 import (
 	"context"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -272,15 +273,15 @@ func TestAggregateUserActivity_AppliesCategoryTimeAndReactionTypeFilters(t *test
 	h := &HTTPHandler{
 		postService: &activityMockPostService{
 			created: []*postDomain.Post{
-				{PublicID: "post-created-go", Title: "Created Go", Categories: []string{"Go"}, CreatedAt: now},
-				{PublicID: "post-created-old", Title: "Created Old", Categories: []string{"Go"}, CreatedAt: old},
+				{PublicID: "post-created-go", Title: "Created Go", Categories: []string{"Go"}, LikeCount: 2, DislikeCount: 0, CreatedAt: now},
+				{PublicID: "post-created-old", Title: "Created Old", Categories: []string{"Go"}, LikeCount: 3, DislikeCount: 0, CreatedAt: old},
 			},
 			liked:    []*postDomain.Post{},
 			disliked: []*postDomain.Post{},
 			byID: map[string]*postDomain.Post{
-				"post-liked-go":          {PublicID: "post-liked-go", Title: "Liked Go", Categories: []string{"Go"}, CreatedAt: now},
-				"post-commented-go":      {PublicID: "post-commented-go", Title: "Commented Go", Categories: []string{"Go"}, CreatedAt: now},
-				"post-commented-general": {PublicID: "post-commented-general", Title: "Commented General", Categories: []string{"General"}, CreatedAt: now},
+				"post-liked-go":          {PublicID: "post-liked-go", Title: "Liked Go", Categories: []string{"Go"}, LikeCount: 10, DislikeCount: 0, CreatedAt: now},
+				"post-commented-go":      {PublicID: "post-commented-go", Title: "Commented Go", Categories: []string{"Go"}, LikeCount: 1, DislikeCount: 0, CreatedAt: now},
+				"post-commented-general": {PublicID: "post-commented-general", Title: "Commented General", Categories: []string{"General"}, LikeCount: 0, DislikeCount: 4, CreatedAt: now},
 			},
 		},
 		commentService: &activityMockCommentService{comments: []*commentDomain.Comment{
@@ -334,6 +335,67 @@ func TestAggregateUserActivity_AppliesCategoryTimeAndReactionTypeFilters(t *test
 	}
 }
 
+func TestAggregateUserActivity_ReactionTypeFiltersAllSectionsByPostCounts(t *testing.T) {
+	now := time.Now()
+
+	h := &HTTPHandler{
+		postService: &activityMockPostService{
+			created: []*postDomain.Post{
+				{PublicID: "post-created-like", Title: "Created Like", Categories: []string{"Go"}, LikeCount: 2, DislikeCount: 0, CreatedAt: now},
+				{PublicID: "post-created-dislike", Title: "Created Dislike", Categories: []string{"Go"}, LikeCount: 0, DislikeCount: 3, CreatedAt: now},
+			},
+			liked:    []*postDomain.Post{},
+			disliked: []*postDomain.Post{},
+			byID: map[string]*postDomain.Post{
+				"post-react-like":     {PublicID: "post-react-like", Title: "React Like", Categories: []string{"Go"}, LikeCount: 1, DislikeCount: 0, CreatedAt: now},
+				"post-comment-like":   {PublicID: "post-comment-like", Title: "Comment Like", Categories: []string{"Go"}, LikeCount: 5, DislikeCount: 0, CreatedAt: now},
+				"post-comment-dislike": {PublicID: "post-comment-dislike", Title: "Comment Dislike", Categories: []string{"Go"}, LikeCount: 0, DislikeCount: 2, CreatedAt: now},
+			},
+		},
+		commentService: &activityMockCommentService{comments: []*commentDomain.Comment{
+			{PublicID: "comment-like-post", PublicPostID: "post-comment-like", Content: "on liked post", CreatedAt: now},
+			{PublicID: "comment-dislike-post", PublicPostID: "post-comment-dislike", Content: "on disliked post", CreatedAt: now},
+		}, byPublicID: map[string]*commentDomain.Comment{
+			"comment-like-post":    {PublicID: "comment-like-post", PublicPostID: "post-comment-like", Content: "on liked post", CreatedAt: now},
+			"comment-dislike-post": {PublicID: "comment-dislike-post", PublicPostID: "post-comment-dislike", Content: "on disliked post", CreatedAt: now},
+		}},
+		reactionService: &activityMockReactionService{reactions: []*reactionDomain.Reaction{
+			{UserID: 123, TargetType: "post", PublicTargetID: "post-react-like", Type: reactionDomain.ReactionLike, CreatedAt: now},
+			{UserID: 123, TargetType: "comment", PublicTargetID: "comment-dislike-post", Type: reactionDomain.ReactionDislike, CreatedAt: now},
+		}},
+		userService: &activityMockUserService{},
+	}
+
+	activity, err := h.aggregateUserActivity(context.Background(), "user-123", activityFilters{ActivityType: "all", Time: "all", ReactionType: "dislike"})
+	if err != nil {
+		t.Fatalf("aggregateUserActivity returned error: %v", err)
+	}
+
+	createdPosts, ok := activity["created_posts"].([]map[string]interface{})
+	if !ok || len(createdPosts) != 1 {
+		t.Fatalf("expected one created post filtered by dislike, got %#v", activity["created_posts"])
+	}
+	if createdPosts[0]["PublicID"] != "post-created-dislike" {
+		t.Fatalf("expected post-created-dislike, got %#v", createdPosts[0]["PublicID"])
+	}
+
+	reactions, ok := activity["reactions"].([]map[string]interface{})
+	if !ok || len(reactions) != 1 {
+		t.Fatalf("expected one dislike reaction, got %#v", activity["reactions"])
+	}
+	if reactions[0]["ReactionType"] != "dislike" {
+		t.Fatalf("expected dislike reaction, got %#v", reactions[0]["ReactionType"])
+	}
+
+	comments, ok := activity["comments"].([]map[string]interface{})
+	if !ok || len(comments) != 1 {
+		t.Fatalf("expected one comment on disliked post, got %#v", activity["comments"])
+	}
+	if comments[0]["CommentPublicID"] != "comment-dislike-post" {
+		t.Fatalf("expected comment-dislike-post, got %#v", comments[0]["CommentPublicID"])
+	}
+}
+
 func TestSplitReactionItemsByTarget(t *testing.T) {
 	items := []map[string]interface{}{
 		{"ReactionTargetType": "post", "ReactionType": "like", "PostPublicID": "post-1"},
@@ -355,5 +417,37 @@ func TestSplitReactionItemsByTarget(t *testing.T) {
 	}
 	if commentReactions[0]["CommentPublicID"] != "comment-2" {
 		t.Fatalf("unexpected comment reaction content: %#v", commentReactions)
+	}
+}
+
+func TestParseActivityFilters_SharedCardMappings(t *testing.T) {
+	req := httptest.NewRequest("GET", "/activity?activity_type=my_posts&reaction_type=dislike&category=General&date_filter=week", nil)
+
+	filters := parseActivityFilters(req)
+
+	if filters.ActivityType != "created_posts" {
+		t.Fatalf("expected activity_type my_posts to map to created_posts, got %q", filters.ActivityType)
+	}
+	if filters.ReactionType != "dislike" {
+		t.Fatalf("expected reaction_type dislike, got %q", filters.ReactionType)
+	}
+	if filters.Category != "General" {
+		t.Fatalf("expected category General, got %q", filters.Category)
+	}
+	if filters.Time != "week" {
+		t.Fatalf("expected date_filter week to map to time week, got %q", filters.Time)
+	}
+}
+
+func TestParseActivityFilters_CommentedPostsAndTimeAlias(t *testing.T) {
+	req := httptest.NewRequest("GET", "/activity?activity_type=commented_posts&time=month", nil)
+
+	filters := parseActivityFilters(req)
+
+	if filters.ActivityType != "comments" {
+		t.Fatalf("expected activity_type commented_posts to map to comments, got %q", filters.ActivityType)
+	}
+	if filters.Time != "month" {
+		t.Fatalf("expected time month, got %q", filters.Time)
 	}
 }

@@ -273,7 +273,7 @@
         <a href="/posts/new" class="btn btn-primary btn-small">Create Post</a>
         <a href="/board?my_posts=true{{if .SelectedCategory}}&category={{urlquery .SelectedCategory}}{{end}}{{if .DateFilter}}&date_filter={{.DateFilter}}{{end}}"
             class="btn btn-primary btn-small">My Posts</a>
-        <a href="/activity?activity_type=reactions{{if .SelectedCategory}}&category={{urlquery .SelectedCategory}}{{end}}{{if .DateFilter}}&time={{.DateFilter}}{{end}}"
+        <a href="/activity?activity_type=reactions{{if .SelectedCategory}}&category={{urlquery .SelectedCategory}}{{end}}{{if .DateFilter}}&date_filter={{.DateFilter}}{{end}}"
             class="btn btn-primary btn-small">My Reactions</a>
         <a href="/comments" class="btn btn-primary btn-small">My Comments</a>
         <a href="/activity" class="btn btn-primary btn-small notification-link">
@@ -289,64 +289,51 @@
 {{/* Filter Card Component - Shows filtering options */}}
 {{define "filter-card"}}
 <div class="filters">
-    <h2>{{if eq .FilterMode "comments"}}Filter Comments{{else if eq .FilterMode "activity"}}Filter
+    <h2>{{if .FilterTitle}}{{.FilterTitle}}{{else if eq .FilterMode "comments"}}Filter Comments{{else if eq .FilterMode "activity"}}Filter
         Activity{{else}}Filter Posts{{end}}</h2>
     <form method="GET" action="{{.FilterAction}}">
-        {{if eq .FilterMode "activity"}}
-        <div class="filter-group">
-            <label for="activity_type">Activity Type:</label>
-            <select name="activity_type" id="activity_type">
-                <option value="all" {{if eq .ActivityType "all" }}selected{{end}}>All</option>
-                <option value="created_posts" {{if eq .ActivityType "created_posts" }}selected{{end}}>Created Posts
-                </option>
-                <option value="reactions" {{if eq .ActivityType "reactions" }}selected{{end}}>Reactions</option>
-                <option value="comments" {{if eq .ActivityType "comments" }}selected{{end}}>Comments</option>
-            </select>
-        </div>
-
-        <div class="filter-group">
-            <label for="reaction_type">Reaction Type:</label>
-            <select name="reaction_type" id="reaction_type">
-                <option value="all" {{if eq .SelectedReaction "all" }}selected{{end}}>All</option>
-                <option value="like" {{if eq .SelectedReaction "like" }}selected{{end}}>Like</option>
-                <option value="dislike" {{if eq .SelectedReaction "dislike" }}selected{{end}}>Dislike</option>
-            </select>
-        </div>
-
-        <div class="filter-group">
-            <label for="category">Post Category:</label>
-            <select name="category" id="category">
-                <option value="">All Categories</option>
-                {{range .Categories}}
-                <option value="{{.Name}}" {{if eq $.SelectedCategory .Name}}selected{{end}}>{{.Name}}</option>
-                {{end}}
-            </select>
-        </div>
-
-        <div class="filter-group">
-            <label for="time">Time:</label>
-            <select name="time" id="time">
-                <option value="all" {{if eq .SelectedTime "all" }}selected{{end}}>All Time</option>
-                <option value="today" {{if eq .SelectedTime "today" }}selected{{end}}>Today</option>
-                <option value="week" {{if eq .SelectedTime "week" }}selected{{end}}>This Week</option>
-                <option value="month" {{if eq .SelectedTime "month" }}selected{{end}}>This Month</option>
-            </select>
-        </div>
-        {{else}}
+        {{if ne .FilterMode "activity"}}
         {{/* Preserve active filter state with hidden inputs */}}
         {{if .UserFilter}}
         <input type="hidden" name="user" value="{{.UserFilter}}">
         {{end}}
+        {{end}}
 
+        {{if .ShowActivityTypeFilter}}
         <div class="filter-group">
             <label for="activity_type">Activity Type:</label>
             <select name="activity_type" id="activity_type">
-                <option value="all" {{if eq .ActivityType "all" }}selected{{end}}>All Posts</option>
+                <option value="all" {{if eq .ActivityType "all" }}selected{{end}}>All Activities</option>
+                {{if .User}}
                 <option value="my_posts" {{if eq .ActivityType "my_posts" }}selected{{end}}>My Posts</option>
                 <option value="reactions" {{if eq .ActivityType "reactions" }}selected{{end}}>My Reactions</option>
                 <option value="commented_posts" {{if eq .ActivityType "commented_posts" }}selected{{end}}>My Comments</option>
+                {{else}}
+                <option value="posts" {{if eq .ActivityType "posts" }}selected{{end}}>All Posts</option>
+                <option value="comments" {{if eq .ActivityType "comments" }}selected{{end}}>All Comments</option>
+                <option value="reactions" {{if eq .ActivityType "reactions" }}selected{{end}}>All Reactions</option>
+                {{end}}
             </select>
         </div>
+        {{else if .FixedActivityType}}
+        <input type="hidden" name="activity_type" value="{{.FixedActivityType}}">
+        {{else}}
+        <div class="filter-group">
+            <label for="activity_type">Activity Type:</label>
+            <select name="activity_type" id="activity_type">
+                <option value="all" {{if eq .ActivityType "all" }}selected{{end}}>All Activities</option>
+                {{if .User}}
+                <option value="my_posts" {{if eq .ActivityType "my_posts" }}selected{{end}}>My Posts</option>
+                <option value="reactions" {{if eq .ActivityType "reactions" }}selected{{end}}>My Reactions</option>
+                <option value="commented_posts" {{if eq .ActivityType "commented_posts" }}selected{{end}}>My Comments</option>
+                {{else}}
+                <option value="posts" {{if eq .ActivityType "posts" }}selected{{end}}>All Posts</option>
+                <option value="comments" {{if eq .ActivityType "comments" }}selected{{end}}>All Comments</option>
+                <option value="reactions" {{if eq .ActivityType "reactions" }}selected{{end}}>All Reactions</option>
+                {{end}}
+            </select>
+        </div>
+        {{end}}
 
         <div class="filter-group">
             <label for="reaction_type">Reaction Type:</label>
@@ -370,13 +357,14 @@
         <div class="filter-group">
             <label for="date_filter">Time Period:</label>
             <select name="date_filter" id="date_filter">
-                <option value="all" {{if eq $.DateFilter "all" }}selected{{end}}>All Time</option>
-                <option value="today" {{if eq $.DateFilter "today" }}selected{{end}}>Today</option>
-                <option value="week" {{if eq $.DateFilter "week" }}selected{{end}}>This Week</option>
-                <option value="month" {{if eq $.DateFilter "month" }}selected{{end}}>This Month</option>
+                <option value="all" {{if eq .DateFilter "all" }}selected{{end}}>All Time</option>
+                <option value="today" {{if eq .DateFilter "today" }}selected{{end}}>Today</option>
+                <option value="week" {{if eq .DateFilter "week" }}selected{{end}}>This Week</option>
+                <option value="month" {{if eq .DateFilter "month" }}selected{{end}}>This Month</option>
             </select>
         </div>
 
+        {{if ne .FilterMode "activity"}}
         {{if .MyPosts}}
         <input type="hidden" name="my_posts" value="true">
         {{end}}

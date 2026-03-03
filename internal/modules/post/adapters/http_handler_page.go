@@ -14,13 +14,13 @@ import (
 )
 
 type postListPageDefaults struct {
-	title           string
-	templateName    string
-	filterAction    string
-	limit           int
-	showFilter      bool
-	showSidebar     bool
-	hideUserSidebar bool
+	title            string
+	templateName     string
+	filterAction     string
+	limit            int
+	showFilter       bool
+	showSidebar      bool
+	hideUserSidebar  bool
 	includePageTitle bool
 }
 
@@ -117,6 +117,11 @@ func (h *HTTPHandler) renderPostListPage(w http.ResponseWriter, r *http.Request,
 		filterOptions.Commenter = currentUserPublicID
 	}
 	activityType, reactionType := resolveBoardActivityFilters(filterOptions)
+	showActivityTypeFilter := !(filterOptions.MyPosts || filterOptions.CommentedPosts)
+	fixedActivityType := ""
+	if !showActivityTypeFilter {
+		fixedActivityType = activityType
+	}
 
 	filter := buildPostFilter(filterOptions)
 
@@ -159,25 +164,27 @@ func (h *HTTPHandler) renderPostListPage(w http.ResponseWriter, r *http.Request,
 
 	// Prepare template data for page
 	data := map[string]interface{}{
-		"Title":            defaults.title,
-		"Posts":            previewPosts,
-		"Categories":       categories,
-		"SelectedCategory": filterOptions.Category,
-		"DateFilter":       filterOptions.DateFilter,
-		"FilterAction":     defaults.filterAction,
-		"FilterMode":       "posts",
-		"ShowFilter":       defaults.showFilter,
-		"ShowSidebar":      defaults.showSidebar,
-		"HideUserSidebar":  defaults.hideUserSidebar,
-		"MyPosts":          filterOptions.MyPosts,
-		"LikedPosts":       filterOptions.LikedPosts,
-		"DislikedPosts":    filterOptions.DislikedPosts,
-		"CommentedPosts":   filterOptions.CommentedPosts,
-		"ActivityType":     activityType,
-		"SelectedReaction": reactionType,
-		"UserFilter":       filterOptions.UserID,
-		"Commenter":        filterOptions.Commenter,
-		"User":             currentUser,
+		"Title":                  defaults.title,
+		"Posts":                  previewPosts,
+		"Categories":             categories,
+		"SelectedCategory":       filterOptions.Category,
+		"DateFilter":             filterOptions.DateFilter,
+		"FilterAction":           defaults.filterAction,
+		"FilterMode":             "posts",
+		"ShowActivityTypeFilter": showActivityTypeFilter,
+		"FixedActivityType":      fixedActivityType,
+		"ShowFilter":             defaults.showFilter,
+		"ShowSidebar":            defaults.showSidebar,
+		"HideUserSidebar":        defaults.hideUserSidebar,
+		"MyPosts":                filterOptions.MyPosts,
+		"LikedPosts":             filterOptions.LikedPosts,
+		"DislikedPosts":          filterOptions.DislikedPosts,
+		"CommentedPosts":         filterOptions.CommentedPosts,
+		"ActivityType":           activityType,
+		"SelectedReaction":       reactionType,
+		"UserFilter":             filterOptions.UserID,
+		"Commenter":              filterOptions.Commenter,
+		"User":                   currentUser,
 	}
 	if defaults.includePageTitle {
 		data["PageTitle"] = h.buildPageTitle(filterOptions)

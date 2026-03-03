@@ -9,6 +9,7 @@
         let offset = parseInt(loadMoreBtn.getAttribute('data-offset')) || 0;
         const category = loadMoreBtn.getAttribute('data-category') || '';
         const dateFilter = loadMoreBtn.getAttribute('data-date-filter') || '';
+        const reactionType = loadMoreBtn.getAttribute('data-reaction-type') || 'all';
         const BATCH_SIZE = window.FORUM_CONSTANTS?.BATCH_SIZE || 20;
 
         function createCommentElement(comment) {
@@ -79,6 +80,7 @@
                 params.append('limit', BATCH_SIZE);
                 if (category) params.append('category', category);
                 if (dateFilter) params.append('date_filter', dateFilter);
+                if (reactionType && reactionType !== 'all') params.append('reaction_type', reactionType);
 
                 const comments = await window.api.request(`/api/comments/load-more?${params}`);
                 if (!comments || comments.length === 0) {

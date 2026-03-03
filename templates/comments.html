@@ -41,7 +41,11 @@
         {{end}}
     </div>
     {{else}}
+    {{if .SelectedCategory}}
+    <p class="no-posts">No comments found for posts in category {{.SelectedCategory}}.</p>
+    {{else}}
     <p class="no-posts">You haven't made any comments yet.</p>
+    {{end}}
     {{end}}
 </div>
 {{end}}

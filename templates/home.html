@@ -24,8 +24,12 @@
   {{else}}
   <div class="no-posts-home">
     <p>
+      {{if .SelectedCategory}}
+      No posts found in category {{.SelectedCategory}}.
+      {{else}}
       No posts yet. {{if .User}}<a href="/posts/new">Create the first post!</a
       >{{else}}<a href="/register">Register</a> to create posts.{{end}}
+      {{end}}
     </p>
   </div>
   {{end}}

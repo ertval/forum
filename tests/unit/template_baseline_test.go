@@ -126,6 +126,26 @@ func TestHealthTemplateRendering(t *testing.T) {
 	if !bytes.Contains([]byte(html), []byte("status-up")) {
 		t.Errorf("Expected HTML to contain 'status-up' badge")
 	}
+	if !bytes.Contains([]byte(html), []byte("Error Page Test Links")) {
+		t.Errorf("Expected HTML to contain 'Error Page Test Links' section")
+	}
+	if !bytes.Contains([]byte(html), []byte(`href="/health/errors/400" class="btn btn-primary btn-small"`)) {
+		t.Errorf("Expected HTML to contain 400 error button link")
+	}
+	if !bytes.Contains([]byte(html), []byte(`href="/health/errors/404" class="btn btn-primary btn-small"`)) {
+		t.Errorf("Expected HTML to contain 404 error button link")
+	}
+	if !bytes.Contains([]byte(html), []byte(`href="/health/errors/500" class="btn btn-primary btn-small"`)) {
+		t.Errorf("Expected HTML to contain 500 error button link")
+	}
+
+	moduleSectionIndex := strings.Index(html, "Module API Status")
+	errorLinksSectionIndex := strings.Index(html, "Error Page Test Links")
+	if moduleSectionIndex == -1 || errorLinksSectionIndex == -1 {
+		t.Errorf("Expected both module section and error links section to be present")
+	} else if errorLinksSectionIndex < moduleSectionIndex {
+		t.Errorf("Expected error links section to appear after health tables")
+	}
 } // TestTemplateList lists all available templates for debugging.
 func TestTemplateList(t *testing.T) {
 	helper := NewTemplateTestHelper(t)
@@ -311,5 +331,40 @@ func TestAllTemplatesWithBase(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestBoardTemplateFilter_DefaultActivityLabel(t *testing.T) {
+	tmpl, err := template.ParseFiles("../../templates/base.html", "../../templates/board.html")
+	if err != nil {
+		t.Fatalf("Failed to parse templates: %v", err)
+	}
+
+	data := map[string]interface{}{
+		"Title":                  "Board",
+		"User":                   map[string]interface{}{"Username": "tester"},
+		"Posts":                  []interface{}{},
+		"Categories":             []map[string]string{{"Name": "General"}},
+		"SelectedCategory":       "",
+		"DateFilter":             "all",
+		"ShowFilter":             true,
+		"ShowSidebar":            true,
+		"FilterAction":           "/board",
+		"ShowActivityTypeFilter": true,
+		"ActivityType":           "all",
+		"SelectedReaction":       "all",
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
+		t.Fatalf("Failed to execute template: %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `>All Activities</option>`) {
+		t.Fatalf("expected board filter to render 'All Activities' option")
+	}
+	if strings.Contains(html, `>All Posts</option>`) {
+		t.Fatalf("did not expect legacy 'All Posts' option")
 	}
 }

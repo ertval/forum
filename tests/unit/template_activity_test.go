@@ -90,6 +90,7 @@ func TestActivityTemplateFilterOrder(t *testing.T) {
 		"ShowFilter":       true,
 		"FilterMode":       "activity",
 		"FilterAction":     "/activity",
+		"ShowActivityTypeFilter": true,
 		"ActivityType":     "all",
 		"SelectedReaction": "all",
 		"SelectedCategory": "",
@@ -109,8 +110,8 @@ func TestActivityTemplateFilterOrder(t *testing.T) {
 	html := buf.String()
 	activityIdx := strings.Index(html, "Activity Type:")
 	reactionIdx := strings.Index(html, "Reaction Type:")
-	categoryIdx := strings.Index(html, "Post Category:")
-	timeIdx := strings.Index(html, "Time:")
+	categoryIdx := strings.Index(html, "Category:")
+	timeIdx := strings.Index(html, "Time Period:")
 
 	if activityIdx == -1 || reactionIdx == -1 || categoryIdx == -1 || timeIdx == -1 {
 		t.Fatalf("Expected all activity filters to render")
@@ -119,4 +120,51 @@ func TestActivityTemplateFilterOrder(t *testing.T) {
 	if !(activityIdx < reactionIdx && reactionIdx < categoryIdx && categoryIdx < timeIdx) {
 		t.Fatalf("Expected filter order Activity Type -> Reaction Type -> Category -> Time")
 	}
+
+	assertContains(t, html, `name="activity_type"`)
+	assertContains(t, html, `name="reaction_type"`)
+	assertContains(t, html, `name="category"`)
+	assertContains(t, html, `name="date_filter"`)
+	assertContains(t, html, `<option value="my_posts"`)
+	assertContains(t, html, `<option value="commented_posts"`)
+	assertContains(t, html, `>All Activities</option>`)
+	assertNotContains(t, html, `>All Posts</option>`)
+}
+
+func TestActivityTemplateReactionsFocusedHidesActivityTypeAndUsesReactionsTitle(t *testing.T) {
+	tmpl, err := template.ParseFiles("../../templates/base.html", "../../templates/activity.html")
+	if err != nil {
+		t.Fatalf("Failed to parse templates: %v", err)
+	}
+
+	data := map[string]interface{}{
+		"Title":                  "My Activity",
+		"User":                   map[string]interface{}{"Username": "tester"},
+		"ShowFilter":             true,
+		"FilterMode":             "activity",
+		"FilterAction":           "/activity",
+		"FilterTitle":            "Filter Reactions",
+		"ShowActivityTypeFilter": false,
+		"FixedActivityType":      "reactions",
+		"ActivityType":           "reactions",
+		"SelectedReaction":       "all",
+		"SelectedCategory":       "",
+		"SelectedTime":           "all",
+		"DateFilter":             "all",
+		"Categories":             []map[string]string{{"Name": "General"}},
+		"CreatedPosts":           []interface{}{},
+		"PostReactions":          []interface{}{},
+		"CommentReactions":       []interface{}{},
+		"Comments":               []interface{}{},
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
+		t.Fatalf("Failed to execute template: %v", err)
+	}
+
+	html := buf.String()
+	assertContains(t, html, "Filter Reactions")
+	assertNotContains(t, html, "Activity Type:")
+	assertContains(t, html, `<input type="hidden" name="activity_type" value="reactions">`)
 }

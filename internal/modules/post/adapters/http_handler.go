@@ -149,6 +149,10 @@ func (h *HTTPHandler) buildPageTitle(filterParams listFilterOptions) string {
 	// Add activity-specific prefix
 	if activityType == "my_posts" || filterParams.MyPosts || filterParams.UserID != "" {
 		parts = append(parts, "My")
+	} else if filterParams.LikedPosts {
+		parts = append(parts, "My Liked")
+	} else if filterParams.DislikedPosts {
+		parts = append(parts, "My Disliked")
 	} else if activityType == "reactions" {
 		switch reactionType {
 		case "dislike":
@@ -158,11 +162,7 @@ func (h *HTTPHandler) buildPageTitle(filterParams listFilterOptions) string {
 		default:
 			parts = append(parts, "My Reacted")
 		}
-	} else if filterParams.LikedPosts {
-		parts = append(parts, "My Liked")
-	} else if filterParams.DislikedPosts {
-		parts = append(parts, "My Disliked")
-	} else if activityType == "commented_posts" || filterParams.CommentedPosts || filterParams.Commenter != "" {
+	} else if activityType == "commented_posts" || activityType == "comments" || filterParams.CommentedPosts || filterParams.Commenter != "" {
 		parts = append(parts, "Commented")
 	}
 
@@ -195,8 +195,19 @@ func (h *HTTPHandler) buildPageTitle(filterParams listFilterOptions) string {
 func normalizeBoardActivityType(activityType string) string {
 	normalized := strings.ToLower(strings.TrimSpace(activityType))
 	switch normalized {
-	case "my_posts", "reactions", "commented_posts":
+	case "my_posts", "reactions", "commented_posts", "comments", "posts":
 		return normalized
+	case "all", "all_posts", "all_activities", "all_comments", "all_reactions":
+		if normalized == "all_comments" {
+			return "comments"
+		}
+		if normalized == "all_reactions" {
+			return "reactions"
+		}
+		if normalized == "all_posts" {
+			return "posts"
+		}
+		return "all"
 	default:
 		return "all"
 	}

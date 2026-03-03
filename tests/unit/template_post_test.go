@@ -178,6 +178,56 @@ func TestBoardTemplateWithBase(t *testing.T) {
 	assertContains(t, html, `<script src="/static/js/load-more-posts.js"></script>`)
 }
 
+func TestBoardTemplateWithBase_CategoryEmptyStateMessage(t *testing.T) {
+	tmpl, err := template.ParseFiles("../../templates/base.html", "../../templates/board.html")
+	if err != nil {
+		t.Fatalf("Failed to parse templates: %v", err)
+	}
+
+	data := map[string]interface{}{
+		"Title":            "Board",
+		"Posts":            []interface{}{},
+		"Categories":       []map[string]string{{"Name": "General"}},
+		"SelectedCategory": "General",
+		"ShowFilter":       true,
+		"ShowSidebar":      true,
+		"FilterAction":     "/board",
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
+		t.Fatalf("Failed to execute template: %v", err)
+	}
+
+	html := buf.String()
+	assertContains(t, html, "No posts found in category General.")
+}
+
+func TestHomeTemplateWithBase_CategoryEmptyStateMessage(t *testing.T) {
+	tmpl, err := template.ParseFiles("../../templates/base.html", "../../templates/home.html")
+	if err != nil {
+		t.Fatalf("Failed to parse templates: %v", err)
+	}
+
+	data := map[string]interface{}{
+		"Title":            "Home",
+		"Posts":            []interface{}{},
+		"Categories":       []map[string]string{{"Name": "General"}},
+		"SelectedCategory": "General",
+		"ShowFilter":       true,
+		"ShowSidebar":      false,
+		"FilterAction":     "/",
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
+		t.Fatalf("Failed to execute template: %v", err)
+	}
+
+	html := buf.String()
+	assertContains(t, html, "No posts found in category General.")
+}
+
 func TestBoardPostCardReactionButtonsUsePostPublicID(t *testing.T) {
 	tmpl, err := template.ParseFiles("../../templates/base.html", "../../templates/board.html")
 	if err != nil {

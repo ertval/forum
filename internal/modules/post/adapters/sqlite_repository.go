@@ -345,6 +345,30 @@ func (r *SQLitePostRepository) List(ctx context.Context, filter domain.PostFilte
 		args = append(args, filter.CommenterID)
 	}
 
+	// Filter by posts that have received a specific reaction type
+	if filter.ReceivedReactionType != "" {
+		switch filter.ReceivedReactionScope {
+		case "comment":
+			conditions = append(conditions, "EXISTS (SELECT 1 FROM comments rc_scope_c INNER JOIN reactions rc_scope_r ON rc_scope_r.target_type = 'comment' AND rc_scope_r.target_id = rc_scope_c.id WHERE rc_scope_c.post_id = p.id AND rc_scope_r.type = ?)")
+		case "post_or_comment":
+			conditions = append(conditions, "(EXISTS (SELECT 1 FROM reactions rr_type WHERE rr_type.target_id = p.id AND rr_type.target_type = 'post' AND rr_type.type = ?) OR EXISTS (SELECT 1 FROM comments rr_scope_c INNER JOIN reactions rr_scope_r ON rr_scope_r.target_type = 'comment' AND rr_scope_r.target_id = rr_scope_c.id WHERE rr_scope_c.post_id = p.id AND rr_scope_r.type = ?))")
+			args = append(args, filter.ReceivedReactionType)
+		default:
+			conditions = append(conditions, "EXISTS (SELECT 1 FROM reactions rr_type WHERE rr_type.target_id = p.id AND rr_type.target_type = 'post' AND rr_type.type = ?)")
+		}
+		args = append(args, filter.ReceivedReactionType)
+	}
+
+	// Filter by posts that have at least one comment
+	if filter.RequireCommentedPost {
+		conditions = append(conditions, "EXISTS (SELECT 1 FROM comments rcp WHERE rcp.post_id = p.id)")
+	}
+
+	// Filter by posts that have at least one reaction on post or any comment under post
+	if filter.RequireReactedPost {
+		conditions = append(conditions, "(EXISTS (SELECT 1 FROM reactions rrp WHERE rrp.target_type = 'post' AND rrp.target_id = p.id) OR EXISTS (SELECT 1 FROM comments rrc INNER JOIN reactions rrr ON rrr.target_type = 'comment' AND rrr.target_id = rrc.id WHERE rrc.post_id = p.id))")
+	}
+
 	// Filter by date
 	if filter.DateFilter != "" && filter.DateFilter != "all" {
 		switch filter.DateFilter {

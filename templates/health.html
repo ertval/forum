@@ -3,14 +3,6 @@
     <h2>System Health Status</h2>
     <p>This page shows the current status of the application's core dependencies and module API endpoints.</p>
 
-    <h3>Error Page Test Links</h3>
-    <p>Use these links to verify styled error page responses:</p>
-    <ul>
-        <li><a href="/health/errors/400">Trigger 400 Bad Request</a></li>
-        <li><a href="/health/errors/404">Trigger 404 Not Found</a></li>
-        <li><a href="/health/errors/500">Trigger 500 Internal Server Error</a></li>
-    </ul>
-
     {{range .HealthSections}}
     <h3>{{.Title}}</h3>
     <table>
@@ -32,5 +24,15 @@
         </tbody>
     </table>
     {{end}}
+
+    <section class="health-error-links">
+        <h3>Error Page Test Links</h3>
+        <p>Use these links to verify styled error page responses:</p>
+        <div class="health-error-links-row">
+            <a href="/health/errors/400" class="btn btn-primary btn-small">Trigger 400 Bad Request</a>
+            <a href="/health/errors/404" class="btn btn-primary btn-small">Trigger 404 Not Found</a>
+            <a href="/health/errors/500" class="btn btn-primary btn-small">Trigger 500 Internal Server Error</a>
+        </div>
+    </section>
 </div>
 {{end}}

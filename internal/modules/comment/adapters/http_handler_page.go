@@ -23,6 +23,23 @@ type activityFilters struct {
 	ReactionType string
 }
 
+func mapActivityTypeForSharedFilterCard(activityType string) string {
+	switch activityType {
+	case "created_posts":
+		return "my_posts"
+	case "comments":
+		return "commented_posts"
+	default:
+		return activityType
+	}
+}
+
+type myCommentsFilters struct {
+	Category     string
+	DateFilter   string
+	ReactionType string
+}
+
 // RegisterPageRoutes registers all comment page routes with the router.
 func (h *HTTPHandler) RegisterPageRoutes(router *http.ServeMux) {
 	// Protected page routes (require authentication)
@@ -76,31 +93,45 @@ func (h *HTTPHandler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 	showCreatedPosts := filters.ActivityType == "all" || filters.ActivityType == "created_posts"
 	showReactions := filters.ActivityType == "all" || filters.ActivityType == "reactions"
 	showComments := filters.ActivityType == "all" || filters.ActivityType == "comments"
+	showActivityTypeFilter := filters.ActivityType == "all"
+	sharedActivityType := mapActivityTypeForSharedFilterCard(filters.ActivityType)
+	fixedActivityType := ""
+	filterTitle := ""
+	if !showActivityTypeFilter {
+		fixedActivityType = sharedActivityType
+		if sharedActivityType == "reactions" {
+			filterTitle = "Filter Reactions"
+		}
+	}
 
 	reactions, _ := activity["reactions"].([]map[string]interface{})
 	postReactions, commentReactions := splitReactionItemsByTarget(reactions)
 
 	data := map[string]interface{}{
-		"Title":            "My Activity",
-		"User":             currentUser,
-		"ShowFilter":       true,
-		"ShowFilterRight":  false,
-		"ShowSidebar":      false,
-		"FilterAction":     "/activity",
-		"FilterMode":       "activity",
-		"Categories":       categories,
-		"SelectedCategory": filters.Category,
-		"SelectedTime":     filters.Time,
-		"ActivityType":     filters.ActivityType,
-		"SelectedReaction": filters.ReactionType,
-		"HideCreatedPosts": !showCreatedPosts,
-		"HideReactions":    !showReactions,
-		"HideComments":     !showComments,
-		"CreatedPosts":     activity["created_posts"],
-		"Reactions":        activity["reactions"],
-		"PostReactions":    postReactions,
-		"CommentReactions": commentReactions,
-		"Comments":         activity["comments"],
+		"Title":                  "My Activity",
+		"User":                   currentUser,
+		"ShowFilter":             true,
+		"ShowFilterRight":        false,
+		"ShowSidebar":            false,
+		"FilterAction":           "/activity",
+		"FilterMode":             "activity",
+		"FilterTitle":            filterTitle,
+		"ShowActivityTypeFilter": showActivityTypeFilter,
+		"FixedActivityType":      fixedActivityType,
+		"Categories":             categories,
+		"SelectedCategory":       filters.Category,
+		"DateFilter":             filters.Time,
+		"SelectedTime":           filters.Time,
+		"ActivityType":           sharedActivityType,
+		"SelectedReaction":       filters.ReactionType,
+		"HideCreatedPosts":       !showCreatedPosts,
+		"HideReactions":          !showReactions,
+		"HideComments":           !showComments,
+		"CreatedPosts":           activity["created_posts"],
+		"Reactions":              activity["reactions"],
+		"PostReactions":          postReactions,
+		"CommentReactions":       commentReactions,
+		"Comments":               activity["comments"],
 	}
 
 	if h.templates == nil {
@@ -127,9 +158,12 @@ func parseActivityFilters(r *http.Request) activityFilters {
 	switch activityType {
 	case "", "all":
 		activityType = "all"
-	case "created_posts", "posts":
+	case "created_posts", "posts", "my_posts":
 		activityType = "created_posts"
-	case "reactions", "comments":
+	case "reactions":
+		activityType = "reactions"
+	case "comments", "commented_posts":
+		activityType = "comments"
 	default:
 		activityType = "all"
 	}
@@ -161,6 +195,139 @@ func parseActivityFilters(r *http.Request) activityFilters {
 		Time:         timeFilter,
 		ReactionType: reactionType,
 	}
+}
+
+func parseMyCommentsFilters(r *http.Request) myCommentsFilters {
+	dateFilter := r.URL.Query().Get("date_filter")
+	switch dateFilter {
+	case "", "all":
+		dateFilter = "all"
+	case "today", "week", "month":
+	default:
+		dateFilter = "all"
+	}
+
+	reactionType := r.URL.Query().Get("reaction_type")
+	switch reactionType {
+	case "", "all":
+		reactionType = "all"
+	case "like", "dislike":
+	default:
+		reactionType = "all"
+	}
+
+	return myCommentsFilters{
+		Category:     strings.TrimSpace(r.URL.Query().Get("category")),
+		DateFilter:   dateFilter,
+		ReactionType: reactionType,
+	}
+}
+
+func matchesCommentReactionFilter(likes, dislikes int, reactionType string) bool {
+	switch reactionType {
+	case "like":
+		return likes > 0
+	case "dislike":
+		return dislikes > 0
+	default:
+		return true
+	}
+}
+
+func (h *HTTPHandler) buildFilteredCommentItems(ctx context.Context, commentsFromService []*commentDomain.Comment, filters myCommentsFilters) []map[string]interface{} {
+	type postInfo struct {
+		Title          string
+		AuthorUsername string
+		Categories     []string
+	}
+	type reactionCounts struct {
+		likes    int
+		dislikes int
+	}
+
+	uniquePostIDs := make(map[string]struct{})
+	for _, comment := range commentsFromService {
+		if comment.PublicPostID != "" {
+			uniquePostIDs[comment.PublicPostID] = struct{}{}
+		}
+	}
+
+	postCache := make(map[string]postInfo, len(uniquePostIDs))
+	for pid := range uniquePostIDs {
+		post, err := h.postService.GetPost(ctx, pid)
+		if err == nil && post != nil {
+			postCache[pid] = postInfo{
+				Title:          post.Title,
+				AuthorUsername: post.AuthorUsername,
+				Categories:     post.Categories,
+			}
+		}
+	}
+
+	reactionCache := make(map[string]reactionCounts, len(commentsFromService))
+	if h.reactionService != nil && len(commentsFromService) > 0 {
+		commentIDs := make([]string, 0, len(commentsFromService))
+		for _, comment := range commentsFromService {
+			commentIDs = append(commentIDs, comment.PublicID)
+		}
+		batchCounts, err := h.reactionService.CountReactionsBatch(ctx, commentIDs, "comment")
+		if err != nil {
+			log.Printf("Error batch counting reactions for comments: %v", err)
+		} else {
+			for id, counts := range batchCounts {
+				reactionCache[id] = reactionCounts{
+					likes:    counts["like"],
+					dislikes: counts["dislike"],
+				}
+			}
+		}
+	}
+
+	now := time.Now()
+	filtered := make([]map[string]interface{}, 0, len(commentsFromService))
+	for _, comment := range commentsFromService {
+		authorUsername := comment.AuthorUsername
+
+		postTitle := "Post not found"
+		postAuthorUsername := "Unknown"
+		var postCategories []string
+		if pi, ok := postCache[comment.PublicPostID]; ok {
+			postTitle = pi.Title
+			postAuthorUsername = pi.AuthorUsername
+			postCategories = pi.Categories
+		} else if comment.PublicPostID == "" {
+			postTitle = "Post ID unknown"
+		}
+
+		if !categoriesContain(postCategories, filters.Category) {
+			continue
+		}
+
+		if !matchesTimeFilter(comment.CreatedAt, filters.DateFilter, now) {
+			continue
+		}
+
+		rc := reactionCache[comment.PublicID]
+		if !matchesCommentReactionFilter(rc.likes, rc.dislikes, filters.ReactionType) {
+			continue
+		}
+
+		filtered = append(filtered, map[string]interface{}{
+			"PublicID":           comment.PublicID,
+			"AuthorUsername":     authorUsername,
+			"Content":            comment.Content,
+			"PostPublicID":       comment.PublicPostID,
+			"PostTitle":          postTitle,
+			"PostAuthorUsername": postAuthorUsername,
+			"PostCategories":     postCategories,
+			"CreatedAt":          comment.CreatedAt,
+			"UpdatedAt":          comment.UpdatedAt,
+			"Likes":              rc.likes,
+			"Dislikes":           rc.dislikes,
+		})
+	}
+
+	return filtered
 }
 
 func cutoffForTimeFilter(now time.Time, timeFilter string) (time.Time, bool) {
@@ -196,6 +363,17 @@ func categoriesContain(categories []string, selectedCategory string) bool {
 	return false
 }
 
+func matchesPostReactionFilter(likes, dislikes int, reactionType string) bool {
+	switch reactionType {
+	case "like":
+		return likes > 0
+	case "dislike":
+		return dislikes > 0
+	default:
+		return true
+	}
+}
+
 func filterCreatedPostItems(items []map[string]interface{}, filters activityFilters, now time.Time) []map[string]interface{} {
 	filtered := make([]map[string]interface{}, 0, len(items))
 	for _, item := range items {
@@ -206,6 +384,12 @@ func filterCreatedPostItems(items []map[string]interface{}, filters activityFilt
 
 		categories, _ := item["Categories"].([]string)
 		if !categoriesContain(categories, filters.Category) {
+			continue
+		}
+
+		likes, _ := item["LikeCount"].(int)
+		dislikes, _ := item["DislikeCount"].(int)
+		if !matchesPostReactionFilter(likes, dislikes, filters.ReactionType) {
 			continue
 		}
 
@@ -268,6 +452,12 @@ func filterCommentItems(items []map[string]interface{}, filters activityFilters,
 			continue
 		}
 
+		likes, _ := item["PostLikeCount"].(int)
+		dislikes, _ := item["PostDislikeCount"].(int)
+		if !matchesPostReactionFilter(likes, dislikes, filters.ReactionType) {
+			continue
+		}
+
 		filtered = append(filtered, item)
 	}
 	return filtered
@@ -295,11 +485,7 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 	currentUser = h.buildCurrentUser(ctx, session.UserID)
 
 	// Get filter parameters
-	selectedCategory := r.URL.Query().Get("category")
-	dateFilter := r.URL.Query().Get("date_filter")
-	if dateFilter == "" {
-		dateFilter = "all"
-	}
+	filters := parseMyCommentsFilters(r)
 
 	// Fetch all categories for filter dropdown
 	categories, err := h.categoryService.List(ctx)
@@ -323,146 +509,38 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Fetch one extra to check if there are more comments
-		commentsFromService, err := h.commentService.ListCommentsByUserPaginated(ctx, userPublicID, initialLimit+1, 0)
+		commentsFromService, err := h.commentService.ListCommentsByUser(ctx, userPublicID)
 		if err != nil {
 			log.Printf("Error fetching user comments: %v", err)
 		} else {
-			// Check if there are more comments than the initial limit
-			if len(commentsFromService) > initialLimit {
+			filteredComments := h.buildFilteredCommentItems(ctx, commentsFromService, filters)
+			if len(filteredComments) > initialLimit {
 				hasMoreComments = true
-				commentsFromService = commentsFromService[:initialLimit]
+				filteredComments = filteredComments[:initialLimit]
 			}
-
-			// Batch: collect unique post IDs
-			uniquePostIDs := make(map[string]struct{})
-			for _, comment := range commentsFromService {
-				if comment.PublicPostID != "" {
-					uniquePostIDs[comment.PublicPostID] = struct{}{}
-				}
-			}
-
-			// Fetch all posts in bulk
-			type postInfo struct {
-				Title          string
-				AuthorUsername string
-				Categories     []string
-			}
-			postCache := make(map[string]postInfo, len(uniquePostIDs))
-			for pid := range uniquePostIDs {
-				post, err := h.postService.GetPost(ctx, pid)
-				if err == nil && post != nil {
-					postCache[pid] = postInfo{
-						Title:          post.Title,
-						AuthorUsername: post.AuthorUsername,
-						Categories:     post.Categories,
-					}
-				}
-			}
-
-			// Batch: collect unique comment IDs for reaction counts
-			type reactionCounts struct {
-				likes    int
-				dislikes int
-			}
-			reactionCache := make(map[string]reactionCounts, len(commentsFromService))
-			if h.reactionService != nil && len(commentsFromService) > 0 {
-				commentIDs := make([]string, 0, len(commentsFromService))
-				for _, c := range commentsFromService {
-					commentIDs = append(commentIDs, c.PublicID)
-				}
-				batchCounts, err := h.reactionService.CountReactionsBatch(ctx, commentIDs, "comment")
-				if err != nil {
-					log.Printf("Error batch counting reactions for my comments: %v", err)
-				} else {
-					for id, counts := range batchCounts {
-						reactionCache[id] = reactionCounts{
-							likes:    counts["like"],
-							dislikes: counts["dislike"],
-						}
-					}
-				}
-			}
-
-			for _, comment := range commentsFromService {
-				// Author data is populated by the repository JOIN query
-				authorUsername := comment.AuthorUsername
-
-				postTitle := "Post not found"
-				postAuthorUsername := "Unknown"
-				var postCategories []string
-				if pi, ok := postCache[comment.PublicPostID]; ok {
-					postTitle = pi.Title
-					postAuthorUsername = pi.AuthorUsername
-					postCategories = pi.Categories
-				} else if comment.PublicPostID == "" {
-					postTitle = "Post ID unknown"
-				}
-
-				// Apply category filter - skip if doesn't match
-				if selectedCategory != "" && len(postCategories) > 0 {
-					categoryMatch := false
-					for _, cat := range postCategories {
-						if cat == selectedCategory {
-							categoryMatch = true
-							break
-						}
-					}
-					if !categoryMatch {
-						continue
-					}
-				}
-
-				// Apply date filter
-				if dateFilter != "all" {
-					now := time.Now()
-					var cutoff time.Time
-					switch dateFilter {
-					case "today":
-						cutoff = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-					case "week":
-						cutoff = now.AddDate(0, 0, -7)
-					case "month":
-						cutoff = now.AddDate(0, -1, 0)
-					}
-					if comment.CreatedAt.Before(cutoff) {
-						continue
-					}
-				}
-
-				rc := reactionCache[comment.PublicID]
-
-				commentData := map[string]interface{}{
-					"PublicID":           comment.PublicID,
-					"AuthorUsername":     authorUsername,
-					"Content":            comment.Content,
-					"PostPublicID":       comment.PublicPostID,
-					"PostTitle":          postTitle,
-					"PostAuthorUsername": postAuthorUsername,
-					"PostCategories":     postCategories,
-					"CreatedAt":          comment.CreatedAt,
-					"UpdatedAt":          comment.UpdatedAt,
-					"Likes":              rc.likes,
-					"Dislikes":           rc.dislikes,
-				}
-				comments = append(comments, commentData)
+			for _, item := range filteredComments {
+				comments = append(comments, item)
 			}
 		}
 	}
 
 	data := map[string]interface{}{
-		"Title":            "My Comments",
-		"User":             currentUser,
-		"Comments":         comments,
-		"ShowFilter":       true,
-		"FilterAction":     "/comments",
-		"FilterMode":       "comments",
-		"Categories":       categories,
-		"SelectedCategory": selectedCategory,
-		"DateFilter":       dateFilter,
-		"HasMoreComments":  hasMoreComments,
-		"Offset":           initialLimit,
-		"LoadMoreID":       "load-more-comments-btn",
+		"Title":                  "My Comments",
+		"User":                   currentUser,
+		"Comments":               comments,
+		"ShowFilter":             true,
+		"FilterAction":           "/comments",
+		"FilterMode":             "comments",
+		"ShowActivityTypeFilter": false,
+		"FixedActivityType":      "commented_posts",
+		"ActivityType":           "commented_posts",
+		"Categories":             categories,
+		"SelectedCategory":       filters.Category,
+		"DateFilter":             filters.DateFilter,
+		"SelectedReaction":       filters.ReactionType,
+		"HasMoreComments":        hasMoreComments,
+		"Offset":                 len(comments),
+		"LoadMoreID":             "load-more-comments-btn",
 	}
 
 	// Get cached templates (only parses on first request)
@@ -621,19 +699,25 @@ func (h *HTTPHandler) aggregateUserActivity(ctx context.Context, userPublicID st
 		postTitle := "Post not found"
 		postPublicID := comment.PublicPostID
 		postCategories := []string{}
+		postLikeCount := 0
+		postDislikeCount := 0
 		if post, ok := postCache[comment.PublicPostID]; ok {
 			postTitle = post.Title
 			postPublicID = post.PublicID
 			postCategories = post.Categories
+			postLikeCount = post.LikeCount
+			postDislikeCount = post.DislikeCount
 		}
 
 		commentItems = append(commentItems, map[string]interface{}{
-			"CommentPublicID": comment.PublicID,
-			"Content":         comment.Content,
-			"PostPublicID":    postPublicID,
-			"PostTitle":       postTitle,
-			"PostCategories":  postCategories,
-			"CreatedAt":       comment.CreatedAt,
+			"CommentPublicID":  comment.PublicID,
+			"Content":          comment.Content,
+			"PostPublicID":     postPublicID,
+			"PostTitle":        postTitle,
+			"PostCategories":   postCategories,
+			"PostLikeCount":    postLikeCount,
+			"PostDislikeCount": postDislikeCount,
+			"CreatedAt":        comment.CreatedAt,
 		})
 	}
 

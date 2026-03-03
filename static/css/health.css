@@ -96,3 +96,15 @@
     color: var(--color-text);
     border: 1px solid var(--color-border-blue);
 }
+
+.health-error-links {
+    margin-top: 1.5rem;
+}
+
+.health-error-links-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}

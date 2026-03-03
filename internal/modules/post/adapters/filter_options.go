@@ -7,6 +7,24 @@ import (
 	postDomain "forum/internal/modules/post/domain"
 )
 
+func normalizeListActivityType(activityType string) string {
+	normalized := strings.ToLower(strings.TrimSpace(activityType))
+	switch normalized {
+	case "all", "all_posts", "posts", "all_activities":
+		return "all"
+	case "my_posts":
+		return "my_posts"
+	case "commented_posts":
+		return "commented_posts"
+	case "comments", "all_comments":
+		return "comments"
+	case "reactions", "all_reactions":
+		return "reactions"
+	default:
+		return "all"
+	}
+}
+
 type listFilterOptions struct {
 	Category       string
 	UserID         string
@@ -29,8 +47,9 @@ func buildPostFilter(options listFilterOptions) postDomain.PostFilter {
 		Limit:  options.Limit,
 	}
 
-	activityType := strings.ToLower(strings.TrimSpace(options.ActivityType))
+	activityType := normalizeListActivityType(options.ActivityType)
 	reactionType := strings.ToLower(strings.TrimSpace(options.ReactionType))
+	isGuest := options.CurrentUserID == ""
 
 	if activityType == "my_posts" {
 		options.MyPosts = true
@@ -40,7 +59,16 @@ func buildPostFilter(options listFilterOptions) postDomain.PostFilter {
 		options.CommentedPosts = true
 	}
 
-	if activityType == "reactions" {
+	if isGuest {
+		switch activityType {
+		case "comments":
+			filter.RequireCommentedPost = true
+		case "reactions":
+			filter.RequireReactedPost = true
+		}
+	}
+
+	if activityType == "reactions" && !isGuest {
 		switch reactionType {
 		case "like":
 			options.LikedPosts = true
@@ -50,6 +78,29 @@ func buildPostFilter(options listFilterOptions) postDomain.PostFilter {
 			if options.CurrentUserID != "" {
 				filter.ReactedByUserID = options.CurrentUserID
 			}
+		}
+	}
+
+	if isGuest {
+		switch reactionType {
+		case "like", "dislike":
+			filter.ReceivedReactionType = reactionType
+			switch activityType {
+			case "comments":
+				filter.ReceivedReactionScope = "comment"
+			case "reactions", "all":
+				filter.ReceivedReactionScope = "post_or_comment"
+			default:
+				filter.ReceivedReactionScope = "post"
+			}
+		}
+	}
+
+	isReactionActivity := activityType == "reactions" || options.LikedPosts || options.DislikedPosts
+	if !isReactionActivity && !isGuest {
+		switch reactionType {
+		case "like", "dislike":
+			filter.ReceivedReactionType = reactionType
 		}
 	}
 

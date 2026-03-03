@@ -5,7 +5,6 @@ package adapters
 
 import (
 	"errors"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -417,84 +416,24 @@ func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	comments, err := h.commentService.ListCommentsByUserPaginated(ctx, userPublicID, limit, offset)
+	filters := parseMyCommentsFilters(r)
+
+	comments, err := h.commentService.ListCommentsByUser(ctx, userPublicID)
 	if err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve comments")
 		return
 	}
 
-	commentsData := make([]map[string]interface{}, 0, len(comments))
-
-	uniquePostIDs := make(map[string]struct{})
-	for _, comment := range comments {
-		if comment.PublicPostID != "" {
-			uniquePostIDs[comment.PublicPostID] = struct{}{}
-		}
+	filteredComments := h.buildFilteredCommentItems(ctx, comments, filters)
+	if offset >= len(filteredComments) {
+		httpjson.WriteJSON(w, http.StatusOK, []map[string]interface{}{})
+		return
 	}
 
-	type postInfo struct {
-		Title          string
-		AuthorUsername string
-	}
-	postCache := make(map[string]postInfo, len(uniquePostIDs))
-	for pid := range uniquePostIDs {
-		post, err := h.postService.GetPost(ctx, pid)
-		if err == nil && post != nil {
-			postCache[pid] = postInfo{Title: post.Title, AuthorUsername: post.AuthorUsername}
-		}
+	end := offset + limit
+	if end > len(filteredComments) {
+		end = len(filteredComments)
 	}
 
-	type reactionCounts struct {
-		likes    int
-		dislikes int
-	}
-	reactionCache := make(map[string]reactionCounts, len(comments))
-	if h.reactionService != nil && len(comments) > 0 {
-		commentIDs := make([]string, 0, len(comments))
-		for _, comment := range comments {
-			commentIDs = append(commentIDs, comment.PublicID)
-		}
-		batchCounts, err := h.reactionService.CountReactionsBatch(ctx, commentIDs, "comment")
-		if err != nil {
-			log.Printf("Error batch counting reactions for load-more comments: %v", err)
-		} else {
-			for id, counts := range batchCounts {
-				reactionCache[id] = reactionCounts{
-					likes:    counts["like"],
-					dislikes: counts["dislike"],
-				}
-			}
-		}
-	}
-
-	for _, comment := range comments {
-		authorUsername := comment.AuthorUsername
-
-		postTitle := "Post not found"
-		postAuthorUsername := "Unknown"
-		if pi, ok := postCache[comment.PublicPostID]; ok {
-			postTitle = pi.Title
-			postAuthorUsername = pi.AuthorUsername
-		} else if comment.PublicPostID == "" {
-			postTitle = "Post ID unknown"
-		}
-
-		rc := reactionCache[comment.PublicID]
-
-		commentData := map[string]interface{}{
-			"PublicID":           comment.PublicID,
-			"AuthorUsername":     authorUsername,
-			"Content":            comment.Content,
-			"PostPublicID":       comment.PublicPostID,
-			"PostTitle":          postTitle,
-			"PostAuthorUsername": postAuthorUsername,
-			"CreatedAt":          comment.CreatedAt,
-			"UpdatedAt":          comment.UpdatedAt,
-			"Likes":              rc.likes,
-			"Dislikes":           rc.dislikes,
-		}
-		commentsData = append(commentsData, commentData)
-	}
-
-	httpjson.WriteJSON(w, http.StatusOK, commentsData)
+	httpjson.WriteJSON(w, http.StatusOK, filteredComments[offset:end])
 }
