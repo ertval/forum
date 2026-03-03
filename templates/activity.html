@@ -28,17 +28,16 @@
     {{end}}
 
     {{if not .HideReactions}}
-    <h3><a class="comment-post-link" href="/activity?activity_type=reactions">Reactions</a></h3>
-    {{if .Reactions}}
+    <h3><a class="comment-post-link" href="/activity?activity_type=reactions">Post Reactions</a></h3>
+    {{if .PostReactions}}
     <div class="comments-list">
-        {{range .Reactions}}
-        <article class="comment clickable-card comment-reaction {{if eq .ReactionType "like"}}comment-reaction-like{{else}}comment-reaction-dislike{{end}}" data-href="{{if and (eq .ReactionTargetType "comment") .CommentPublicID}}/posts/{{.PostPublicID}}#comment-{{.CommentPublicID}}{{else}}/posts/{{.PostPublicID}}{{end}}">
+        {{range .PostReactions}}
+        <article class="comment clickable-card comment-reaction {{if eq .ReactionType "like"}}comment-reaction-like{{else}}comment-reaction-dislike{{end}}" data-href="/posts/{{.PostPublicID}}">
             <div class="activity-reaction-row">
                 <div class="comment-context">
                     <p>
-                        {{if eq .ReactionType "like"}}Liked{{else}}Disliked{{end}}
-                        {{if eq .ReactionTargetType "comment"}}comment on{{else}}post{{end}}:
-                        <a class="comment-post-link" href="{{if and (eq .ReactionTargetType "comment") .CommentPublicID}}/posts/{{.PostPublicID}}#comment-{{.CommentPublicID}}{{else}}/posts/{{.PostPublicID}}{{end}}">{{.PostTitle}}</a>
+                        {{if eq .ReactionType "like"}}Liked{{else}}Disliked{{end}} post:
+                        <a class="comment-post-link" href="/posts/{{.PostPublicID}}">{{.PostTitle}}</a>
                     </p>
                 </div>
                 <span class="activity-reaction-symbol {{if eq .ReactionType "like"}}activity-reaction-symbol-like{{else}}activity-reaction-symbol-dislike{{end}}" aria-hidden="true">{{if eq .ReactionType "like"}}👍{{else}}👎{{end}}</span>
@@ -47,7 +46,28 @@
         {{end}}
     </div>
     {{else}}
-    <p class="no-posts">You haven't liked or disliked any posts or comments yet.</p>
+    <p class="no-posts">You haven't liked or disliked any posts yet.</p>
+    {{end}}
+
+    <h3><a class="comment-post-link" href="/activity?activity_type=reactions">Comment Reactions</a></h3>
+    {{if .CommentReactions}}
+    <div class="comments-list">
+        {{range .CommentReactions}}
+        <article class="comment clickable-card comment-reaction {{if eq .ReactionType "like"}}comment-reaction-like{{else}}comment-reaction-dislike{{end}}" data-href="{{if .CommentPublicID}}/posts/{{.PostPublicID}}#comment-{{.CommentPublicID}}{{else}}/posts/{{.PostPublicID}}{{end}}">
+            <div class="activity-reaction-row">
+                <div class="comment-context">
+                    <p>
+                        {{if eq .ReactionType "like"}}Liked{{else}}Disliked{{end}} comment on:
+                        <a class="comment-post-link" href="{{if .CommentPublicID}}/posts/{{.PostPublicID}}#comment-{{.CommentPublicID}}{{else}}/posts/{{.PostPublicID}}{{end}}">{{.PostTitle}}</a>
+                    </p>
+                </div>
+                <span class="activity-reaction-symbol {{if eq .ReactionType "like"}}activity-reaction-symbol-like{{else}}activity-reaction-symbol-dislike{{end}}" aria-hidden="true">{{if eq .ReactionType "like"}}👍{{else}}👎{{end}}</span>
+            </div>
+        </article>
+        {{end}}
+    </div>
+    {{else}}
+    <p class="no-posts">You haven't liked or disliked any comments yet.</p>
     {{end}}
     {{end}}
 

@@ -40,7 +40,7 @@ func (h *HTTPHandler) SettingsPage(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPHandler) UpdateSettingsPage(w http.ResponseWriter, r *http.Request) {
 	userPublicID := authPorts.GetUserID(r.Context())
 	if userPublicID == "" {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		platformErrors.RenderErrorPage(w, http.StatusUnauthorized, "", nil)
 		return
 	}
 

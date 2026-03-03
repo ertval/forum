@@ -273,7 +273,7 @@
         <a href="/posts/new" class="btn btn-primary btn-small">Create Post</a>
         <a href="/board?my_posts=true{{if .SelectedCategory}}&category={{urlquery .SelectedCategory}}{{end}}{{if .DateFilter}}&date_filter={{.DateFilter}}{{end}}"
             class="btn btn-primary btn-small">My Posts</a>
-        <a href="/board?liked_posts=true{{if .SelectedCategory}}&category={{urlquery .SelectedCategory}}{{end}}{{if .DateFilter}}&date_filter={{.DateFilter}}{{end}}"
+        <a href="/activity?activity_type=reactions{{if .SelectedCategory}}&category={{urlquery .SelectedCategory}}{{end}}{{if .DateFilter}}&time={{.DateFilter}}{{end}}"
             class="btn btn-primary btn-small">My Reactions</a>
         <a href="/comments" class="btn btn-primary btn-small">My Comments</a>
         <a href="/activity" class="btn btn-primary btn-small notification-link">
@@ -305,6 +305,15 @@
         </div>
 
         <div class="filter-group">
+            <label for="reaction_type">Reaction Type:</label>
+            <select name="reaction_type" id="reaction_type">
+                <option value="all" {{if eq .SelectedReaction "all" }}selected{{end}}>All</option>
+                <option value="like" {{if eq .SelectedReaction "like" }}selected{{end}}>Like</option>
+                <option value="dislike" {{if eq .SelectedReaction "dislike" }}selected{{end}}>Dislike</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
             <label for="category">Post Category:</label>
             <select name="category" id="category">
                 <option value="">All Categories</option>
@@ -321,15 +330,6 @@
                 <option value="today" {{if eq .SelectedTime "today" }}selected{{end}}>Today</option>
                 <option value="week" {{if eq .SelectedTime "week" }}selected{{end}}>This Week</option>
                 <option value="month" {{if eq .SelectedTime "month" }}selected{{end}}>This Month</option>
-            </select>
-        </div>
-
-        <div class="filter-group">
-            <label for="reaction_type">Reaction Type:</label>
-            <select name="reaction_type" id="reaction_type">
-                <option value="all" {{if eq .SelectedReaction "all" }}selected{{end}}>All</option>
-                <option value="like" {{if eq .SelectedReaction "like" }}selected{{end}}>Like</option>
-                <option value="dislike" {{if eq .SelectedReaction "dislike" }}selected{{end}}>Dislike</option>
             </select>
         </div>
         {{else}}

@@ -28,8 +28,8 @@ func TestBaseTemplateRendering(t *testing.T) {
 		html := helper.RenderTemplate(t, "base", data)
 
 		helper.AssertHasAuthenticatedNav(t, html, "testuser")
-		helper.AssertContains(t, html, `href="/board?my_posts=true"`)    // Check My Posts link uses my_posts=true
-		helper.AssertContains(t, html, `href="/board?liked_posts=true"`) // Check My Likes link
+		helper.AssertContains(t, html, `href="/board?my_posts=true"`)              // Check My Posts link uses my_posts=true
+		helper.AssertContains(t, html, `href="/activity?activity_type=reactions"`) // Check My Reactions link
 	})
 
 	t.Run("dropdown shows only activity content shortcut", func(t *testing.T) {
@@ -55,7 +55,7 @@ func TestBaseTemplateRendering(t *testing.T) {
 		helper.AssertContains(t, dropdownHTML, `href="/settings"`)
 		helper.AssertContains(t, dropdownHTML, `href="/logout"`)
 		helper.AssertNotContains(t, dropdownHTML, `href="/board?my_posts=true"`)
-		helper.AssertNotContains(t, dropdownHTML, `href="/board?liked_posts=true"`)
+		helper.AssertNotContains(t, dropdownHTML, `href="/activity?activity_type=reactions"`)
 		helper.AssertNotContains(t, dropdownHTML, `href="/comments"`)
 	})
 
@@ -275,16 +275,18 @@ func TestAllTemplatesWithBase(t *testing.T) {
 			name:  "activity",
 			files: []string{"../../templates/base.html", "../../templates/activity.html"},
 			data: map[string]interface{}{
-				"Title":        "My Activity",
-				"CreatedPosts": []interface{}{},
-				"Reactions":    []interface{}{},
-				"Comments":     []interface{}{},
+				"Title":            "My Activity",
+				"CreatedPosts":     []interface{}{},
+				"PostReactions":    []interface{}{},
+				"CommentReactions": []interface{}{},
+				"Comments":         []interface{}{},
 			},
 			contains: []string{
 				"<!DOCTYPE html>",
 				"<title>My Activity - Forum</title>",
 				`<a class="comment-post-link" href="/board?my_posts=true">Created Posts</a>`,
-				`<a class="comment-post-link" href="/activity?activity_type=reactions">Reactions</a>`,
+				`<a class="comment-post-link" href="/activity?activity_type=reactions">Post Reactions</a>`,
+				`<a class="comment-post-link" href="/activity?activity_type=reactions">Comment Reactions</a>`,
 				`<a class="comment-post-link" href="/comments">Comments</a>`,
 			},
 		},

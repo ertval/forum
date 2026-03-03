@@ -70,7 +70,7 @@ func (p *AuthMiddleware) RequireAuth() authPorts.Middleware {
 					return
 				}
 
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				platformErrors.RenderErrorPage(w, http.StatusUnauthorized, "", nil)
 				return
 			}
 			next.ServeHTTP(w, r.WithContext(ctx))

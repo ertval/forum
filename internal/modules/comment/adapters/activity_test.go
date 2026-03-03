@@ -333,3 +333,27 @@ func TestAggregateUserActivity_AppliesCategoryTimeAndReactionTypeFilters(t *test
 		t.Fatalf("expected only Go comment, got %#v", comments[0]["CommentPublicID"])
 	}
 }
+
+func TestSplitReactionItemsByTarget(t *testing.T) {
+	items := []map[string]interface{}{
+		{"ReactionTargetType": "post", "ReactionType": "like", "PostPublicID": "post-1"},
+		{"ReactionTargetType": "comment", "ReactionType": "dislike", "PostPublicID": "post-2", "CommentPublicID": "comment-2"},
+		{"ReactionTargetType": "post", "ReactionType": "dislike", "PostPublicID": "post-3"},
+	}
+
+	postReactions, commentReactions := splitReactionItemsByTarget(items)
+
+	if len(postReactions) != 2 {
+		t.Fatalf("expected 2 post reactions, got %d", len(postReactions))
+	}
+	if len(commentReactions) != 1 {
+		t.Fatalf("expected 1 comment reaction, got %d", len(commentReactions))
+	}
+
+	if postReactions[0]["PostPublicID"] != "post-1" || postReactions[1]["PostPublicID"] != "post-3" {
+		t.Fatalf("unexpected post reaction ordering/content: %#v", postReactions)
+	}
+	if commentReactions[0]["CommentPublicID"] != "comment-2" {
+		t.Fatalf("unexpected comment reaction content: %#v", commentReactions)
+	}
+}

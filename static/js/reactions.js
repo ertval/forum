@@ -2,6 +2,108 @@
 'use strict';
 
 (function() {
+    const userReactionByTarget = new Map();
+
+    function targetKey(targetType, targetId) {
+        return `${targetType}:${targetId}`;
+    }
+
+    function parseCountFromButton(btn) {
+        if (!btn) {
+            return null;
+        }
+
+        const text = btn.textContent || '';
+        const match = text.match(/\((\d+)\)/);
+        if (match) {
+            return parseInt(match[1], 10);
+        }
+
+        const numbers = text.match(/\d+/g);
+        if (!numbers || numbers.length === 0) {
+            return null;
+        }
+
+        return parseInt(numbers[numbers.length - 1], 10);
+    }
+
+    function updateUserReactionCount(delta) {
+        if (!delta) {
+            return;
+        }
+
+        const selectors = [
+            '.sidebar-right .user-card .stat-item',
+            '.user-menu-dropdown .stat-item'
+        ];
+
+        selectors.forEach(function(selector) {
+            const stats = document.querySelectorAll(selector);
+            stats.forEach(function(statItem) {
+                const label = statItem.querySelector('.stat-label');
+                if (!label || label.textContent.trim() !== 'Reactions') {
+                    return;
+                }
+
+                const valueEl = statItem.querySelector('.stat-value');
+                if (!valueEl) {
+                    return;
+                }
+
+                const currentValue = parseInt(valueEl.textContent, 10) || 0;
+                valueEl.textContent = Math.max(0, currentValue + delta);
+            });
+        });
+    }
+
+    function inferUserReactionDelta(prevReaction, reactionType, response, likesBefore, dislikesBefore) {
+        if (prevReaction === reactionType) {
+            return -1;
+        }
+        if (prevReaction === null) {
+            return 1;
+        }
+        if (prevReaction === 'like' || prevReaction === 'dislike') {
+            return 0;
+        }
+
+        if (
+            response &&
+            typeof response.likes === 'number' &&
+            typeof response.dislikes === 'number' &&
+            typeof likesBefore === 'number' &&
+            typeof dislikesBefore === 'number'
+        ) {
+            const totalDelta = (response.likes + response.dislikes) - (likesBefore + dislikesBefore);
+            if (totalDelta === 1 || totalDelta === 0 || totalDelta === -1) {
+                return totalDelta;
+            }
+        }
+
+        return 0;
+    }
+
+    function inferNextUserReaction(prevReaction, reactionType, userDelta) {
+        if (prevReaction === reactionType) {
+            return null;
+        }
+        if (prevReaction === 'like' || prevReaction === 'dislike') {
+            return reactionType;
+        }
+        if (prevReaction === null) {
+            return reactionType;
+        }
+
+        if (userDelta === -1) {
+            return null;
+        }
+        if (userDelta === 0 || userDelta === 1) {
+            return reactionType;
+        }
+
+        return null;
+    }
+
     // Update a button's displayed count by replacing the "(N)" pattern in its text.
     function updateButtonCount(btn, newCount) {
         if (!btn) return;
@@ -64,6 +166,11 @@
     async function handleReaction(targetType, targetId, reactionType, likeBtn, dislikeBtn) {
         window.clearError('page-errors');
         try {
+            const key = targetKey(targetType, targetId);
+            const prevReaction = userReactionByTarget.has(key) ? userReactionByTarget.get(key) : undefined;
+            const likesBefore = parseCountFromButton(likeBtn);
+            const dislikesBefore = parseCountFromButton(dislikeBtn);
+
             const response = await window.api.request('/api/reactions', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -77,6 +184,10 @@
             if (!applied) {
                 await refreshCounts(targetType, targetId, likeBtn, dislikeBtn);
             }
+
+            const userDelta = inferUserReactionDelta(prevReaction, reactionType, response, likesBefore, dislikesBefore);
+            updateUserReactionCount(userDelta);
+            userReactionByTarget.set(key, inferNextUserReaction(prevReaction, reactionType, userDelta));
         } catch (error) {
             if (error && error.status === 401) {
                 window.showError(`Please login to react to ${targetType}s`, 'page-errors');

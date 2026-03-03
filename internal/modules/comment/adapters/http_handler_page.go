@@ -77,6 +77,9 @@ func (h *HTTPHandler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 	showReactions := filters.ActivityType == "all" || filters.ActivityType == "reactions"
 	showComments := filters.ActivityType == "all" || filters.ActivityType == "comments"
 
+	reactions, _ := activity["reactions"].([]map[string]interface{})
+	postReactions, commentReactions := splitReactionItemsByTarget(reactions)
+
 	data := map[string]interface{}{
 		"Title":            "My Activity",
 		"User":             currentUser,
@@ -95,6 +98,8 @@ func (h *HTTPHandler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 		"HideComments":     !showComments,
 		"CreatedPosts":     activity["created_posts"],
 		"Reactions":        activity["reactions"],
+		"PostReactions":    postReactions,
+		"CommentReactions": commentReactions,
 		"Comments":         activity["comments"],
 	}
 
@@ -232,6 +237,22 @@ func filterReactionItems(items []map[string]interface{}, filters activityFilters
 		filtered = append(filtered, item)
 	}
 	return filtered
+}
+
+func splitReactionItemsByTarget(items []map[string]interface{}) ([]map[string]interface{}, []map[string]interface{}) {
+	postReactions := make([]map[string]interface{}, 0, len(items))
+	commentReactions := make([]map[string]interface{}, 0, len(items))
+
+	for _, item := range items {
+		targetType, _ := item["ReactionTargetType"].(string)
+		if targetType == "comment" {
+			commentReactions = append(commentReactions, item)
+			continue
+		}
+		postReactions = append(postReactions, item)
+	}
+
+	return postReactions, commentReactions
 }
 
 func filterCommentItems(items []map[string]interface{}, filters activityFilters, now time.Time) []map[string]interface{} {

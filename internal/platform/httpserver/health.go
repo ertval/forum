@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	platformErrors "forum/internal/platform/errors"
 	"forum/internal/platform/health"
 	"forum/internal/platform/templates"
 )
@@ -60,6 +61,9 @@ func NewHealthHandler(
 func (h *HealthHandler) RegisterRoutes(router *http.ServeMux) {
 	router.HandleFunc("GET /health", h.HealthPage)
 	router.HandleFunc("GET /health-api", h.HealthAPI)
+	router.HandleFunc("GET /health/errors/400", h.HealthError400Page)
+	router.HandleFunc("GET /health/errors/404", h.HealthError404Page)
+	router.HandleFunc("GET /health/errors/500", h.HealthError500Page)
 }
 
 // HealthAPI returns health check results as JSON.
@@ -146,4 +150,19 @@ func (h *HealthHandler) HealthPage(w http.ResponseWriter, r *http.Request) {
 	if err := h.templates.ExecuteTemplate(w, "health", "base", data); err != nil {
 		http.Error(w, "Could not execute template", http.StatusInternalServerError)
 	}
+}
+
+// HealthError400Page renders a styled 400 error page for manual testing.
+func (h *HealthHandler) HealthError400Page(w http.ResponseWriter, r *http.Request) {
+	platformErrors.RenderErrorPage(w, http.StatusBadRequest, "Health test route: simulated bad request.", nil)
+}
+
+// HealthError404Page renders a styled 404 error page for manual testing.
+func (h *HealthHandler) HealthError404Page(w http.ResponseWriter, r *http.Request) {
+	platformErrors.RenderErrorPage(w, http.StatusNotFound, "Health test route: simulated missing page.", nil)
+}
+
+// HealthError500Page renders a styled 500 error page for manual testing.
+func (h *HealthHandler) HealthError500Page(w http.ResponseWriter, r *http.Request) {
+	platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "Health test route: simulated internal server error.", nil)
 }

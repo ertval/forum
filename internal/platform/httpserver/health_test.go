@@ -94,3 +94,31 @@ func TestHealthAPI_ReadinessIgnoresOptionalChecks(t *testing.T) {
 		t.Fatalf("moderation_api = %q, want %q", body["moderation_api"], "down")
 	}
 }
+
+func TestHealthErrorTestRoutes(t *testing.T) {
+	tests := []struct {
+		name       string
+		path       string
+		wantStatus int
+	}{
+		{name: "400 route", path: "/health/errors/400", wantStatus: http.StatusBadRequest},
+		{name: "404 route", path: "/health/errors/404", wantStatus: http.StatusNotFound},
+		{name: "500 route", path: "/health/errors/500", wantStatus: http.StatusInternalServerError},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := http.NewServeMux()
+			handler := NewHealthHandler(nil, nil, nil, nil)
+			handler.RegisterRoutes(router)
+
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+
+			if rec.Code != tt.wantStatus {
+				t.Fatalf("status code = %d, want %d", rec.Code, tt.wantStatus)
+			}
+		})
+	}
+}
