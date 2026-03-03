@@ -80,6 +80,7 @@ temp/
 # Build artifacts
 bin/
 build/
+forum
 
 # OS files
 Thumbs.db

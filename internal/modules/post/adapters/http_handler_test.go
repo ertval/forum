@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -20,8 +19,10 @@ import (
 	postDomain "forum/internal/modules/post/domain"
 	postPorts "forum/internal/modules/post/ports"
 	reactionPorts "forum/internal/modules/reaction/ports"
+	"forum/internal/modules/shared/adapters/httpjson"
 	userDomain "forum/internal/modules/user/domain"
 	userPorts "forum/internal/modules/user/ports"
+	platformTemplates "forum/internal/platform/templates"
 )
 
 // Mock implementations
@@ -114,60 +115,6 @@ func (m *mockCategoryService) Delete(ctx context.Context, categoryID string) err
 		return m.deleteFunc(ctx, categoryID)
 	}
 	return nil
-}
-
-type mockFilterService struct{}
-
-func (m *mockFilterService) BuildFilter(ctx context.Context, params postDomain.FilterParams) postDomain.PostFilter {
-	filter := postDomain.PostFilter{
-		UserID:      params.UserID,
-		CommenterID: params.Commenter,
-		DateFilter:  params.DateFilter,
-		Limit:       params.Limit,
-		Offset:      params.Offset,
-	}
-	if params.Category != "" {
-		filter.Categories = []string{params.Category}
-	}
-	if params.MyPosts && params.CurrentUserID != "" {
-		filter.UserID = params.CurrentUserID
-	}
-	if params.LikedPosts && params.CurrentUserID != "" {
-		filter.LikedByUserID = params.CurrentUserID
-	}
-	if params.DislikedPosts && params.CurrentUserID != "" {
-		filter.DislikedByUserID = params.CurrentUserID
-	}
-	if params.CommentedPosts && params.CurrentUserID != "" {
-		filter.CommenterID = params.CurrentUserID
-	}
-	if params.ActivityType == "reactions" && params.ReactionType == "all" && params.CurrentUserID != "" {
-		filter.ReactedByUserID = params.CurrentUserID
-	}
-	if params.ActivityType == "reactions" && params.CurrentUserID != "" {
-		switch params.ReactionType {
-		case "like":
-			filter.LikedByUserID = params.CurrentUserID
-		case "dislike":
-			filter.DislikedByUserID = params.CurrentUserID
-		case "", "all":
-			filter.ReactedByUserID = params.CurrentUserID
-		}
-	}
-	if params.ActivityType == "my_posts" && params.CurrentUserID != "" {
-		filter.UserID = params.CurrentUserID
-	}
-	if params.ActivityType == "commented_posts" && params.CurrentUserID != "" {
-		filter.CommenterID = params.CurrentUserID
-	}
-	if filter.DateFilter == "" {
-		filter.DateFilter = "all"
-	}
-	return filter
-}
-
-func (m *mockFilterService) ApplyDateFilter(filter *postDomain.PostFilter, dateFilter string) {
-	filter.DateFilter = dateFilter
 }
 
 type mockAuthService struct {
@@ -320,7 +267,6 @@ func (m *mockMiddlewareProvider) OptionalAuth() authPorts.Middleware {
 type mockServiceContainer struct {
 	postService        postPorts.PostService
 	categoryService    postPorts.CategoryService
-	filterService      postPorts.FilterService
 	authService        authPorts.AuthService
 	userService        userPorts.UserService
 	middlewareProvider authPorts.AuthMiddleware
@@ -334,10 +280,6 @@ func (m *mockServiceContainer) Post() postPorts.PostService {
 
 func (m *mockServiceContainer) Category() postPorts.CategoryService {
 	return m.categoryService
-}
-
-func (m *mockServiceContainer) Filter() postPorts.FilterService {
-	return m.filterService
 }
 
 func (m *mockServiceContainer) Auth() authPorts.AuthService {
@@ -363,11 +305,14 @@ func (m *mockServiceContainer) Reaction() reactionPorts.ReactionService {
 	return m.reactionService
 }
 
+func (m *mockServiceContainer) SessionCookieName() string {
+	return "session_token"
+}
+
 func createTestHandler(postSvc *mockPostService, catSvc *mockCategoryService, authSvc *mockAuthService, userSvc *mockUserService) *HTTPHandler {
 	container := &mockServiceContainer{
 		postService:        postSvc,
 		categoryService:    catSvc,
-		filterService:      &mockFilterService{},
 		authService:        authSvc,
 		userService:        userSvc,
 		middlewareProvider: &mockMiddlewareProvider{},
@@ -418,18 +363,9 @@ func TestHTTPHandler_ListPostsAPI(t *testing.T) {
 	}
 }
 
-func TestHTTPHandler_ListPostsAPI_MethodNotAllowed(t *testing.T) {
-	handler := createTestHandler(nil, nil, nil, nil)
-
-	req := httptest.NewRequest(http.MethodPost, "/posts", nil)
-	w := httptest.NewRecorder()
-
-	handler.ListPostsAPI(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status 405, got %d", w.Code)
-	}
-}
+// TestHTTPHandler_ListPostsAPI_MethodNotAllowed removed: Go 1.22 ServeMux
+// enforces method constraints via route patterns (GET /api/posts), so the
+// handler-level method guard was dead code and has been deleted.
 
 func TestHTTPHandler_ListPostsAPI_WithFilters(t *testing.T) {
 	postSvc := &mockPostService{
@@ -450,18 +386,9 @@ func TestHTTPHandler_ListPostsAPI_WithFilters(t *testing.T) {
 	}
 }
 
-func TestHTTPHandler_GetPostAPI_MethodNotAllowed(t *testing.T) {
-	handler := createTestHandler(nil, nil, nil, nil)
-
-	req := httptest.NewRequest(http.MethodPost, "/posts/123", nil)
-	w := httptest.NewRecorder()
-
-	handler.GetPostAPI(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status 405, got %d", w.Code)
-	}
-}
+// TestHTTPHandler_GetPostAPI_MethodNotAllowed removed: Go 1.22 ServeMux
+// enforces method constraints via route patterns, making handler-level
+// method guards unreachable dead code.
 
 func TestHTTPHandler_GetPostAPI_NotFound(t *testing.T) {
 	postSvc := &mockPostService{
@@ -532,18 +459,8 @@ func TestHTTPHandler_CreatePostAPI_Unauthorized(t *testing.T) {
 	}
 }
 
-func TestHTTPHandler_CreatePostAPI_MethodNotAllowed(t *testing.T) {
-	handler := createTestHandler(nil, nil, nil, nil)
-
-	req := httptest.NewRequest(http.MethodGet, "/posts", nil)
-	w := httptest.NewRecorder()
-
-	handler.CreatePostAPI(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status 405, got %d", w.Code)
-	}
-}
+// TestHTTPHandler_CreatePostAPI_MethodNotAllowed removed: Go 1.22 ServeMux
+// enforces method constraints via route patterns.
 
 func TestHTTPHandler_CreatePostAPI_InvalidJSON(t *testing.T) {
 	userSvc := &mockUserService{
@@ -950,18 +867,8 @@ func TestHTTPHandler_LoadMorePostsAPI(t *testing.T) {
 	}
 }
 
-func TestHTTPHandler_LoadMorePostsAPI_MethodNotAllowed(t *testing.T) {
-	handler := createTestHandler(nil, nil, nil, nil)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/posts/load-more", nil)
-	w := httptest.NewRecorder()
-
-	handler.LoadMorePostsAPI(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status 405, got %d", w.Code)
-	}
-}
+// TestHTTPHandler_LoadMorePostsAPI_MethodNotAllowed removed: Go 1.22 ServeMux
+// enforces method constraints via route patterns.
 
 func TestHTTPHandler_LoadMorePostsAPI_WithFilters(t *testing.T) {
 	var gotFilter postDomain.PostFilter
@@ -971,21 +878,11 @@ func TestHTTPHandler_LoadMorePostsAPI_WithFilters(t *testing.T) {
 			return []*postDomain.Post{}, nil
 		},
 	}
-	authSvc := &mockAuthService{
-		validateFunc: func(ctx context.Context, token string) (*authDomain.Session, error) {
-			return &authDomain.Session{UserID: 1, Token: token}, nil
-		},
-	}
-	userSvc := &mockUserService{
-		getByIDFunc: func(ctx context.Context, userID int) (*userDomain.User, error) {
-			return &userDomain.User{ID: userID, PublicID: "user-uuid-1"}, nil
-		},
-	}
 
-	handler := createTestHandler(postSvc, nil, authSvc, userSvc)
+	handler := createTestHandler(postSvc, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/posts/load-more?category=tech&activity_type=reactions&reaction_type=dislike&commented_posts=true&date_filter=today", nil)
-	req.AddCookie(&http.Cookie{Name: "session_token", Value: "valid-token"})
+	req = addAuthContext(req, "user-uuid-1")
 	w := httptest.NewRecorder()
 
 	handler.LoadMorePostsAPI(w, req)
@@ -1012,45 +909,45 @@ func TestHTTPHandler_buildPageTitle(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		params postDomain.FilterParams
+		params listFilterOptions
 		want   string
 	}{
 		{
 			name:   "no filters",
-			params: postDomain.FilterParams{},
+			params: listFilterOptions{},
 			want:   "All Posts",
 		},
 		{
 			name: "my posts",
-			params: postDomain.FilterParams{
+			params: listFilterOptions{
 				MyPosts: true,
 			},
 			want: "My Posts",
 		},
 		{
 			name: "liked posts",
-			params: postDomain.FilterParams{
+			params: listFilterOptions{
 				LikedPosts: true,
 			},
 			want: "My Liked Posts",
 		},
 		{
 			name: "disliked posts",
-			params: postDomain.FilterParams{
+			params: listFilterOptions{
 				DislikedPosts: true,
 			},
 			want: "My Disliked Posts",
 		},
 		{
 			name: "activity commented posts",
-			params: postDomain.FilterParams{
+			params: listFilterOptions{
 				ActivityType: "commented_posts",
 			},
 			want: "Commented Posts",
 		},
 		{
 			name: "activity reactions dislike",
-			params: postDomain.FilterParams{
+			params: listFilterOptions{
 				ActivityType: "reactions",
 				ReactionType: "dislike",
 			},
@@ -1058,35 +955,35 @@ func TestHTTPHandler_buildPageTitle(t *testing.T) {
 		},
 		{
 			name: "category filter",
-			params: postDomain.FilterParams{
+			params: listFilterOptions{
 				Category: "Technology",
 			},
 			want: "Technology Posts",
 		},
 		{
 			name: "date filter today",
-			params: postDomain.FilterParams{
+			params: listFilterOptions{
 				DateFilter: "today",
 			},
 			want: "Posts Today",
 		},
 		{
 			name: "date filter week",
-			params: postDomain.FilterParams{
+			params: listFilterOptions{
 				DateFilter: "week",
 			},
 			want: "Posts This Week",
 		},
 		{
 			name: "date filter month",
-			params: postDomain.FilterParams{
+			params: listFilterOptions{
 				DateFilter: "month",
 			},
 			want: "Posts This Month",
 		},
 		{
 			name: "combined my posts and category",
-			params: postDomain.FilterParams{
+			params: listFilterOptions{
 				MyPosts:  true,
 				Category: "Technology",
 			},
@@ -1094,7 +991,7 @@ func TestHTTPHandler_buildPageTitle(t *testing.T) {
 		},
 		{
 			name: "user ID filter",
-			params: postDomain.FilterParams{
+			params: listFilterOptions{
 				UserID: "user-123",
 			},
 			want: "My Posts",
@@ -1291,14 +1188,14 @@ func TestCreatePostPreview(t *testing.T) {
 }
 
 func TestHTTPHandler_Templates(t *testing.T) {
-	tmpl := template.Must(template.New("test").Parse("test"))
+	reg := platformTemplates.NewRegistry()
 	container := &mockServiceContainer{
 		postService: &mockPostService{},
 	}
 
-	handler := NewHTTPHandler(container, tmpl)
+	handler := NewHTTPHandler(container, reg)
 
-	if handler.Templates() != tmpl {
+	if handler.Templates() != reg {
 		t.Error("Templates() should return the templates passed to NewHTTPHandler")
 	}
 }
@@ -1392,12 +1289,10 @@ func TestHTTPHandler_getInternalUserID_Empty(t *testing.T) {
 }
 
 func TestHTTPHandler_writeJSON(t *testing.T) {
-	handler := &HTTPHandler{}
-
 	w := httptest.NewRecorder()
 	data := map[string]string{"test": "value"}
 
-	handler.writeJSON(w, http.StatusOK, data)
+	httpjson.WriteJSON(w, http.StatusOK, data)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", w.Code)
@@ -1505,11 +1400,8 @@ func TestHTTPHandler_ListPostsAPI_ServiceError(t *testing.T) {
 		},
 	}
 
-	filterSvc := &mockFilterService{}
-
 	container := &mockServiceContainer{
-		postService:   postSvc,
-		filterService: filterSvc,
+		postService: postSvc,
 	}
 	handler := NewHTTPHandler(container, nil)
 
@@ -1568,11 +1460,8 @@ func TestHTTPHandler_LoadMorePostsAPI_ServiceError(t *testing.T) {
 		},
 	}
 
-	filterSvc := &mockFilterService{}
-
 	container := &mockServiceContainer{
-		postService:   postSvc,
-		filterService: filterSvc,
+		postService: postSvc,
 	}
 	handler := NewHTTPHandler(container, nil)
 
@@ -1668,9 +1557,10 @@ func TestHTTPHandler_RegisterRoutes(t *testing.T) {
 	}
 
 	container := &mockServiceContainer{
-		postService: &mockPostService{},
-		authService: authSvc,
-		userService: &mockUserService{},
+		postService:        &mockPostService{},
+		authService:        authSvc,
+		userService:        &mockUserService{},
+		middlewareProvider: &mockMiddlewareProvider{},
 	}
 
 	handler := NewHTTPHandler(container, nil)
@@ -1883,8 +1773,6 @@ func TestHTTPHandler_ListPostsAPI_WithCookie(t *testing.T) {
 		},
 	}
 
-	filterSvc := &mockFilterService{}
-
 	authSvc := &mockAuthService{
 		validateFunc: func(ctx context.Context, token string) (*authDomain.Session, error) {
 			return &authDomain.Session{UserID: 1, Token: token}, nil
@@ -1898,10 +1786,9 @@ func TestHTTPHandler_ListPostsAPI_WithCookie(t *testing.T) {
 	}
 
 	container := &mockServiceContainer{
-		postService:   postSvc,
-		filterService: filterSvc,
-		authService:   authSvc,
-		userService:   userSvc,
+		postService: postSvc,
+		authService: authSvc,
+		userService: userSvc,
 	}
 	handler := NewHTTPHandler(container, nil)
 
@@ -1917,8 +1804,6 @@ func TestHTTPHandler_ListPostsAPI_WithCookie(t *testing.T) {
 }
 
 func TestHTTPHandler_LoadMorePostsAPI_InvalidOffset(t *testing.T) {
-	filterSvc := &mockFilterService{}
-
 	postSvc := &mockPostService{
 		listFunc: func(ctx context.Context, filter postDomain.PostFilter) ([]*postDomain.Post, error) {
 			return []*postDomain.Post{}, nil
@@ -1926,8 +1811,7 @@ func TestHTTPHandler_LoadMorePostsAPI_InvalidOffset(t *testing.T) {
 	}
 
 	container := &mockServiceContainer{
-		postService:   postSvc,
-		filterService: filterSvc,
+		postService: postSvc,
 	}
 	handler := NewHTTPHandler(container, nil)
 

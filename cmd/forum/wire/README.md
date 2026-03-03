@@ -16,7 +16,7 @@ cmd/forum/
 │
 └── wire/                # Dependency injection
     ├── app.go           # Main orchestration
-    ├── repos.go         # Repository initialization
+    ├── repositories.go  # Repository initialization
     ├── services.go      # Service initialization + config injection
     ├── handlers.go      # Handler initialization
     └── README.md        # This file
@@ -37,7 +37,7 @@ cmd/forum/
 
 ```go
 // ❌ WRONG: Config in handler constructor
-func NewHTTPHandler(services ServiceContainer, templates *template.Template, maxImageSize int64)
+func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Registry, maxImageSize int64)
 
 // ✅ CORRECT: Config in service constructor  
 func NewService(repo Repository, imageHandler ImageHandler, maxImageSize int64) *Service
@@ -71,7 +71,7 @@ func (sc *ServiceContainer) Post() postPorts.PostService { return sc.post }
 **ALL handlers use the SAME signature:**
 
 ```go
-func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler
+func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Registry) *HTTPHandler
 ```
 
 Each handler defines a **local interface** declaring its dependencies:
@@ -116,10 +116,10 @@ main.go
           │          • Max image size → PostService
           │          • Upload directory → ImageHandler
           │
-          ├─► initHandlers(services, cfg)
+          ├─► initHandlers(services)
           │      └─► Create handlers with ServiceContainer ONLY
           │          • NO config parameters
-          │          • Get config from services when needed
+          │          • Config access comes from ServiceContainer accessors when needed
           │
           └─► initServer(cfg, logger, handlers, db)
                  └─► Configure routes + middleware
@@ -137,7 +137,7 @@ internal/modules/yourmodule/
 └── adapters/       # HTTP handlers + DB repos
 ```
 
-### 2. Update wire/repos.go
+### 2. Update wire/repositories.go
 
 ```go
 type Repositories struct {
@@ -193,11 +193,11 @@ type ServiceContainer interface {
 type HTTPHandler struct {
     yourService yourPorts.YourService
     authService authPorts.AuthService
-    templates   *template.Template
+    templates   *platformTemplates.Registry
 }
 
 // ✅ UNIVERSAL SIGNATURE - no config parameter
-func NewHTTPHandler(services ServiceContainer, templates *template.Template) *HTTPHandler {
+func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Registry) *HTTPHandler {
     return &HTTPHandler{
         yourService: services.YourModule(),
         authService: services.Auth(),
@@ -220,7 +220,7 @@ type Handlers struct {
     YourModule *yourAdapters.HTTPHandler
 }
 
-func initHandlers(services *ServiceContainer, cfg *config.Config) *Handlers {
+func initHandlers(services *ServiceContainer) *Handlers {
     templates, _ := template.ParseGlob("templates/*.html")
     
     return &Handlers{

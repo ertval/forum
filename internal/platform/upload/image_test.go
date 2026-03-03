@@ -4,6 +4,7 @@ package upload
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -273,9 +274,14 @@ func TestImageHandler_Delete_PathTraversal(t *testing.T) {
 }
 
 func TestImageHandler_Save_CreatesDirectory(t *testing.T) {
-	// Use a path that doesn't exist yet
+	// Use a path that doesn't exist yet — NewImageHandler creates it
 	tmpDir := filepath.Join(t.TempDir(), "nested", "uploads")
 	handler := NewImageHandler(tmpDir, testMaxImageSize)
+
+	// Verify the directory was created by the constructor
+	if _, err := os.Stat(tmpDir); os.IsNotExist(err) {
+		t.Fatalf("NewImageHandler() should have created the upload directory")
+	}
 
 	filename, err := handler.Save(jpegMagic)
 	if err != nil {
@@ -290,31 +296,65 @@ func TestImageHandler_Save_CreatesDirectory(t *testing.T) {
 	}
 }
 
+func TestImageHandler_Save_PathBoundaryWithNonCleanUploadDir(t *testing.T) {
+	baseDir := t.TempDir()
+	nonCleanUploadDir := filepath.Join(baseDir, "uploads") + string(filepath.Separator) + ".." + string(filepath.Separator) + "uploads"
+	handler := NewImageHandler(nonCleanUploadDir, testMaxImageSize)
+
+	filename, err := handler.Save(jpegMagic)
+	if err != nil {
+		t.Fatalf("ImageHandler.Save() error = %v", err)
+	}
+
+	storedPath, err := filepath.Abs(filepath.Join(nonCleanUploadDir, filename))
+	if err != nil {
+		t.Fatalf("failed to get abs path for stored file: %v", err)
+	}
+
+	cleanUploadDir, err := filepath.Abs(filepath.Clean(nonCleanUploadDir))
+	if err != nil {
+		t.Fatalf("failed to get abs path for upload dir: %v", err)
+	}
+
+	rel, err := filepath.Rel(cleanUploadDir, storedPath)
+	if err != nil {
+		t.Fatalf("filepath.Rel failed: %v", err)
+	}
+	if strings.HasPrefix(rel, "..") {
+		t.Fatalf("saved file escaped upload dir: rel=%q", rel)
+	}
+}
+
 func TestValidateImage(t *testing.T) {
 	tests := []struct {
-		name    string
-		data    []byte
-		wantErr bool
+		name     string
+		data     []byte
+		wantMIME string
+		wantErr  bool
 	}{
 		{
-			name:    "valid JPEG",
-			data:    jpegMagic,
-			wantErr: false,
+			name:     "valid JPEG",
+			data:     jpegMagic,
+			wantMIME: "image/jpeg",
+			wantErr:  false,
 		},
 		{
-			name:    "valid PNG",
-			data:    pngMagic,
-			wantErr: false,
+			name:     "valid PNG",
+			data:     pngMagic,
+			wantMIME: "image/png",
+			wantErr:  false,
 		},
 		{
-			name:    "valid GIF",
-			data:    gifMagic,
-			wantErr: false,
+			name:     "valid GIF",
+			data:     gifMagic,
+			wantMIME: "image/gif",
+			wantErr:  false,
 		},
 		{
-			name:    "valid WebP",
-			data:    webpMagic,
-			wantErr: false,
+			name:     "valid WebP",
+			data:     webpMagic,
+			wantMIME: "image/webp",
+			wantErr:  false,
 		},
 		{
 			name:    "invalid type",
@@ -330,9 +370,12 @@ func TestValidateImage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateImage(tt.data, testMaxImageSize)
+			mimeType, err := ValidateImage(tt.data, testMaxImageSize)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateImage() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !tt.wantErr && mimeType != tt.wantMIME {
+				t.Errorf("ValidateImage() mimeType = %q, want %q", mimeType, tt.wantMIME)
 			}
 		})
 	}
@@ -414,5 +457,19 @@ func TestValidateFilename(t *testing.T) {
 				t.Errorf("validateFilename() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestImageHandler_ConstructorMkdirErrorIsNotIgnored(t *testing.T) {
+	base := t.TempDir()
+	notDir := filepath.Join(base, "uploads-file")
+	if err := os.WriteFile(notDir, []byte("x"), 0644); err != nil {
+		t.Fatalf("failed to create blocking file: %v", err)
+	}
+
+	handler := NewImageHandler(filepath.Join(notDir, "child"), testMaxImageSize)
+
+	if _, err := handler.Save(jpegMagic); err == nil {
+		t.Fatal("expected Save to return constructor mkdir error, got nil")
 	}
 }

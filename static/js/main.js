@@ -1,7 +1,7 @@
 // Forum Application JavaScript
 'use strict';
 
-// User Menu Dropdown Toggle
+// === DROPDOWN MENU ===
 // The script is loaded at the end of body, so DOM is already ready
 (function() {
     const userMenuBtn = document.getElementById('user-menu-btn');
@@ -37,7 +37,7 @@
     }
 })();
 
-// Notification Badge - Fetch unread count and update badge in user card/dropdown
+// === NOTIFICATION BADGE ===
 (function() {
     const notificationBadges = document.querySelectorAll('[data-notification-badge]');
     if (!notificationBadges.length) {
@@ -62,44 +62,42 @@
         });
     }
 
-    fetch('/api/notifications', {
-        headers: {
-            Accept: 'application/json'
-        }
-    })
-        .then(function(response) {
-            if (!response.ok) {
-                throw new Error('Failed to load notifications');
-            }
-            return response.json();
-        })
+    // Check if we are on the activity page — if so, mark all as read
+    var isActivityPage = window.location.pathname === '/activity';
+
+    window.api.request('/api/notifications')
         .then(function(payload) {
+            var unreadCount = 0;
             if (typeof payload.unread_count === 'number') {
-                updateBadges(payload.unread_count);
-                return;
+                unreadCount = payload.unread_count;
+            } else if (Array.isArray(payload.notifications)) {
+                unreadCount = payload.notifications.reduce(function(total, notification) {
+                    if (notification && notification.is_read === false) {
+                        return total + 1;
+                    }
+                    return total;
+                }, 0);
             }
 
-            if (!Array.isArray(payload.notifications)) {
-                updateBadges(0);
-                return;
+            // On the activity page, mark all notifications as read
+            if (isActivityPage && unreadCount > 0) {
+                window.api.request('/api/notifications/read-all', { method: 'PUT' })
+                    .then(function() {
+                        updateBadges(0);
+                    })
+                    .catch(function() {
+                        updateBadges(unreadCount);
+                    });
+            } else {
+                updateBadges(unreadCount);
             }
-
-            const unreadCount = payload.notifications.reduce(function(total, notification) {
-                if (notification && notification.is_read === false) {
-                    return total + 1;
-                }
-                return total;
-            }, 0);
-
-            updateBadges(unreadCount);
         })
         .catch(function() {
             updateBadges(0);
         });
 })();
 
-// Clickable Card - Makes entire post card clickable (except links and buttons)
-// Using event delegation for reliability with dynamically loaded content
+// === CLICKABLE CARDS ===
 (function() {
     document.addEventListener('click', function(event) {
         // Find the closest clickable-card ancestor
@@ -123,4 +121,56 @@
             window.location.href = href;
         }
     });
+})();
+
+// === AVATAR PREVIEW ===
+(function() {
+    var avatarInput = document.getElementById('avatar');
+    var previewContainer = document.getElementById('avatar-preview');
+    var previewImg = document.getElementById('avatar-preview-img');
+
+    if (avatarInput && previewContainer && previewImg) {
+        avatarInput.addEventListener('change', function() {
+            var file = this.files && this.files[0];
+            if (!file) {
+                previewContainer.style.display = 'none';
+                return;
+            }
+
+            if (!file.type.match(/^image\/(jpeg|png|gif|webp)$/)) {
+                previewContainer.style.display = 'none';
+                return;
+            }
+
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                previewImg.src = e.target.result;
+                previewContainer.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+
+            // Update file name display
+            var fileNameSpan = avatarInput.closest('.file-input-wrapper');
+            if (fileNameSpan) {
+                var span = fileNameSpan.querySelector('.file-name');
+                if (span) {
+                    span.textContent = file.name;
+                }
+            }
+        });
+    }
+
+    // === AVATAR REMOVAL ===
+    var removeBtn = document.getElementById('remove-avatar-btn');
+    var deleteField = document.getElementById('delete_avatar');
+
+    if (removeBtn && deleteField) {
+        removeBtn.addEventListener('click', function() {
+            if (!confirm('Remove your avatar and revert to default?')) {
+                return;
+            }
+            deleteField.value = 'true';
+            removeBtn.closest('form').submit();
+        });
+    }
 })();

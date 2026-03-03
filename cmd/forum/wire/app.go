@@ -52,20 +52,28 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 	}
 
 	// 2. Initialize Repositories (Output Adapters)
-	repos := initRepositories(db.DB())
+	repos, err := initRepositories(db.DB())
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("initialize repositories: %w", err)
+	}
 
 	// 3. Initialize Services (Application Layer)
 	services := initServices(repos, cfg, lgr)
 
 	// 4. Initialize HTTP Handlers (Input Adapters)
-	handlers, err := initHandlers(services, cfg)
+	handlers, err := initHandlers(services)
 	if err != nil {
 		db.Close()
 		return nil, fmt.Errorf("initialize handlers: %w", err)
 	}
 
 	// 5. Initialize HTTP Server
-	server := initServer(cfg, lgr, handlers, db.DB())
+	server, err := initServer(cfg, lgr, handlers, db.DB())
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("initialize server: %w", err)
+	}
 
 	lgr.Info("Application initialization complete")
 
@@ -80,7 +88,11 @@ func InitializeApp(cfg *config.Config, lgr *logger.Logger) (*App, error) {
 func initDatabase(cfg *config.Config, lgr *logger.Logger) (*database.Connection, error) {
 	lgr.Info("Connecting to database")
 
-	dbConn, err := database.NewConnection(cfg.Database.Path)
+	dbConn, err := database.NewConnectionWithConfig(cfg.Database.Path, database.ConnectionConfig{
+		MaxOpenConns:    cfg.Database.MaxOpenConns,
+		MaxIdleConns:    cfg.Database.MaxIdleConns,
+		ConnMaxLifetime: cfg.Database.ConnMaxLifetime,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("database connection: %w", err)
 	}
@@ -98,26 +110,27 @@ func initDatabase(cfg *config.Config, lgr *logger.Logger) (*database.Connection,
 }
 
 // initServer creates and configures the HTTP server with all routes and middleware.
-func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *sql.DB) *httpserver.Server {
+func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *sql.DB) (*httpserver.Server, error) {
 	lgr.Info("Initializing HTTP server")
 
 	if err := os.MkdirAll(cfg.Upload.UploadDir, 0755); err != nil {
-		lgr.Error("Failed to initialize upload directory", logger.Error(err))
-		panic(fmt.Errorf("failed to initialize upload directory: %w", err))
+		return nil, fmt.Errorf("failed to initialize upload directory: %w", err)
 	}
 
 	// Create server with config as single source of truth
 	server := httpserver.New(cfg)
 
-	// Register global middleware in correct order: recovery -> logger -> security headers -> rate limit -> cors
+	// Register global middleware in correct order: recovery -> logger -> security headers -> cors -> rate limit
 	server.RegisterMiddleware(httpserver.Recovery(lgr))
 	server.RegisterMiddleware(httpserver.Logger(lgr))
 	server.RegisterMiddleware(httpserver.SecurityHeaders(httpserver.DefaultSecurityHeadersConfig()))
 	server.RegisterMiddleware(httpserver.CORS([]string{"*"}))
-	server.RegisterMiddleware(httpserver.RateLimit(
+	rateLimitMiddleware, rateLimitStop := httpserver.RateLimit(
 		cfg.Security.RateLimitRequests,
 		int(cfg.Security.RateLimitWindow.Seconds()),
-	))
+	)
+	server.RegisterMiddleware(rateLimitMiddleware)
+	server.OnShutdown(rateLimitStop)
 
 	// Register module routes first so they are available for the health check
 	handlers.Auth.RegisterRoutes(server.Router())
@@ -131,14 +144,14 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *
 	// Create health checker after routes are registered
 	healthChecker := health.NewChecker(db, server.Router())
 
-	// Register health check routes with proper configuration
-	server.Router().Handle("GET /health", httpserver.HealthPage(httpserver.HealthPageConfig{
-		Checker:          healthChecker,
-		Templates:        handlers.Post.Templates(), // Reuse shared templates
-		AuthFunc:         handlers.Auth.GetCurrentUser,
-		GetUserWithStats: handlers.Post.GetUserWithStats,
-	}))
-	server.Router().Handle("GET /health-api", httpserver.HealthAPI(healthChecker))
+	// Register health check routes with the same pattern as module routes
+	healthHandler := httpserver.NewHealthHandler(
+		healthChecker,
+		handlers.Templates,
+		handlers.Auth.GetCurrentUser,
+		handlers.Post.GetUserWithStats,
+	)
+	healthHandler.RegisterRoutes(server.Router())
 
 	// Serve static files (optional - skip if directory doesn't exist or isn't a directory)
 	if info, err := os.Stat("./static"); err == nil && info.IsDir() {
@@ -146,5 +159,5 @@ func initServer(cfg *config.Config, lgr *logger.Logger, handlers *Handlers, db *
 		server.Router().Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 	}
 
-	return server
+	return server, nil
 }

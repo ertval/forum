@@ -13,14 +13,15 @@ set -e
 BASE_URL="http://localhost:8080"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DB_PATH="${PROJECT_ROOT}/data/forum.db"
-SESSION_COOKIE=""
 SESSION_COOKIE_FILE="/tmp/forum_audit_session.txt"
+OLD_SESSION_COOKIE_FILE="/tmp/forum_audit_old_session.txt"
+CLEANUP_COOKIE_FILE="/tmp/forum_audit_cleanup_session.txt"
 SERVER_PID=""
 SERVER_LOG="/tmp/forum_audit_server.log"
 
 # Test user credentials (from seed data)
 TEST_EMAIL="testuser@example.com"
-TEST_PASSWORD="password123"
+TEST_PASSWORD="Password123"
 TEST_EMAIL2="testuser2@example.com"
 
 # Colors
@@ -72,8 +73,8 @@ print_answer() {
     echo ""
 }
 
-extract_session_cookie() {
-    echo "$1" | grep -i "set-cookie" | grep "session_token" | sed 's/.*session_token=\([^;]*\).*/\1/' | head -n 1
+has_session_cookie() {
+    [ -f "$1" ] && grep -q "session_token" "$1"
 }
 
 extract_json_field() {
@@ -120,18 +121,18 @@ cleanup() {
     echo ""
     
     # Re-login to get a fresh session for cleanup
-    if [ -n "$SESSION_COOKIE" ] || [ ${#CREATED_POSTS[@]} -gt 0 ] || [ ${#CREATED_COMMENTS[@]} -gt 0 ]; then
-        RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+    if [ ${#CREATED_POSTS[@]} -gt 0 ] || [ ${#CREATED_COMMENTS[@]} -gt 0 ]; then
+        RESPONSE=$(curl -s -w "\n%{http_code}" -c "$CLEANUP_COOKIE_FILE" -X POST "$BASE_URL/api/auth/login" \
             -H "Content-Type: application/json" \
             -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}" 2>/dev/null)
-        CLEANUP_SESSION=$(extract_session_cookie "$RESPONSE")
+        HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
         
-        if [ -n "$CLEANUP_SESSION" ]; then
+        if [ "$HTTP_CODE" = "200" ] && has_session_cookie "$CLEANUP_COOKIE_FILE"; then
             # Delete created posts (this will cascade delete comments and reactions)
             for post_id in "${CREATED_POSTS[@]}"; do
                 if [ -n "$post_id" ]; then
                     curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
-                        -H "Cookie: session_token=$CLEANUP_SESSION" > /dev/null 2>&1
+                        -b "$CLEANUP_COOKIE_FILE" > /dev/null 2>&1
                 fi
             done
             
@@ -139,7 +140,7 @@ cleanup() {
             for comment_id in "${CREATED_COMMENTS[@]}"; do
                 if [ -n "$comment_id" ]; then
                     curl -s -X DELETE "$BASE_URL/api/comments/$comment_id" \
-                        -H "Cookie: session_token=$CLEANUP_SESSION" > /dev/null 2>&1
+                        -b "$CLEANUP_COOKIE_FILE" > /dev/null 2>&1
                 fi
             done
         fi
@@ -161,7 +162,7 @@ cleanup() {
     if [ -n "$SERVER_PID" ]; then
         kill $SERVER_PID 2>/dev/null || true
     fi
-    rm -f "$SESSION_COOKIE_FILE"
+    rm -f "$SESSION_COOKIE_FILE" "$OLD_SESSION_COOKIE_FILE" "$CLEANUP_COOKIE_FILE"
 }
 trap cleanup EXIT
 
@@ -234,7 +235,7 @@ print_question "Does the project detect if the email or user name is already tak
 # Use valid "Name Surname" format for username
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"Unique Testname\",\"password\":\"password123\"}")
+    -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"Unique Testname\",\"password\":\"Password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | head -n -1)
 EMAIL_CHECK_PASSED=false
@@ -250,7 +251,7 @@ fi
 EXISTING_USERNAME=$(sqlite3 "$DB_PATH" "SELECT username FROM users LIMIT 1;" 2>/dev/null)
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"unique_$(date +%s)@test.com\",\"username\":\"$EXISTING_USERNAME\",\"password\":\"password123\"}")
+    -d "{\"email\":\"unique_$(date +%s)@test.com\",\"username\":\"$EXISTING_USERNAME\",\"password\":\"Password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | head -n -1)
 USERNAME_CHECK_PASSED=false
@@ -278,7 +279,7 @@ TIMESTAMP=$(date +%s)
 AUDIT_USERNAME="Audit User"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"audit_${TIMESTAMP}@test.com\",\"username\":\"${AUDIT_USERNAME}\",\"password\":\"password123\"}")
+    -d "{\"email\":\"audit_${TIMESTAMP}@test.com\",\"username\":\"${AUDIT_USERNAME}\",\"password\":\"Password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "201" ]; then
     print_answer "YES" "Successfully registered new user"
@@ -294,12 +295,11 @@ fi
 print_question "Try to login - Can you login and have all the rights of a registered user?"
 RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
     -H "Content-Type: application/json" \
+    -c "$SESSION_COOKIE_FILE" \
     -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}")
 HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP" | tail -n1 | awk '{print $2}')
-SESSION_COOKIE=$(extract_session_cookie "$RESPONSE")
-echo "$SESSION_COOKIE" > "$SESSION_COOKIE_FILE"
 
-if [ "$HTTP_CODE" = "200" ] && [ -n "$SESSION_COOKIE" ]; then
+if [ "$HTTP_CODE" = "200" ] && has_session_cookie "$SESSION_COOKIE_FILE"; then
     print_answer "YES" "Login successful with session token"
 else
     print_answer "NO" "Login failed (HTTP $HTTP_CODE)"
@@ -319,9 +319,9 @@ fi
 
 # Q: Are sessions present in the project?
 print_question "Are sessions present in the project?"
-if [ -n "$SESSION_COOKIE" ]; then
+if has_session_cookie "$SESSION_COOKIE_FILE"; then
     RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/api/auth/session" \
-        -H "Cookie: session_token=$SESSION_COOKIE")
+        -b "$SESSION_COOKIE_FILE")
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     if [ "$HTTP_CODE" = "200" ]; then
         print_answer "YES" "Session validation endpoint works"
@@ -345,22 +345,18 @@ fi
 # Q: Only one active session per user?
 print_question "Login in two browsers - Can you confirm only one has an active session?"
 # Login again (should invalidate previous)
-OLD_SESSION="$SESSION_COOKIE"
-RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+cp "$SESSION_COOKIE_FILE" "$OLD_SESSION_COOKIE_FILE" 2>/dev/null || true
+RESPONSE=$(curl -s -w "\n%{http_code}" -c "$SESSION_COOKIE_FILE" -X POST "$BASE_URL/api/auth/login" \
     -H "Content-Type: application/json" \
     -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}")
-NEW_SESSION=$(extract_session_cookie "$RESPONSE")
 
 # Check if old session is invalidated
 OLD_CHECK=$(curl -s -w "\n%{http_code}" "$BASE_URL/api/auth/session" \
-    -H "Cookie: session_token=$OLD_SESSION" | tail -n1)
+    -b "$OLD_SESSION_COOKIE_FILE" | tail -n1)
 if [ "$OLD_CHECK" = "401" ]; then
     print_answer "YES" "Old session invalidated on new login"
-    SESSION_COOKIE="$NEW_SESSION"
-    echo "$SESSION_COOKIE" > "$SESSION_COOKIE_FILE"
 else
     print_answer "NO" "Multiple sessions allowed (may be by design)"
-    SESSION_COOKIE="$NEW_SESSION"
 fi
 
 # Q: Post/comment visible on both browsers after creation?
@@ -368,7 +364,7 @@ print_question "Create post in one browser - Does it present on both browsers?"
 # Create a post
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -b "$SESSION_COOKIE_FILE" \
     -d '{"title":"Audit Test Post","content":"Testing visibility","categories":["Tests"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
@@ -537,7 +533,7 @@ print_question "Enter as registered user - Can you create a comment on a post?"
 POST_ID=$(sqlite3 "$DB_PATH" "SELECT public_id FROM posts LIMIT 1;" 2>/dev/null)
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/comments/posts/$POST_ID" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -b "$SESSION_COOKIE_FILE" \
     -d '{"content":"Audit test comment"}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
@@ -553,7 +549,7 @@ fi
 print_question "Try to create an empty comment - Were you forbidden?"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/comments/posts/$POST_ID" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -b "$SESSION_COOKIE_FILE" \
     -d '{"content":""}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "400" ]; then
@@ -566,7 +562,7 @@ fi
 print_question "Enter as registered user - Can you create a post?"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -b "$SESSION_COOKIE_FILE" \
     -d '{"title":"Audit Functional Test","content":"Testing post creation","categories":["Tests"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
@@ -582,7 +578,7 @@ fi
 print_question "Try to create an empty post - Were you forbidden?"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -b "$SESSION_COOKIE_FILE" \
     -d '{"title":"","content":"","categories":[]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "400" ]; then
@@ -595,7 +591,7 @@ fi
 print_question "Can you choose several categories for a post?"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -b "$SESSION_COOKIE_FILE" \
     -d '{"title":"Multi Category Test","content":"Testing multiple categories","categories":["Technology","General"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
@@ -611,7 +607,7 @@ fi
 print_question "Can you choose a category for a post?"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -b "$SESSION_COOKIE_FILE" \
     -d '{"title":"Single Category Test","content":"Testing single category","categories":["Tests"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
@@ -627,7 +623,7 @@ fi
 print_question "Can you like or dislike a post?"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/reactions" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -b "$SESSION_COOKIE_FILE" \
     -d "{\"target_type\":\"post\",\"target_id\":\"$POST_ID\",\"type\":\"like\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ]; then
@@ -643,7 +639,7 @@ print_question "Can you like or dislike a comment?"
 COMMENT_ID=$(sqlite3 "$DB_PATH" "SELECT public_id FROM comments LIMIT 1;" 2>/dev/null)
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/reactions" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -b "$SESSION_COOKIE_FILE" \
     -d "{\"target_type\":\"comment\",\"target_id\":\"$COMMENT_ID\",\"type\":\"like\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ]; then
@@ -657,7 +653,7 @@ fi
 # Q: See created posts?
 print_question "Can you see all of your created posts?"
 RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/board?my_posts=true" \
-    -H "Cookie: session_token=$SESSION_COOKIE")
+    -b "$SESSION_COOKIE_FILE")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "200" ]; then
     print_answer "YES" "User's posts filter available"
@@ -667,8 +663,8 @@ fi
 
 # Q: See liked posts?
 print_question "Can you see all of your liked posts?"
-RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/board?liked=true" \
-    -H "Cookie: session_token=$SESSION_COOKIE")
+RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/board?liked_posts=true" \
+    -b "$SESSION_COOKIE_FILE")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "200" ]; then
     print_answer "YES" "Liked posts filter available"

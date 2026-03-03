@@ -22,12 +22,18 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// 2. Initialize Logger (level from config)
+	// 2. Initialize Logger (level from LOG_LEVEL env var)
 	logLevel := logger.InfoLevel
-	if cfg.Logger.Level == "DEBUG" {
+	if os.Getenv("LOG_LEVEL") == "DEBUG" {
 		logLevel = logger.DebugLevel
 	}
 	lgr := logger.New(logLevel, os.Stdout)
+
+	// 2a. Warn if session secret is not explicitly configured outside development
+	if cfg.IsDefaultSecret() && cfg.Server.Environment != "development" {
+		lgr.Warn("session.secret.default",
+			logger.String("warning", "SESSION_SECRET not set, using auto-generated secret. Set SESSION_SECRET env var for production use."))
+	}
 
 	// 3. Initialize Application (all wiring happens in wire package)
 	app, err := wire.InitializeApp(cfg, lgr)
@@ -45,15 +51,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	httpAddr := fmt.Sprintf("http://%s:%d", cfg.Server.Host, cfg.Server.Port)
-	httpsAddr := fmt.Sprintf("https://%s:%d", cfg.Server.Host, cfg.Server.TLSPort)
+	lgr.Info("Forum server started")
 
-	urls := httpAddr
+	fmt.Fprintf(os.Stderr, "\n  ➜  Local: http://%s:%d\n", cfg.Server.Host, cfg.Server.Port)
 	if cfg.Security.TLSCertFile != "" && cfg.Security.TLSKeyFile != "" {
-		urls += " " + httpsAddr
+		fmt.Fprintf(os.Stderr, "  ➜  Local (TLS): https://%s:%d\n", cfg.Server.Host, cfg.Server.TLSPort)
 	}
-
-	lgr.Info("Forum server started", logger.String("", urls))
+	fmt.Fprintln(os.Stderr)
 
 	// 5. Graceful Shutdown
 	quit := make(chan os.Signal, 1)

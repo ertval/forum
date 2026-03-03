@@ -13,13 +13,15 @@ set -e
 BASE_URL="http://localhost:8080"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DB_PATH="${PROJECT_ROOT}/data/forum.db"
-SESSION_COOKIE=""
 SERVER_PID=""
 SERVER_LOG="/tmp/forum_api_server.log"
+COOKIE_JAR="/tmp/forum_api_cookie_jar_$$.txt"
+COOKIE_JAR2="/tmp/forum_api_cookie_jar2_$$.txt"
+CLEANUP_COOKIE_JAR="/tmp/forum_api_cleanup_cookie_jar_$$.txt"
 
 # Test user credentials (from seed data)
 TEST_EMAIL="testuser@example.com"
-TEST_PASSWORD="password123"
+TEST_PASSWORD="Password123"
 TEST_EMAIL2="testuser2@example.com"
 
 # Performance thresholds
@@ -72,8 +74,9 @@ print_test() {
     fi
 }
 
-extract_session_cookie() {
-    echo "$1" | grep -i "set-cookie" | grep "session_token" | sed 's/.*session_token=\([^;]*\).*/\1/' | head -n 1
+has_cookie_jar_session() {
+    local jar_file="$1"
+    [ -f "$jar_file" ] && grep -qv '^#' "$jar_file"
 }
 
 extract_json_field() {
@@ -143,19 +146,21 @@ cleanup() {
     # Re-login to get a fresh session for cleanup
     if [ ${#CREATED_POSTS[@]} -gt 0 ] || [ ${#CREATED_COMMENTS[@]} -gt 0 ] || [ ${#CREATED_USERS[@]} -gt 0 ]; then
         if check_server_running; then
-            RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/login" \
+                -c "$CLEANUP_COOKIE_JAR" \
                 -H "Content-Type: application/json" \
                 -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}" 2>/dev/null)
-            CLEANUP_SESSION=$(extract_session_cookie "$RESPONSE")
+            CLEANUP_HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
             
-            if [ -n "$CLEANUP_SESSION" ]; then
+            if [ "$CLEANUP_HTTP_CODE" = "200" ] && has_cookie_jar_session "$CLEANUP_COOKIE_JAR"; then
                 # Delete created posts (this will cascade delete comments and reactions)
                 if [ ${#CREATED_POSTS[@]} -gt 0 ]; then
                     echo "Cleaning up ${#CREATED_POSTS[@]} test post(s)..."
                     for post_id in "${CREATED_POSTS[@]}"; do
                         if [ -n "$post_id" ]; then
                             curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
-                                -H "Cookie: session_token=$CLEANUP_SESSION" > /dev/null 2>&1 || true
+                                -b "$CLEANUP_COOKIE_JAR" \
+                                -c "$CLEANUP_COOKIE_JAR" > /dev/null 2>&1 || true
                         fi
                     done
                 fi
@@ -166,7 +171,8 @@ cleanup() {
                     for comment_id in "${CREATED_COMMENTS[@]}"; do
                         if [ -n "$comment_id" ]; then
                             curl -s -X DELETE "$BASE_URL/api/comments/$comment_id" \
-                                -H "Cookie: session_token=$CLEANUP_SESSION" > /dev/null 2>&1 || true
+                                -b "$CLEANUP_COOKIE_JAR" \
+                                -c "$CLEANUP_COOKIE_JAR" > /dev/null 2>&1 || true
                         fi
                     done
                 fi
@@ -198,6 +204,8 @@ cleanup() {
             fi
         done
     fi
+
+    rm -f "$COOKIE_JAR" "$COOKIE_JAR2" "$CLEANUP_COOKIE_JAR"
     
     echo -e "${GREEN}✓ Test data cleaned up${NC}"
     echo ""
@@ -251,7 +259,7 @@ RANDOM_SUFFIX=$(cat /dev/urandom | tr -dc 'a-z' | fold -w 6 | head -n 1)
 TEST_USERNAME="Apitest ${RANDOM_SUFFIX^}"  # First letter uppercase, rest lowercase
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"api_${TIMESTAMP}@test.com\",\"username\":\"${TEST_USERNAME}\",\"password\":\"password123\"}")
+    -d "{\"email\":\"api_${TIMESTAMP}@test.com\",\"username\":\"${TEST_USERNAME}\",\"password\":\"Password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "201" ]; then
     print_test "POST /api/auth/register - Valid registration" "PASS"
@@ -268,7 +276,7 @@ fi
 # Use valid "Name Surname" format for username
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"Unique Testname\",\"password\":\"password123\"}")
+    -d "{\"email\":\"$TEST_EMAIL\",\"username\":\"Unique Testname\",\"password\":\"Password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | head -n -1)
 if [ "$HTTP_CODE" = "409" ]; then
@@ -285,7 +293,7 @@ fi
 EXISTING_USERNAME=$(sqlite3 "$DB_PATH" "SELECT username FROM users LIMIT 1;" 2>/dev/null)
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"unique_$(date +%s)@test.com\",\"username\":\"$EXISTING_USERNAME\",\"password\":\"password123\"}")
+    -d "{\"email\":\"unique_$(date +%s)@test.com\",\"username\":\"$EXISTING_USERNAME\",\"password\":\"Password123\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | head -n -1)
 if [ "$HTTP_CODE" = "409" ]; then
@@ -301,7 +309,7 @@ fi
 # Registration - invalid email format
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/register" \
     -H "Content-Type: application/json" \
-    -d '{"email":"invalid","username":"Test User","password":"password123"}')
+    -d '{"email":"invalid","username":"Test User","password":"Password123"}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "400" ]; then
     print_test "POST /api/auth/register - Invalid email format (400)" "PASS"
@@ -333,11 +341,11 @@ fi
 
 # Login - valid credentials
 RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+    -c "$COOKIE_JAR" \
     -H "Content-Type: application/json" \
     -d "{\"email\":\"$TEST_EMAIL\",\"password\":\"$TEST_PASSWORD\"}")
 HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP" | tail -n1 | awk '{print $2}')
-SESSION_COOKIE=$(extract_session_cookie "$RESPONSE")
-if [ "$HTTP_CODE" = "200" ] && [ -n "$SESSION_COOKIE" ]; then
+if [ "$HTTP_CODE" = "200" ] && has_cookie_jar_session "$COOKIE_JAR"; then
     print_test "POST /api/auth/login - Valid credentials (200)" "PASS"
 else
     print_test "POST /api/auth/login - Valid credentials (200)" "FAIL" "Expected 200 with session, got $HTTP_CODE"
@@ -357,7 +365,7 @@ fi
 # Login - non-existent user
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/login" \
     -H "Content-Type: application/json" \
-    -d '{"email":"nonexistent@test.com","password":"password123"}')
+    -d '{"email":"nonexistent@test.com","password":"Password123"}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "401" ]; then
     print_test "POST /api/auth/login - Non-existent user (401)" "PASS"
@@ -367,7 +375,7 @@ fi
 
 # Session validation
 RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/api/auth/session" \
-    -H "Cookie: session_token=$SESSION_COOKIE")
+    -b "$COOKIE_JAR")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "200" ]; then
     print_test "GET /api/auth/session - Valid session (200)" "PASS"
@@ -412,8 +420,9 @@ fi
 
 # Create post - valid
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
+    -b "$COOKIE_JAR" \
+    -c "$COOKIE_JAR" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
     -d '{"title":"API Test Post","content":"Testing post creation","categories":["Tests"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
@@ -427,8 +436,9 @@ fi
 
 # Create post - empty title
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
+    -b "$COOKIE_JAR" \
+    -c "$COOKIE_JAR" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
     -d '{"title":"","content":"Content","categories":["Tests"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "400" ]; then
@@ -439,8 +449,9 @@ fi
 
 # Create post - no categories
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
+    -b "$COOKIE_JAR" \
+    -c "$COOKIE_JAR" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
     -d '{"title":"Test","content":"Test","categories":[]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "400" ]; then
@@ -483,8 +494,9 @@ fi
 # Update post - own post
 if [ -n "$POST_ID" ]; then
     RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "$BASE_URL/api/posts/$POST_ID" \
+        -b "$COOKIE_JAR" \
+        -c "$COOKIE_JAR" \
         -H "Content-Type: application/json" \
-        -H "Cookie: session_token=$SESSION_COOKIE" \
         -d '{"title":"Updated Title","content":"Updated content","categories":["Tests"]}')
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
@@ -496,14 +508,16 @@ fi
 
 # Delete post - create one to delete
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
+    -b "$COOKIE_JAR" \
+    -c "$COOKIE_JAR" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
     -d '{"title":"To Delete","content":"Will be deleted","categories":["Tests"]}')
 DELETE_ID=$(extract_json_field "$(echo "$RESPONSE" | sed '$d')" "id")
 
 if [ -n "$DELETE_ID" ]; then
     RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE "$BASE_URL/api/posts/$DELETE_ID" \
-        -H "Cookie: session_token=$SESSION_COOKIE")
+        -b "$COOKIE_JAR" \
+        -c "$COOKIE_JAR")
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
         print_test "DELETE /api/posts/:id - Delete own post (204)" "PASS"
@@ -543,8 +557,9 @@ fi
 
 # Create comment - valid
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/comments/posts/$SEED_POST_ID" \
+    -b "$COOKIE_JAR" \
+    -c "$COOKIE_JAR" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
     -d '{"content":"API test comment"}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
@@ -558,8 +573,9 @@ fi
 
 # Create comment - empty content
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/comments/posts/$SEED_POST_ID" \
+    -b "$COOKIE_JAR" \
+    -c "$COOKIE_JAR" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
     -d '{"content":""}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "400" ]; then
@@ -595,8 +611,9 @@ fi
 
 # Like post
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/reactions" \
+    -b "$COOKIE_JAR" \
+    -c "$COOKIE_JAR" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
     -d "{\"target_type\":\"post\",\"target_id\":\"$SEED_POST_ID\",\"type\":\"like\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "501" ]; then
@@ -612,15 +629,17 @@ print_section "AUTHORIZATION & SECURITY"
 
 # Login as second user
 RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+    -c "$COOKIE_JAR2" \
     -H "Content-Type: application/json" \
     -d "{\"email\":\"$TEST_EMAIL2\",\"password\":\"$TEST_PASSWORD\"}")
-SESSION_COOKIE2=$(extract_session_cookie "$RESPONSE")
+HTTP_CODE2=$(echo "$RESPONSE" | grep "HTTP" | tail -n1 | awk '{print $2}')
 
 # Try to update another user's post
-if [ -n "$POST_ID" ] && [ -n "$SESSION_COOKIE2" ]; then
+if [ -n "$POST_ID" ] && [ "$HTTP_CODE2" = "200" ] && has_cookie_jar_session "$COOKIE_JAR2"; then
     RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "$BASE_URL/api/posts/$POST_ID" \
+        -b "$COOKIE_JAR2" \
+        -c "$COOKIE_JAR2" \
         -H "Content-Type: application/json" \
-        -H "Cookie: session_token=$SESSION_COOKIE2" \
         -d '{"title":"Hacked","content":"Hacked"}')
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     if [ "$HTTP_CODE" = "403" ] || [ "$HTTP_CODE" = "401" ]; then
@@ -631,9 +650,10 @@ if [ -n "$POST_ID" ] && [ -n "$SESSION_COOKIE2" ]; then
 fi
 
 # Try to delete another user's post
-if [ -n "$POST_ID" ] && [ -n "$SESSION_COOKIE2" ]; then
+if [ -n "$POST_ID" ] && [ "$HTTP_CODE2" = "200" ] && has_cookie_jar_session "$COOKIE_JAR2"; then
     RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE "$BASE_URL/api/posts/$POST_ID" \
-        -H "Cookie: session_token=$SESSION_COOKIE2")
+        -b "$COOKIE_JAR2" \
+        -c "$COOKIE_JAR2")
     HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
     if [ "$HTTP_CODE" = "403" ] || [ "$HTTP_CODE" = "401" ]; then
         print_test "DELETE /api/posts/:id - Cannot delete others' posts (403)" "PASS"
@@ -644,8 +664,9 @@ fi
 
 # SQL injection test
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
+    -b "$COOKIE_JAR" \
+    -c "$COOKIE_JAR" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
     -d '{"title":"Test'\'' OR 1=1; DROP TABLE posts; --","content":"SQL test","categories":["Tests"]}')
 BODY=$(echo "$RESPONSE" | sed '$d')
 SQL_TEST_POST_ID=$(extract_json_field "$BODY" "id")
@@ -660,8 +681,9 @@ fi
 
 # XSS test (just verify it doesn't crash)
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
+    -b "$COOKIE_JAR" \
+    -c "$COOKIE_JAR" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
     -d '{"title":"<script>alert(1)</script>","content":"XSS test","categories":["Tests"]}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
@@ -708,7 +730,8 @@ fi
 
 # Logout test
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/logout" \
-    -H "Cookie: session_token=$SESSION_COOKIE")
+    -b "$COOKIE_JAR" \
+    -c "$COOKIE_JAR")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
     print_test "POST /api/auth/logout - Logout works (200)" "PASS"
@@ -718,7 +741,7 @@ fi
 
 # Session invalid after logout
 RESPONSE=$(curl -s -w "\n%{http_code}" "$BASE_URL/api/auth/session" \
-    -H "Cookie: session_token=$SESSION_COOKIE")
+    -b "$COOKIE_JAR")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "401" ]; then
     print_test "Session invalidated after logout" "PASS"

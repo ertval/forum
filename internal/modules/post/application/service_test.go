@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"forum/internal/modules/post/domain"
 	userDomain "forum/internal/modules/user/domain"
 	"testing"
@@ -70,11 +71,12 @@ func (m *mockPostRepository) GetImagePath(ctx context.Context, postID string) (s
 }
 
 type mockCategoryRepository struct {
-	createFunc    func(ctx context.Context, category *domain.Category) error
-	getByIDFunc   func(ctx context.Context, categoryID string) (*domain.Category, error)
-	getByNameFunc func(ctx context.Context, name string) (*domain.Category, error)
-	listFunc      func(ctx context.Context) ([]*domain.Category, error)
-	deleteFunc    func(ctx context.Context, categoryID string) error
+	createFunc     func(ctx context.Context, category *domain.Category) error
+	getByIDFunc    func(ctx context.Context, categoryID string) (*domain.Category, error)
+	getByNameFunc  func(ctx context.Context, name string) (*domain.Category, error)
+	getByNamesFunc func(ctx context.Context, names []string) ([]domain.Category, error)
+	listFunc       func(ctx context.Context) ([]*domain.Category, error)
+	deleteFunc     func(ctx context.Context, categoryID string) error
 }
 
 func (m *mockCategoryRepository) Create(ctx context.Context, category *domain.Category) error {
@@ -96,6 +98,18 @@ func (m *mockCategoryRepository) GetByName(ctx context.Context, name string) (*d
 		return m.getByNameFunc(ctx, name)
 	}
 	return nil, nil
+}
+
+func (m *mockCategoryRepository) GetByNames(ctx context.Context, names []string) ([]domain.Category, error) {
+	if m.getByNamesFunc != nil {
+		return m.getByNamesFunc(ctx, names)
+	}
+	// Default: return one category per name
+	cats := make([]domain.Category, len(names))
+	for i, name := range names {
+		cats[i] = domain.Category{ID: i + 1, PublicID: fmt.Sprintf("cat-%d-uuid", i+1), Name: name}
+	}
+	return cats, nil
 }
 
 func (m *mockCategoryRepository) List(ctx context.Context) ([]*domain.Category, error) {
@@ -228,8 +242,12 @@ func TestService_CreatePost(t *testing.T) {
 			categories: []string{"tests"},
 			image:      nil,
 			setupMocks: func(mpr *mockPostRepository, mcr *mockCategoryRepository) {
-				mcr.getByNameFunc = func(ctx context.Context, name string) (*domain.Category, error) {
-					return &domain.Category{ID: 1, PublicID: "cat-1-uuid", Name: name}, nil
+				mcr.getByNamesFunc = func(ctx context.Context, names []string) ([]domain.Category, error) {
+					cats := make([]domain.Category, len(names))
+					for i, name := range names {
+						cats[i] = domain.Category{ID: i + 1, PublicID: "cat-1-uuid", Name: name}
+					}
+					return cats, nil
 				}
 				mpr.createFunc = func(ctx context.Context, post *domain.Post) error {
 					return nil
@@ -278,7 +296,7 @@ func TestService_CreatePost(t *testing.T) {
 			categories: []string{"nonexistent"},
 			image:      nil,
 			setupMocks: func(mpr *mockPostRepository, mcr *mockCategoryRepository) {
-				mcr.getByNameFunc = func(ctx context.Context, name string) (*domain.Category, error) {
+				mcr.getByNamesFunc = func(ctx context.Context, names []string) ([]domain.Category, error) {
 					return nil, domain.ErrCategoryNotFound
 				}
 			},
@@ -409,9 +427,13 @@ func TestService_UpdatePost(t *testing.T) {
 			mockCategoryRepo := &mockCategoryRepository{}
 			mockUserSvc := &mockUserService{}
 
-			// Default category repo returns a category for any name unless overridden by setup
-			mockCategoryRepo.getByNameFunc = func(ctx context.Context, name string) (*domain.Category, error) {
-				return &domain.Category{ID: 1, PublicID: "cat-1-uuid", Name: name}, nil
+			// Default category repo returns categories for any names unless overridden by setup
+			mockCategoryRepo.getByNamesFunc = func(ctx context.Context, names []string) ([]domain.Category, error) {
+				cats := make([]domain.Category, len(names))
+				for i, name := range names {
+					cats[i] = domain.Category{ID: i + 1, PublicID: "cat-1-uuid", Name: name}
+				}
+				return cats, nil
 			}
 
 			if tt.setupMocks != nil {
@@ -930,219 +952,3 @@ func TestCategoryService_Delete(t *testing.T) {
 	}
 }
 
-// TestFilterService tests for filter service
-func TestFilterService_BuildFilter(t *testing.T) {
-	ctx := context.Background()
-
-	tests := []struct {
-		name   string
-		params domain.FilterParams
-		want   domain.PostFilter
-	}{
-		{
-			name: "empty params defaults",
-			params: domain.FilterParams{
-				Limit:  10,
-				Offset: 0,
-			},
-			want: domain.PostFilter{
-				Limit:      10,
-				Offset:     0,
-				DateFilter: "all",
-			},
-		},
-		{
-			name: "with category filter",
-			params: domain.FilterParams{
-				Category: "Technology",
-				Limit:    10,
-				Offset:   0,
-			},
-			want: domain.PostFilter{
-				Categories: []string{"Technology"},
-				Limit:      10,
-				Offset:     0,
-				DateFilter: "all",
-			},
-		},
-		{
-			name: "with explicit user ID",
-			params: domain.FilterParams{
-				UserID: "user-123",
-				Limit:  10,
-				Offset: 0,
-			},
-			want: domain.PostFilter{
-				UserID:     "user-123",
-				Limit:      10,
-				Offset:     0,
-				DateFilter: "all",
-			},
-		},
-		{
-			name: "my posts filter",
-			params: domain.FilterParams{
-				MyPosts:       true,
-				CurrentUserID: "current-user-uuid",
-				Limit:         10,
-				Offset:        0,
-			},
-			want: domain.PostFilter{
-				UserID:     "current-user-uuid",
-				Limit:      10,
-				Offset:     0,
-				DateFilter: "all",
-			},
-		},
-		{
-			name: "liked posts filter",
-			params: domain.FilterParams{
-				LikedPosts:    true,
-				CurrentUserID: "current-user-uuid",
-				Limit:         10,
-				Offset:        0,
-			},
-			want: domain.PostFilter{
-				LikedByUserID: "current-user-uuid",
-				Limit:         10,
-				Offset:        0,
-				DateFilter:    "all",
-			},
-		},
-		{
-			name: "date filter today",
-			params: domain.FilterParams{
-				DateFilter: "today",
-				Limit:      10,
-				Offset:     0,
-			},
-			want: domain.PostFilter{
-				DateFilter: "today",
-				Limit:      10,
-				Offset:     0,
-			},
-		},
-		{
-			name: "date filter week",
-			params: domain.FilterParams{
-				DateFilter: "week",
-				Limit:      10,
-				Offset:     0,
-			},
-			want: domain.PostFilter{
-				DateFilter: "week",
-				Limit:      10,
-				Offset:     0,
-			},
-		},
-		{
-			name: "combined filters",
-			params: domain.FilterParams{
-				Category:      "Technology",
-				LikedPosts:    true,
-				CurrentUserID: "user-123",
-				DateFilter:    "month",
-				Limit:         20,
-				Offset:        10,
-			},
-			want: domain.PostFilter{
-				Categories:    []string{"Technology"},
-				LikedByUserID: "user-123",
-				DateFilter:    "month",
-				Limit:         20,
-				Offset:        10,
-			},
-		},
-		{
-			name: "explicit user ID takes precedence over my posts",
-			params: domain.FilterParams{
-				UserID:        "explicit-user",
-				MyPosts:       true,
-				CurrentUserID: "current-user",
-				Limit:         10,
-			},
-			want: domain.PostFilter{
-				UserID:     "explicit-user",
-				Limit:      10,
-				DateFilter: "all",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			service := NewFilterService()
-			got := service.BuildFilter(ctx, tt.params)
-
-			if got.Limit != tt.want.Limit {
-				t.Errorf("Limit: expected %d, got %d", tt.want.Limit, got.Limit)
-			}
-			if got.Offset != tt.want.Offset {
-				t.Errorf("Offset: expected %d, got %d", tt.want.Offset, got.Offset)
-			}
-			if got.UserID != tt.want.UserID {
-				t.Errorf("UserID: expected %s, got %s", tt.want.UserID, got.UserID)
-			}
-			if got.LikedByUserID != tt.want.LikedByUserID {
-				t.Errorf("LikedByUserID: expected %s, got %s", tt.want.LikedByUserID, got.LikedByUserID)
-			}
-			if got.DateFilter != tt.want.DateFilter {
-				t.Errorf("DateFilter: expected %s, got %s", tt.want.DateFilter, got.DateFilter)
-			}
-			if len(got.Categories) != len(tt.want.Categories) {
-				t.Errorf("Categories length: expected %d, got %d", len(tt.want.Categories), len(got.Categories))
-			}
-			for i, c := range got.Categories {
-				if i < len(tt.want.Categories) && c != tt.want.Categories[i] {
-					t.Errorf("Categories[%d]: expected %s, got %s", i, tt.want.Categories[i], c)
-				}
-			}
-		})
-	}
-}
-
-func TestFilterService_ApplyDateFilter(t *testing.T) {
-	tests := []struct {
-		name       string
-		dateFilter string
-		want       string
-	}{
-		{
-			name:       "today filter",
-			dateFilter: "today",
-			want:       "today",
-		},
-		{
-			name:       "week filter",
-			dateFilter: "week",
-			want:       "week",
-		},
-		{
-			name:       "month filter",
-			dateFilter: "month",
-			want:       "month",
-		},
-		{
-			name:       "empty defaults to all",
-			dateFilter: "",
-			want:       "all",
-		},
-		{
-			name:       "all filter",
-			dateFilter: "all",
-			want:       "all",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			service := NewFilterService()
-			filter := &domain.PostFilter{}
-			service.ApplyDateFilter(filter, tt.dateFilter)
-
-			if filter.DateFilter != tt.want {
-				t.Errorf("expected %s, got %s", tt.want, filter.DateFilter)
-			}
-		})
-	}
-}

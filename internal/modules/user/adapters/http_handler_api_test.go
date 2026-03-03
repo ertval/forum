@@ -16,24 +16,24 @@ import (
 
 // MockUserService implements the UserService interface for testing
 type MockUserService struct {
-	getByIDFn               func(ctx context.Context, userID int) (*domain.User, error)
-	getByPublicIDFn         func(ctx context.Context, publicID string) (*domain.User, error)
-	getByUsernameFn         func(ctx context.Context, username string) (*domain.User, error)
-	getByEmailFn            func(ctx context.Context, email string) (*domain.User, error)
-	createUserFn            func(ctx context.Context, email, username, passwordHash string) (int, error)
-	updateRoleFn            func(ctx context.Context, userID int, newRole domain.Role) error
-	deactivateUserFn        func(ctx context.Context, userID int) error
-	activateUserFn          func(ctx context.Context, userID int) error
-	listUsersFn             func(ctx context.Context, offset, limit int) ([]*domain.User, error)
-	incrementPostCountFn    func(ctx context.Context, userID int) error
-	decrementPostCountFn    func(ctx context.Context, userID int) error
-	incrementCommentCountFn func(ctx context.Context, userID int) error
-	decrementCommentCountFn func(ctx context.Context, userID int) error
-	existsByEmailFn         func(ctx context.Context, email string) (bool, error)
-	existsByUsernameFn      func(ctx context.Context, username string) (bool, error)
+	getByIDFn                func(ctx context.Context, userID int) (*domain.User, error)
+	getByPublicIDFn          func(ctx context.Context, publicID string) (*domain.User, error)
+	getByUsernameFn          func(ctx context.Context, username string) (*domain.User, error)
+	getByEmailFn             func(ctx context.Context, email string) (*domain.User, error)
+	createUserFn             func(ctx context.Context, email, username, passwordHash string) (int, error)
+	updateRoleFn             func(ctx context.Context, userID int, newRole domain.Role) error
+	deactivateUserFn         func(ctx context.Context, userID int) error
+	activateUserFn           func(ctx context.Context, userID int) error
+	listUsersFn              func(ctx context.Context, offset, limit int) ([]*domain.User, error)
+	incrementPostCountFn     func(ctx context.Context, userID int) error
+	decrementPostCountFn     func(ctx context.Context, userID int) error
+	incrementCommentCountFn  func(ctx context.Context, userID int) error
+	decrementCommentCountFn  func(ctx context.Context, userID int) error
+	existsByEmailFn          func(ctx context.Context, email string) (bool, error)
+	existsByUsernameFn       func(ctx context.Context, username string) (bool, error)
 	incrementReactionCountFn func(ctx context.Context, userID int) error
 	decrementReactionCountFn func(ctx context.Context, userID int) error
-	updateSettingsFn        func(ctx context.Context, publicID, username, email, newPassword, avatarPath string) (*domain.User, error)
+	updateSettingsFn         func(ctx context.Context, publicID, username, email, newPassword, avatarPath string) (*domain.User, error)
 }
 
 func (m *MockUserService) GetByID(ctx context.Context, userID int) (*domain.User, error) {
@@ -295,6 +295,9 @@ func TestListUsersAPI_Success(t *testing.T) {
 func TestUpdateRoleAPI_Success(t *testing.T) {
 	mockService := &MockUserService{
 		getByPublicIDFn: func(ctx context.Context, publicID string) (*domain.User, error) {
+			if publicID == "admin-uuid" {
+				return &domain.User{ID: 99, PublicID: publicID, Role: domain.RoleAdmin}, nil
+			}
 			return &domain.User{ID: 1, PublicID: publicID, Role: domain.RoleUser}, nil
 		},
 		updateRoleFn: func(ctx context.Context, userID int, newRole domain.Role) error {
@@ -308,6 +311,7 @@ func TestUpdateRoleAPI_Success(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/api/users/test-uuid/role", body)
 	req.SetPathValue("id", "test-uuid")
 	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(context.WithValue(req.Context(), authPorts.UserIDKey, "admin-uuid"))
 	rec := httptest.NewRecorder()
 
 	handler.UpdateRoleAPI(rec, req)
@@ -320,6 +324,9 @@ func TestUpdateRoleAPI_Success(t *testing.T) {
 func TestUpdateRoleAPI_InvalidRole(t *testing.T) {
 	mockService := &MockUserService{
 		getByPublicIDFn: func(ctx context.Context, publicID string) (*domain.User, error) {
+			if publicID == "admin-uuid" {
+				return &domain.User{ID: 99, PublicID: publicID, Role: domain.RoleAdmin}, nil
+			}
 			return &domain.User{ID: 1, PublicID: publicID}, nil
 		},
 	}
@@ -330,6 +337,7 @@ func TestUpdateRoleAPI_InvalidRole(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/api/users/test-uuid/role", body)
 	req.SetPathValue("id", "test-uuid")
 	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(context.WithValue(req.Context(), authPorts.UserIDKey, "admin-uuid"))
 	rec := httptest.NewRecorder()
 
 	handler.UpdateRoleAPI(rec, req)
@@ -342,6 +350,9 @@ func TestUpdateRoleAPI_InvalidRole(t *testing.T) {
 func TestUpdateRoleAPI_UserNotFound(t *testing.T) {
 	mockService := &MockUserService{
 		getByPublicIDFn: func(ctx context.Context, publicID string) (*domain.User, error) {
+			if publicID == "admin-uuid" {
+				return &domain.User{ID: 99, PublicID: publicID, Role: domain.RoleAdmin}, nil
+			}
 			return nil, nil
 		},
 	}
@@ -352,6 +363,7 @@ func TestUpdateRoleAPI_UserNotFound(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/api/users/nonexistent/role", body)
 	req.SetPathValue("id", "nonexistent")
 	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(context.WithValue(req.Context(), authPorts.UserIDKey, "admin-uuid"))
 	rec := httptest.NewRecorder()
 
 	handler.UpdateRoleAPI(rec, req)
@@ -364,6 +376,9 @@ func TestUpdateRoleAPI_UserNotFound(t *testing.T) {
 func TestDeactivateUserAPI_Success(t *testing.T) {
 	mockService := &MockUserService{
 		getByPublicIDFn: func(ctx context.Context, publicID string) (*domain.User, error) {
+			if publicID == "admin-uuid" {
+				return &domain.User{ID: 99, PublicID: publicID, Role: domain.RoleAdmin, IsActive: true}, nil
+			}
 			return &domain.User{ID: 1, PublicID: publicID, IsActive: true}, nil
 		},
 		deactivateUserFn: func(ctx context.Context, userID int) error {
@@ -375,6 +390,7 @@ func TestDeactivateUserAPI_Success(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPut, "/api/users/test-uuid/deactivate", nil)
 	req.SetPathValue("id", "test-uuid")
+	req = req.WithContext(context.WithValue(req.Context(), authPorts.UserIDKey, "admin-uuid"))
 	rec := httptest.NewRecorder()
 
 	handler.DeactivateUserAPI(rec, req)
@@ -387,6 +403,9 @@ func TestDeactivateUserAPI_Success(t *testing.T) {
 func TestDeactivateUserAPI_UserNotFound(t *testing.T) {
 	mockService := &MockUserService{
 		getByPublicIDFn: func(ctx context.Context, publicID string) (*domain.User, error) {
+			if publicID == "admin-uuid" {
+				return &domain.User{ID: 99, PublicID: publicID, Role: domain.RoleAdmin, IsActive: true}, nil
+			}
 			return nil, nil
 		},
 	}
@@ -395,6 +414,7 @@ func TestDeactivateUserAPI_UserNotFound(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPut, "/api/users/nonexistent/deactivate", nil)
 	req.SetPathValue("id", "nonexistent")
+	req = req.WithContext(context.WithValue(req.Context(), authPorts.UserIDKey, "admin-uuid"))
 	rec := httptest.NewRecorder()
 
 	handler.DeactivateUserAPI(rec, req)
@@ -407,6 +427,9 @@ func TestDeactivateUserAPI_UserNotFound(t *testing.T) {
 func TestActivateUserAPI_Success(t *testing.T) {
 	mockService := &MockUserService{
 		getByPublicIDFn: func(ctx context.Context, publicID string) (*domain.User, error) {
+			if publicID == "admin-uuid" {
+				return &domain.User{ID: 99, PublicID: publicID, Role: domain.RoleAdmin, IsActive: true}, nil
+			}
 			return &domain.User{ID: 1, PublicID: publicID, IsActive: false}, nil
 		},
 		activateUserFn: func(ctx context.Context, userID int) error {
@@ -418,6 +441,7 @@ func TestActivateUserAPI_Success(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPut, "/api/users/test-uuid/activate", nil)
 	req.SetPathValue("id", "test-uuid")
+	req = req.WithContext(context.WithValue(req.Context(), authPorts.UserIDKey, "admin-uuid"))
 	rec := httptest.NewRecorder()
 
 	handler.ActivateUserAPI(rec, req)
@@ -430,6 +454,9 @@ func TestActivateUserAPI_Success(t *testing.T) {
 func TestActivateUserAPI_UserNotFound(t *testing.T) {
 	mockService := &MockUserService{
 		getByPublicIDFn: func(ctx context.Context, publicID string) (*domain.User, error) {
+			if publicID == "admin-uuid" {
+				return &domain.User{ID: 99, PublicID: publicID, Role: domain.RoleAdmin, IsActive: true}, nil
+			}
 			return nil, nil
 		},
 	}
@@ -438,12 +465,34 @@ func TestActivateUserAPI_UserNotFound(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPut, "/api/users/nonexistent/activate", nil)
 	req.SetPathValue("id", "nonexistent")
+	req = req.WithContext(context.WithValue(req.Context(), authPorts.UserIDKey, "admin-uuid"))
 	rec := httptest.NewRecorder()
 
 	handler.ActivateUserAPI(rec, req)
 
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("Expected status 404, got %d", rec.Code)
+	}
+}
+
+func TestDeactivateUserAPI_ForbiddenForNonAdmin(t *testing.T) {
+	mockService := &MockUserService{
+		getByPublicIDFn: func(ctx context.Context, publicID string) (*domain.User, error) {
+			return &domain.User{ID: 10, PublicID: publicID, Role: domain.RoleUser, IsActive: true}, nil
+		},
+	}
+
+	handler := &HTTPHandler{userService: mockService}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/users/test-uuid/deactivate", nil)
+	req.SetPathValue("id", "test-uuid")
+	req = req.WithContext(context.WithValue(req.Context(), authPorts.UserIDKey, "user-uuid"))
+	rec := httptest.NewRecorder()
+
+	handler.DeactivateUserAPI(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("Expected status 403, got %d", rec.Code)
 	}
 }
 

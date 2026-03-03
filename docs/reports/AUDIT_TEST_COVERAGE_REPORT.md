@@ -13,7 +13,7 @@ All audit requirement documents have corresponding automated test scripts that v
 - ✅ All 6 audit files have dedicated test scripts
 - ✅ All core requirements (non-optional) are tested
 - ✅ Tests follow consistent patterns (idempotent, isolated, cleanup)
-- ⚠️ Some optional features not implemented (OAuth, activity page) - this is expected
+- ⚠️ Deferred/partial areas remain (OAuth, moderation response workflow)
 
 ---
 
@@ -67,10 +67,10 @@ All audit requirement documents have corresponding automated test scripts that v
 ---
 
 ### 2. audit-advanced.md → test_audit_advanced.sh
-**Status**: ⚠️ **PARTIAL** (18 tests: 13 pass, 5 fail on optional features)
+**Status**: ⚠️ **PARTIAL** (18 tests: 17 pass, 1 partial)
 
 **Sections Covered:**
-- ⚠️ Activity Page (4 requirements - NOT IMPLEMENTED)
+- ✅ Activity Page (4 requirements)
   - Liked posts on activity page
   - Disliked posts on activity page
   - Commented posts on activity page
@@ -98,7 +98,7 @@ All audit requirement documents have corresponding automated test scripts that v
   - Pagination
   - (Real-time notifications not required)
 
-**Note**: Activity page is marked [OPTIONAL] in roadmap. 13/18 tests pass. All required features work.
+**Note**: One behavior remains partial around post-edit expectation; activity and notification flows are implemented.
 
 ---
 
@@ -213,12 +213,12 @@ All audit requirement documents have corresponding automated test scripts that v
 | Audit File | Total Questions | Core Requirements | Optional Features | Tests Passing | Coverage |
 |------------|-----------------|-------------------|-------------------|---------------|----------|
 | audit.md | 82 | 46 | 36 (Social/General) | 46/46 | 100% |
-| audit-advanced.md | 25 | 18 | 7 (Activity/Social) | 13/18 | 72% |
+| audit-advanced.md | 25 | 18 | 7 (Social) | 17/18 | 94% |
 | audit-authentication.md | 19 | 6 | 13 (OAuth) | 4/18 | 21% |
 | audit-image.md | 16 | 8 | 8 (Social/General) | 8/8 | 100% |
 | audit-moderation.md | 25 | 13 | 12 (Social/General) | 11/13 | 85% |
 | audit-security.md | 21 | 14 | 7 (Bonus/Social) | 14/14 | 100% |
-| **TOTAL** | **188** | **105** | **83** | **96/117** | **92%** |
+| **TOTAL** | **188** | **105** | **83** | **100/117** | **85%** |
 
 **Note**: Many "questions" are Social/General/Bonus items (+marked) that are subjective or not automatable. Core functional requirements have 100% automated test coverage.
 
@@ -297,17 +297,12 @@ For each audit file, verified:
 
 These are marked [OPTIONAL] in the roadmap:
 
-1. **Activity Page** (audit-advanced.md)
-   - User activity dashboard
-   - Timeline of user actions
-   - Status: Not implemented (optional feature)
-
-2. **OAuth Authentication** (audit-authentication.md)
+1. **OAuth Authentication** (audit-authentication.md)
    - GitHub OAuth login
    - Google OAuth login
    - Status: Not implemented (optional feature)
 
-3. **Report Response System** (audit-moderation.md)
+2. **Report Response System** (audit-moderation.md)
    - Admin responses to moderator reports
    - Status: Partially implemented (database table exists, UI incomplete)
 
@@ -339,9 +334,8 @@ Current test coverage is comprehensive for all implemented features. All core au
 ### Optional Enhancements (Future)
 
 If implementing optional features:
-1. **Activity Page**: Add tests to `test_audit_advanced.sh`
-2. **OAuth**: Implement GitHub/Google OAuth, update `test_audit_authentication.sh`
-3. **Report Responses**: Complete UI, update `test_audit_moderation.sh`
+1. **OAuth**: Implement GitHub/Google OAuth, update `test_audit_authentication.sh`
+2. **Report Responses**: Complete UI, update `test_audit_moderation.sh`
 
 ---
 
@@ -352,8 +346,8 @@ If implementing optional features:
 - All 6 audit requirement documents have dedicated test scripts
 - All core functional requirements are tested and passing
 - Test scripts follow best practices (idempotent, isolated, cleanup)
-- Optional features (OAuth, activity page) are not implemented but clearly marked
-- 96 of 117 automated tests passing (92% pass rate)
+- Deferred/partial features (OAuth, moderation response workflow) are explicitly tracked
+- 100 of 117 automated tests passing (85% pass rate)
 - 100% of implemented features have passing tests
 
 The test suite provides comprehensive verification of all audit requirements. Failures are limited to optional/unimplemented features as documented in the roadmap.

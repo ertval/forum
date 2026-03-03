@@ -1,3 +1,5 @@
+> Repository scope note (2026-03-02): OAuth checks in this file are retained for traceability, but OAuth implementation is deferred in the current release scope.
+
 #### Functional
 
 ##### Try to login with Github.

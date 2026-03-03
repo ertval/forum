@@ -12,9 +12,37 @@ import (
 	authApp "forum/internal/modules/auth/application"
 	userAdapters "forum/internal/modules/user/adapters"
 	userApp "forum/internal/modules/user/application"
+	userDomain "forum/internal/modules/user/domain"
 
 	_ "github.com/mattn/go-sqlite3"
 )
+
+type authIDUserServiceAdapter struct {
+	user *userApp.Service
+}
+
+func (a authIDUserServiceAdapter) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	return a.user.ExistsByEmail(ctx, email)
+}
+
+func (a authIDUserServiceAdapter) ExistsByUsername(ctx context.Context, username string) (bool, error) {
+	return a.user.ExistsByUsername(ctx, username)
+}
+
+func (a authIDUserServiceAdapter) CreateUser(ctx context.Context, email, username, passwordHash string) (int, error) {
+	return a.user.CreateUser(ctx, email, username, passwordHash)
+}
+
+func (a authIDUserServiceAdapter) GetAuthUserByEmail(ctx context.Context, email string) (*authApp.AuthUserRecord, error) {
+	user, err := a.user.GetByEmail(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, userDomain.ErrUserNotFound
+	}
+	return &authApp.AuthUserRecord{ID: user.ID, PasswordHash: user.PasswordHash}, nil
+}
 
 // TestAuthModule_NoInternalIDExposure verifies that the auth module
 // properly uses PublicIDs instead of internal IDs for external-facing operations.
@@ -37,6 +65,7 @@ func TestAuthModule_NoInternalIDExposure(t *testing.T) {
 			email TEXT UNIQUE NOT NULL,
 			username TEXT UNIQUE NOT NULL,
 			password_hash TEXT NOT NULL,
+			avatar_path TEXT DEFAULT '',
 			role TEXT NOT NULL DEFAULT 'user',
 			oauth_provider TEXT,
 			oauth_provider_id TEXT,
@@ -68,11 +97,14 @@ func TestAuthModule_NoInternalIDExposure(t *testing.T) {
 	}
 
 	// Setup repositories and services
-	sessionRepo := authAdapters.NewSQLiteSessionRepository(db)
+	sessionRepo, err := authAdapters.NewSQLiteSessionRepository(db)
+	if err != nil {
+		t.Fatalf("Failed to create session repository: %v", err)
+	}
 	userRepo := userAdapters.NewSQLiteUserRepository(db)
 	userService := userApp.NewService(userRepo)
 
-	authService := authApp.NewService(sessionRepo, userService, 24*time.Hour)
+	authService := authApp.NewService(sessionRepo, authIDUserServiceAdapter{user: userService}, 24*time.Hour)
 
 	// UUID regex pattern (standard UUID v4 format)
 	uuidRegex := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
@@ -81,7 +113,7 @@ func TestAuthModule_NoInternalIDExposure(t *testing.T) {
 		ctx := context.Background()
 		email := fmt.Sprintf("test%d@example.com", time.Now().UnixNano())
 		username := "John Smith"
-		password := "password123"
+		password := "Password123"
 
 		// Register user
 		userID, session, err := authService.Register(ctx, email, username, password)
@@ -123,7 +155,7 @@ func TestAuthModule_NoInternalIDExposure(t *testing.T) {
 		ctx := context.Background()
 		email := fmt.Sprintf("login%d@example.com", time.Now().UnixNano())
 		username := "Jane Doe"
-		password := "password123"
+		password := "Password123"
 
 		// Register user first
 		userID, _, err := authService.Register(ctx, email, username, password)
@@ -173,7 +205,7 @@ func TestAuthModule_NoInternalIDExposure(t *testing.T) {
 		ctx := context.Background()
 		email := fmt.Sprintf("api%d@example.com", time.Now().UnixNano())
 		username := "Api User"
-		password := "password123"
+		password := "Password123"
 
 		userID, _, err := authService.Register(ctx, email, username, password)
 		if err != nil {

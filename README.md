@@ -59,7 +59,7 @@ Dependency direction:
 - `domain` -> no project-layer imports
 
 Detailed reference: `docs/ARCHITECTURE.md`.
-
+New contributors should start with the `docs/guides/ONBOARDING_GUIDE.md`.
 ---
 
 ## Quick start (local)
@@ -79,6 +79,10 @@ The app starts on:
 - HTTP: `http://localhost:8080`
 - HTTPS: `https://localhost:8443` (only if cert/key files exist)
 
+### Devcontainer note
+
+Some devcontainers do not include Docker Engine/CLI access. If `make up` prints a Docker/Compose availability error, run Docker commands from your host terminal instead.
+
 ### Seed test data (optional but useful)
 
 ```bash
@@ -91,27 +95,55 @@ This runs migrations first, then loads seed data.
 
 ## Docker
 
-### Start
+### Using Docker Compose (recommended)
 
 ```bash
-make up
+make up        # start
+make down      # stop
 ```
 
-### Stop
+`make up` now auto-detects `docker compose` (preferred) and falls back to `docker-compose` when available.
+
+Compose exposes `8080` (HTTP) and `8443` (HTTPS) and mounts `./data`, `./static/uploads`, and `./certs`.
+
+### Using plain `docker run`
 
 ```bash
-make down
+# Build the image
+docker build -t forum .
+
+# First run — create a named container with volumes for data persistence
+docker run -d --name forum -p 8080:8080 \
+  -v forum-data:/app/data \
+  -v forum-uploads:/app/static/uploads \
+  forum
+
+# Stop
+docker stop forum
+
+# Start again (reuses the same container and data)
+docker start forum
+
+# View logs
+docker logs -f forum
+
+# Remove the container (volumes are preserved)
+docker rm forum
 ```
 
-Compose exposes:
-- `8080:8080`
-- `8443:8443`
+The app binds to `0.0.0.0` by default so it is accessible from outside the container without extra flags.
+The container entrypoint also fixes mounted volume permissions at startup before dropping to `appuser`, preventing startup crashes that can appear as browser connection resets.
 
-It mounts:
-- `./data -> /app/data`
-- `./static/uploads -> /app/static/uploads`
-- `./certs -> /app/certs:ro`
+If you run `docker run -p 8080:8080 forum` repeatedly without `--name`, Docker will create a new container each time. Use `--name forum` + `docker start forum` to reuse the same container.
 
+### Seeding within Docker
+
+If you don't have sqlite3 installed locally, you can run the seeding script via a disposable tools container:
+
+```bash
+docker run --rm -v "${PWD}:/workspace" -w /workspace alpine:3.20 sh -lc \
+  "apk add --no-cache bash sqlite openssl >/dev/null && DATABASE_PATH=/workspace/data/forum.db bash scripts/seed/seed.sh"
+```
 ---
 
 ## Testing
@@ -170,6 +202,6 @@ Examples:
 3. Implement use cases in `application/service.go`
 4. Add adapters (`http_handler*.go`, `sqlite_repository.go`)
 5. Register in `cmd/forum/wire/{repositories,services,handlers}.go` and routes in `app.go`
-6. Add migration: `migrations/NNN_{module}_{description}.sql`
+6. Add migration: `migrations/NNN_module.sql`
 
 Use `internal/modules/auth/` as the reference implementation.

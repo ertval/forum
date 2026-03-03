@@ -7,10 +7,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Title}} - Forum</title>
     <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/layout.css">
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/footer.css">
+    <link rel="stylesheet" href="/static/css/buttons.css">
+    <link rel="stylesheet" href="/static/css/forms.css">
+    <link rel="stylesheet" href="/static/css/cards.css">
+    <link rel="stylesheet" href="/static/css/posts.css">
+    <link rel="stylesheet" href="/static/css/post-detail.css">
+    <link rel="stylesheet" href="/static/css/home.css">
+    <link rel="stylesheet" href="/static/css/comments.css">
+    <link rel="stylesheet" href="/static/css/auth.css">
+    <link rel="stylesheet" href="/static/css/health.css">
+    <link rel="stylesheet" href="/static/css/modal.css">
+    <link rel="stylesheet" href="/static/css/error.css">
 </head>
 
-{{ $showUserSidebar := and .User (not (or (eq .Title "Home") (eq .Title "Health Status"))) }}
+{{ $showUserSidebar := and .User (not .HideUserSidebar) }}
 <body{{if and .User (not $showUserSidebar)}} data-page="no-user-sidebar" {{end}}>
     <header>
         <nav>
@@ -86,7 +100,7 @@
             {{/* Determine layout based on page type and user status */}}
             {{/* $showUserSidebar already declared in body tag section (line 13) */}}
             {{ $showLeftSidebar := .ShowFilter }}
-            {{ $isPostFormPage := or (eq .Title "Create Post") (eq .Title "Edit Post") }}
+            {{ $isPostFormPage := .ShowPostSidebar }}
 
             {{/* Three-column layout: filter left, content center, user right */}}
             {{ if and $showLeftSidebar $showUserSidebar }}
@@ -105,13 +119,7 @@
             {{ else if and $showUserSidebar $isPostFormPage .ShowSidebar }}
             <div class="page-layout-three-col">
                 <aside class="sidebar-left">
-                    {{ if .ShowPostSidebar }}
-                    {{ if eq .Title "Create Post" }}
-                    {{ template "post-create-sidebar-cards" . }}
-                    {{ else }}
-                    {{ template "post-sidebar-cards" . }}
-                    {{ end }}
-                    {{ end }}
+                    {{ template "post-form-sidebar-content" . }}
                 </aside>
                 <div class="main-content">
                     {{ template "content" . }}
@@ -140,13 +148,7 @@
                     {{ if .ShowFilter }}
                     {{ template "filter-card" . }}
                     {{ end }}
-                    {{ if .ShowPostSidebar }}
-                    {{ if eq .Title "Create Post" }}
-                    {{ template "post-create-sidebar-cards" . }}
-                    {{ else }}
-                    {{ template "post-sidebar-cards" . }}
-                    {{ end }}
-                    {{ end }}
+                    {{ template "post-form-sidebar-content" . }}
                 </aside>
                 <div class="main-content">
                     {{ template "content" . }}
@@ -161,7 +163,7 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 Ertval Karameta & Magnus Edvall.</p>
+            <p>&copy; <span id="current-year"></span> Ertval Karameta & Magnus Edvall.</p>
             <p><a href="/health" class="category-tag">Health Status</a></p>
         </div>
     </footer>
@@ -169,8 +171,70 @@
     <script src="/static/js/utils.js"></script>
     <script src="/static/js/modal.js"></script>
     <script src="/static/js/main.js"></script>
+    <script>
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+    </script>
     {{block "scripts" .}}{{end}}
+
+    <!-- HTML Templates for JS dynamic content (6.1) -->
+    <template id="post-card-template">
+        <article class="post-card clickable-card">
+            <div class="post-header">
+                <h3><a data-field="link"></a></h3>
+                <div class="post-meta">
+                    <span class="author" data-field="author"></span>
+                    <span class="date" data-field="date"></span>
+                </div>
+            </div>
+            <div class="post-image" data-field="image-container" style="display:none">
+                <img data-field="image" src="" alt="">
+            </div>
+            <div class="post-content">
+                <p data-field="content"></p>
+            </div>
+            <div class="post-footer">
+                <div class="categories" data-field="categories"></div>
+                <div class="post-actions">
+                    <button class="btn-like" data-field="like-btn" aria-label="Like this post" title="Like">👍
+                        0</button>
+                    <button class="btn-dislike" data-field="dislike-btn" aria-label="Dislike this post"
+                        title="Dislike">👎 0</button>
+                    <span class="comments" data-field="comment-count">💬 0</span>
+                </div>
+            </div>
+        </article>
+    </template>
+
+    <template id="post-card-compact-template">
+        <article class="post-card-compact clickable-card">
+            <div class="post-header-compact">
+                <h3><a data-field="link"></a></h3>
+                <div class="post-meta-compact">
+                    <span class="author-compact" data-field="author"></span>
+                    <span class="date-compact" data-field="date"></span>
+                </div>
+            </div>
+            <div class="post-image-compact" data-field="image-container" style="display:none">
+                <img data-field="image" src="" alt="">
+            </div>
+            <div class="post-content-compact">
+                <p data-field="content"></p>
+            </div>
+            <div class="post-footer-compact">
+                <div class="categories-compact" data-field="categories"></div>
+                <div class="post-actions-compact">
+                    <button class="btn-like" data-field="like-btn" aria-label="Like this post" title="Like">👍
+                        0</button>
+                    <button class="btn-dislike" data-field="dislike-btn" aria-label="Dislike this post"
+                        title="Dislike">👎 0</button>
+                    <span class="comments-compact" data-field="comment-count">💬 0</span>
+                </div>
+            </div>
+        </article>
+    </template>
+
     </body>
+
 
 </html>
 {{end}}
@@ -209,7 +273,7 @@
         <a href="/posts/new" class="btn btn-primary btn-small">Create Post</a>
         <a href="/board?my_posts=true{{if .SelectedCategory}}&category={{urlquery .SelectedCategory}}{{end}}{{if .DateFilter}}&date_filter={{.DateFilter}}{{end}}"
             class="btn btn-primary btn-small">My Posts</a>
-        <a href="/board?liked_posts=true{{if .SelectedCategory}}&category={{urlquery .SelectedCategory}}{{end}}{{if .DateFilter}}&date_filter={{.DateFilter}}{{end}}"
+        <a href="/activity?activity_type=reactions{{if .SelectedCategory}}&category={{urlquery .SelectedCategory}}{{end}}{{if .DateFilter}}&date_filter={{.DateFilter}}{{end}}"
             class="btn btn-primary btn-small">My Reactions</a>
         <a href="/comments" class="btn btn-primary btn-small">My Comments</a>
         <a href="/activity" class="btn btn-primary btn-small notification-link">
@@ -225,69 +289,58 @@
 {{/* Filter Card Component - Shows filtering options */}}
 {{define "filter-card"}}
 <div class="filters">
-    <h2>{{if eq .Title "My Comments"}}Filter Comments{{else if eq .Title "My Activity"}}Filter Activity{{else}}Filter Posts{{end}}</h2>
+    <h2>{{if .FilterTitle}}{{.FilterTitle}}{{else if eq .FilterMode "comments"}}Filter Comments{{else if eq .FilterMode "activity"}}Filter
+        Activity{{else}}Filter Posts{{end}}</h2>
     <form method="GET" action="{{.FilterAction}}">
-        {{if eq .Title "My Activity"}}
-        <div class="filter-group">
-            <label for="activity_type">Activity Type:</label>
-            <select name="activity_type" id="activity_type">
-                <option value="all" {{if eq .ActivityType "all"}}selected{{end}}>All</option>
-                <option value="created_posts" {{if eq .ActivityType "created_posts"}}selected{{end}}>Created Posts</option>
-                <option value="reactions" {{if eq .ActivityType "reactions"}}selected{{end}}>Reactions</option>
-                <option value="comments" {{if eq .ActivityType "comments"}}selected{{end}}>Comments</option>
-            </select>
-        </div>
-
-        <div class="filter-group">
-            <label for="category">Post Category:</label>
-            <select name="category" id="category">
-                <option value="">All Categories</option>
-                {{range .Categories}}
-                <option value="{{.Name}}" {{if eq $.SelectedCategory .Name}}selected{{end}}>{{.Name}}</option>
-                {{end}}
-            </select>
-        </div>
-
-        <div class="filter-group">
-            <label for="time">Time:</label>
-            <select name="time" id="time">
-                <option value="all" {{if eq .SelectedTime "all"}}selected{{end}}>All Time</option>
-                <option value="today" {{if eq .SelectedTime "today"}}selected{{end}}>Today</option>
-                <option value="week" {{if eq .SelectedTime "week"}}selected{{end}}>This Week</option>
-                <option value="month" {{if eq .SelectedTime "month"}}selected{{end}}>This Month</option>
-            </select>
-        </div>
-
-        <div class="filter-group">
-            <label for="reaction_type">Reaction Type:</label>
-            <select name="reaction_type" id="reaction_type">
-                <option value="all" {{if eq .SelectedReaction "all"}}selected{{end}}>All</option>
-                <option value="like" {{if eq .SelectedReaction "like"}}selected{{end}}>Like</option>
-                <option value="dislike" {{if eq .SelectedReaction "dislike"}}selected{{end}}>Dislike</option>
-            </select>
-        </div>
-        {{else}}
+        {{if ne .FilterMode "activity"}}
         {{/* Preserve active filter state with hidden inputs */}}
         {{if .UserFilter}}
         <input type="hidden" name="user" value="{{.UserFilter}}">
         {{end}}
+        {{end}}
 
+        {{if .ShowActivityTypeFilter}}
         <div class="filter-group">
             <label for="activity_type">Activity Type:</label>
             <select name="activity_type" id="activity_type">
-                <option value="all" {{if eq .ActivityType "all"}}selected{{end}}>All Posts</option>
-                <option value="my_posts" {{if eq .ActivityType "my_posts"}}selected{{end}}>My Posts</option>
-                <option value="reactions" {{if eq .ActivityType "reactions"}}selected{{end}}>My Reactions</option>
-                <option value="commented_posts" {{if eq .ActivityType "commented_posts"}}selected{{end}}>Posts I Commented</option>
+                <option value="all" {{if eq .ActivityType "all" }}selected{{end}}>All Activities</option>
+                {{if .User}}
+                <option value="my_posts" {{if eq .ActivityType "my_posts" }}selected{{end}}>My Posts</option>
+                <option value="reactions" {{if eq .ActivityType "reactions" }}selected{{end}}>My Reactions</option>
+                <option value="commented_posts" {{if eq .ActivityType "commented_posts" }}selected{{end}}>My Comments</option>
+                {{else}}
+                <option value="posts" {{if eq .ActivityType "posts" }}selected{{end}}>All Posts</option>
+                <option value="comments" {{if eq .ActivityType "comments" }}selected{{end}}>All Comments</option>
+                <option value="reactions" {{if eq .ActivityType "reactions" }}selected{{end}}>All Reactions</option>
+                {{end}}
             </select>
         </div>
+        {{else if .FixedActivityType}}
+        <input type="hidden" name="activity_type" value="{{.FixedActivityType}}">
+        {{else}}
+        <div class="filter-group">
+            <label for="activity_type">Activity Type:</label>
+            <select name="activity_type" id="activity_type">
+                <option value="all" {{if eq .ActivityType "all" }}selected{{end}}>All Activities</option>
+                {{if .User}}
+                <option value="my_posts" {{if eq .ActivityType "my_posts" }}selected{{end}}>My Posts</option>
+                <option value="reactions" {{if eq .ActivityType "reactions" }}selected{{end}}>My Reactions</option>
+                <option value="commented_posts" {{if eq .ActivityType "commented_posts" }}selected{{end}}>My Comments</option>
+                {{else}}
+                <option value="posts" {{if eq .ActivityType "posts" }}selected{{end}}>All Posts</option>
+                <option value="comments" {{if eq .ActivityType "comments" }}selected{{end}}>All Comments</option>
+                <option value="reactions" {{if eq .ActivityType "reactions" }}selected{{end}}>All Reactions</option>
+                {{end}}
+            </select>
+        </div>
+        {{end}}
 
         <div class="filter-group">
             <label for="reaction_type">Reaction Type:</label>
             <select name="reaction_type" id="reaction_type">
-                <option value="all" {{if eq .SelectedReaction "all"}}selected{{end}}>All Reactions</option>
-                <option value="like" {{if eq .SelectedReaction "like"}}selected{{end}}>Like</option>
-                <option value="dislike" {{if eq .SelectedReaction "dislike"}}selected{{end}}>Dislike</option>
+                <option value="all" {{if eq .SelectedReaction "all" }}selected{{end}}>All Reactions</option>
+                <option value="like" {{if eq .SelectedReaction "like" }}selected{{end}}>Like</option>
+                <option value="dislike" {{if eq .SelectedReaction "dislike" }}selected{{end}}>Dislike</option>
             </select>
         </div>
 
@@ -304,13 +357,14 @@
         <div class="filter-group">
             <label for="date_filter">Time Period:</label>
             <select name="date_filter" id="date_filter">
-                <option value="all" {{if eq $.DateFilter "all" }}selected{{end}}>All Time</option>
-                <option value="today" {{if eq $.DateFilter "today" }}selected{{end}}>Today</option>
-                <option value="week" {{if eq $.DateFilter "week" }}selected{{end}}>This Week</option>
-                <option value="month" {{if eq $.DateFilter "month" }}selected{{end}}>This Month</option>
+                <option value="all" {{if eq .DateFilter "all" }}selected{{end}}>All Time</option>
+                <option value="today" {{if eq .DateFilter "today" }}selected{{end}}>Today</option>
+                <option value="week" {{if eq .DateFilter "week" }}selected{{end}}>This Week</option>
+                <option value="month" {{if eq .DateFilter "month" }}selected{{end}}>This Month</option>
             </select>
         </div>
 
+        {{if ne .FilterMode "activity"}}
         {{if .MyPosts}}
         <input type="hidden" name="my_posts" value="true">
         {{end}}
@@ -331,7 +385,7 @@
 </div>
 {{end}}
 
-{{/* Post Card Component - Displays a single post card */}}
+{{/* Post Card Component - Displays a single post card (board layout) */}}
 {{define "post-card"}}
 <article class="post-card clickable-card" data-href="/posts/{{.PublicID}}">
     <div class="post-header">
@@ -355,17 +409,81 @@
     <div class="post-footer">
         <div class="categories">
             {{range .Categories}}
-            <a class="category-tag" href="{{$.BaseURL}}?category={{urlquery .}}">{{.}}</a>
+            <a class="category-tag" href="/board?category={{urlquery .}}">{{.}}</a>
             {{end}}
         </div>
 
         <div class="post-actions">
-            <span class="likes">👍 {{.LikeCount}}</span>
-            <span class="dislikes">👎 {{.DislikeCount}}</span>
+            <button class="btn-like" data-post-id="{{.PublicID}}" aria-label="Like this post" title="Like">👍
+                {{.LikeCount}}</button>
+            <button class="btn-dislike" data-post-id="{{.PublicID}}" aria-label="Dislike this post" title="Dislike">👎
+                {{.DislikeCount}}</button>
             <span class="comments">💬 {{.CommentCount}}</span>
         </div>
     </div>
 </article>
+{{end}}
+
+{{/* Post Card Compact Component - Displays a compact post card (home layout) */}}
+{{define "post-card-compact"}}
+<article class="post-card-compact clickable-card" data-href="/posts/{{.PublicID}}">
+    <div class="post-header-compact">
+        <h3><a href="/posts/{{.PublicID}}">{{.Title}}</a></h3>
+        <div class="post-meta-compact">
+            <span class="author-compact">by {{.AuthorUsername}}</span>
+            <span class="date-compact">{{.CreatedAt.Format "Jan 02, 2006"}}</span>
+        </div>
+    </div>
+
+    {{if .ImageURL}}
+    <div class="post-image-compact">
+        <img src="{{.ImageURL}}" alt="{{.Title}}">
+    </div>
+    {{end}}
+
+    <div class="post-content-compact">
+        <p>{{.Content}}</p>
+    </div>
+
+    <div class="post-footer-compact">
+        <div class="categories-compact">
+            {{range .Categories}}
+            <a class="category-tag-compact" href="?category={{urlquery .}}">{{.}}</a>
+            {{end}}
+        </div>
+
+        <div class="post-actions-compact">
+            <button class="btn-like" data-post-id="{{.PublicID}}" aria-label="Like this post" title="Like">👍
+                {{.LikeCount}}</button>
+            <button class="btn-dislike" data-post-id="{{.PublicID}}" aria-label="Dislike this post" title="Dislike">👎
+                {{.DislikeCount}}</button>
+            <span class="comments-compact">💬 {{.CommentCount}}</span>
+        </div>
+    </div>
+</article>
+{{end}}
+
+{{/* Load More Button Component - Shared button for pagination */}}
+{{define "load-more-button"}}
+<button id="{{if .LoadMoreID}}{{.LoadMoreID}}{{else}}load-more-btn{{end}}" class="btn btn-primary"
+    data-offset="{{if .Offset}}{{.Offset}}{{else if .Posts}}{{len .Posts}}{{else}}0{{end}}"
+    data-category="{{if .SelectedCategory}}{{.SelectedCategory}}{{end}}"
+    data-activity-type="{{if .ActivityType}}{{.ActivityType}}{{else}}all{{end}}"
+    data-reaction-type="{{if .SelectedReaction}}{{.SelectedReaction}}{{else}}all{{end}}"
+    data-my-posts="{{if .MyPosts}}true{{end}}" data-liked-posts="{{if .LikedPosts}}true{{end}}"
+    data-disliked-posts="{{if .DislikedPosts}}true{{end}}" data-commented-posts="{{if .CommentedPosts}}true{{end}}"
+    data-commenter="{{if .Commenter}}{{.Commenter}}{{end}}"
+    data-date-filter="{{if .DateFilter}}{{.DateFilter}}{{end}}">Show More</button>
+{{end}}
+
+{{define "post-form-sidebar-content"}}
+{{if .ShowPostSidebar}}
+{{if eq .PostSidebarMode "create"}}
+{{template "post-create-sidebar-cards" .}}
+{{else}}
+{{template "post-sidebar-cards" .}}
+{{end}}
+{{end}}
 {{end}}
 
 {{/* Post Edit Page Side Cards*/}}
@@ -377,7 +495,8 @@
     <div class="form-group">
         <div class="current-image" id="current-image-container">
             <img src="{{.Post.ImageURL}}" alt="Current image" id="current-image">
-            <button type="button" class="btn-remove-image" id="remove-current-image" title="Remove image" aria-label="Remove the current post image">
+            <button type="button" class="btn-remove-image" id="remove-current-image" title="Remove image"
+                aria-label="Remove the current post image">
                 <span class="remove-icon">×</span> Remove Image
             </button>
         </div>
@@ -387,8 +506,9 @@
     <div class="form-group">
         <label for="image">{{if .Post.ImageURL}}Replace Image{{else}}Add Image{{end}} (Optional)</label>
         <div class="file-input-wrapper">
-            <label for="image" class="file-input-label">Choose File</label>
-            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif,image/webp" form="post-edit-form">
+            <label for="image" class="file-input-label btn btn-primary btn-small">Choose File</label>
+            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif,image/webp"
+                form="post-edit-form">
             <span class="file-name" id="file-name-display">No file chosen</span>
         </div>
         <span class="form-help">JPEG, PNG, GIF, or WebP. Maximum 20MB</span>
@@ -426,8 +546,9 @@
     <div class="form-group">
         <label for="image">Add Image (Optional)</label>
         <div class="file-input-wrapper">
-            <label for="image" class="file-input-label">Choose File</label>
-            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif,image/webp" form="post-create-form">
+            <label for="image" class="file-input-label btn btn-primary btn-small">Choose File</label>
+            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif,image/webp"
+                form="post-create-form">
             <span class="file-name" id="file-name-display">No file chosen</span>
         </div>
         <span class="form-help">JPEG, PNG, GIF, or WebP. Maximum 20MB</span>

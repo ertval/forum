@@ -2,88 +2,209 @@
 'use strict';
 
 (function() {
-    // Helper function to show inline error messages
-    function showPageError(message) {
-        const pageErrors = document.getElementById('page-errors');
-        if (pageErrors) {
-            // SECURITY: Escape message to prevent XSS from reflected error content
-            pageErrors.innerHTML = `<p class="error">${window.escapeHtml(message)}</p>`;
-            pageErrors.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const userReactionByTarget = new Map();
+
+    function targetKey(targetType, targetId) {
+        return `${targetType}:${targetId}`;
+    }
+
+    function parseCountFromButton(btn) {
+        if (!btn) {
+            return null;
+        }
+
+        const text = btn.textContent || '';
+        const match = text.match(/\((\d+)\)/);
+        if (match) {
+            return parseInt(match[1], 10);
+        }
+
+        const numbers = text.match(/\d+/g);
+        if (!numbers || numbers.length === 0) {
+            return null;
+        }
+
+        return parseInt(numbers[numbers.length - 1], 10);
+    }
+
+    function updateUserReactionCount(delta) {
+        if (!delta) {
+            return;
+        }
+
+        const selectors = [
+            '.sidebar-right .user-card .stat-item',
+            '.user-menu-dropdown .stat-item'
+        ];
+
+        selectors.forEach(function(selector) {
+            const stats = document.querySelectorAll(selector);
+            stats.forEach(function(statItem) {
+                const label = statItem.querySelector('.stat-label');
+                if (!label || label.textContent.trim() !== 'Reactions') {
+                    return;
+                }
+
+                const valueEl = statItem.querySelector('.stat-value');
+                if (!valueEl) {
+                    return;
+                }
+
+                const currentValue = parseInt(valueEl.textContent, 10) || 0;
+                valueEl.textContent = Math.max(0, currentValue + delta);
+            });
+        });
+    }
+
+    function inferUserReactionDelta(prevReaction, reactionType, response, likesBefore, dislikesBefore) {
+        if (prevReaction === reactionType) {
+            return -1;
+        }
+        if (prevReaction === null) {
+            return 1;
+        }
+        if (prevReaction === 'like' || prevReaction === 'dislike') {
+            return 0;
+        }
+
+        if (
+            response &&
+            typeof response.likes === 'number' &&
+            typeof response.dislikes === 'number' &&
+            typeof likesBefore === 'number' &&
+            typeof dislikesBefore === 'number'
+        ) {
+            const totalDelta = (response.likes + response.dislikes) - (likesBefore + dislikesBefore);
+            if (totalDelta === 1 || totalDelta === 0 || totalDelta === -1) {
+                return totalDelta;
+            }
+        }
+
+        return 0;
+    }
+
+    function inferNextUserReaction(prevReaction, reactionType, userDelta) {
+        if (prevReaction === reactionType) {
+            return null;
+        }
+        if (prevReaction === 'like' || prevReaction === 'dislike') {
+            return reactionType;
+        }
+        if (prevReaction === null) {
+            return reactionType;
+        }
+
+        if (userDelta === -1) {
+            return null;
+        }
+        if (userDelta === 0 || userDelta === 1) {
+            return reactionType;
+        }
+
+        return null;
+    }
+
+    // Update a button's displayed count by replacing the "(N)" pattern in its text.
+    function updateButtonCount(btn, newCount) {
+        if (!btn) return;
+
+        const currentText = btn.textContent;
+        if (/\(\d+\)/.test(currentText)) {
+            btn.textContent = currentText.replace(/\(\d+\)/, `(${newCount})`);
+        } else if (/\d+/.test(currentText)) {
+            btn.textContent = currentText.replace(/\d+(?!.*\d)/, String(newCount));
         } else {
-            // Fallback for pages without page-errors div
-            alert(message);
+            btn.textContent = `${currentText} (${newCount})`;
+        }
+
+        const ariaLabel = btn.getAttribute('aria-label');
+        if (ariaLabel) {
+            if (/current count:\s*\d+/i.test(ariaLabel)) {
+                btn.setAttribute('aria-label', ariaLabel.replace(/current count:\s*\d+/i, `current count: ${newCount}`));
+            } else {
+                btn.setAttribute('aria-label', `${ariaLabel}, current count: ${newCount}`);
+            }
         }
     }
 
-    function clearPageError() {
-        const pageErrors = document.getElementById('page-errors');
-        if (pageErrors) pageErrors.innerHTML = '';
+    // Fetch updated counts from the server and apply them to the like/dislike buttons.
+    async function refreshCounts(targetType, targetId, likeBtn, dislikeBtn) {
+        try {
+            const data = await window.api.request(`/api/reactions/${targetType}/${targetId}/count`);
+            if (data && typeof data.likes === 'number') {
+                updateButtonCount(likeBtn, data.likes);
+            }
+            if (data && typeof data.dislikes === 'number') {
+                updateButtonCount(dislikeBtn, data.dislikes);
+            }
+        } catch (err) {
+            console.error('Failed to refresh reaction counts:', err);
+        }
     }
 
-    // Function to handle post reactions
-    async function handlePostReaction(postId, reactionType) {
-        clearPageError();
+    function applyCountsFromResponse(response, likeBtn, dislikeBtn) {
+        if (!response || typeof response !== 'object') {
+            return false;
+        }
+
+        const hasLikes = typeof response.likes === 'number';
+        const hasDislikes = typeof response.dislikes === 'number';
+        if (!hasLikes && !hasDislikes) {
+            return false;
+        }
+
+        if (hasLikes) {
+            updateButtonCount(likeBtn, response.likes);
+        }
+        if (hasDislikes) {
+            updateButtonCount(dislikeBtn, response.dislikes);
+        }
+        return true;
+    }
+
+    // Unified reaction handler for both posts and comments
+    async function handleReaction(targetType, targetId, reactionType, likeBtn, dislikeBtn) {
+        window.clearError('page-errors');
         try {
-            const response = await fetch('/api/reactions', {
+            const key = targetKey(targetType, targetId);
+            const prevReaction = userReactionByTarget.has(key) ? userReactionByTarget.get(key) : undefined;
+            const likesBefore = parseCountFromButton(likeBtn);
+            const dislikesBefore = parseCountFromButton(dislikeBtn);
+
+            const response = await window.api.request('/api/reactions', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify({
-                    target_type: 'post',
-                    target_id: postId,
+                    target_type: targetType,
+                    target_id: targetId,
                     type: reactionType
-                }),
-                credentials: 'include'
+                })
             });
 
-            if (response.ok) {
-                location.reload(); // Reload to get updated counts
-            } else {
-                if (response.status === 401) {
-                    showPageError('Please login to react to posts');
-                } else {
-                    const error = await response.json();
-                    showPageError(error.error || `Failed to ${reactionType} post`);
-                }
+            const applied = applyCountsFromResponse(response, likeBtn, dislikeBtn);
+            if (!applied) {
+                await refreshCounts(targetType, targetId, likeBtn, dislikeBtn);
             }
+
+            const userDelta = inferUserReactionDelta(prevReaction, reactionType, response, likesBefore, dislikesBefore);
+            updateUserReactionCount(userDelta);
+            userReactionByTarget.set(key, inferNextUserReaction(prevReaction, reactionType, userDelta));
         } catch (error) {
-            console.error(`Reaction error (${reactionType}):`, error);
-            showPageError(`An error occurred while ${reactionType}ing the post`);
+            if (error && error.status === 401) {
+                window.showError(`Please login to react to ${targetType}s`, 'page-errors');
+                return;
+            }
+            console.error(`Reaction error (${targetType}/${reactionType}):`, error);
+            window.showError(error.message || `An error occurred while ${reactionType}ing the ${targetType}`, 'page-errors');
         }
     }
 
-    // Function to handle comment reactions
-    async function handleCommentReaction(commentId, reactionType) {
-        clearPageError();
-        try {
-            const response = await fetch('/api/reactions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    target_type: 'comment',
-                    target_id: commentId,
-                    type: reactionType
-                }),
-                credentials: 'include'
-            });
+    // Convenience wrappers for backward compatibility
+    function handlePostReaction(postId, reactionType, likeBtn, dislikeBtn) {
+        return handleReaction('post', postId, reactionType, likeBtn, dislikeBtn);
+    }
 
-            if (response.ok) {
-                location.reload(); // Reload to get updated counts
-            } else {
-                if (response.status === 401) {
-                    showPageError('Please login to react to comments');
-                } else {
-                    const error = await response.json();
-                    showPageError(error.error || `Failed to ${reactionType} comment`);
-                }
-            }
-        } catch (error) {
-            console.error(`Comment reaction error (${reactionType}):`, error);
-            showPageError(`An error occurred while ${reactionType}ing the comment`);
-        }
+    function handleCommentReaction(commentId, reactionType, likeBtn, dislikeBtn) {
+        return handleReaction('comment', commentId, reactionType, likeBtn, dislikeBtn);
     }
 
     // Event delegation for reaction buttons
@@ -98,7 +219,10 @@
                 e.preventDefault();
                 e.stopPropagation(); // Prevent card click navigation
                 const postId = btn.getAttribute('data-post-id');
-                if (postId) await handlePostReaction(postId, 'like');
+                if (postId) {
+                    const dislikeBtn = document.querySelector(`.btn-dislike[data-post-id="${postId}"]`);
+                    await handlePostReaction(postId, 'like', btn, dislikeBtn);
+                }
             }
 
             // Handle post dislikes
@@ -106,21 +230,32 @@
                 e.preventDefault();
                 e.stopPropagation(); // Prevent card click navigation
                 const postId = btn.getAttribute('data-post-id');
-                if (postId) await handlePostReaction(postId, 'dislike');
+                if (postId) {
+                    const likeBtn = document.querySelector(`.btn-like[data-post-id="${postId}"]`);
+                    await handlePostReaction(postId, 'dislike', likeBtn, btn);
+                }
             }
 
             // Handle comment likes
             if (btn.classList.contains('btn-like-comment')) {
                 e.preventDefault();
+                e.stopPropagation();
                 const commentId = btn.getAttribute('data-comment-id');
-                if (commentId) await handleCommentReaction(commentId, 'like');
+                if (commentId) {
+                    const dislikeBtn = document.querySelector(`.btn-dislike-comment[data-comment-id="${commentId}"]`);
+                    await handleCommentReaction(commentId, 'like', btn, dislikeBtn);
+                }
             }
 
             // Handle comment dislikes
             if (btn.classList.contains('btn-dislike-comment')) {
                 e.preventDefault();
+                e.stopPropagation();
                 const commentId = btn.getAttribute('data-comment-id');
-                if (commentId) await handleCommentReaction(commentId, 'dislike');
+                if (commentId) {
+                    const likeBtn = document.querySelector(`.btn-like-comment[data-comment-id="${commentId}"]`);
+                    await handleCommentReaction(commentId, 'dislike', likeBtn, btn);
+                }
             }
         });
     });

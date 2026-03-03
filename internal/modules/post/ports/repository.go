@@ -1,5 +1,5 @@
 // OUTPUT PORT - Repository Interface
-// Package ports defines the output ports for the post module.
+// Package ports defines the output ports (data access contracts) for the post module.
 package ports
 
 import (
@@ -33,6 +33,8 @@ type CategoryRepository interface {
 	GetByID(ctx context.Context, categoryID string) (*domain.Category, error)
 	// GetByName retrieves a category by its name.
 	GetByName(ctx context.Context, name string) (*domain.Category, error)
+	// GetByNames retrieves multiple categories by their names in a single query.
+	GetByNames(ctx context.Context, names []string) ([]domain.Category, error)
 	// List returns all categories.
 	List(ctx context.Context) ([]*domain.Category, error)
 	// Delete removes a category by its public UUID.

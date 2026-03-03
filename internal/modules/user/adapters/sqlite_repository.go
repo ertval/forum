@@ -6,23 +6,22 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"forum/internal/modules/user/domain"
 	"forum/internal/modules/user/ports"
+	"forum/internal/platform/database"
 
 	"github.com/gofrs/uuid/v5"
 )
 
+// userColumns is the shared column list for all user queries.
+const userColumns = `id, public_id, email, username, password_hash, avatar_path, role, post_count, comment_count, reaction_count, created_at, updated_at, is_active`
+
 const (
-	selectUserWithAvatarByID = `SELECT id, public_id, email, username, password_hash, avatar_path, role, post_count, comment_count, reaction_count, created_at, updated_at, is_active
-              FROM users WHERE id = ?`
-	selectUserLegacyByID = `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, reaction_count, created_at, updated_at, is_active
-              FROM users WHERE id = ?`
-	selectUserWithAvatarByPublicID = `SELECT id, public_id, email, username, password_hash, avatar_path, role, post_count, comment_count, reaction_count, created_at, updated_at, is_active
-              FROM users WHERE public_id = ?`
-	selectUserLegacyByPublicID = `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, reaction_count, created_at, updated_at, is_active
-              FROM users WHERE public_id = ?`
+	selectUserByID       = `SELECT ` + userColumns + ` FROM users WHERE id = ?`
+	selectUserByPublicID = `SELECT ` + userColumns + ` FROM users WHERE public_id = ?`
+	selectUserByEmail    = `SELECT ` + userColumns + ` FROM users WHERE email = ?`
+	selectUserByUsername = `SELECT ` + userColumns + ` FROM users WHERE username = ?`
 )
 
 // SQLiteUserRepository implements the UserRepository interface using SQLite.
@@ -67,117 +66,68 @@ func (r *SQLiteUserRepository) Create(ctx context.Context, user *domain.User) er
 	}
 
 	// Get the auto-generated ID and set it in the user object
-	id, err := result.LastInsertId()
+	lastID, err := result.LastInsertId()
 	if err != nil {
 		return err
 	}
 
-	user.ID = int(id)
+	user.ID, err = database.SafeInt64ToInt(lastID)
+	if err != nil {
+		return fmt.Errorf("last insert id overflow: %w", err)
+	}
 	return nil
 }
 
 // GetByID retrieves a user by their ID.
 func (r *SQLiteUserRepository) GetByID(ctx context.Context, userID int) (*domain.User, error) {
-	user, err := r.getByIDWithAvatar(ctx, userID)
-	if err == nil {
-		return user, nil
+	row := r.db.QueryRowContext(ctx, selectUserByID, userID)
+	user, err := scanUser(row)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, domain.ErrUserNotFound
+		}
+		return nil, err
 	}
-	if isMissingAvatarColumnError(err) {
-		return r.getByIDLegacy(ctx, userID)
-	}
-	if err == sql.ErrNoRows {
-		return nil, domain.ErrUserNotFound
-	}
-	return nil, err
+	return user, nil
 }
 
 // GetByPublicID retrieves a user by their public UUID.
 func (r *SQLiteUserRepository) GetByPublicID(ctx context.Context, publicID string) (*domain.User, error) {
-	user, err := r.getByPublicIDWithAvatar(ctx, publicID)
-	if err == nil {
-		return user, nil
+	row := r.db.QueryRowContext(ctx, selectUserByPublicID, publicID)
+	user, err := scanUser(row)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, domain.ErrUserNotFound
+		}
+		return nil, err
 	}
-	if isMissingAvatarColumnError(err) {
-		return r.getByPublicIDLegacy(ctx, publicID)
-	}
-	if err == sql.ErrNoRows {
-		return nil, domain.ErrUserNotFound
-	}
-	return nil, err
+	return user, nil
 }
 
 // GetByEmail retrieves a user by their email address.
 func (r *SQLiteUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
-	query := `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, reaction_count, created_at, updated_at, is_active
-              FROM users WHERE email = ?`
-
-	row := r.db.QueryRowContext(ctx, query, email)
-
-	var user domain.User
-	var isActive int // SQLite stores booleans as integers (0 or 1)
-
-	err := row.Scan(
-		&user.ID,
-		&user.PublicID,
-		&user.Email,
-		&user.Username,
-		&user.PasswordHash,
-		&user.Role,
-		&user.PostCount,
-		&user.CommentCount,
-		&user.ReactionCount,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-		&isActive,
-	)
-
+	row := r.db.QueryRowContext(ctx, selectUserByEmail, email)
+	user, err := scanUser(row)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, domain.ErrUserNotFound
 		}
 		return nil, err
 	}
-
-	user.IsActive = isActive == 1
-
-	return &user, nil
+	return user, nil
 }
 
 // GetByUsername retrieves a user by their username.
 func (r *SQLiteUserRepository) GetByUsername(ctx context.Context, username string) (*domain.User, error) {
-	query := `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, reaction_count, created_at, updated_at, is_active
-              FROM users WHERE username = ?`
-
-	row := r.db.QueryRowContext(ctx, query, username)
-
-	var user domain.User
-	var isActive int // SQLite stores booleans as integers (0 or 1)
-
-	err := row.Scan(
-		&user.ID,
-		&user.PublicID,
-		&user.Email,
-		&user.Username,
-		&user.PasswordHash,
-		&user.Role,
-		&user.PostCount,
-		&user.CommentCount,
-		&user.ReactionCount,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-		&isActive,
-	)
-
+	row := r.db.QueryRowContext(ctx, selectUserByUsername, username)
+	user, err := scanUser(row)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, domain.ErrUserNotFound
 		}
 		return nil, err
 	}
-
-	user.IsActive = isActive == 1
-
-	return &user, nil
+	return user, nil
 }
 
 // Update updates an existing user in the database.
@@ -186,7 +136,7 @@ func (r *SQLiteUserRepository) Update(ctx context.Context, user *domain.User) er
 		      SET email=?, username=?, password_hash=?, avatar_path=?, role=?, post_count=?, comment_count=?, is_active=?, updated_at=?
 		      WHERE id=?`
 
-	_, err := r.db.ExecContext(ctx, query,
+	result, err := r.db.ExecContext(ctx, query,
 		user.Email,
 		user.Username,
 		user.PasswordHash,
@@ -198,68 +148,23 @@ func (r *SQLiteUserRepository) Update(ctx context.Context, user *domain.User) er
 		user.UpdatedAt,
 		user.ID,
 	)
-
-	if err == nil {
-		return nil
-	}
-	if !isMissingAvatarColumnError(err) {
+	if err != nil {
 		return err
 	}
 
-	legacyQuery := `UPDATE users 
-		      SET email=?, username=?, password_hash=?, role=?, post_count=?, comment_count=?, is_active=?, updated_at=?
-		      WHERE id=?`
-
-	_, legacyErr := r.db.ExecContext(ctx, legacyQuery,
-		user.Email,
-		user.Username,
-		user.PasswordHash,
-		user.Role,
-		user.PostCount,
-		user.CommentCount,
-		user.IsActive,
-		user.UpdatedAt,
-		user.ID,
-	)
-
-	return legacyErr
-}
-
-func (r *SQLiteUserRepository) getByIDWithAvatar(ctx context.Context, userID int) (*domain.User, error) {
-	row := r.db.QueryRowContext(ctx, selectUserWithAvatarByID, userID)
-	return scanUserRowWithAvatar(row)
-}
-
-func (r *SQLiteUserRepository) getByIDLegacy(ctx context.Context, userID int) (*domain.User, error) {
-	row := r.db.QueryRowContext(ctx, selectUserLegacyByID, userID)
-	user, err := scanUserRowLegacy(row)
+	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, domain.ErrUserNotFound
-		}
-		return nil, err
+		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
-	return user, nil
-}
-
-func (r *SQLiteUserRepository) getByPublicIDWithAvatar(ctx context.Context, publicID string) (*domain.User, error) {
-	row := r.db.QueryRowContext(ctx, selectUserWithAvatarByPublicID, publicID)
-	return scanUserRowWithAvatar(row)
-}
-
-func (r *SQLiteUserRepository) getByPublicIDLegacy(ctx context.Context, publicID string) (*domain.User, error) {
-	row := r.db.QueryRowContext(ctx, selectUserLegacyByPublicID, publicID)
-	user, err := scanUserRowLegacy(row)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, domain.ErrUserNotFound
-		}
-		return nil, err
+	if rowsAffected == 0 {
+		return domain.ErrUserNotFound
 	}
-	return user, nil
+
+	return nil
 }
 
-func scanUserRowWithAvatar(scanner interface{ Scan(dest ...any) error }) (*domain.User, error) {
+// scanUser scans a user row from any scanner (works with both *sql.Row and *sql.Rows).
+func scanUser(scanner interface{ Scan(dest ...any) error }) (*domain.User, error) {
 	var user domain.User
 	var isActive int
 	var avatarPath sql.NullString
@@ -287,44 +192,11 @@ func scanUserRowWithAvatar(scanner interface{ Scan(dest ...any) error }) (*domai
 	if avatarPath.Valid {
 		user.AvatarPath = avatarPath.String
 		if user.AvatarPath != "" {
-			user.AvatarURL = "/static/uploads/" + user.AvatarPath
+			user.AvatarURL = domain.AvatarURLPrefix + user.AvatarPath
 		}
 	}
 
 	return &user, nil
-}
-
-func scanUserRowLegacy(scanner interface{ Scan(dest ...any) error }) (*domain.User, error) {
-	var user domain.User
-	var isActive int
-
-	err := scanner.Scan(
-		&user.ID,
-		&user.PublicID,
-		&user.Email,
-		&user.Username,
-		&user.PasswordHash,
-		&user.Role,
-		&user.PostCount,
-		&user.CommentCount,
-		&user.ReactionCount,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-		&isActive,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	user.IsActive = isActive == 1
-	return &user, nil
-}
-
-func isMissingAvatarColumnError(err error) bool {
-	if err == nil {
-		return false
-	}
-	return strings.Contains(strings.ToLower(err.Error()), "no such column: avatar_path")
 }
 
 // Delete removes a user from the database.
@@ -342,7 +214,7 @@ func (r *SQLiteUserRepository) Delete(ctx context.Context, userID int) error {
 	}
 
 	if rowsAffected == 0 {
-		return sql.ErrNoRows
+		return domain.ErrUserNotFound
 	}
 
 	return nil
@@ -350,8 +222,7 @@ func (r *SQLiteUserRepository) Delete(ctx context.Context, userID int) error {
 
 // List returns a paginated list of users.
 func (r *SQLiteUserRepository) List(ctx context.Context, offset, limit int) ([]*domain.User, error) {
-	query := `SELECT id, public_id, email, username, password_hash, role, post_count, comment_count, reaction_count, created_at, updated_at, is_active
-              FROM users ORDER BY created_at DESC`
+	query := `SELECT ` + userColumns + ` FROM users ORDER BY created_at DESC`
 
 	// Add pagination if limit is specified
 	var rows *sql.Rows
@@ -367,31 +238,13 @@ func (r *SQLiteUserRepository) List(ctx context.Context, offset, limit int) ([]*
 	}
 	defer rows.Close()
 
-	var users []*domain.User
+	users := make([]*domain.User, 0, 16)
 	for rows.Next() {
-		var user domain.User
-		var isActive int // SQLite stores booleans as integers (0 or 1)
-
-		err := rows.Scan(
-			&user.ID,
-			&user.PublicID,
-			&user.Email,
-			&user.Username,
-			&user.PasswordHash,
-			&user.Role,
-			&user.PostCount,
-			&user.CommentCount,
-			&user.ReactionCount,
-			&user.CreatedAt,
-			&user.UpdatedAt,
-			&isActive,
-		)
-		if err != nil {
-			return nil, err
+		user, scanErr := scanUser(rows)
+		if scanErr != nil {
+			return nil, scanErr
 		}
-
-		user.IsActive = isActive == 1
-		users = append(users, &user)
+		users = append(users, user)
 	}
 
 	if err := rows.Err(); err != nil {

@@ -24,6 +24,10 @@ func TestPostRepositoryInterface(t *testing.T) {
 // Mock implementations for interface compatibility testing
 type mockPostService struct{}
 
+// Compile-time interface satisfaction checks.
+var _ PostService = (*mockPostService)(nil)
+var _ PostRepository = (*mockPostRepository)(nil)
+
 func (m *mockPostService) CreatePost(ctx context.Context, userID int, title, content string, categories []string, image []byte) (*domain.Post, error) {
 	return nil, nil
 }
@@ -48,6 +52,10 @@ func (m *mockPostService) UpdatePostImage(ctx context.Context, postID string, im
 	return nil
 }
 
+func (m *mockPostService) MaxImageSize() int64 {
+	return 0
+}
+
 type mockPostRepository struct{}
 
 func (m *mockPostRepository) Create(ctx context.Context, post *domain.Post) error {
@@ -68,6 +76,14 @@ func (m *mockPostRepository) Delete(ctx context.Context, id string) error {
 
 func (m *mockPostRepository) List(ctx context.Context, filter domain.PostFilter) ([]*domain.Post, error) {
 	return nil, nil
+}
+
+func (m *mockPostRepository) UpdateImagePath(ctx context.Context, postID string, imagePath string) error {
+	return nil
+}
+
+func (m *mockPostRepository) GetImagePath(ctx context.Context, postID string) (string, error) {
+	return "", nil
 }
 
 func TestPostServiceInterfaceMethods(t *testing.T) {

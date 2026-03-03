@@ -6,7 +6,7 @@ package adapters
 import (
 	authPorts "forum/internal/modules/auth/ports"
 	userPorts "forum/internal/modules/user/ports"
-	"html/template"
+	platformTemplates "forum/internal/platform/templates"
 	"net/http"
 )
 
@@ -16,8 +16,9 @@ type HTTPHandler struct {
 	authService        authPorts.AuthService
 	userService        userPorts.UserService
 	middlewareProvider authPorts.AuthMiddleware
-	templates          *template.Template
+	templates          *platformTemplates.Registry
 	secureCookies      bool // Whether to set Secure flag on cookies (true in production)
+	cookieName         string
 }
 
 // ServiceContainer defines the minimal interface needed by this handler.
@@ -26,39 +27,49 @@ type ServiceContainer interface {
 	Auth() authPorts.AuthService
 	User() userPorts.UserService
 	AuthMiddleware() authPorts.AuthMiddleware
+	SessionCookieName() string
+	SecureCookies() bool
 }
 
 // NewHTTPHandler creates a new HTTP handler for authentication with unified dependency injection.
-func NewHTTPHandler(services ServiceContainer, templates *template.Template, secureCookies bool) *HTTPHandler {
+func NewHTTPHandler(services ServiceContainer, templates *platformTemplates.Registry) *HTTPHandler {
+	secureCookies := services.SecureCookies()
+	cookieName := services.SessionCookieName()
+	if cookieName == "" {
+		cookieName = "session_token"
+	}
+
 	return &HTTPHandler{
 		authService:        services.Auth(),
 		userService:        services.User(),
 		middlewareProvider: services.AuthMiddleware(),
 		templates:          templates,
 		secureCookies:      secureCookies,
+		cookieName:         cookieName,
 	}
 }
 
 // GetCurrentUser extracts user info from session cookie (helper for other handlers).
-// Returns userID and username, or (0, "") if not authenticated.
-func (h *HTTPHandler) GetCurrentUser(r *http.Request) (userID int, username string) {
-	cookie, err := r.Cookie("session_token")
+// Returns publicID (UUID) and username, or ("", "") if not authenticated.
+// SECURITY: Returns PublicID (UUID), never the internal int ID.
+func (h *HTTPHandler) GetCurrentUser(r *http.Request) (publicID string, username string) {
+	cookie, err := r.Cookie(h.cookieName)
 	if err != nil || cookie.Value == "" {
-		return 0, ""
+		return "", ""
 	}
 
 	session, err := h.authService.ValidateSession(r.Context(), cookie.Value)
 	if err != nil || session == nil {
-		return 0, ""
+		return "", ""
 	}
 
-	// Fetch username from user service
+	// Fetch user to get PublicID and username
 	user, err := h.userService.GetByID(r.Context(), session.UserID)
 	if err != nil || user == nil {
-		return session.UserID, "" // Return ID even if username fetch fails
+		return "", "" // Cannot determine public ID without user record
 	}
 
-	return session.UserID, user.Username
+	return user.PublicID, user.Username
 }
 
 // RegisterRoutes registers all authentication routes with the router.

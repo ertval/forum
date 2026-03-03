@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -497,5 +498,84 @@ func TestLoggerMiddlewareUserAgent(t *testing.T) {
 	logOutput := tl.buf.String()
 	if !tl.contains(`"user_agent":`) {
 		t.Errorf("log output missing user_agent field\nLog: %s", logOutput)
+	}
+}
+
+func TestCORS_WildcardOriginDoesNotSetCredentialsHeader(t *testing.T) {
+	handler := CORS([]string{"*"})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	req.Header.Set("Origin", "https://example.com")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "*" {
+		t.Fatalf("Access-Control-Allow-Origin = %q, want %q", got, "*")
+	}
+
+	if got := rec.Header().Get("Access-Control-Allow-Credentials"); got != "" {
+		t.Fatalf("Access-Control-Allow-Credentials = %q, want empty when origin is wildcard", got)
+	}
+}
+
+func TestCORS_SpecificOriginSetsCredentialsHeader(t *testing.T) {
+	handler := CORS([]string{"https://allowed.example"})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	req.Header.Set("Origin", "https://allowed.example")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "https://allowed.example" {
+		t.Fatalf("Access-Control-Allow-Origin = %q, want echoed origin", got)
+	}
+
+	if got := rec.Header().Get("Access-Control-Allow-Credentials"); got != "true" {
+		t.Fatalf("Access-Control-Allow-Credentials = %q, want %q", got, "true")
+	}
+}
+
+func TestRateLimitWithConfig_ReturnsWorkingStopFunction(t *testing.T) {
+	cfg := RateLimiterConfig{
+		Requests:        5,
+		Window:          time.Second,
+		CleanupInterval: 10 * time.Millisecond,
+		MaxEntries:      100,
+		TrustProxy:      false,
+	}
+
+	middleware, stop := RateLimitWithConfig(cfg)
+	if stop == nil {
+		t.Fatal("expected non-nil stop function")
+	}
+
+	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "127.0.0.1:12345"
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", rec.Code, http.StatusOK)
+	}
+
+	// Verify the stop function actually stops the background goroutine.
+	// Capture goroutine count before calling stop, give the goroutine time
+	// to exit, then assert the count decreased.
+	beforeStop := runtime.NumGoroutine()
+	stop()
+	time.Sleep(50 * time.Millisecond)
+	afterStop := runtime.NumGoroutine()
+	if afterStop >= beforeStop {
+		t.Errorf("goroutine count did not decrease after stop(): before=%d, after=%d", beforeStop, afterStop)
 	}
 }

@@ -25,9 +25,16 @@ type responseWriter struct {
 	size   int
 }
 
+// Unwrap returns the underlying ResponseWriter for http.ResponseController compatibility.
+func (rw *responseWriter) Unwrap() http.ResponseWriter {
+	return rw.ResponseWriter
+}
+
 // WriteHeader captures the status code and delegates to the underlying writer.
 func (rw *responseWriter) WriteHeader(status int) {
-	rw.status = status
+	if rw.status == 0 {
+		rw.status = status
+	}
 	rw.ResponseWriter.WriteHeader(status)
 }
 
@@ -147,8 +154,13 @@ func CORS(allowedOrigins []string) Middleware {
 			// Set common CORS headers
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
+
+			// Only emit credentials header when echoing a specific origin.
+			// The Fetch spec forbids credentials: true with wildcard origin.
+			if allowedOrigin := w.Header().Get("Access-Control-Allow-Origin"); allowedOrigin != "" && allowedOrigin != "*" {
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+			}
 
 			// Handle preflight requests
 			if r.Method == http.MethodOptions {
@@ -190,6 +202,7 @@ type rateLimiter struct {
 	trustProxy bool
 	entryCount int64 // atomic counter for entries
 	done       chan struct{}
+	stopOnce   sync.Once
 }
 
 // ipEntry tracks requests for a single IP with its own lock.
@@ -201,13 +214,15 @@ type ipEntry struct {
 // RateLimit middleware limits the number of requests per time window.
 // This is IP-based rate limiting that doesn't require user context.
 // For user-based rate limiting, use auth module middleware.
-func RateLimit(requests int, windowSeconds int) Middleware {
+// Returns the middleware and a stop function to shut down the cleanup goroutine.
+func RateLimit(requests int, windowSeconds int) (Middleware, func()) {
 	return RateLimitWithConfig(DefaultRateLimiterConfig(requests, windowSeconds))
 }
 
 // RateLimitWithConfig creates a rate limiter with custom configuration.
-// The returned cleanup function should be called during graceful shutdown.
-func RateLimitWithConfig(cfg RateLimiterConfig) Middleware {
+// Returns the middleware and a stop function that shuts down the cleanup goroutine.
+// The stop function should be called during graceful shutdown.
+func RateLimitWithConfig(cfg RateLimiterConfig) (Middleware, func()) {
 	limiter := &rateLimiter{
 		limit:      cfg.Requests,
 		window:     cfg.Window,
@@ -230,7 +245,7 @@ func RateLimitWithConfig(cfg RateLimiterConfig) Middleware {
 		}
 	}()
 
-	return func(next http.Handler) http.Handler {
+	middleware := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			clientIP := getClientIP(r, limiter.trustProxy)
 
@@ -243,6 +258,8 @@ func RateLimitWithConfig(cfg RateLimiterConfig) Middleware {
 			next.ServeHTTP(w, r)
 		})
 	}
+
+	return middleware, limiter.Stop
 }
 
 // getClientIP extracts the client IP address from the request.
@@ -274,10 +291,8 @@ func (rl *rateLimiter) allow(ip string) bool {
 	now := time.Now()
 	windowStart := now.Add(-rl.window)
 
-	// Get or create entry for this IP
-	val, loaded := rl.entries.LoadOrStore(ip, &ipEntry{
-		requests: []time.Time{now},
-	})
+	// Get or create entry for this IP (empty; first request recorded under mutex)
+	val, loaded := rl.entries.LoadOrStore(ip, &ipEntry{})
 
 	if !loaded {
 		// New entry - check if we're at capacity
@@ -288,9 +303,9 @@ func (rl *rateLimiter) allow(ip string) bool {
 			atomic.AddInt64(&rl.entryCount, -1)
 			return false // Reject to prevent DoS via IP spoofing
 		}
-		return true // First request for this IP, always allowed
 	}
 
+	// All requests (including the first) go through the mutex-protected path
 	entry := val.(*ipEntry)
 	entry.mu.Lock()
 	defer entry.mu.Unlock()
@@ -345,8 +360,9 @@ func (rl *rateLimiter) cleanup() {
 }
 
 // Stop gracefully shuts down the rate limiter's cleanup goroutine.
+// Safe to call multiple times.
 func (rl *rateLimiter) Stop() {
-	close(rl.done)
+	rl.stopOnce.Do(func() { close(rl.done) })
 }
 
 // NOTE: Authentication and Authorization middleware are intentionally NOT here.

@@ -5,11 +5,11 @@ import (
 	"time"
 )
 
-func TestReport_IsValid(t *testing.T) {
+func TestReport_Validate(t *testing.T) {
 	tests := []struct {
-		name     string
-		report   *Report
-		expected bool
+		name      string
+		report    *Report
+		expectErr bool
 	}{
 		{
 			name: "valid post report",
@@ -22,7 +22,7 @@ func TestReport_IsValid(t *testing.T) {
 				Status:     StatusPending,
 				CreatedAt:  time.Now(),
 			},
-			expected: true,
+			expectErr: false,
 		},
 		{
 			name: "valid comment report",
@@ -35,7 +35,7 @@ func TestReport_IsValid(t *testing.T) {
 				Status:     StatusPending,
 				CreatedAt:  time.Now(),
 			},
-			expected: true,
+			expectErr: false,
 		},
 		{
 			name: "invalid target type",
@@ -48,7 +48,7 @@ func TestReport_IsValid(t *testing.T) {
 				Status:     StatusPending,
 				CreatedAt:  time.Now(),
 			},
-			expected: false,
+			expectErr: true,
 		},
 		{
 			name: "empty target type",
@@ -61,15 +61,41 @@ func TestReport_IsValid(t *testing.T) {
 				Status:     StatusPending,
 				CreatedAt:  time.Now(),
 			},
-			expected: false,
+			expectErr: true,
+		},
+		{
+			name: "empty reason",
+			report: &Report{
+				ID:         1,
+				ReporterID: 1,
+				TargetID:   10,
+				TargetType: "post",
+				Reason:     "   ",
+				Status:     StatusPending,
+				CreatedAt:  time.Now(),
+			},
+			expectErr: true,
+		},
+		{
+			name: "invalid status",
+			report: &Report{
+				ID:         1,
+				ReporterID: 1,
+				TargetID:   10,
+				TargetType: "post",
+				Reason:     "Inappropriate content",
+				Status:     "unknown",
+				CreatedAt:  time.Now(),
+			},
+			expectErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.report.IsValid()
-			if result != tt.expected {
-				t.Errorf("IsValid() = %v, want %v", result, tt.expected)
+			err := tt.report.Validate()
+			if (err != nil) != tt.expectErr {
+				t.Errorf("Validate() error = %v, expectErr %v", err, tt.expectErr)
 			}
 		})
 	}
@@ -80,10 +106,12 @@ func TestReport_StructFields(t *testing.T) {
 	report := &Report{
 		ID:         1,
 		ReporterID: 10,
+		PublicID:   "report-public-id",
 		TargetID:   5,
 		TargetType: "post",
 		Reason:     "Inappropriate content",
 		Status:     StatusPending,
+		Response:   "",
 		CreatedAt:  now,
 	}
 
@@ -92,6 +120,9 @@ func TestReport_StructFields(t *testing.T) {
 	}
 	if report.ReporterID != 10 {
 		t.Errorf("Expected ReporterID 10, got %d", report.ReporterID)
+	}
+	if report.PublicID != "report-public-id" {
+		t.Errorf("Expected PublicID 'report-public-id', got '%s'", report.PublicID)
 	}
 	if report.TargetID != 5 {
 		t.Errorf("Expected TargetID 5, got %d", report.TargetID)
@@ -104,6 +135,9 @@ func TestReport_StructFields(t *testing.T) {
 	}
 	if report.Status != StatusPending {
 		t.Errorf("Expected Status '%s', got '%s'", StatusPending, report.Status)
+	}
+	if report.Response != "" {
+		t.Errorf("Expected Response '', got '%s'", report.Response)
 	}
 	if !report.CreatedAt.Equal(now) {
 		t.Errorf("Expected CreatedAt %v, got %v", now, report.CreatedAt)
@@ -119,5 +153,23 @@ func TestReportStatusConstants(t *testing.T) {
 	}
 	if StatusResolved != "resolved" {
 		t.Errorf("Expected StatusResolved to be 'resolved', got '%s'", StatusResolved)
+	}
+}
+
+func TestHelpers(t *testing.T) {
+	if !IsValidStatus(StatusPending) {
+		t.Fatal("expected pending status to be valid")
+	}
+	if IsValidStatus("unknown") {
+		t.Fatal("expected unknown status to be invalid")
+	}
+	if !IsValidTargetType("post") || !IsValidTargetType("comment") {
+		t.Fatal("expected post/comment target types to be valid")
+	}
+	if IsValidTargetType("user") {
+		t.Fatal("expected user target type to be invalid")
+	}
+	if NormalizeStatus("  ReSolVed ") != StatusResolved {
+		t.Fatalf("expected normalized status to be %q", StatusResolved)
 	}
 }

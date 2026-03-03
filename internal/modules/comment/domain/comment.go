@@ -1,4 +1,4 @@
-// Package domain contains core entities for the comment module.
+// Package domain contains the core business entities for the comment module.
 package domain
 
 import (
@@ -16,8 +16,9 @@ type Comment struct {
 	CreatedAt time.Time `json:"created_at"` // Comment creation timestamp
 	UpdatedAt time.Time `json:"updated_at"` // Last update timestamp
 	// For API responses - public UUIDs of related entities
-	PublicPostID string `json:"post_id,omitempty"` // Public UUID of the post
-	PublicUserID string `json:"user_id,omitempty"` // Public UUID of the author
+	PublicPostID   string `json:"post_id,omitempty"`        // Public UUID of the post
+	PublicUserID   string `json:"user_id,omitempty"`        // Public UUID of the author
+	AuthorUsername string `json:"author_username,omitempty"` // Author's username (populated by JOIN)
 }
 
 // Validate checks if the comment is valid.

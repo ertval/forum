@@ -12,29 +12,32 @@ func TestUsernameValidation(t *testing.T) {
 	}{
 		// Valid single names
 		{"valid single name", "Alice", false},
+		{"valid lowercase name", "alice", false},
 		{"valid single name with mixed case", "McDonald", false},
 		{"valid two char name", "Li", false},
 
-		// Valid full names
+		// Valid full names (multi-word)
 		{"valid full name", "Alice Smith", false},
 		{"valid full name with mixed case", "John McDonald", false},
 		{"valid triple name", "Alice Mary Jane", false},
 
-		// Invalid - capitalization
-		{"lowercase single name", "alice", true},
-		{"lowercase second name", "Alice smith", true},
-		{"all lowercase", "alice smith", true},
+		// Valid - handle-style with digits, hyphens, underscores
+		{"with digits", "alice123", false},
+		{"with underscore", "alice_smith", false},
+		{"with hyphen", "Alice-Smith", false},
+
+		// Invalid - doesn't start with letter
+		{"starts with digit", "123alice", true},
+		{"starts with underscore", "_alice", true},
 
 		// Invalid - length
 		{"too short", "A", true},
 		{"empty", "", true},
 		{"whitespace only", "   ", true},
 
-		// Invalid - special characters
-		{"with numbers", "Alice123", true},
-		{"with hyphen", "Alice-Smith", true},
+		// Invalid - special characters not allowed
 		{"with apostrophe", "O'Brien", true},
-		{"with underscore", "Alice_Smith", true},
+		{"with at sign", "alice@bob", true},
 
 		// Edge cases
 		{"fifty chars valid", "Abcdefghijklmnopqrstuvwxyz Abcdefghijklmnopqrstu", false},

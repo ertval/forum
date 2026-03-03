@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
+    avatar_path TEXT,
     role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('guest', 'user', 'moderator', 'admin')),
     oauth_provider TEXT,
     oauth_provider_id TEXT,

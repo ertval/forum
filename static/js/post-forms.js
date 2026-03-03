@@ -5,21 +5,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Track if image should be removed on form submission
     let shouldRemoveImage = false;
 
-    // Handle content preview functionality for post creation
-    const contentTextarea = document.getElementById('content');
-    const contentPreview = document.getElementById('content-preview');
-    
-    if (contentTextarea && contentPreview) {
-        // Initialize preview with existing content (for edit form)
-        if (contentTextarea.value) {
-            contentPreview.textContent = contentTextarea.value;
-        }
-
-        contentTextarea.addEventListener('input', function() {
-            contentPreview.textContent = this.value;
-        });
-    }
-
     // Handle image preview functionality
     const imageInput = document.getElementById('image');
     if (imageInput) {
@@ -62,12 +47,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     if (preview) {
-                        preview.innerHTML = `
-                            <img src="${e.target.result}" alt="Preview">
-                            <button type="button" class="btn-remove-image" id="remove-preview-image" title="Remove image">
-                                <span class="remove-icon">×</span> Remove Image
-                            </button>
-                        `;
+                        // Build preview with DOM methods (avoids innerHTML with data URL)
+                        preview.innerHTML = '';
+                        const previewImg = document.createElement('img');
+                        previewImg.src = e.target.result;
+                        previewImg.alt = 'Preview';
+                        const removeBtn = document.createElement('button');
+                        removeBtn.type = 'button';
+                        removeBtn.className = 'btn-remove-image';
+                        removeBtn.id = 'remove-preview-image';
+                        removeBtn.title = 'Remove image';
+                        const removeIcon = document.createElement('span');
+                        removeIcon.className = 'remove-icon';
+                        removeIcon.textContent = '\u00d7';
+                        removeBtn.appendChild(removeIcon);
+                        removeBtn.appendChild(document.createTextNode(' Remove Image'));
+                        preview.appendChild(previewImg);
+                        preview.appendChild(removeBtn);
                         // Attach remove handler to the new button
                         attachPreviewRemoveHandler();
                     }
@@ -158,20 +154,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             try {
-                const response = await fetch('/api/posts', {
+                const result = await window.api.request('/api/posts', {
                     method: 'POST',
                     body: formData
                 });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    window.location.href = `/posts/${result.id}`;
-                } else {
-                    const error = await response.json();
-                    if (formErrors) formErrors.innerHTML = `<p class="error">${error.error || 'Failed to create post'}</p>`;
-                }
+                window.location.href = `/posts/${result.id}`;
             } catch (error) {
-                if (formErrors) formErrors.innerHTML = '<p class="error">Network error. Please try again.</p>';
+                if (formErrors) formErrors.innerHTML = `<p class="error">${window.escapeHtml(error.message || 'Failed to create post')}</p>`;
             }
         });
     }
@@ -225,19 +214,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             try {
-                const response = await fetch(`/api/posts/${postId}`, {
+                await window.api.request(`/api/posts/${postId}`, {
                     method: 'PUT',
                     body: formData
                 });
-
-                if (response.ok) {
-                    window.location.href = `/posts/${postId}`;
-                } else {
-                    const error = await response.json();
-                    if (formErrors) formErrors.innerHTML = `<p class="error">${error.error || 'Failed to update post'}</p>`;
-                }
+                window.location.href = `/posts/${postId}`;
             } catch (error) {
-                if (formErrors) formErrors.innerHTML = '<p class="error">Network error. Please try again.</p>';
+                if (formErrors) formErrors.innerHTML = `<p class="error">${window.escapeHtml(error.message || 'Failed to update post')}</p>`;
             }
         });
     }
@@ -252,21 +235,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             try {
-                const response = await fetch(`/api/posts/${postId}`, {
+                await window.api.request(`/api/posts/${postId}`, {
                     method: 'DELETE'
                 });
-                
-                if (response.ok) {
-                    window.location.href = '/board?my_posts=true';
-                } else {
-                    const error = await response.json();
-                    const formErrors = document.getElementById('form-errors');
-                    if (formErrors) formErrors.innerHTML = `<p class="error">${window.escapeHtml(error.error || 'Failed to delete post')}</p>`;
-                }
+                window.location.href = '/board?my_posts=true';
             } catch (error) {
-                console.error('Delete error:', error);
                 const formErrors = document.getElementById('form-errors');
-                if (formErrors) formErrors.innerHTML = '<p class="error">An error occurred while deleting the post</p>';
+                if (formErrors) formErrors.innerHTML = `<p class="error">${window.escapeHtml(error.message || 'Failed to delete post')}</p>`;
             }
         };
     }

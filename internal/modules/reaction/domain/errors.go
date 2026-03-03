@@ -5,8 +5,11 @@ import "errors"
 
 // Domain errors for the reaction module.
 var (
-	// ErrReactionNotFound is returned when a reaction doesn't exist.
+	// ErrReactionNotFound is returned when a specific reaction doesn't exist.
 	ErrReactionNotFound = errors.New("reaction not found")
+
+	// ErrTargetNotFound is returned when the target post/comment does not exist.
+	ErrTargetNotFound = errors.New("target not found")
 
 	// ErrDuplicateReaction is returned when a user tries to add a duplicate reaction.
 	ErrDuplicateReaction = errors.New("reaction already exists")

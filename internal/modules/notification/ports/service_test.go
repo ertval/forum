@@ -6,6 +6,10 @@ import (
 	"testing"
 )
 
+// Compile-time interface satisfaction checks.
+var _ NotificationService = (*mockNotificationService)(nil)
+var _ NotificationRepository = (*mockNotificationRepository)(nil)
+
 // This test file verifies that the interfaces are properly defined and can be implemented
 func TestNotificationServiceInterface(t *testing.T) {
 	var _ NotificationService = (*mockNotificationService)(nil)
@@ -26,8 +30,16 @@ func (m *mockNotificationService) GetUserNotifications(ctx context.Context, user
 	return nil, nil
 }
 
-func (m *mockNotificationService) MarkAsRead(ctx context.Context, notificationPublicID string) error {
+func (m *mockNotificationService) MarkAsRead(ctx context.Context, userID int, notificationPublicID string) error {
 	return nil
+}
+
+func (m *mockNotificationService) MarkAllAsRead(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *mockNotificationService) CountUnread(ctx context.Context, userID int) (int, error) {
+	return 0, nil
 }
 
 type mockNotificationRepository struct{}
@@ -36,8 +48,16 @@ func (m *mockNotificationRepository) GetByUserID(ctx context.Context, userID int
 	return nil, nil
 }
 
-func (m *mockNotificationRepository) MarkAsReadByPublicID(ctx context.Context, notificationPublicID string) error {
+func (m *mockNotificationRepository) MarkAsReadByPublicID(ctx context.Context, userID int, notificationPublicID string) error {
 	return nil
+}
+
+func (m *mockNotificationRepository) MarkAllAsReadByUserID(ctx context.Context, userID int) error {
+	return nil
+}
+
+func (m *mockNotificationRepository) CountUnread(ctx context.Context, userID int) (int, error) {
+	return 0, nil
 }
 
 func (m *mockNotificationRepository) Create(ctx context.Context, notification *domain.Notification) error {
@@ -63,7 +83,7 @@ func TestNotificationServiceInterfaceMethods(t *testing.T) {
 		// Expected to be not implemented in mock
 	}
 
-	err = service.MarkAsRead(ctx, "pub-1")
+	err = service.MarkAsRead(ctx, 1, "pub-1")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
@@ -88,7 +108,7 @@ func TestNotificationRepositoryInterfaceMethods(t *testing.T) {
 	}
 
 	// Test MarkAsRead method
-	err = repo.MarkAsReadByPublicID(ctx, "pub-1")
+	err = repo.MarkAsReadByPublicID(ctx, 1, "pub-1")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}

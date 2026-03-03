@@ -28,8 +28,8 @@ func TestBaseTemplateRendering(t *testing.T) {
 		html := helper.RenderTemplate(t, "base", data)
 
 		helper.AssertHasAuthenticatedNav(t, html, "testuser")
-		helper.AssertContains(t, html, `href="/board?my_posts=true"`)    // Check My Posts link uses my_posts=true
-		helper.AssertContains(t, html, `href="/board?liked_posts=true"`) // Check My Likes link
+		helper.AssertContains(t, html, `href="/board?my_posts=true"`)              // Check My Posts link uses my_posts=true
+		helper.AssertContains(t, html, `href="/activity?activity_type=reactions"`) // Check My Reactions link
 	})
 
 	t.Run("dropdown shows only activity content shortcut", func(t *testing.T) {
@@ -55,7 +55,7 @@ func TestBaseTemplateRendering(t *testing.T) {
 		helper.AssertContains(t, dropdownHTML, `href="/settings"`)
 		helper.AssertContains(t, dropdownHTML, `href="/logout"`)
 		helper.AssertNotContains(t, dropdownHTML, `href="/board?my_posts=true"`)
-		helper.AssertNotContains(t, dropdownHTML, `href="/board?liked_posts=true"`)
+		helper.AssertNotContains(t, dropdownHTML, `href="/activity?activity_type=reactions"`)
 		helper.AssertNotContains(t, dropdownHTML, `href="/comments"`)
 	})
 
@@ -83,6 +83,24 @@ func TestHealthTemplateRendering(t *testing.T) {
 			"post_api":         "up",
 			"notification_api": "up",
 		},
+		"HealthSections": []map[string]interface{}{
+			{
+				"Title":   "Core Services",
+				"ColName": "Service",
+				"Rows": []map[string]string{
+					{"Label": "Database", "Status": "up"},
+				},
+			},
+			{
+				"Title":   "Module API Status",
+				"ColName": "Module",
+				"Rows": []map[string]string{
+					{"Label": "auth_api", "Status": "up"},
+					{"Label": "post_api", "Status": "up"},
+					{"Label": "notification_api", "Status": "up"},
+				},
+			},
+		},
 	}
 
 	var buf bytes.Buffer
@@ -102,11 +120,31 @@ func TestHealthTemplateRendering(t *testing.T) {
 	if !bytes.Contains([]byte(html), []byte("System Health Status")) {
 		t.Errorf("Expected HTML to contain 'System Health Status'")
 	}
-	if !bytes.Contains([]byte(html), []byte("Notification Module API")) {
-		t.Errorf("Expected HTML to contain 'Notification Module API'")
+	if !bytes.Contains([]byte(html), []byte("notification_api")) {
+		t.Errorf("Expected HTML to contain 'notification_api'")
 	}
 	if !bytes.Contains([]byte(html), []byte("status-up")) {
 		t.Errorf("Expected HTML to contain 'status-up' badge")
+	}
+	if !bytes.Contains([]byte(html), []byte("Error Page Test Links")) {
+		t.Errorf("Expected HTML to contain 'Error Page Test Links' section")
+	}
+	if !bytes.Contains([]byte(html), []byte(`href="/health/errors/400" class="btn btn-primary btn-small"`)) {
+		t.Errorf("Expected HTML to contain 400 error button link")
+	}
+	if !bytes.Contains([]byte(html), []byte(`href="/health/errors/404" class="btn btn-primary btn-small"`)) {
+		t.Errorf("Expected HTML to contain 404 error button link")
+	}
+	if !bytes.Contains([]byte(html), []byte(`href="/health/errors/500" class="btn btn-primary btn-small"`)) {
+		t.Errorf("Expected HTML to contain 500 error button link")
+	}
+
+	moduleSectionIndex := strings.Index(html, "Module API Status")
+	errorLinksSectionIndex := strings.Index(html, "Error Page Test Links")
+	if moduleSectionIndex == -1 || errorLinksSectionIndex == -1 {
+		t.Errorf("Expected both module section and error links section to be present")
+	} else if errorLinksSectionIndex < moduleSectionIndex {
+		t.Errorf("Expected error links section to appear after health tables")
 	}
 } // TestTemplateList lists all available templates for debugging.
 func TestTemplateList(t *testing.T) {
@@ -257,16 +295,18 @@ func TestAllTemplatesWithBase(t *testing.T) {
 			name:  "activity",
 			files: []string{"../../templates/base.html", "../../templates/activity.html"},
 			data: map[string]interface{}{
-				"Title":        "My Activity",
-				"CreatedPosts": []interface{}{},
-				"Reactions":    []interface{}{},
-				"Comments":     []interface{}{},
+				"Title":            "My Activity",
+				"CreatedPosts":     []interface{}{},
+				"PostReactions":    []interface{}{},
+				"CommentReactions": []interface{}{},
+				"Comments":         []interface{}{},
 			},
 			contains: []string{
 				"<!DOCTYPE html>",
 				"<title>My Activity - Forum</title>",
 				`<a class="comment-post-link" href="/board?my_posts=true">Created Posts</a>`,
-				`<a class="comment-post-link" href="/board?liked_posts=true">Post Reactions</a>`,
+				`<a class="comment-post-link" href="/activity?activity_type=reactions">Post Reactions</a>`,
+				`<a class="comment-post-link" href="/activity?activity_type=reactions">Comment Reactions</a>`,
 				`<a class="comment-post-link" href="/comments">Comments</a>`,
 			},
 		},
@@ -291,5 +331,40 @@ func TestAllTemplatesWithBase(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestBoardTemplateFilter_DefaultActivityLabel(t *testing.T) {
+	tmpl, err := template.ParseFiles("../../templates/base.html", "../../templates/board.html")
+	if err != nil {
+		t.Fatalf("Failed to parse templates: %v", err)
+	}
+
+	data := map[string]interface{}{
+		"Title":                  "Board",
+		"User":                   map[string]interface{}{"Username": "tester"},
+		"Posts":                  []interface{}{},
+		"Categories":             []map[string]string{{"Name": "General"}},
+		"SelectedCategory":       "",
+		"DateFilter":             "all",
+		"ShowFilter":             true,
+		"ShowSidebar":            true,
+		"FilterAction":           "/board",
+		"ShowActivityTypeFilter": true,
+		"ActivityType":           "all",
+		"SelectedReaction":       "all",
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
+		t.Fatalf("Failed to execute template: %v", err)
+	}
+
+	html := buf.String()
+	if !strings.Contains(html, `>All Activities</option>`) {
+		t.Fatalf("expected board filter to render 'All Activities' option")
+	}
+	if strings.Contains(html, `>All Posts</option>`) {
+		t.Fatalf("did not expect legacy 'All Posts' option")
 	}
 }

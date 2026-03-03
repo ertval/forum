@@ -113,8 +113,8 @@ if [ $? -eq 0 ]; then
     echo "  • ${reports_count:-0} moderation reports"
     echo ""
     echo -e "${YELLOW}Test Credentials:${NC}"
-    echo "  Primary:   testuser@example.com / password123"
-    echo "  Secondary: testuser2@example.com / password123"
+    echo "  Primary:   testuser@example.com / Password123"
+    echo "  Secondary: testuser2@example.com / Password123"
     echo ""
 else
     echo -e "${RED}Failed to seed database.${NC}"

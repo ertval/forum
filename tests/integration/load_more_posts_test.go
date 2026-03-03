@@ -26,7 +26,7 @@ func TestLoadMorePostsAPI(t *testing.T) {
 	defer app.Cleanup()
 
 	// Create a test user and login
-	sessionToken := registerAndLogin(t, app, "loadmore@test.com", "Load More User", "password123")
+	sessionToken := registerAndLogin(t, app, "loadmore@test.com", "Load More User", "Password123")
 
 	// Create a category
 	createCategory(t, app, "tests")
@@ -35,6 +35,10 @@ func TestLoadMorePostsAPI(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		createPost(t, app, sessionToken, "Test Post "+string(rune('A'+i)), "Content "+string(rune('A'+i)), []string{"tests"})
 	}
+
+	// Create one post from another user to validate my_posts behavior.
+	otherSessionToken := registerAndLogin(t, app, "otheruser@test.com", "Other User", "Password123")
+	createPost(t, app, otherSessionToken, "Other User Post", "Other content", []string{"tests"})
 
 	t.Run("LoadMorePostsReturnsPostsWithPublicID", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/posts/load-more?offset=0&limit=10", nil)
@@ -143,8 +147,8 @@ func TestLoadMorePostsAPI(t *testing.T) {
 		// Verify only posts by the original user are returned
 		for _, post := range posts {
 			author, _ := post["AuthorUsername"].(string)
-			if author != "loadmoreuser" {
-				t.Errorf("Expected posts by 'loadmoreuser', got post by '%s'", author)
+			if author != "Load More User" {
+				t.Errorf("Expected posts by 'Load More User', got post by '%s'", author)
 			}
 		}
 
@@ -177,7 +181,7 @@ func TestLoadMorePostsAPI(t *testing.T) {
 
 		// Without session, my_posts filter should be ignored - returns all posts
 		// Should include posts from both users
-		if len(posts) < 6 { // 5 from loadmoreuser + 1 from otheruser
+		if len(posts) < 6 { // 5 from Load More User + 1 from Other User
 			t.Errorf("Expected at least 6 posts (all posts), got %d", len(posts))
 		}
 	})

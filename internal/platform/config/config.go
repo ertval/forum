@@ -4,10 +4,25 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 )
+
+// generateDevSecret creates a random development secret.
+func generateDevSecret() string {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		// Fallback to a reasonable default if crypto/rand fails (shouldn't happen)
+		return "dev-fallback-secret-do-not-use-in-production"
+	}
+	return hex.EncodeToString(b)
+}
 
 // Config represents the application configuration.
 // All configuration values are loaded from environment variables with sensible defaults.
@@ -26,12 +41,6 @@ type Config struct {
 
 	// File upload configuration
 	Upload UploadConfig
-
-	// Logger configuration
-	Logger LoggerConfig
-
-	// OAuth configuration (optional)
-	OAuth OAuthConfig
 }
 
 // ServerConfig contains HTTP server settings.
@@ -84,44 +93,13 @@ type UploadConfig struct {
 	UploadDir    string   // Upload directory path
 }
 
-// LoggerConfig contains logging settings.
-type LoggerConfig struct {
-	Level         string   // Log level: DEBUG, INFO, WARN, ERROR
-	TimePrecision string   // Time precision: seconds, nano
-	OmitFields    []string // Fields to omit from human output
-	AllowedFields []string // Fields to allow in human output (empty = all)
-	MaxLineWidth  int      // Maximum line width for human output
-	Colorize      bool     // Enable ANSI colors in human output
-}
-
-// OAuthConfig contains OAuth provider settings (optional).
-type OAuthConfig struct {
-	Google GoogleOAuthConfig
-	GitHub GitHubOAuthConfig
-}
-
-// GoogleOAuthConfig contains Google OAuth settings.
-type GoogleOAuthConfig struct {
-	ClientID     string
-	ClientSecret string
-	RedirectURL  string
-}
-
-// GitHubOAuthConfig contains GitHub OAuth settings.
-type GitHubOAuthConfig struct {
-	ClientID     string
-	ClientSecret string
-	RedirectURL  string
-}
-
 // Load loads configuration from environment variables and config files.
 // It returns a Config struct with all values populated.
-// TODO: Implement configuration loading logic.
 func Load() (*Config, error) {
 	// Initialize Config with default values
 	cfg := &Config{}
 
-	cfg.Server.Host = getEnvString("SERVER_HOST", "localhost")
+	cfg.Server.Host = getEnvString("SERVER_HOST", "0.0.0.0")
 	cfg.Server.Port = getEnvInt("SERVER_PORT", 8080)
 	cfg.Server.TLSPort = getEnvInt("SERVER_TLS_PORT", 8443)
 	cfg.Server.Environment = getEnvString("SERVER_ENVIRONMENT", "development")
@@ -135,9 +113,13 @@ func Load() (*Config, error) {
 	cfg.Database.MaxIdleConns = getEnvInt("DATABASE_MAX_IDLE_CONNS", 25)
 	cfg.Database.ConnMaxLifetime = getEnvDuration("DATABASE_CONN_MAX_LIFETIME", 5*time.Minute)
 
-	cfg.Session.Secret = getEnvString("SESSION_SECRET", "defaultsecret")
+	sessionSecret := getEnvString("SESSION_SECRET", "")
+	if sessionSecret == "" {
+		sessionSecret = generateDevSecret()
+	}
+	cfg.Session.Secret = sessionSecret
 	cfg.Session.Duration = getEnvDuration("SESSION_DURATION", 24*time.Hour)
-	cfg.Session.CookieName = getEnvString("SESSION_COOKIE_NAME", "forum_session")
+	cfg.Session.CookieName = getEnvString("SESSION_COOKIE_NAME", "session_token")
 	cfg.Session.Secure = getEnvBool("SESSION_SECURE", false)
 	cfg.Session.HttpOnly = getEnvBool("SESSION_HTTP_ONLY", true)
 
@@ -150,21 +132,6 @@ func Load() (*Config, error) {
 	cfg.Upload.MaxSize = int64(getEnvInt("UPLOAD_MAX_SIZE_MB", 20)) * 1024 * 1024
 	cfg.Upload.AllowedTypes = []string{"image/jpeg", "image/png", "image/gif"}
 	cfg.Upload.UploadDir = getEnvString("UPLOAD_DIR", "./static/uploads")
-
-	cfg.Logger.Level = getEnvString("LOG_LEVEL", "INFO")
-	cfg.Logger.TimePrecision = getEnvString("LOG_TIME_PRECISION", "seconds")
-	cfg.Logger.OmitFields = getEnvStringSlice("LOG_OMIT_FIELDS", []string{"user_agent"})
-	cfg.Logger.AllowedFields = getEnvStringSlice("LOG_ALLOWED_FIELDS", []string{"method", "path", "query", "status", "size", "duration_ms", "remote", "url", "response", "error", "errors"})
-	cfg.Logger.MaxLineWidth = getEnvInt("LOG_MAX_LINE_WIDTH", 200)
-	cfg.Logger.Colorize = getEnvBool("LOG_COLORIZE", true)
-
-	cfg.OAuth.Google.ClientID = getEnvString("GOOGLE_OAUTH_CLIENT_ID", "")
-	cfg.OAuth.Google.ClientSecret = getEnvString("GOOGLE_OAUTH_CLIENT_SECRET", "")
-	cfg.OAuth.Google.RedirectURL = getEnvString("GOOGLE_OAUTH_REDIRECT_URL", "")
-
-	cfg.OAuth.GitHub.ClientID = getEnvString("GITHUB_OAUTH_CLIENT_ID", "")
-	cfg.OAuth.GitHub.ClientSecret = getEnvString("GITHUB_OAUTH_CLIENT_SECRET", "")
-	cfg.OAuth.GitHub.RedirectURL = getEnvString("GITHUB_OAUTH_REDIRECT_URL", "")
 
 	// Return the populated configuration
 
@@ -186,7 +153,7 @@ func (c *Config) Validate() error {
 	if c.Server.Host == "" {
 		return fmt.Errorf("server host cannot be empty")
 	}
-	if c.Server.Environment != "development" && c.Server.Environment != "staging" && c.Server.Environment != "production" {
+	if !slices.Contains([]string{"development", "staging", "production"}, c.Server.Environment) {
 		return fmt.Errorf("invalid environment: %s", c.Server.Environment)
 	}
 	if c.Server.ReadTimeout <= 0 {
@@ -200,11 +167,15 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate Database configuration
-	// Allow common developer paths: ./data/forum.db, ./forum.db, or any
-	// path whose base name is forum.db (absolute or relative).
-	dbBase := filepath.Base(c.Database.Path)
-	if !(c.Database.Path == "./data/forum.db" || c.Database.Path == "./db/forum.db" || dbBase == "forum.db") {
-		return fmt.Errorf("database path must point to a forum.db file (e.g. './data/forum.db' or './db/forum.db')")
+	// Accept any non-empty path with a .db extension and no null bytes.
+	if c.Database.Path == "" {
+		return fmt.Errorf("database path cannot be empty")
+	}
+	if strings.ContainsRune(c.Database.Path, 0) {
+		return fmt.Errorf("database path contains null bytes")
+	}
+	if filepath.Ext(c.Database.Path) != ".db" {
+		return fmt.Errorf("database path must have .db extension, got %q", filepath.Base(c.Database.Path))
 	}
 	if c.Database.MaxOpenConns <= 0 {
 		return fmt.Errorf("max open connections must be positive")
@@ -262,43 +233,18 @@ func (c *Config) Validate() error {
 	if len(c.Upload.AllowedTypes) == 0 {
 		return fmt.Errorf("at least one allowed file type must be specified")
 	}
-	// Validate Upload configuration
-	// Allow either ./static/uploads or ./uploads or any path ending in 'uploads'.
-	uploadBase := filepath.Base(c.Upload.UploadDir)
-	if !(c.Upload.UploadDir == "./static/uploads" || c.Upload.UploadDir == "./uploads" || uploadBase == "uploads") {
-		return fmt.Errorf("upload directory path must point to an 'uploads' directory (e.g. './static/uploads' or './uploads')")
+	if c.Upload.UploadDir == "" {
+		return fmt.Errorf("upload directory path cannot be empty")
 	}
-
-	// Validate Logger configuration
-	validLevels := map[string]bool{"DEBUG": true, "INFO": true, "WARN": true, "WARNING": true, "ERROR": true}
-	if !validLevels[c.Logger.Level] {
-		return fmt.Errorf("invalid log level: %s (must be DEBUG, INFO, WARN, or ERROR)", c.Logger.Level)
-	}
-	validTimePrecisions := map[string]bool{"seconds": true, "nano": true}
-	if !validTimePrecisions[c.Logger.TimePrecision] {
-		return fmt.Errorf("invalid log time precision: %s (must be 'seconds' or 'nano')", c.Logger.TimePrecision)
-	}
-	if c.Logger.MaxLineWidth < 0 {
-		return fmt.Errorf("log max line width must be non-negative")
-	}
-
-	// OAuth configuration is optional, but if provided, validate it
-	if c.OAuth.Google.ClientID != "" {
-		if c.OAuth.Google.ClientSecret == "" {
-			return fmt.Errorf("google OAuth client secret cannot be empty when client ID is provided")
-		}
-		if c.OAuth.Google.RedirectURL == "" {
-			return fmt.Errorf("google OAuth redirect URL cannot be empty when client ID is provided")
-		}
-	}
-	if c.OAuth.GitHub.ClientID != "" {
-		if c.OAuth.GitHub.ClientSecret == "" {
-			return fmt.Errorf("gitHub OAuth client secret cannot be empty when client ID is provided")
-		}
-		if c.OAuth.GitHub.RedirectURL == "" {
-			return fmt.Errorf("gitHub OAuth redirect URL cannot be empty when client ID is provided")
-		}
+	if strings.ContainsRune(c.Upload.UploadDir, 0) {
+		return fmt.Errorf("upload directory path contains null bytes")
 	}
 
 	return nil
+}
+
+// IsDefaultSecret returns true if the session secret was not explicitly configured.
+// Callers can use this to log warnings.
+func (c *Config) IsDefaultSecret() bool {
+	return os.Getenv("SESSION_SECRET") == ""
 }

@@ -82,10 +82,10 @@ Quick reference showing exact 1:1 mapping between audit questions and automated 
 
 | # | Audit Question | Test | Status |
 |---|----------------|------|--------|
-| 1 | Liked post appear on activity page? | ❌ Not Impl | Optional |
-| 2 | Disliked post appear on activity page? | ❌ Not Impl | Optional |
-| 3 | Comment appear on activity page? | ❌ Not Impl | Optional |
-| 4 | New post appear on activity page? | ❌ Not Impl | Optional |
+| 1 | Liked post appear on activity page? | ✅ Verified | |
+| 2 | Disliked post appear on activity page? | ✅ Verified | |
+| 3 | Comment appear on activity page? | ✅ Verified | |
+| 4 | New post appear on activity page? | ✅ Verified | |
 | 5 | User received comment notification? | ✅ Verified | |
 | 6 | User received like notification? | ✅ Verified | |
 | 7 | User received dislike notification? | ✅ Verified | |
@@ -101,7 +101,7 @@ Quick reference showing exact 1:1 mapping between audit questions and automated 
 | 17 | Are website instructions clear? | ✅ Verified | |
 | 18 | Is there pagination? | ✅ Verified | |
 
-**Total: 13/18 passing (activity page optional, 1 partial)**
+**Total: 17/18 passing (1 partial)**
 
 ---
 
@@ -195,11 +195,11 @@ Quick reference showing exact 1:1 mapping between audit questions and automated 
 | Audit File | Tests | Passing | % | Notes |
 |------------|-------|---------|---|-------|
 | audit.md | 46 | 46 | 100% | All core features |
-| audit-advanced.md | 18 | 13 | 72% | Activity page optional |
+| audit-advanced.md | 18 | 17 | 94% | 1 partial (post edit expectation) |
 | audit-authentication.md | 18 | 4 | 22% | OAuth optional |
 | audit-image.md | 8 | 8 | 100% | All image features |
 | audit-moderation.md | 13 | 11 | 85% | Report responses partial |
 | audit-security.md | 14 | 14 | 100% | All security features |
-| **TOTAL** | **117** | **96** | **82%** | **100% of impl. features** |
+| **TOTAL** | **117** | **100** | **85%** | **Implemented features covered; remaining gaps are deferred/partial flows** |
 
-**Key Insight**: All implemented features have 100% test coverage. Failures are only for optional/unimplemented features (OAuth, activity page).
+**Key Insight**: Remaining gaps are concentrated in deferred OAuth and partial moderation/report-response behavior.

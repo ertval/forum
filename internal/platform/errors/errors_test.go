@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -77,49 +78,52 @@ func TestWriteErrorJSON(t *testing.T) {
 	}
 }
 
-func TestHTTPStatus(t *testing.T) {
-	tests := []struct {
-		name       string
-		err        error
-		wantStatus int
-	}{
-		{
-			name:       "validation error",
-			err:        New(ErrCodeValidation, "invalid input"),
-			wantStatus: http.StatusBadRequest,
-		},
-		{
-			name:       "not found error",
-			err:        New(ErrCodeNotFound, "resource not found"),
-			wantStatus: http.StatusNotFound,
-		},
-		{
-			name:       "unauthorized error",
-			err:        New(ErrCodeUnauthorized, "authentication required"),
-			wantStatus: http.StatusUnauthorized,
-		},
-		{
-			name:       "forbidden error",
-			err:        New(ErrCodeForbidden, "access denied"),
-			wantStatus: http.StatusForbidden,
-		},
-		{
-			name:       "conflict error",
-			err:        New(ErrCodeConflict, "resource already exists"),
-			wantStatus: http.StatusConflict,
-		},
-		{
-			name:       "internal error",
-			err:        New(ErrCodeInternal, "internal server error"),
-			wantStatus: http.StatusInternalServerError,
-		},
-	}
+type flakyResponseWriter struct {
+	header      http.Header
+	status      int
+	writeCount  int
+	body        []byte
+	failFirst   bool
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := HTTPStatus(tt.err); got != tt.wantStatus {
-				t.Errorf("HTTPStatus() = %v, want %v", got, tt.wantStatus)
-			}
-		})
+func newFlakyResponseWriter(failFirst bool) *flakyResponseWriter {
+	return &flakyResponseWriter{
+		header:    make(http.Header),
+		failFirst: failFirst,
 	}
 }
+
+func (w *flakyResponseWriter) Header() http.Header {
+	return w.header
+}
+
+func (w *flakyResponseWriter) WriteHeader(statusCode int) {
+	w.status = statusCode
+}
+
+func (w *flakyResponseWriter) Write(p []byte) (int, error) {
+	w.writeCount++
+	if w.failFirst && w.writeCount == 1 {
+		return 0, io.ErrClosedPipe
+	}
+	w.body = append(w.body, p...)
+	return len(p), nil
+}
+
+func TestWriteErrorJSON_FallbackBodyWhenJSONEncodeFails(t *testing.T) {
+	w := newFlakyResponseWriter(true)
+
+	WriteErrorJSON(w, http.StatusBadRequest, "fallback message")
+
+	if w.status != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", w.status, http.StatusBadRequest)
+	}
+	if got := string(w.body); got != "fallback message\n" {
+		t.Fatalf("fallback body = %q, want %q", got, "fallback message\\n")
+	}
+	if w.writeCount < 2 {
+		t.Fatalf("expected fallback write attempt after encode failure, writeCount=%d", w.writeCount)
+	}
+}
+
+

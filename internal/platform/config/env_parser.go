@@ -1,9 +1,9 @@
 package config
 
 import (
+	"log"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -21,6 +21,7 @@ func getEnvInt(key string, defaultValue int) int {
 		if intValue, err := strconv.Atoi(value); err == nil {
 			return intValue
 		}
+		log.Printf("WARNING: env var %s=%q is not a valid integer, using default %d", key, value, defaultValue)
 	}
 	return defaultValue
 }
@@ -30,6 +31,7 @@ func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
 		if durationValue, err := time.ParseDuration(value); err == nil {
 			return durationValue
 		}
+		log.Printf("WARNING: env var %s=%q is not a valid duration, using default %s", key, value, defaultValue)
 	}
 	return defaultValue
 }
@@ -39,20 +41,7 @@ func getEnvBool(key string, defaultValue bool) bool {
 		if boolValue, err := strconv.ParseBool(value); err == nil {
 			return boolValue
 		}
+		log.Printf("WARNING: env var %s=%q is not a valid boolean, using default %v", key, value, defaultValue)
 	}
 	return defaultValue
-}
-
-func getEnvStringSlice(key string, defaultValue []string) []string {
-	value := os.Getenv(key)
-	if value == "" {
-		return defaultValue
-	}
-
-	// Split by comma and trim spaces
-	parts := strings.Split(value, ",")
-	for i, part := range parts {
-		parts[i] = strings.TrimSpace(part)
-	}
-	return parts
 }

@@ -1,4 +1,5 @@
 // Package domain contains error definitions for the comment module.
+// Domain-specific errors are used to communicate validation and business rule failures.
 package domain
 
 import "errors"

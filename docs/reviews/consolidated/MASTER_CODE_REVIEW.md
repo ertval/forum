@@ -3,7 +3,87 @@
 > Date: 2026-02-28  
 > Scope: Full codebase — `internal/modules/`, `internal/platform/`, `cmd/forum/`, `static/`, `templates/`  
 > Sources: Four prior review passes consolidated, duplicates removed, verified against live code  
-> Principles: Idiomatic Go, KISS, minimal surface area, strong compile-time guarantees
+> Principles: Idiomatic Go, KISS, minimal surface area, strong compile-time guarantees  
+> **Implementation Status**: ✅ All items resolved (2026-02-28). `go build ./...` and `go vet ./...` pass. All unit tests green.
+
+---
+
+## Implementation Summary
+
+| Section | Items | Status |
+|---------|-------|--------|
+| 1. Dead Code | 1.1–1.12 | ✅ All resolved (1.4 kept — has 11 active callers) |
+| 2. Bugs | 2.1–2.19 | ✅ All resolved (2.13–2.15, 2.18–2.19 were already fixed) |
+| 3. Duplicate Code | 3.1–3.14 | ✅ All resolved |
+| 4. Unnecessary Complexity | 4.1–4.29 | ✅ All resolved (4.22 kept: health template parsing is separate by design) |
+| 5. Performance | 5.1–5.3 | ✅ All resolved (5.2 was already implemented) |
+| 6. Frontend / Templates | 6.1–6.12 | ✅ All resolved (6.7 was already consistent, 6.10 omitted as cosmetic) |
+| 7. Tests | 7.1–7.2 | ✅ Mocks updated; method-not-allowed tests removed (dead after 4.26) |
+
+### Key Changes by Module
+
+**Platform layer:**
+- `database/transaction.go` deleted (1.1); `migrator.go` Rollback stub removed (1.2), migrations now atomic in transactions (2.7), malformed files warn (2.16)
+- `templates/validator.go` deleted (1.3); `registry.go` retained (1.4 has callers)
+- `httpserver/server.go`: `RegisterHandler` deleted (1.6), startup race fixed with synchronous bind (2.5)
+- `httpserver/middleware.go`: CORS credentials fix (2.1), rate limiter returns stop function (2.2)
+- `errors/errors.go`: unused types/constants removed (1.7)
+- `config/config.go`: OAuthConfig removed (1.8), Logger section removed (1.9), env validation uses `slices.Contains` (4.11), path validation shape-based (4.19)
+- `config/env_parser.go`: warns on unparseable env vars (4.20), `getEnvStringSlice` removed
+- `health.go`: Templates field removed (1.10), readiness classifies critical vs optional (4.18)
+- `health/checker.go`: moderation `"down"/"down"` → `"up"/"down"` (2.9)
+- `logger/logger.go` split → `logger/pretty.go` (4.3), keyword colouring removed (4.4), nil guard on Error(nil) (4.5)
+- `validator/validator.go`: double-sanitize removed (4.6), `SanitizeHTML` deleted (4.7), username regex accepts handle-style (4.8)
+- `upload/image.go`: `ValidateImage` returns MIME type (4.9), `MkdirAll` in constructor only (4.10), path boundary uses `filepath.Rel` (2.12)
+- `httpserver/handlerutil.go` created: shared `BuildCurrentUser`/`GetInternalUserID` (3.1)
+- `async/async.go` created: shared `Run` helper replaces 7 fire-and-forget goroutines (3.2)
+
+**Auth module:**
+- Deprecated middleware functions deleted (1.5), `RequireAuth`/`OptionalAuth` DRYed via `resolveAuth` (3.3)
+- `LogoutPage` uses `h.secureCookies` (2.3)
+- Content-Type check uses `HasPrefix` (2.14), `RegisterAPI` uses `errors.Is` (2.17)
+- `ValidateCredentials` unexported (4.23)
+
+**User module:**
+- Legacy avatar shim removed (1.12), `GetByEmail`/`GetByUsername` include `avatar_path` (2.4)
+- Queries consolidated to one `userColumns` constant (3.8), `scanUser` extracted (3.14)
+- `AvatarURLPrefix` constant replaces hardcoded strings (3.9)
+- Validation order deterministic (3.7 — was already fixed)
+- `Permission` type introduced (4.25), `HasPermission` already implemented (4.15)
+
+**Post module:**
+- Dead `buildFilter` deleted (1.11), N+1 category queries fixed with batch `getCategoriesForPosts` (3.10)
+- `parsePostRequest` extracted (3.12), `CategoryService` moved to own file (4.1)
+- Logger injected via handler field (4.12), `MaxTitleLength=255` constant (4.13)
+- `Author` field removed, `AuthorUsername` used everywhere (4.14)
+- `GetByNames` batch category lookup added (4.17)
+
+**Reaction module:**
+- `ErrTargetNotFound` sentinel added (2.6), stale mocks fully updated (2.10/7.1)
+- `ToggleReaction` transaction wraps check-delete-create (2.11)
+- `resolveTargetID` helper replaces 5 copies (3.4), validation simplified (4.24)
+- Redundant target pre-fetch removed (5.1), `r.PathValue` already used (4.16 — was ok)
+
+**Comment module:**
+- Author data JOINed in SQL queries, eliminating N+1 (5.3)
+- `AuthorUsername` field added to Comment domain
+
+**Notification module:**
+- `CountUnread` already existed (5.2), `MarkAsRead` already scoped by user (2.13)
+
+**Moderation module:**
+- `CreateReport`/`ReviewReport` return `errors.New("not implemented")` (2.8)
+
+**Wiring & Main:**
+- `panic` → error return in `initServer` (4.28), blank log key fixed (4.27)
+- Redundant method guards removed from handlers (4.26)
+
+**Frontend:**
+- HTML templates added for JS cloning (6.1), `location.reload` replaced with DOM injection (6.2)
+- Shared `window.api.request()` used across JS files (6.3)
+- Post-card templates consolidated (6.4), load-more button template (6.5)
+- Layout selection simplified (6.6), health template uses range loop (6.8)
+- Copyright year genericized (6.9), CSS `@import` → `<link>` tags (6.11), duplicate button styles removed (6.12)
 
 ---
 
@@ -15,6 +95,7 @@
 | 🟠 **Major** | KISS violation, significant dead code, race condition, or data correctness |
 | 🟡 **Minor** | Duplication, style inconsistency, stale comment |
 | 🟢 **Nit** | Trivial cleanup |
+| ✅ | **Resolved** |
 
 ---
 
@@ -22,13 +103,13 @@
 
 These items add noise with zero value. Delete them.
 
-### 1.1 `database/transaction.go` — entire file unused
+### ✅ 1.1 `database/transaction.go` — entire file unused
 🟠 `Transaction`, `Begin`, `Commit`, `Rollback`, and `Tx()` are defined but **no repository anywhere calls `Begin()`**. All adapters write directly against `*sql.DB`.  
-**Action**: Delete the file.
+**Action**: Delete the file. **Done** — file deleted.
 
-### 1.2 `database/migrator.go` — `Rollback()` stub
+### ✅ 1.2 `database/migrator.go` — `Rollback()` stub
 🟠 `func (m *Migrator) Rollback() error { return errors.New("rollback not yet implemented") }` is never called and creates false API surface.  
-**Action**: Delete the method.
+**Action**: Delete the method. **Done** — method and its test removed.
 
 ### 1.3 `templates/validator.go` — entire file unused
 🟠 `TemplateValidator`, all its methods, and the unexported `getRequiredTemplates()` (which checks for a `"content"` template that does not exist) have zero call sites in production code.  

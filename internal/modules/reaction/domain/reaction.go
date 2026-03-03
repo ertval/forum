@@ -1,4 +1,4 @@
-// Package domain contains core entities for the reaction module.
+// Package domain contains the core business entities for the reaction module.
 package domain
 
 import "time"
@@ -6,12 +6,22 @@ import "time"
 // ReactionType represents the type of reaction (like or dislike).
 type ReactionType string
 
+// ToggleAction represents the result of an atomic reaction toggle operation.
+type ToggleAction string
+
 const (
 	// ReactionLike represents a positive reaction.
 	ReactionLike ReactionType = "like"
 
 	// ReactionDislike represents a negative reaction.
 	ReactionDislike ReactionType = "dislike"
+
+	// ToggleActionCreated indicates a new reaction was created.
+	ToggleActionCreated ToggleAction = "created"
+	// ToggleActionUpdated indicates an existing reaction type was switched.
+	ToggleActionUpdated ToggleAction = "updated"
+	// ToggleActionRemoved indicates an existing same-type reaction was removed.
+	ToggleActionRemoved ToggleAction = "removed"
 )
 
 // Reaction represents a user's reaction to a post or comment.
@@ -42,7 +52,7 @@ func (r *Reaction) Validate() error {
 		return ErrInvalidUserID
 	}
 
-	if r.TargetID <= 0 && r.PublicTargetID == "" {
+	if r.PublicTargetID == "" {
 		return ErrInvalidTargetID
 	}
 

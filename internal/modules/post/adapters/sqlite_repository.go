@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"forum/internal/modules/post/domain"
 	"forum/internal/modules/post/ports"
+	"forum/internal/platform/database"
 	"strings"
 	"time"
 
@@ -67,7 +68,10 @@ func (r *SQLitePostRepository) Create(ctx context.Context, post *domain.Post) er
 	if err != nil {
 		return fmt.Errorf("failed to get post ID: %w", err)
 	}
-	post.ID = int(postID)
+	post.ID, err = database.SafeInt64ToInt(postID)
+	if err != nil {
+		return fmt.Errorf("post last insert id overflow: %w", err)
+	}
 
 	// Insert post-category associations
 	for _, categoryName := range post.Categories {
@@ -96,28 +100,11 @@ func (r *SQLitePostRepository) GetByID(ctx context.Context, postID string) (*dom
 			p.id, p.public_id, p.title, p.content, p.author_id, p.image_path,
 			p.created_at, p.updated_at,
 			u.public_id as user_public_id, u.username,
-			COALESCE(like_counts.count, 0) as like_count,
-			COALESCE(dislike_counts.count, 0) as dislike_count,
-			COALESCE(comment_counts.count, 0) as comment_count
+			(SELECT COUNT(*) FROM reactions WHERE target_id = p.id AND target_type = 'post' AND type = 'like') as like_count,
+			(SELECT COUNT(*) FROM reactions WHERE target_id = p.id AND target_type = 'post' AND type = 'dislike') as dislike_count,
+			(SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count
 		FROM posts p
 		LEFT JOIN users u ON p.author_id = u.id
-		LEFT JOIN (
-			SELECT target_id, COUNT(*) as count 
-			FROM reactions 
-			WHERE target_type = 'post' AND type = 'like'
-			GROUP BY target_id
-		) like_counts ON p.id = like_counts.target_id
-		LEFT JOIN (
-			SELECT target_id, COUNT(*) as count 
-			FROM reactions 
-			WHERE target_type = 'post' AND type = 'dislike'
-			GROUP BY target_id
-		) dislike_counts ON p.id = dislike_counts.target_id
-		LEFT JOIN (
-			SELECT post_id, COUNT(*) as count 
-			FROM comments 
-			GROUP BY post_id
-		) comment_counts ON p.id = comment_counts.post_id
 		WHERE p.public_id = ?
 	`
 
@@ -156,7 +143,6 @@ func (r *SQLitePostRepository) GetByID(ctx context.Context, postID string) (*dom
 	}
 	if username.Valid {
 		post.AuthorUsername = username.String
-		post.Author = username.String // Set both fields for compatibility
 	}
 	if userPublicID.Valid {
 		post.UserPublicID = userPublicID.String
@@ -291,28 +277,11 @@ func (r *SQLitePostRepository) List(ctx context.Context, filter domain.PostFilte
 			p.id, p.public_id, p.title, p.content, p.author_id, p.image_path, 
 			p.created_at, p.updated_at,
 			u.public_id as user_public_id, u.username,
-			COALESCE(like_counts.count, 0) as like_count,
-			COALESCE(dislike_counts.count, 0) as dislike_count,
-			COALESCE(comment_counts.count, 0) as comment_count
+			(SELECT COUNT(*) FROM reactions WHERE target_id = p.id AND target_type = 'post' AND type = 'like') as like_count,
+			(SELECT COUNT(*) FROM reactions WHERE target_id = p.id AND target_type = 'post' AND type = 'dislike') as dislike_count,
+			(SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count
 		FROM posts p
 		LEFT JOIN users u ON p.author_id = u.id
-		LEFT JOIN (
-			SELECT target_id, COUNT(*) as count 
-			FROM reactions 
-			WHERE target_type = 'post' AND type = 'like'
-			GROUP BY target_id
-		) like_counts ON p.id = like_counts.target_id
-		LEFT JOIN (
-			SELECT target_id, COUNT(*) as count 
-			FROM reactions 
-			WHERE target_type = 'post' AND type = 'dislike'
-			GROUP BY target_id
-		) dislike_counts ON p.id = dislike_counts.target_id
-		LEFT JOIN (
-			SELECT post_id, COUNT(*) as count 
-			FROM comments 
-			GROUP BY post_id
-		) comment_counts ON p.id = comment_counts.post_id
 	`
 
 	var conditions []string
@@ -374,6 +343,30 @@ func (r *SQLitePostRepository) List(ctx context.Context, filter domain.PostFilte
 		`
 		conditions = append(conditions, "cmt_user.public_id = ?")
 		args = append(args, filter.CommenterID)
+	}
+
+	// Filter by posts that have received a specific reaction type
+	if filter.ReceivedReactionType != "" {
+		switch filter.ReceivedReactionScope {
+		case "comment":
+			conditions = append(conditions, "EXISTS (SELECT 1 FROM comments rc_scope_c INNER JOIN reactions rc_scope_r ON rc_scope_r.target_type = 'comment' AND rc_scope_r.target_id = rc_scope_c.id WHERE rc_scope_c.post_id = p.id AND rc_scope_r.type = ?)")
+		case "post_or_comment":
+			conditions = append(conditions, "(EXISTS (SELECT 1 FROM reactions rr_type WHERE rr_type.target_id = p.id AND rr_type.target_type = 'post' AND rr_type.type = ?) OR EXISTS (SELECT 1 FROM comments rr_scope_c INNER JOIN reactions rr_scope_r ON rr_scope_r.target_type = 'comment' AND rr_scope_r.target_id = rr_scope_c.id WHERE rr_scope_c.post_id = p.id AND rr_scope_r.type = ?))")
+			args = append(args, filter.ReceivedReactionType)
+		default:
+			conditions = append(conditions, "EXISTS (SELECT 1 FROM reactions rr_type WHERE rr_type.target_id = p.id AND rr_type.target_type = 'post' AND rr_type.type = ?)")
+		}
+		args = append(args, filter.ReceivedReactionType)
+	}
+
+	// Filter by posts that have at least one comment
+	if filter.RequireCommentedPost {
+		conditions = append(conditions, "EXISTS (SELECT 1 FROM comments rcp WHERE rcp.post_id = p.id)")
+	}
+
+	// Filter by posts that have at least one reaction on post or any comment under post
+	if filter.RequireReactedPost {
+		conditions = append(conditions, "(EXISTS (SELECT 1 FROM reactions rrp WHERE rrp.target_type = 'post' AND rrp.target_id = p.id) OR EXISTS (SELECT 1 FROM comments rrc INNER JOIN reactions rrr ON rrr.target_type = 'comment' AND rrr.target_id = rrc.id WHERE rrc.post_id = p.id))")
 	}
 
 	// Filter by date
@@ -449,24 +442,31 @@ func (r *SQLitePostRepository) List(ctx context.Context, filter domain.PostFilte
 		}
 		if username.Valid {
 			post.AuthorUsername = username.String
-			post.Author = username.String // Set both fields for compatibility
 		}
 		if userPublicID.Valid {
 			post.UserPublicID = userPublicID.String
 		}
-
-		// Load categories for this post
-		categories, err := r.getPostCategories(ctx, post.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get categories for post %d: %w", post.ID, err)
-		}
-		post.Categories = categories
 
 		posts = append(posts, &post)
 	}
 
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating posts: %w", err)
+	}
+
+	// Batch-load categories for all posts (avoids N+1 queries)
+	if len(posts) > 0 {
+		ids := make([]int, len(posts))
+		for i, p := range posts {
+			ids[i] = p.ID
+		}
+		cats, err := r.getCategoriesForPosts(ctx, ids)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get categories for posts: %w", err)
+		}
+		for _, p := range posts {
+			p.Categories = cats[p.ID]
+		}
 	}
 
 	return posts, nil
@@ -500,16 +500,51 @@ func (r *SQLitePostRepository) getPostCategories(ctx context.Context, postID int
 	return categories, rows.Err()
 }
 
+// getCategoriesForPosts retrieves category names for multiple posts in a single query.
+func (r *SQLitePostRepository) getCategoriesForPosts(ctx context.Context, postIDs []int) (map[int][]string, error) {
+	if len(postIDs) == 0 {
+		return map[int][]string{}, nil
+	}
+
+	placeholders := "?" + strings.Repeat(", ?", len(postIDs)-1)
+	query := fmt.Sprintf(`
+		SELECT pc.post_id, c.name
+		FROM categories c
+		INNER JOIN post_categories pc ON c.id = pc.category_id
+		WHERE pc.post_id IN (%s)
+		ORDER BY pc.post_id, c.name
+	`, placeholders)
+
+	args := make([]interface{}, len(postIDs))
+	for i, id := range postIDs {
+		args[i] = id
+	}
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query categories for posts: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[int][]string)
+	for rows.Next() {
+		var postID int
+		var name string
+		if err := rows.Scan(&postID, &name); err != nil {
+			return nil, fmt.Errorf("failed to scan category: %w", err)
+		}
+		result[postID] = append(result[postID], name)
+	}
+
+	return result, rows.Err()
+}
+
 // repeatPlaceholders returns a string of comma-separated question marks.
 func repeatPlaceholders(count int) string {
 	if count <= 0 {
 		return ""
 	}
-	result := ""
-	for i := 0; i < count; i++ {
-		result += ", ?"
-	}
-	return result
+	return strings.Repeat(", ?", count)
 }
 
 func normalizeImagePath(path string) string {
@@ -560,11 +595,14 @@ func (r *SQLiteCategoryRepository) Create(ctx context.Context, category *domain.
 	}
 
 	// Get the auto-generated internal ID
-	id, err := result.LastInsertId()
+	lastID, err := result.LastInsertId()
 	if err != nil {
 		return fmt.Errorf("failed to get category ID: %w", err)
 	}
-	category.ID = int(id)
+	category.ID, err = database.SafeInt64ToInt(lastID)
+	if err != nil {
+		return fmt.Errorf("category last insert id overflow: %w", err)
+	}
 
 	return nil
 }
@@ -621,6 +659,42 @@ func (r *SQLiteCategoryRepository) GetByName(ctx context.Context, name string) (
 	}
 
 	return &category, nil
+}
+
+// GetByNames retrieves multiple categories by their names in a single query (case-insensitive).
+func (r *SQLiteCategoryRepository) GetByNames(ctx context.Context, names []string) ([]domain.Category, error) {
+	if len(names) == 0 {
+		return nil, nil
+	}
+
+	placeholders := "?" + strings.Repeat(", ?", len(names)-1)
+	query := fmt.Sprintf("SELECT id, public_id, name, description FROM categories WHERE LOWER(name) IN (%s)", placeholders)
+
+	args := make([]interface{}, len(names))
+	for i, name := range names {
+		args[i] = strings.ToLower(name)
+	}
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query categories by names: %w", err)
+	}
+	defer rows.Close()
+
+	var categories []domain.Category
+	for rows.Next() {
+		var cat domain.Category
+		var description sql.NullString
+		if err := rows.Scan(&cat.ID, &cat.PublicID, &cat.Name, &description); err != nil {
+			return nil, fmt.Errorf("failed to scan category: %w", err)
+		}
+		if description.Valid {
+			cat.Description = description.String
+		}
+		categories = append(categories, cat)
+	}
+
+	return categories, rows.Err()
 }
 
 // List retrieves all categories.

@@ -2,10 +2,9 @@
 package wire
 
 import (
-	"html/template"
 	"os"
 
-	"forum/internal/platform/config"
+	platformTemplates "forum/internal/platform/templates"
 
 	authAdapters "forum/internal/modules/auth/adapters"
 	commentAdapters "forum/internal/modules/comment/adapters"
@@ -25,35 +24,45 @@ type Handlers struct {
 	Reaction     *reactionAdapters.HTTPHandler
 	Moderation   *moderationAdapters.HTTPHandler
 	Notification *notificationAdapters.HTTPHandler
+	Templates    *platformTemplates.Registry
+}
+
+// pageTemplates lists all page templates that use base.html as a layout.
+// Adding a new page template only requires adding an entry here.
+var pageTemplates = []platformTemplates.TemplateEntry{
+	{Key: "home", Files: []string{"templates/base.html", "templates/home.html"}},
+	{Key: "board", Files: []string{"templates/base.html", "templates/board.html"}},
+	{Key: "post_detail", Files: []string{"templates/base.html", "templates/post_detail.html"}},
+	{Key: "post_create", Files: []string{"templates/base.html", "templates/post_create.html"}},
+	{Key: "post_edit", Files: []string{"templates/base.html", "templates/post_edit.html"}},
+	{Key: "activity", Files: []string{"templates/base.html", "templates/activity.html"}},
+	{Key: "comments", Files: []string{"templates/base.html", "templates/comments.html"}},
+	{Key: "settings", Files: []string{"templates/base.html", "templates/settings.html"}},
+	{Key: "login", Files: []string{"templates/base.html", "templates/login.html"}},
+	{Key: "register", Files: []string{"templates/base.html", "templates/register.html"}},
+	{Key: "health", Files: []string{"templates/base.html", "templates/health.html"}},
 }
 
 // initHandlers creates all HTTP handler instances with unified dependency injection.
 // Returns error if templates directory exists but contains invalid templates.
-func initHandlers(services *ServiceContainer, cfg *config.Config) (*Handlers, error) {
-	// Parse templates once and share between handlers that need them
-	var templates *template.Template
+func initHandlers(services *ServiceContainer) (*Handlers, error) {
+	registry := platformTemplates.NewRegistry()
 
-	// Check if templates directory exists
+	// Parse all page templates if the templates directory exists (skip for API-only mode)
 	if info, err := os.Stat("templates"); err == nil && info.IsDir() {
-		// Directory exists - parse templates (errors are fatal)
-		templates, err = template.ParseGlob("templates/*.html")
-		if err != nil {
+		if err := registry.LoadAll(pageTemplates); err != nil {
 			return nil, err
 		}
 	}
-	// If directory doesn't exist, templates remain nil (API-only mode)
-
-	// Cookie security is determined by config (from environment)
-	// In production, cfg.Session.Secure should be true
-	secureCookies := cfg.Session.Secure
 
 	return &Handlers{
-		Auth:         authAdapters.NewHTTPHandler(services, templates, secureCookies),
-		User:         userAdapters.NewHTTPHandler(services, templates),
-		Post:         postAdapters.NewHTTPHandler(services, templates),
-		Comment:      commentAdapters.NewHTTPHandler(services, templates),
-		Reaction:     reactionAdapters.NewHTTPHandler(services, templates),
-		Moderation:   moderationAdapters.NewHTTPHandler(services, templates),
-		Notification: notificationAdapters.NewHTTPHandler(services, templates),
+		Auth:         authAdapters.NewHTTPHandler(services, registry),
+		User:         userAdapters.NewHTTPHandler(services, registry),
+		Post:         postAdapters.NewHTTPHandler(services, registry),
+		Comment:      commentAdapters.NewHTTPHandler(services, registry),
+		Reaction:     reactionAdapters.NewHTTPHandler(services, registry),
+		Moderation:   moderationAdapters.NewHTTPHandler(services, registry),
+		Notification: notificationAdapters.NewHTTPHandler(services, registry),
+		Templates:    registry,
 	}, nil
 }

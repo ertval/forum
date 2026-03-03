@@ -25,6 +25,24 @@ type ReactionRepository interface {
 	// CountByTargetPublicID returns the number of reactions of a specific type for a target by its public UUID.
 	CountByTargetPublicID(ctx context.Context, targetPublicID string, targetType string, reactionType domain.ReactionType) (int, error)
 
+	// CountLikesAndDislikesByTargetPublicID returns both likes and dislikes counts in a single query.
+	CountLikesAndDislikesByTargetPublicID(ctx context.Context, targetPublicID string, targetType string) (likes, dislikes int, err error)
+
 	// CountByUserID returns the total number of reactions given by a user.
 	CountByUserID(ctx context.Context, userID int) (int, error)
+
+	// ListByUserID returns all reactions made by a user, newest first.
+	// Each returned reaction must include PublicTargetID.
+	ListByUserID(ctx context.Context, userID int) ([]*domain.Reaction, error)
+
+	// CountBatchByTargetPublicIDs returns like and dislike counts for multiple targets in a single query.
+	// The result is a map keyed by targetPublicID, with inner maps of reaction type ("like"/"dislike") -> count.
+	CountBatchByTargetPublicIDs(ctx context.Context, targetPublicIDs []string, targetType string) (map[string]map[string]int, error)
+
+	// ToggleReaction atomically handles the full reaction toggle flow in a single transaction.
+	// It resolves the target, checks for an existing reaction, and either:
+	// - Deletes the reaction if the same type already exists (toggle off, removed=true)
+	// - Updates the reaction type if a different type exists (removed=false)
+	// - Creates a new reaction if none exists (removed=false)
+	ToggleReaction(ctx context.Context, reaction *domain.Reaction) (action domain.ToggleAction, err error)
 }

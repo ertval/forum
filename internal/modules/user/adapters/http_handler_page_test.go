@@ -15,6 +15,7 @@ import (
 	authPorts "forum/internal/modules/auth/ports"
 	"forum/internal/modules/user/domain"
 	userPorts "forum/internal/modules/user/ports"
+	platformTemplates "forum/internal/platform/templates"
 )
 
 type pageTestMiddlewareProvider struct {
@@ -57,6 +58,10 @@ func (m *pageTestServiceContainer) AuthMiddleware() authPorts.AuthMiddleware {
 	return m.middlewareProvider
 }
 
+func (m *pageTestServiceContainer) UploadDir() string {
+	return "./static/uploads"
+}
+
 func TestHTTPHandler_SettingsPage_Authenticated(t *testing.T) {
 	currentDir, err := os.Getwd()
 	if err != nil {
@@ -94,7 +99,12 @@ func TestHTTPHandler_SettingsPage_Authenticated(t *testing.T) {
 		},
 	}
 
-	handler := NewHTTPHandler(container, nil)
+	registry := platformTemplates.NewRegistry()
+	if _, err := registry.GetOrParse("settings", "templates/base.html", "templates/settings.html"); err != nil {
+		t.Fatalf("failed to parse settings template: %v", err)
+	}
+
+	handler := NewHTTPHandler(container, registry)
 	router := http.NewServeMux()
 	handler.RegisterRoutes(router)
 
@@ -229,7 +239,12 @@ func TestHTTPHandler_UpdateSettingsPage_PasswordMismatch(t *testing.T) {
 		},
 	}
 
-	handler := NewHTTPHandler(container, nil)
+	registry := platformTemplates.NewRegistry()
+	if _, err := registry.GetOrParse("settings", "templates/base.html", "templates/settings.html"); err != nil {
+		t.Fatalf("failed to parse settings template: %v", err)
+	}
+
+	handler := NewHTTPHandler(container, registry)
 	router := http.NewServeMux()
 	handler.RegisterRoutes(router)
 
@@ -251,5 +266,38 @@ func TestHTTPHandler_UpdateSettingsPage_PasswordMismatch(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "password confirmation does not match") {
 		t.Fatalf("expected password mismatch error")
+	}
+}
+
+func TestHTTPHandler_UpdateSettingsPage_UnauthorizedRendersErrorPage(t *testing.T) {
+	currentDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	repoRoot := filepath.Clean(filepath.Join(currentDir, "../../../../"))
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("failed to change to repo root: %v", err)
+	}
+	defer func() { _ = os.Chdir(currentDir) }()
+
+	handler := &HTTPHandler{userService: &MockUserService{}}
+
+	req := httptest.NewRequest(http.MethodPost, "/settings", nil)
+	w := httptest.NewRecorder()
+
+	handler.UpdateSettingsPage(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status 401, got %d", w.Code)
+	}
+	if got := w.Header().Get("Content-Type"); !strings.Contains(got, "text/html") {
+		t.Fatalf("expected HTML content type, got %q", got)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "error-page") {
+		t.Fatalf("expected styled error page content")
+	}
+	if !strings.Contains(body, "Unauthorized") {
+		t.Fatalf("expected unauthorized title in error page")
 	}
 }

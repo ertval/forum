@@ -17,7 +17,7 @@ func TestUserStats_PostAndCommentCounts(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register a user
-	sessionToken := registerAndLogin(t, app, "statsuser@test.com", "Stats User", "password123")
+	sessionToken := registerAndLogin(t, app, "statsuser@test.com", "Stats User", "Password123")
 	createCategory(t, app, "stats-test")
 
 	// Create a post via API (triggers service layer increment)
@@ -59,9 +59,6 @@ func TestUserStats_PostAndCommentCounts(t *testing.T) {
 	w = httptest.NewRecorder()
 	app.Server.Router().ServeHTTP(w, req)
 
-	if w.Code == http.StatusInternalServerError {
-		t.Skipf("Skipping - failed to create comment in flaky test environment: %s", w.Body.String())
-	}
 	if w.Code != http.StatusCreated {
 		t.Fatalf("Failed to create comment: %d - %s", w.Code, w.Body.String())
 	}
@@ -81,7 +78,7 @@ func TestUserStats_EmptyStats(t *testing.T) {
 	regData := map[string]string{
 		"email":    "newuser@test.com",
 		"username": "New User",
-		"password": "password123",
+		"password": "Password123",
 	}
 	body, _ := json.Marshal(regData)
 	req := httptest.NewRequest("POST", "/api/auth/register", bytes.NewBuffer(body))
@@ -128,7 +125,7 @@ func TestBuildCurrentUser_IntegrationWithStats(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register and create some content
-	sessionToken := registerAndLogin(t, app, "displayuser@test.com", "Display User", "password123")
+	sessionToken := registerAndLogin(t, app, "displayuser@test.com", "Display User", "Password123")
 	createCategory(t, app, "display-test")
 
 	// Create multiple posts

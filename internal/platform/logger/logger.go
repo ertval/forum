@@ -1,19 +1,20 @@
 // Package logger provides structured logging for the forum application.
 // It supports multiple log levels and outputs logs in JSON format for production
 // and human-readable format for development.
+//
+// Internally, this package delegates to Go's standard log/slog package,
+// using custom slog.Handler implementations to maintain the forum's
+// specific output formats.
 package logger
 
 import (
-	"encoding/json"
-	"fmt"
+	"context"
 	"io"
+	"log/slog"
 	"os"
-	"slices"
-	"sort"
-	"strconv"
 	"strings"
-	"sync"
 	"time"
+	"unicode"
 )
 
 // Level represents the log level.
@@ -32,17 +33,13 @@ const (
 
 // Logger represents a structured logger.
 // It provides methods for logging at different levels with structured fields.
+// Internally delegates to a *slog.Logger with custom handlers.
 type Logger struct {
-	level  Level
-	output io.Writer
-	mu     sync.Mutex
-	// persistent fields included on every log entry
-	fields []Field
-	// human indicates whether to use human-readable output (true)
-	// or JSON output (false).
-	human bool
-	// config controls human formatting options (only used when human==true)
-	config *Config
+	slogger *slog.Logger
+	level   *slog.LevelVar
+	output  io.Writer
+	human   bool
+	config  *Config
 }
 
 // TimePrecision controls how timestamps are rendered in human output.
@@ -83,8 +80,39 @@ type Config struct {
 	Colorize bool
 }
 
+// defaultConfig returns the default human formatting config.
+func defaultConfig() *Config {
+	return &Config{
+		TimePrecision: TimePrecisionSeconds,
+		OmitFields:    []string{"user_agent"},
+		AllowedFields: []string{"method", "path", "query", "status", "size", "duration_ms", "remote", "url", "response", "error", "errors", "proto"},
+		MaxLineWidth:  200,
+		Colorize:      true,
+	}
+}
+
+// newLogger is the internal constructor that wires up the slog backend.
+func newLogger(level Level, output io.Writer, human bool, cfg *Config) *Logger {
+	levelVar := &slog.LevelVar{}
+	levelVar.Set(levelToSlog(level))
+
+	var handler slog.Handler
+	if human {
+		handler = newHumanHandler(output, cfg, levelVar)
+	} else {
+		handler = newJSONHandler(output, levelVar)
+	}
+
+	return &Logger{
+		slogger: slog.New(handler),
+		level:   levelVar,
+		output:  output,
+		human:   human,
+		config:  cfg,
+	}
+}
+
 // New creates a new logger with the specified level and output.
-// TODO: Implement logger initialization.
 func New(level Level, output io.Writer) *Logger {
 	// Decide whether to use human-readable output. Use human readable
 	// when output is a terminal (stdout/stderr). We conservatively
@@ -93,24 +121,7 @@ func New(level Level, output io.Writer) *Logger {
 	if output == os.Stdout || output == os.Stderr {
 		human = true
 	}
-
-	// default config for human output: seconds precision, omit user_agent, 80 cols
-	defCfg := &Config{
-		TimePrecision: TimePrecisionSeconds,
-		OmitFields:    []string{"user_agent"},
-		// default to show HTTP request info and other essential fields
-		AllowedFields: []string{"method", "path", "query", "status", "size", "duration_ms", "remote", "url", "response", "error", "errors", "proto"},
-		MaxLineWidth:  200,
-		Colorize:      true,
-	}
-
-	return &Logger{
-		level:  level,
-		output: output,
-		fields: nil,
-		human:  human,
-		config: defCfg,
-	}
+	return newLogger(level, output, human, defaultConfig())
 }
 
 // NewWithConfig creates a new Logger and accepts a formatting Config used for human output.
@@ -120,8 +131,7 @@ func NewWithConfig(level Level, output io.Writer, cfg *Config) *Logger {
 	if cfg == nil {
 		return l
 	}
-	l.config = cfg
-	return l
+	return newLogger(level, output, l.human, cfg)
 }
 
 // Debug logs a debug message with optional fields.
@@ -151,22 +161,98 @@ func (l *Logger) Error(msg string, fields ...Field) {
 // WithFields returns a new logger with additional fields.
 // The returned logger will include these fields in all log messages.
 func (l *Logger) WithFields(fields ...Field) *Logger {
-	// Return a new logger that includes the additional persistent fields.
-	// Do a defensive copy of slices so callers can mutate after.
-	newFields := make([]Field, 0, len(l.fields)+len(fields))
-	newFields = append(newFields, l.fields...)
-	newFields = append(newFields, fields...)
-
+	args := make([]any, len(fields))
+	for i, f := range fields {
+		args[i] = f.attr
+	}
 	return &Logger{
-		level:  l.level,
-		output: l.output,
-		fields: newFields,
-		human:  l.human,
-		config: l.config,
+		slogger: l.slogger.With(args...),
+		level:   l.level,
+		output:  l.output,
+		human:   l.human,
+		config:  l.config,
 	}
 }
 
-// internal helper: convert Level to string
+// log is the internal implementation that delegates to the slog backend.
+func (l *Logger) log(level Level, msg string, fields ...Field) {
+	slogLevel := levelToSlog(level)
+	if !l.slogger.Enabled(context.Background(), slogLevel) {
+		return
+	}
+	attrs := make([]slog.Attr, len(fields))
+	for i, f := range fields {
+		attrs[i] = f.attr
+	}
+	l.slogger.LogAttrs(context.Background(), slogLevel, msg, attrs...)
+}
+
+// Field represents a structured log field (key-value pair).
+// Internally wraps a slog.Attr.
+type Field struct {
+	attr slog.Attr
+}
+
+// String creates a string field.
+func String(key string, value string) Field {
+	return Field{attr: slog.String(key, value)}
+}
+
+// Int creates an integer field.
+func Int(key string, value int) Field {
+	return Field{attr: slog.Int(key, value)}
+}
+
+// Error creates an error field.
+// If err is nil, an empty string value is used to avoid a nil-pointer panic.
+func Error(err error) Field {
+	if err == nil {
+		return Field{attr: slog.String("error", "")}
+	}
+	return Field{attr: slog.String("error", err.Error())}
+}
+
+// Any creates a field with any value type.
+func Any(key string, value any) Field {
+	return Field{attr: slog.Any(key, value)}
+}
+
+// Duration creates a duration field (in milliseconds).
+func Duration(key string, value time.Duration) Field {
+	return Field{attr: slog.Int64(key, value.Milliseconds())}
+}
+
+// levelToSlog converts a custom Level to a slog.Level.
+func levelToSlog(l Level) slog.Level {
+	switch l {
+	case DebugLevel:
+		return slog.LevelDebug
+	case InfoLevel:
+		return slog.LevelInfo
+	case WarnLevel:
+		return slog.LevelWarn
+	case ErrorLevel:
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
+}
+
+// slogToLevel converts a slog.Level back to a custom Level.
+func slogToLevel(l slog.Level) Level {
+	switch {
+	case l < slog.LevelInfo:
+		return DebugLevel
+	case l < slog.LevelWarn:
+		return InfoLevel
+	case l < slog.LevelError:
+		return WarnLevel
+	default:
+		return ErrorLevel
+	}
+}
+
+// levelToString converts a Level to its string representation.
 func levelToString(l Level) string {
 	switch l {
 	case DebugLevel:
@@ -180,397 +266,6 @@ func levelToString(l Level) string {
 	default:
 		return "UNKNOWN"
 	}
-}
-
-// applyColor applies colorization depending on the logger config.
-func (l *Logger) applyColor(s, color string) string {
-	if l.config == nil {
-		// default to color enabled for terminal output
-		if color == "" {
-			return s
-		}
-		return color + s + colorReset
-	}
-	if !l.config.Colorize || color == "" {
-		return s
-	}
-	return color + s + colorReset
-}
-
-// colorForLevel returns the ANSI color for a log level.
-func colorForLevel(l Level) string {
-	switch l {
-	case DebugLevel:
-		return colorMagenta
-	case InfoLevel:
-		return colorGreen
-	case WarnLevel:
-		return colorYellow
-	case ErrorLevel:
-		return colorRed
-	default:
-		return colorWhite
-	}
-}
-
-// colorForStatusCode returns a color based on HTTP status code ranges.
-func colorForStatusCode(code int) string {
-	switch {
-	case code >= 200 && code < 300:
-		return colorGreen
-	case code >= 300 && code < 400:
-		return colorCyan
-	case code >= 400 && code < 500:
-		return colorYellow
-	case code >= 500:
-		return colorRed
-	default:
-		return colorWhite
-	}
-}
-
-// colorForMessage decides whether a message should be highlighted based on
-// its content (e.g., server started/stopped) or the log level.
-func colorForMessage(msg string, lvl Level) string {
-	lower := strings.ToLower(msg)
-	// Important positive messages
-	if strings.Contains(lower, "started") || strings.Contains(lower, "listening") || strings.Contains(lower, "listening on") || strings.Contains(lower, "server started") {
-		// server start / listening messages: use blue to highlight
-		return colorBlue
-	}
-	// Stopping/shutdown
-	if strings.Contains(lower, "stopped") || strings.Contains(lower, "shutdown") || strings.Contains(lower, "stopping") {
-		return colorRed
-	}
-	// Errors and failures
-	if lvl == ErrorLevel || strings.Contains(lower, "error") || strings.Contains(lower, "failed") {
-		return colorRed
-	}
-	return ""
-}
-
-// formatHTTPRequest creates a compact, colorful one-line log for HTTP requests.
-// Format: TS PROTO STATUS METHOD PATH?QUERY (SIZEb, DURms) [IP]
-// Example: 18:33:58 🔒 ✓ 200 GET /board?my_posts=true (6.4kb, 1ms) [127.0.0.1]
-func (l *Logger) formatHTTPRequest(ts string, level Level, data map[string]any) string {
-	// Extract fields
-	method := getStringField(data, "method", "???")
-	path := getStringField(data, "path", "/")
-	query := getStringField(data, "query", "")
-	status := getIntField(data, "status", 0)
-	size := getIntField(data, "size", 0)
-	durationMs := getIntField(data, "duration_ms", 0)
-	remote := getStringField(data, "remote", "")
-	proto := getStringField(data, "proto", "http")
-
-	// Build the full path with query
-	fullPath := path
-	if query != "" {
-		fullPath = path + "?" + query
-	}
-
-	// Status indicator and color
-	statusColor := colorForStatusCode(status)
-	var statusIndicator string
-	if status >= 200 && status < 300 {
-		statusIndicator = "✓"
-	} else if status >= 400 && status < 500 {
-		statusIndicator = "⚠"
-	} else if status >= 500 {
-		statusIndicator = "✗"
-	} else if status >= 300 && status < 400 {
-		statusIndicator = "→"
-	} else {
-		statusIndicator = "?"
-	}
-
-	// Format size in human-readable format
-	sizeStr := formatBytes(size)
-
-	// Color method based on type
-	methodColor := colorForMethod(method)
-
-	// Extract just IP without port for cleaner output
-	ip := remote
-	if idx := strings.LastIndex(remote, ":"); idx > 0 {
-		ip = remote[:idx]
-	}
-
-	// Build compact output
-	// Format: TS PROTO INDICATOR STATUS METHOD PATH (SIZE, DUR) [IP]
-	// Protocol indicator: 🔒 for HTTPS, 🔓 for HTTP
-	var protoIndicator string
-	var protoColor string
-	if proto == "https" {
-		protoIndicator = "🔒"
-		protoColor = colorGreen
-	} else {
-		protoIndicator = "🔓"
-		protoColor = colorYellow
-	}
-	protoPart := l.applyColor(protoIndicator, protoColor)
-
-	statusPart := l.applyColor(fmt.Sprintf("%s %d", statusIndicator, status), statusColor)
-	methodPart := l.applyColor(fmt.Sprintf("%-4s", method), methodColor)
-
-	// Dim the metadata for less important info
-	metaPart := l.applyColor(fmt.Sprintf("(%s, %dms)", sizeStr, durationMs), colorWhite)
-	ipPart := l.applyColor(fmt.Sprintf("[%s]", ip), colorWhite)
-
-	return fmt.Sprintf("%s %s %s %s %s %s %s", ts, protoPart, statusPart, methodPart, fullPath, metaPart, ipPart)
-}
-
-// colorForMethod returns a color based on HTTP method.
-func colorForMethod(method string) string {
-	switch strings.ToUpper(method) {
-	case "GET":
-		return colorGreen
-	case "POST":
-		return colorBlue
-	case "PUT", "PATCH":
-		return colorYellow
-	case "DELETE":
-		return colorRed
-	default:
-		return colorWhite
-	}
-}
-
-// formatBytes converts bytes to human-readable format.
-func formatBytes(bytes int) string {
-	if bytes < 1024 {
-		return fmt.Sprintf("%db", bytes)
-	} else if bytes < 1024*1024 {
-		return fmt.Sprintf("%.1fkb", float64(bytes)/1024)
-	} else {
-		return fmt.Sprintf("%.1fmb", float64(bytes)/(1024*1024))
-	}
-}
-
-// getStringField extracts a string field from a map with a default value.
-func getStringField(data map[string]any, key, defaultVal string) string {
-	if v, ok := data[key]; ok {
-		if s, ok := v.(string); ok {
-			return s
-		}
-	}
-	return defaultVal
-}
-
-// getIntField extracts an int field from a map with a default value.
-func getIntField(data map[string]any, key string, defaultVal int) int {
-	if v, ok := data[key]; ok {
-		switch tv := v.(type) {
-		case int:
-			return tv
-		case int64:
-			return int(tv)
-		case int32:
-			return int(tv)
-		case float64:
-			return int(tv)
-		}
-	}
-	return defaultVal
-}
-
-// internal log implementation
-func (l *Logger) log(level Level, msg string, fields ...Field) {
-	if level < l.level {
-		return
-	}
-
-	// Merge persistent fields and call-site fields into a map
-	data := make(map[string]any)
-	for _, f := range l.fields {
-		// later fields override earlier ones
-		data[f.Key] = f.Value
-	}
-	for _, f := range fields {
-		data[f.Key] = f.Value
-	}
-
-	// base entry
-	entry := map[string]any{
-		"level": levelToString(level),
-		"msg":   msg,
-		"ts":    time.Now().Format(time.RFC3339Nano),
-	}
-
-	// attach fields
-	if len(data) > 0 {
-		entry["fields"] = data
-	}
-
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	if l.human {
-		// human readable: [LEVEL] ts msg key=val ... with colors for level and status codes
-		ts := entry["ts"].(string)
-		// apply configured time precision if available
-		if l.config != nil && l.config.TimePrecision == TimePrecisionSeconds {
-			if parsed, err := time.Parse(time.RFC3339Nano, ts); err == nil {
-				ts = parsed.Format("15:04:05") // Compact time format (HH:MM:SS only)
-			}
-		}
-
-		// Check if this is an HTTP request log for compact formatting
-		if msg == "http.request" {
-			out := l.formatHTTPRequest(ts, level, data)
-			out += "\n"
-			_, _ = l.output.Write([]byte(out))
-			return
-		}
-
-		// prepare fields: if AllowedFields is set, only include those keys.
-		allowed := map[string]struct{}{}
-		useAllowed := false
-		if l.config != nil && len(l.config.AllowedFields) > 0 {
-			for _, k := range l.config.AllowedFields {
-				allowed[k] = struct{}{}
-			}
-			allowed[""] = struct{}{} // Always allow empty keys for prefix-less fields
-			useAllowed = true
-		}
-
-		// colorize level label
-		levelLabel := fmt.Sprintf("[%s]", entry["level"])
-		levelColored := l.applyColor(levelLabel, colorForLevel(level))
-
-		// colorize message when it's important (server start/stop, errors, etc.)
-		msgStr := fmt.Sprintf("%s", entry["msg"])
-		msgColor := colorForMessage(msgStr, level)
-		if msgColor != "" {
-			msgStr = l.applyColor(msgStr, msgColor)
-		}
-
-		out := fmt.Sprintf("%s %s %s", levelColored, ts, msgStr)
-		if len(data) > 0 {
-			// iterate fields in sorted order for stable output
-			keys := make([]string, 0, len(data))
-			for k := range data {
-				keys = append(keys, k)
-			}
-			sort.Strings(keys)
-			for _, k := range keys {
-				v := data[k]
-				if useAllowed {
-					if _, ok := allowed[k]; !ok {
-						continue
-					}
-				} else if l.config != nil {
-					// if not using AllowedFields, respect OmitFields
-					skip := slices.Contains(l.config.OmitFields, k)
-					if skip {
-						continue
-					}
-				}
-
-				// prepare value string and optionally color status codes or URLs
-				valStr := fmt.Sprintf("%v", v)
-				valColor := ""
-
-				// color URL-like values for better visibility and clickability
-				if vs, ok := v.(string); ok {
-					lower := strings.ToLower(vs)
-					if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
-						valColor = colorBlue
-					}
-				}
-
-				if k == "status" {
-					// try to detect integer status code from various types
-					switch tv := v.(type) {
-					case int:
-						valColor = colorForStatusCode(tv)
-					case int32:
-						valColor = colorForStatusCode(int(tv))
-					case int64:
-						valColor = colorForStatusCode(int(tv))
-					case float64:
-						// if it's float but integer valued, treat as status
-						ival := int(tv)
-						if float64(ival) == tv {
-							valColor = colorForStatusCode(ival)
-						}
-					case string:
-						if code, err := strconv.Atoi(tv); err == nil {
-							valColor = colorForStatusCode(code)
-						}
-					}
-				}
-
-				// color error values red
-				if valColor == "" && k == "error" {
-					valColor = colorRed
-				}
-
-				if k == "" {
-					if valColor != "" {
-						out += " " + l.applyColor(valStr, valColor)
-					} else {
-						out += " " + valStr
-					}
-				} else if valColor != "" {
-					out += fmt.Sprintf(" %s:%s", k, l.applyColor(valStr, valColor))
-				} else {
-					out += fmt.Sprintf(" %s:%v", k, v)
-				}
-			}
-		}
-		// apply max line width truncation when requested
-		if l.config != nil && l.config.MaxLineWidth > 0 {
-			// ensure newline at end afterwards
-			truncated := truncateToWidth(out, l.config.MaxLineWidth)
-			out = truncated
-		}
-		out += "\n"
-		_, _ = l.output.Write([]byte(out))
-		return
-	}
-
-	// JSON output
-	enc, err := json.Marshal(entry)
-	if err != nil {
-		// fallback to fmt if JSON encoding fails
-		fallback := fmt.Sprintf("%s %s %v\n", levelToString(level), msg, data)
-		_, _ = l.output.Write([]byte(fallback))
-		return
-	}
-	enc = append(enc, '\n')
-	_, _ = l.output.Write(enc)
-}
-
-// Field represents a structured log field (key-value pair).
-type Field struct {
-	Key   string
-	Value any
-}
-
-// String creates a string field.
-func String(key string, value string) Field {
-	return Field{Key: key, Value: value}
-}
-
-// Int creates an integer field.
-func Int(key string, value int) Field {
-	return Field{Key: key, Value: value}
-}
-
-// Error creates an error field.
-func Error(err error) Field {
-	return Field{Key: "error", Value: err.Error()}
-}
-
-// Any creates a field with any value type.
-func Any(key string, value any) Field {
-	return Field{Key: key, Value: value}
-}
-
-// Duration creates a duration field (in milliseconds).
-func Duration(key string, value time.Duration) Field {
-	return Field{Key: key, Value: value.Milliseconds()}
 }
 
 // truncateToWidth truncates the input string to at most width runes.
@@ -589,4 +284,49 @@ func truncateToWidth(s string, width int) string {
 	}
 	truncated := string(rs[:width-1]) + "…"
 	return truncated
+}
+
+func sanitizeFieldValuesForPlainText(data map[string]any) map[string]any {
+	if len(data) == 0 {
+		return data
+	}
+
+	sanitized := make(map[string]any, len(data))
+	for key, value := range data {
+		if strValue, ok := value.(string); ok {
+			sanitized[key] = sanitizePlainText(strValue)
+			continue
+		}
+		sanitized[key] = value
+	}
+
+	return sanitized
+}
+
+func sanitizePlainText(input string) string {
+	if input == "" {
+		return input
+	}
+
+	var builder strings.Builder
+	builder.Grow(len(input))
+
+	for _, r := range input {
+		switch r {
+		case '\n':
+			builder.WriteString(`\n`)
+		case '\r':
+			builder.WriteString(`\r`)
+		case '\t':
+			builder.WriteString(`\t`)
+		default:
+			if unicode.IsControl(r) {
+				builder.WriteRune(' ')
+				continue
+			}
+			builder.WriteRune(r)
+		}
+	}
+
+	return builder.String()
 }

@@ -6,22 +6,26 @@ package adapters
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	authPorts "forum/internal/modules/auth/ports"
 	commentDomain "forum/internal/modules/comment/domain"
+	"forum/internal/modules/shared/adapters/httpjson"
 	platformErrors "forum/internal/platform/errors"
 )
 
 // RegisterAPIRoutes registers all comment API routes with the router.
 func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
 	authMiddleware := h.middlewareProvider.RequireAuth()
+	optionalAuth := h.middlewareProvider.OptionalAuth()
 
 	// Protected API routes (require authentication)
 	router.Handle("POST /api/comments/posts/{post_id}", authMiddleware(http.HandlerFunc(h.CreateCommentAPI)))
 	router.Handle("PUT /api/comments/{id}", authMiddleware(http.HandlerFunc(h.UpdateCommentAPI)))
 	router.Handle("DELETE /api/comments/{id}", authMiddleware(http.HandlerFunc(h.DeleteCommentAPI)))
 	router.Handle("GET /api/activity", authMiddleware(http.HandlerFunc(h.GetActivityAPI)))
+	router.Handle("GET /api/comments/load-more", optionalAuth(http.HandlerFunc(h.LoadMoreCommentsAPI)))
 
 	// Public API routes (no authentication required)
 	// GET /api/comments/{id} - Get comment (public)
@@ -46,7 +50,7 @@ func (h *HTTPHandler) GetActivityAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.writeJSON(w, http.StatusOK, activity)
+	httpjson.WriteJSON(w, http.StatusOK, activity)
 }
 
 // CreateCommentAPI handles comment creation requests.
@@ -76,7 +80,7 @@ func (h *HTTPHandler) CreateCommentAPI(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Content string `json:"content"`
 	}
-	if err := h.parseJSON(r, &req); err != nil {
+	if err := httpjson.ParseJSON(r, &req); err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -116,7 +120,7 @@ func (h *HTTPHandler) CreateCommentAPI(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: comment.CreatedAt.Format(time.RFC3339),
 	}
 
-	h.writeJSON(w, http.StatusCreated, resp)
+	httpjson.WriteJSON(w, http.StatusCreated, resp)
 }
 
 // GetCommentAPI handles comment retrieval requests.
@@ -139,12 +143,7 @@ func (h *HTTPHandler) GetCommentAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	commentAuthor, err := h.userService.GetByID(r.Context(), comment.UserID)
-	if err != nil {
-		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve comment author")
-		return
-	}
-	comment.PublicUserID = commentAuthor.PublicID
+	// Author public ID is already populated by the repository JOIN query
 
 	// Return success response
 	resp := struct {
@@ -163,7 +162,7 @@ func (h *HTTPHandler) GetCommentAPI(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: comment.UpdatedAt.Format(time.RFC3339),
 	}
 
-	h.writeJSON(w, http.StatusOK, resp)
+	httpjson.WriteJSON(w, http.StatusOK, resp)
 }
 
 // UpdateCommentAPI handles comment update requests.
@@ -188,12 +187,17 @@ func (h *HTTPHandler) UpdateCommentAPI(w http.ResponseWriter, r *http.Request) {
 		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
 		return
 	}
+	currentUser, err := h.userService.GetByPublicID(r.Context(), userPublicID)
+	if err != nil || currentUser == nil {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
+		return
+	}
 
 	// Parse request body
 	var req struct {
 		Content string `json:"content"`
 	}
-	if err := h.parseJSON(r, &req); err != nil {
+	if err := httpjson.ParseJSON(r, &req); err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -250,7 +254,7 @@ func (h *HTTPHandler) UpdateCommentAPI(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: time.Now().Format(time.RFC3339),
 	}
 
-	h.writeJSON(w, http.StatusOK, resp)
+	httpjson.WriteJSON(w, http.StatusOK, resp)
 }
 
 // DeleteCommentAPI handles comment deletion requests.
@@ -276,6 +280,12 @@ func (h *HTTPHandler) DeleteCommentAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	currentUser, err := h.userService.GetByPublicID(r.Context(), userPublicID)
+	if err != nil || currentUser == nil {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
+		return
+	}
+
 	// For authorization check, first get the existing comment to verify ownership
 	existingComment, err := h.commentService.GetComment(r.Context(), commentPublicID)
 	if err != nil {
@@ -288,7 +298,8 @@ func (h *HTTPHandler) DeleteCommentAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if the user is the owner of the comment
-	if existingComment.UserID != userID {
+	canDeleteAny := currentUser.Role == "moderator" || currentUser.Role == "admin"
+	if existingComment.UserID != userID && !canDeleteAny {
 		platformErrors.WriteErrorJSON(w, http.StatusForbidden, "Not authorized to delete this comment")
 		return
 	}
@@ -304,14 +315,8 @@ func (h *HTTPHandler) DeleteCommentAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return success response
-	resp := struct {
-		Message string `json:"message"`
-	}{
-		Message: "Comment deleted successfully",
-	}
-
-	h.writeJSON(w, http.StatusOK, resp)
+	// Return 204 No Content on successful deletion
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // ListCommentsByPostAPI handles listing comments for a post.
@@ -330,32 +335,17 @@ func (h *HTTPHandler) ListCommentsByPostAPI(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	userPublicIDs := make(map[int]string, len(comments))
-	for _, comment := range comments {
-		if publicID, exists := userPublicIDs[comment.UserID]; exists {
-			comment.PublicUserID = publicID
-			continue
-		}
+	// Author public IDs are already populated by the repository JOIN query
 
-		author, err := h.userService.GetByID(r.Context(), comment.UserID)
-		if err != nil {
-			platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve comment author")
-			return
-		}
-
-		userPublicIDs[comment.UserID] = author.PublicID
-		comment.PublicUserID = author.PublicID
-	}
-
-	// Prepare response
-	var commentsResp []struct {
+	// Prepare response - initialize as empty slice to avoid null in JSON
+	commentsResp := make([]struct {
 		ID        string `json:"id"`
 		PostID    string `json:"post_id"`
 		UserID    string `json:"user_id"`
 		Content   string `json:"content"`
 		CreatedAt string `json:"created_at"`
 		UpdatedAt string `json:"updated_at"`
-	}
+	}, 0)
 
 	for _, comment := range comments {
 		commentResp := struct {
@@ -376,7 +366,7 @@ func (h *HTTPHandler) ListCommentsByPostAPI(w http.ResponseWriter, r *http.Reque
 		commentsResp = append(commentsResp, commentResp)
 	}
 
-	h.writeJSON(w, http.StatusOK, struct {
+	httpjson.WriteJSON(w, http.StatusOK, struct {
 		Comments []struct {
 			ID        string `json:"id"`
 			PostID    string `json:"post_id"`
@@ -388,4 +378,62 @@ func (h *HTTPHandler) ListCommentsByPostAPI(w http.ResponseWriter, r *http.Reque
 	}{
 		Comments: commentsResp,
 	})
+}
+
+// LoadMoreCommentsAPI handles loading additional comments for the My Comments page.
+func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get user PUBLIC ID (UUID) from session cookie.
+	var userPublicID string
+	cookie, err := r.Cookie(h.cookieName)
+	if err == nil && cookie.Value != "" {
+		if session, err := h.authService.ValidateSession(ctx, cookie.Value); err == nil && session != nil {
+			user, err := h.userService.GetByID(ctx, session.UserID)
+			if err == nil && user != nil {
+				userPublicID = user.PublicID
+			}
+		}
+	}
+
+	if userPublicID == "" {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	limit := DefaultPaginationLimit
+	offset := 0
+
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= MaxPaginationLimit {
+			limit = l
+		}
+	}
+
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
+	filters := parseMyCommentsFilters(r)
+
+	comments, err := h.commentService.ListCommentsByUser(ctx, userPublicID)
+	if err != nil {
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve comments")
+		return
+	}
+
+	filteredComments := h.buildFilteredCommentItems(ctx, comments, filters)
+	if offset >= len(filteredComments) {
+		httpjson.WriteJSON(w, http.StatusOK, []map[string]interface{}{})
+		return
+	}
+
+	end := offset + limit
+	if end > len(filteredComments) {
+		end = len(filteredComments)
+	}
+
+	httpjson.WriteJSON(w, http.StatusOK, filteredComments[offset:end])
 }

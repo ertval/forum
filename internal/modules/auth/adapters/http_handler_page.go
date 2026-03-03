@@ -4,9 +4,10 @@
 package adapters
 
 import (
+	"bytes"
 	"net/http"
 
-	"forum/internal/platform/templates"
+	platformErrors "forum/internal/platform/errors"
 )
 
 // RegisterPageRoutes registers all authentication page routes with the router.
@@ -22,17 +23,23 @@ func (h *HTTPHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
 		"Title": "Login",
 	}
 
-	// Get cached templates (only parses on first request)
-	tmpl, err := templates.Get("login", "templates/base.html", "templates/login.html")
-	if err != nil {
-		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+	if h.templates == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "templates not configured", nil)
+		return
+	}
+	tmpl := h.templates.Lookup("login")
+	if tmpl == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "template not found", nil)
 		return
 	}
 
-	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
-		http.Error(w, "Failed to render login page", http.StatusInternalServerError)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", nil)
 		return
 	}
+	buf.WriteTo(w)
 }
 
 // RegisterPage renders the registration page.
@@ -41,23 +48,29 @@ func (h *HTTPHandler) RegisterPage(w http.ResponseWriter, r *http.Request) {
 		"Title": "Register",
 	}
 
-	// Get cached templates (only parses on first request)
-	tmpl, err := templates.Get("register", "templates/base.html", "templates/register.html")
-	if err != nil {
-		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+	if h.templates == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "templates not configured", nil)
+		return
+	}
+	tmpl := h.templates.Lookup("register")
+	if tmpl == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "template not found", nil)
 		return
 	}
 
-	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
-		http.Error(w, "Failed to render register page", http.StatusInternalServerError)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", nil)
 		return
 	}
+	buf.WriteTo(w)
 }
 
 // LogoutPage handles the frontend logout by invalidating the session and redirecting.
 func (h *HTTPHandler) LogoutPage(w http.ResponseWriter, r *http.Request) {
 	// Get session token from cookie
-	cookie, err := r.Cookie("session_token")
+	cookie, err := r.Cookie(h.cookieName)
 	if err == nil && cookie.Value != "" {
 		// Call the service to logout the user (invalidate the session)
 		_ = h.authService.Logout(r.Context(), cookie.Value) // We ignore the error for frontend UX
@@ -65,12 +78,12 @@ func (h *HTTPHandler) LogoutPage(w http.ResponseWriter, r *http.Request) {
 
 	// Clear the session cookie
 	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token",
+		Name:     h.cookieName,
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1, // Delete the cookie
 		HttpOnly: true,
-		Secure:   false, // Set to true in production with HTTPS
+		Secure:   h.secureCookies,
 		SameSite: http.SameSiteLaxMode,
 	})
 

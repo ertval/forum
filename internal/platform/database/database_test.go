@@ -1,6 +1,8 @@
 package database
 
 import (
+	"bytes"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,19 +67,9 @@ func TestNewConnection(t *testing.T) {
 					t.Error("NewConnection().DB() returned nil database")
 				}
 
-				// Test Ping
-				if err := conn.Ping(); err != nil {
-					t.Errorf("Connection.Ping() failed: %v", err)
-				}
-
 				// Test Close
 				if err := conn.Close(); err != nil {
 					t.Errorf("Connection.Close() failed: %v", err)
-				}
-
-				// Ping should fail after close
-				if err := conn.Ping(); err == nil {
-					t.Error("Connection.Ping() should fail after Close()")
 				}
 			}
 		})
@@ -143,33 +135,6 @@ func TestConnection_Close(t *testing.T) {
 	if err := conn.Close(); err != nil {
 		t.Errorf("Second Close() failed: %v", err)
 	}
-}
-
-func TestConnection_Ping(t *testing.T) {
-	t.Run("successful ping", func(t *testing.T) {
-		conn, err := NewConnection(":memory:")
-		if err != nil {
-			t.Fatalf("NewConnection() failed: %v", err)
-		}
-		defer conn.Close()
-
-		if err := conn.Ping(); err != nil {
-			t.Errorf("Ping() failed: %v", err)
-		}
-	})
-
-	t.Run("ping after close", func(t *testing.T) {
-		conn, err := NewConnection(":memory:")
-		if err != nil {
-			t.Fatalf("NewConnection() failed: %v", err)
-		}
-
-		conn.Close()
-
-		if err := conn.Ping(); err == nil {
-			t.Error("Ping() should fail after Close()")
-		}
-	})
 }
 
 // TestStringsIndexByte tests the standard library function we now use
@@ -644,44 +609,84 @@ CREATE INDEX idx_users ON users(id);`,
 	}
 }
 
-func TestMigrator_Rollback(t *testing.T) {
+func TestMigrator_Migrate_WarnsOnMalformedMigration(t *testing.T) {
 	conn, err := NewConnection(":memory:")
 	if err != nil {
 		t.Fatalf("NewConnection() failed: %v", err)
 	}
 	defer conn.Close()
 
-	migrator := NewMigrator(conn)
-
-	// Rollback now returns an error indicating it's not implemented
-	err = migrator.Rollback()
-	if err == nil {
-		t.Error("Rollback() should return an error (not yet implemented)")
+	testMigDir := t.TempDir()
+	malformedMigration := `CREATE TABLE malformed_only (id INTEGER PRIMARY KEY);`
+	if err := os.WriteFile(filepath.Join(testMigDir, "001_malformed.sql"), []byte(malformedMigration), 0644); err != nil {
+		t.Fatalf("Failed to write malformed migration: %v", err)
 	}
-}
 
-func TestMigrator_Version(t *testing.T) {
-	conn, err := NewConnection(":memory:")
-	if err != nil {
-		t.Fatalf("NewConnection() failed: %v", err)
-	}
-	defer conn.Close()
+	var logBuffer bytes.Buffer
+	originalWriter := log.Writer()
+	defer log.SetOutput(originalWriter)
+	log.SetOutput(&logBuffer)
 
 	migrator := NewMigrator(conn)
-
-	// First run Migrate to create the schema_migrations table
-	tmpDir := t.TempDir()
-	if err := migrator.Migrate(tmpDir); err != nil {
+	if err := migrator.Migrate(testMigDir); err != nil {
 		t.Fatalf("Migrate() failed: %v", err)
 	}
 
-	// Version should return 0 when no migrations are applied
-	version, err := migrator.Version()
-	if err != nil {
-		t.Errorf("Version() error = %v, expected nil", err)
+	if !strings.Contains(logBuffer.String(), "has no '-- +migrate Up' marker, skipping") {
+		t.Fatalf("expected warning log for malformed migration, got logs: %s", logBuffer.String())
 	}
-	if version != 0 {
-		t.Errorf("Version() = %d, expected 0 (no migrations applied)", version)
+
+	var count int
+	err = conn.DB().QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count)
+	if err != nil {
+		t.Fatalf("Failed to query schema_migrations: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected 0 applied migrations for malformed file, got %d", count)
+	}
+}
+
+func TestMigrator_Migrate_IsAtomicOnFailure(t *testing.T) {
+	conn, err := NewConnection(":memory:")
+	if err != nil {
+		t.Fatalf("NewConnection() failed: %v", err)
+	}
+	defer conn.Close()
+
+	testMigDir := t.TempDir()
+	partiallyFailingMigration := `-- +migrate Up
+CREATE TABLE atomic_users (id INTEGER PRIMARY KEY);
+CREATE TABLE atomic_users (id INTEGER PRIMARY KEY);
+
+-- +migrate Down
+DROP TABLE atomic_users;`
+
+	if err := os.WriteFile(filepath.Join(testMigDir, "001_atomic_failure.sql"), []byte(partiallyFailingMigration), 0644); err != nil {
+		t.Fatalf("Failed to write migration file: %v", err)
+	}
+
+	migrator := NewMigrator(conn)
+	err = migrator.Migrate(testMigDir)
+	if err == nil {
+		t.Fatal("expected migration error, got nil")
+	}
+
+	var tableCount int
+	err = conn.DB().QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='atomic_users'").Scan(&tableCount)
+	if err != nil {
+		t.Fatalf("failed to query sqlite_master: %v", err)
+	}
+	if tableCount != 0 {
+		t.Fatalf("expected atomic_users table to be rolled back, got count=%d", tableCount)
+	}
+
+	var migrationCount int
+	err = conn.DB().QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&migrationCount)
+	if err != nil {
+		t.Fatalf("failed to query schema_migrations: %v", err)
+	}
+	if migrationCount != 0 {
+		t.Fatalf("expected no recorded migrations after failure, got %d", migrationCount)
 	}
 }
 
@@ -717,6 +722,4 @@ func TestMigrator_WithRealMigrations(t *testing.T) {
 	t.Logf("Successfully applied %d migrations", count)
 }
 
-// Note: transaction-related tests were moved to `transaction_test.go` to avoid
-// duplicate declarations across test files. The transaction test implementations
-// live in that file; keep this placeholder comment here to explain the split.
+

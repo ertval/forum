@@ -4,19 +4,15 @@
 package adapters
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
-	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	authDomain "forum/internal/modules/auth/domain"
+	"forum/internal/modules/shared/adapters/httpjson"
 	platformErrors "forum/internal/platform/errors"
 )
 
-// RegisterAPIRoutes registers all authentication API routes with the router.
 func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
 	authMiddleware := h.middlewareProvider.RequireAuth()
 
@@ -37,7 +33,7 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 
-	if err := h.parseJSON(r, &req); err != nil {
+	if err := httpjson.ParseJSON(r, &req); err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -47,6 +43,8 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Differentiate between validation errors (400) and conflict errors (409)
 		switch {
+		case authDomain.IsPasswordValidationError(err):
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 		case errors.Is(err, authDomain.ErrInvalidEmail),
 			errors.Is(err, authDomain.ErrWeakPassword),
 			errors.Is(err, authDomain.ErrInvalidUsername):
@@ -55,24 +53,14 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 			errors.Is(err, authDomain.ErrUsernameAlreadyExists):
 			platformErrors.WriteErrorJSON(w, http.StatusConflict, err.Error())
 		default:
-			// Check if error message contains validation keywords
-			errMsg := err.Error()
-			if strings.Contains(errMsg, "empty") || strings.Contains(errMsg, "invalid") ||
-				strings.Contains(errMsg, "required") || strings.Contains(errMsg, "format") ||
-				strings.Contains(errMsg, "too long") || strings.Contains(errMsg, "too short") {
-				platformErrors.WriteErrorJSON(w, http.StatusBadRequest, errMsg)
-			} else if strings.Contains(errMsg, "already exists") || strings.Contains(errMsg, "duplicate") || strings.Contains(errMsg, "taken") {
-				platformErrors.WriteErrorJSON(w, http.StatusConflict, errMsg)
-			} else {
-				platformErrors.WriteErrorJSON(w, http.StatusConflict, errMsg)
-			}
+			platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Registration failed")
 		}
 		return
 	}
 
 	// Set the session cookie
 	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token",
+		Name:     h.cookieName,
 		Value:    session.Token,
 		Path:     "/",
 		Expires:  session.ExpiresAt,
@@ -88,22 +76,22 @@ func (h *HTTPHandler) RegisterAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return success response with public UUID
+	// Return success response with public UUID (token is in HttpOnly cookie only)
 	resp := struct {
 		ID       string `json:"id"`
 		UserID   string `json:"user_id"`
 		Email    string `json:"email"`
 		Username string `json:"username"`
-		Token    string `json:"token"`
+		Message  string `json:"message"`
 	}{
 		ID:       user.PublicID,
 		UserID:   user.PublicID,
 		Email:    req.Email,
 		Username: req.Username,
-		Token:    session.Token,
+		Message:  "Registration successful",
 	}
 
-	h.writeJSON(w, http.StatusCreated, resp)
+	httpjson.WriteJSON(w, http.StatusCreated, resp)
 }
 
 // LoginAPI handles user login API requests.
@@ -113,7 +101,7 @@ func (h *HTTPHandler) LoginAPI(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 
-	if err := h.parseJSON(r, &req); err != nil {
+	if err := httpjson.ParseJSON(r, &req); err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -127,7 +115,7 @@ func (h *HTTPHandler) LoginAPI(w http.ResponseWriter, r *http.Request) {
 
 	// Set the session cookie
 	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token",
+		Name:     h.cookieName,
 		Value:    session.Token,
 		Path:     "/",
 		Expires:  session.ExpiresAt,
@@ -143,28 +131,28 @@ func (h *HTTPHandler) LoginAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return success response with public UUID
+	// Return success response with public UUID (token is in HttpOnly cookie only)
 	resp := struct {
 		ID       string `json:"id"`
 		UserID   string `json:"user_id"`
 		Email    string `json:"email"`
 		Username string `json:"username"`
-		Token    string `json:"token"`
+		Message  string `json:"message"`
 	}{
 		ID:       user.PublicID,
 		UserID:   user.PublicID,
 		Email:    user.Email,
 		Username: user.Username,
-		Token:    session.Token,
+		Message:  "Login successful",
 	}
 
-	h.writeJSON(w, http.StatusOK, resp)
+	httpjson.WriteJSON(w, http.StatusOK, resp)
 }
 
 // LogoutAPI handles user logout requests.
 func (h *HTTPHandler) LogoutAPI(w http.ResponseWriter, r *http.Request) {
 	// Get session token from cookie
-	cookie, err := r.Cookie("session_token")
+	cookie, err := r.Cookie(h.cookieName)
 	if err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "No session token found")
 		return
@@ -179,7 +167,7 @@ func (h *HTTPHandler) LogoutAPI(w http.ResponseWriter, r *http.Request) {
 
 	// Clear the session cookie
 	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token",
+		Name:     h.cookieName,
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1, // Delete the cookie
@@ -189,7 +177,7 @@ func (h *HTTPHandler) LogoutAPI(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Return success response
-	h.writeJSON(w, http.StatusOK, struct {
+	httpjson.WriteJSON(w, http.StatusOK, struct {
 		Message string `json:"message"`
 	}{
 		Message: "Successfully logged out",
@@ -199,7 +187,7 @@ func (h *HTTPHandler) LogoutAPI(w http.ResponseWriter, r *http.Request) {
 // GetSessionAPI retrieves the current session information.
 func (h *HTTPHandler) GetSessionAPI(w http.ResponseWriter, r *http.Request) {
 	// Get session token from cookie
-	cookie, err := r.Cookie("session_token")
+	cookie, err := r.Cookie(h.cookieName)
 	if err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "No session token found")
 		return
@@ -219,41 +207,14 @@ func (h *HTTPHandler) GetSessionAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return session info with public UUID
+	// Return session info with public UUID (token is in HttpOnly cookie only)
 	resp := struct {
 		UserID    string    `json:"user_id"`
-		Token     string    `json:"token"`
 		ExpiresAt time.Time `json:"expires_at"`
 	}{
 		UserID:    user.PublicID,
-		Token:     session.Token,
 		ExpiresAt: session.ExpiresAt,
 	}
 
-	h.writeJSON(w, http.StatusOK, resp)
-}
-
-// writeJSON writes a JSON response.
-func (h *HTTPHandler) writeJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		// Log the error, but don't send it to the client
-		log.Printf("Error encoding JSON response: %v", err)
-	}
-}
-
-// parseJSON parses JSON request body.
-func (h *HTTPHandler) parseJSON(r *http.Request, v interface{}) error {
-	// Check if content type is JSON
-	if r.Header.Get("Content-Type") != "application/json" {
-		return fmt.Errorf("content type is not application/json")
-	}
-
-	// Decode the JSON
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields() // This makes parsing stricter
-
-	return decoder.Decode(v)
+	httpjson.WriteJSON(w, http.StatusOK, resp)
 }

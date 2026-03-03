@@ -13,8 +13,9 @@ import (
 
 // setupTestDB creates an in-memory SQLite database with the correct schema
 func setupTestDB(t *testing.T) *sql.DB {
-	// Use shared in-memory SQLite so multiple connections see same schema.
-	db, err := sql.Open("sqlite3", "file::memory:?cache=shared")
+	// Use a unique shared in-memory SQLite DSN per test setup to avoid cross-test contamination.
+	dsn := fmt.Sprintf("file:postrepo_%d?mode=memory&cache=shared", time.Now().UnixNano())
+	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
 		t.Fatalf("Failed to open database: %v", err)
 	}
@@ -711,6 +712,195 @@ func TestSQLitePostRepository_List_WithLikedByUser(t *testing.T) {
 	if len(posts) != 0 {
 		t.Errorf("Expected 0 liked posts, got %d", len(posts))
 	}
+}
+
+func TestSQLitePostRepository_List_WithReceivedReactionType(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	_, err := db.Exec("INSERT INTO users (public_id, username, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"author-uuid", "author", "author@example.com", "hash", time.Now(), time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert author user: %v", err)
+	}
+
+	_, err = db.Exec("INSERT INTO users (public_id, username, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"reactor-uuid", "reactor", "reactor@example.com", "hash", time.Now(), time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert reactor user: %v", err)
+	}
+
+	result, err := db.Exec("INSERT INTO categories (public_id, name, description, created_at) VALUES (?, ?, ?, ?)",
+		"cat-uuid-1", "General", "General discussions", time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert category: %v", err)
+	}
+	catID, _ := result.LastInsertId()
+
+	now := time.Now()
+	post1, err := db.Exec("INSERT INTO posts (public_id, title, content, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"post-like", "Post With Like", "content", 1, now, now)
+	if err != nil {
+		t.Fatalf("Failed to insert post-like: %v", err)
+	}
+	post1ID, _ := post1.LastInsertId()
+
+	post2, err := db.Exec("INSERT INTO posts (public_id, title, content, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"post-dislike", "Post With Dislike", "content", 1, now.Add(time.Minute), now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("Failed to insert post-dislike: %v", err)
+	}
+	post2ID, _ := post2.LastInsertId()
+
+	_, err = db.Exec("INSERT INTO post_categories (post_id, category_id) VALUES (?, ?), (?, ?)", post1ID, catID, post2ID, catID)
+	if err != nil {
+		t.Fatalf("Failed to insert post categories: %v", err)
+	}
+
+	_, err = db.Exec("INSERT INTO reactions (user_id, target_type, target_id, type) VALUES (?, ?, ?, ?)", 2, "post", post1ID, "like")
+	if err != nil {
+		t.Fatalf("Failed to insert like reaction: %v", err)
+	}
+	_, err = db.Exec("INSERT INTO reactions (user_id, target_type, target_id, type) VALUES (?, ?, ?, ?)", 2, "post", post2ID, "dislike")
+	if err != nil {
+		t.Fatalf("Failed to insert dislike reaction: %v", err)
+	}
+
+	repo := NewSQLitePostRepository(db)
+	ctx := context.Background()
+
+	likedPosts, err := repo.List(ctx, domain.PostFilter{UserID: "author-uuid", ReceivedReactionType: "like", Limit: 10})
+	if err != nil {
+		t.Fatalf("List with like reaction type failed: %v", err)
+	}
+	if len(likedPosts) != 1 || likedPosts[0].PublicID != "post-like" {
+		t.Fatalf("expected only post-like, got %#v", likedPosts)
+	}
+
+	dislikedPosts, err := repo.List(ctx, domain.PostFilter{UserID: "author-uuid", ReceivedReactionType: "dislike", Limit: 10})
+	if err != nil {
+		t.Fatalf("List with dislike reaction type failed: %v", err)
+	}
+	if len(dislikedPosts) != 1 || dislikedPosts[0].PublicID != "post-dislike" {
+		t.Fatalf("expected only post-dislike, got %#v", dislikedPosts)
+	}
+}
+
+func TestSQLitePostRepository_List_WithGuestActivityAndReactionScopes(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	authorResult, err := db.Exec("INSERT INTO users (public_id, username, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"guest-scope-author-uuid", "guestscopeauthor", "guestscopeauthor@example.com", "hash", time.Now(), time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert author user: %v", err)
+	}
+	authorID, _ := authorResult.LastInsertId()
+
+	_, err = db.Exec("INSERT INTO users (public_id, username, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"guest-scope-reactor-uuid", "guestscopereactor", "guestscopereactor@example.com", "hash", time.Now(), time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert reactor user: %v", err)
+	}
+
+	result, err := db.Exec("INSERT INTO categories (public_id, name, description, created_at) VALUES (?, ?, ?, ?)",
+		"cat-uuid-1", "General", "General discussions", time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert category: %v", err)
+	}
+	catID, _ := result.LastInsertId()
+
+	now := time.Now()
+	const postNoActivityID int64 = 910001
+	const postWithCommentID int64 = 910002
+	const postWithPostReactionID int64 = 910003
+	const postWithCommentReactionID int64 = 910004
+
+	_, err = db.Exec("INSERT INTO posts (id, public_id, title, content, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		postNoActivityID, "post-none", "No Activity", "content", authorID, now, now)
+	if err != nil {
+		t.Fatalf("Failed to insert post-none: %v", err)
+	}
+
+	_, err = db.Exec("INSERT INTO posts (id, public_id, title, content, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		postWithCommentID, "post-comment", "With Comment", "content", authorID, now.Add(time.Minute), now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("Failed to insert post-comment: %v", err)
+	}
+
+	_, err = db.Exec("INSERT INTO posts (id, public_id, title, content, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		postWithPostReactionID, "post-post-reaction", "With Post Reaction", "content", authorID, now.Add(2*time.Minute), now.Add(2*time.Minute))
+	if err != nil {
+		t.Fatalf("Failed to insert post-post-reaction: %v", err)
+	}
+
+	_, err = db.Exec("INSERT INTO posts (id, public_id, title, content, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		postWithCommentReactionID, "post-comment-reaction", "With Comment Reaction", "content", authorID, now.Add(3*time.Minute), now.Add(3*time.Minute))
+	if err != nil {
+		t.Fatalf("Failed to insert post-comment-reaction: %v", err)
+	}
+
+	_, err = db.Exec(
+		"INSERT INTO post_categories (post_id, category_id) VALUES (?, ?), (?, ?), (?, ?), (?, ?)",
+		postNoActivityID, catID,
+		postWithCommentID, catID,
+		postWithPostReactionID, catID,
+		postWithCommentReactionID, catID,
+	)
+	if err != nil {
+		t.Fatalf("Failed to insert post categories: %v", err)
+	}
+
+	_, err = db.Exec("INSERT INTO comments (public_id, post_id, user_id, content, created_at) VALUES (?, ?, ?, ?, ?)",
+		"comment-uuid-1", postWithCommentID, 1, "comment", now)
+	if err != nil {
+		t.Fatalf("Failed to insert comment for post-comment: %v", err)
+	}
+
+	commentWithReaction, err := db.Exec("INSERT INTO comments (public_id, post_id, user_id, content, created_at) VALUES (?, ?, ?, ?, ?)",
+		"comment-uuid-2", postWithCommentReactionID, 1, "comment with reaction", now)
+	if err != nil {
+		t.Fatalf("Failed to insert comment for post-comment-reaction: %v", err)
+	}
+	commentWithReactionID, _ := commentWithReaction.LastInsertId()
+
+	_, err = db.Exec("INSERT INTO reactions (user_id, target_type, target_id, type) VALUES (?, ?, ?, ?)", 2, "post", postWithPostReactionID, "like")
+	if err != nil {
+		t.Fatalf("Failed to insert post reaction: %v", err)
+	}
+
+	_, err = db.Exec("INSERT INTO reactions (user_id, target_type, target_id, type) VALUES (?, ?, ?, ?)", 2, "comment", commentWithReactionID, "dislike")
+	if err != nil {
+		t.Fatalf("Failed to insert comment reaction: %v", err)
+	}
+
+	repo := NewSQLitePostRepository(db)
+	ctx := context.Background()
+
+	commentedPosts, err := repo.List(ctx, domain.PostFilter{UserID: "guest-scope-author-uuid", RequireCommentedPost: true, Limit: 20})
+	if err != nil {
+		t.Fatalf("List with RequireCommentedPost failed: %v", err)
+	}
+	commentedSet := make(map[string]bool, len(commentedPosts))
+	for _, post := range commentedPosts {
+		commentedSet[post.PublicID] = true
+	}
+	if !commentedSet["post-comment"] || !commentedSet["post-comment-reaction"] {
+		t.Fatalf("expected commented filter to include post-comment and post-comment-reaction, got %#v", commentedSet)
+	}
+
+	reactedPosts, err := repo.List(ctx, domain.PostFilter{UserID: "guest-scope-author-uuid", RequireReactedPost: true, Limit: 20})
+	if err != nil {
+		t.Fatalf("List with RequireReactedPost failed: %v", err)
+	}
+	reactedSet := make(map[string]bool, len(reactedPosts))
+	for _, post := range reactedPosts {
+		reactedSet[post.PublicID] = true
+	}
+	if !reactedSet["post-post-reaction"] || !reactedSet["post-comment-reaction"] {
+		t.Fatalf("expected reacted filter to include post-post-reaction and post-comment-reaction, got %#v", reactedSet)
+	}
+
 }
 
 func TestSQLitePostRepository_List_WithPagination(t *testing.T) {

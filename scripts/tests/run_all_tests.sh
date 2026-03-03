@@ -135,7 +135,8 @@ done
 
 echo ""
 echo -e "${YELLOW}───────────────────────────────────────────────────────────${NC}"
-echo -e "  Passed: ${GREEN}$PASSED${NC} | Pending: ${YELLOW}$PENDING_SCRIPTS${NC} | Failed: ${RED}$FAILED${NC} | Total: $((PASSED + PENDING_SCRIPTS + FAILED))"
+PENDING_COUNT=${PENDING_SCRIPTS:-0}
+echo -e "  Passed: ${GREEN}$PASSED${NC} | Pending: ${YELLOW}$PENDING_COUNT${NC} | Failed: ${RED}$FAILED${NC} | Total: $((PASSED + PENDING_COUNT + FAILED))"
 echo -e "${YELLOW}───────────────────────────────────────────────────────────${NC}"
 echo ""
 
@@ -143,7 +144,7 @@ if [ $FAILED -gt 0 ]; then
     echo -e "${RED}✗ SOME TESTS FAILED${NC}"
     echo ""
     exit 1
-elif [ $PENDING_SCRIPTS -gt 0 ]; then
+elif [ "$PENDING_COUNT" -gt 0 ]; then
     echo -e "${YELLOW}⚠ SOME TESTS PENDING (Unimplemented Features)${NC}"
     echo ""
     exit 0 # Still exit 0 to allow CI to pass if only pending? Or exit 2? 

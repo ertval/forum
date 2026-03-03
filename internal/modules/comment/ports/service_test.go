@@ -6,41 +6,40 @@ import (
 	"testing"
 )
 
-// This test file verifies that the interfaces are properly defined and can be implemented
-func TestCommentServiceInterface(t *testing.T) {
-	// This test ensures that the CommentService interface is properly defined
-	// and that we can create a variable of the interface type
+// This test file verifies that the interfaces are properly defined and can be implemented.
 
-	var commentService CommentService
-	_ = commentService // ensure the interface is defined and can be used
-}
-
-func TestCommentRepositoryInterface(t *testing.T) {
-	// This test ensures that the CommentRepository interface is properly defined
-	var commentRepo CommentRepository
-	_ = commentRepo // ensure the interface is defined and can be used
-}
-
-// Mock implementations for interface compatibility testing
+// Mock implementations for interface compatibility testing.
 type mockCommentService struct{}
 
-func (m *mockCommentService) CreateComment(ctx context.Context, postID, userID int, content string) (*domain.Comment, error) {
+// Compile-time interface satisfaction checks.
+var _ CommentService = (*mockCommentService)(nil)
+var _ CommentRepository = (*mockCommentRepository)(nil)
+
+func (m *mockCommentService) CreateComment(ctx context.Context, postPublicID string, userID int, content string) (*domain.Comment, error) {
 	return nil, nil
 }
 
-func (m *mockCommentService) GetComment(ctx context.Context, commentID int) (*domain.Comment, error) {
+func (m *mockCommentService) GetComment(ctx context.Context, commentPublicID string) (*domain.Comment, error) {
 	return nil, nil
 }
 
-func (m *mockCommentService) UpdateComment(ctx context.Context, commentID int, content string) error {
+func (m *mockCommentService) UpdateComment(ctx context.Context, commentPublicID string, content string) error {
 	return nil
 }
 
-func (m *mockCommentService) DeleteComment(ctx context.Context, commentID int) error {
+func (m *mockCommentService) DeleteComment(ctx context.Context, commentPublicID string) error {
 	return nil
 }
 
-func (m *mockCommentService) ListCommentsByPost(ctx context.Context, postID int) ([]*domain.Comment, error) {
+func (m *mockCommentService) ListCommentsByPost(ctx context.Context, postPublicID string) ([]*domain.Comment, error) {
+	return nil, nil
+}
+
+func (m *mockCommentService) ListCommentsByUser(ctx context.Context, userPublicID string) ([]*domain.Comment, error) {
+	return nil, nil
+}
+
+func (m *mockCommentService) ListCommentsByUserPaginated(ctx context.Context, userPublicID string, limit, offset int) ([]*domain.Comment, error) {
 	return nil, nil
 }
 
@@ -50,7 +49,7 @@ func (m *mockCommentRepository) Create(ctx context.Context, comment *domain.Comm
 	return nil
 }
 
-func (m *mockCommentRepository) GetByID(ctx context.Context, commentID int) (*domain.Comment, error) {
+func (m *mockCommentRepository) GetByPublicID(ctx context.Context, commentPublicID string) (*domain.Comment, error) {
 	return nil, nil
 }
 
@@ -58,89 +57,114 @@ func (m *mockCommentRepository) Update(ctx context.Context, comment *domain.Comm
 	return nil
 }
 
-func (m *mockCommentRepository) Delete(ctx context.Context, commentID int) error {
+func (m *mockCommentRepository) DeleteByPublicID(ctx context.Context, commentPublicID string) error {
 	return nil
 }
 
-func (m *mockCommentRepository) ListByPostID(ctx context.Context, postID int) ([]*domain.Comment, error) {
+func (m *mockCommentRepository) ListByPostPublicID(ctx context.Context, postPublicID string) ([]*domain.Comment, error) {
 	return nil, nil
 }
 
-func TestCommentServiceInterfaceMethods(t *testing.T) {
-	// Create context for testing
-	ctx := context.Background()
+func (m *mockCommentRepository) ListByUser(ctx context.Context, userID int) ([]*domain.Comment, error) {
+	return nil, nil
+}
 
-	// Test that we can call interface methods on a variable of the interface type
+func (m *mockCommentRepository) ListByUserPaginated(ctx context.Context, userID int, limit, offset int) ([]*domain.Comment, error) {
+	return nil, nil
+}
+
+func TestCommentServiceInterface(t *testing.T) {
+	var commentService CommentService
+	_ = commentService
+}
+
+func TestCommentRepositoryInterface(t *testing.T) {
+	var commentRepo CommentRepository
+	_ = commentRepo
+}
+
+func TestCommentServiceInterfaceMethods(t *testing.T) {
+	ctx := context.Background()
 	service := &mockCommentService{}
 
-	// Test each method signature
-	_, err := service.CreateComment(ctx, 1, 1, "test content")
+	_, err := service.CreateComment(ctx, "post-uuid", 1, "test content")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
 
-	_, err = service.GetComment(ctx, 1)
+	_, err = service.GetComment(ctx, "comment-uuid")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
 
-	err = service.UpdateComment(ctx, 1, "updated content")
+	err = service.UpdateComment(ctx, "comment-uuid", "updated content")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
 
-	err = service.DeleteComment(ctx, 1)
+	err = service.DeleteComment(ctx, "comment-uuid")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
 
-	_, err = service.ListCommentsByPost(ctx, 1)
+	_, err = service.ListCommentsByPost(ctx, "post-uuid")
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	_, err = service.ListCommentsByUser(ctx, "user-uuid")
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	_, err = service.ListCommentsByUserPaginated(ctx, "user-uuid", 10, 0)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
 }
 
 func TestCommentRepositoryInterfaceMethods(t *testing.T) {
-	// Create context for testing
 	ctx := context.Background()
-
-	// Create mock repository
 	repo := &mockCommentRepository{}
 
-	// Test that we can call interface methods on a variable of the interface type
 	var comment *domain.Comment
 	var comments []*domain.Comment
 	var err error
 
-	// Test Create method
 	err = repo.Create(ctx, comment)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
 
-	// Test GetByID method
-	comment, err = repo.GetByID(ctx, 1)
+	comment, err = repo.GetByPublicID(ctx, "comment-uuid")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
 
-	// Test Update method
 	err = repo.Update(ctx, comment)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
 
-	// Test Delete method
-	err = repo.Delete(ctx, 1)
+	err = repo.DeleteByPublicID(ctx, "comment-uuid")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
 
-	// Test ListByPostID method
-	comments, err = repo.ListByPostID(ctx, 1)
+	comments, err = repo.ListByPostPublicID(ctx, "post-uuid")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
 
-	_ = comments // Use the variable to avoid unused variable warning
+	comments, err = repo.ListByUser(ctx, 1)
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	comments, err = repo.ListByUserPaginated(ctx, 1, 10, 0)
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	_ = comments
 }

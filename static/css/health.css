@@ -16,13 +16,13 @@
 .health-status p {
     text-align: center;
     margin-bottom: 1.5rem;
-    color: #7a7a7a;
+    color: var(--color-text-muted);
 }
 
 .health-status h3 {
     margin: 1.5rem 0 1rem;
-    color: #5a5a5a;
-    border-bottom: 1px solid #e0e0e0;
+    color: var(--color-text);
+    border-bottom: 1px solid var(--color-border);
     padding-bottom: 0.5rem;
     text-align: center;
 }
@@ -31,7 +31,7 @@
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 1.5rem;
-    background: #ffffff;
+    background: var(--color-bg-light);
     border-radius: 8px;
     overflow: hidden;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
@@ -41,12 +41,12 @@
 .health-status td {
     padding: 0.75rem 1rem;
     text-align: left;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--color-border);
 }
 
 .health-status th {
-    background: linear-gradient(135deg, #d3e0ea 0%, #e0f0f7 100%);
-    color: #5a5a5a;
+    background: var(--gradient-blue-light);
+    color: var(--color-text);
     font-weight: 600;
 }
 
@@ -55,7 +55,7 @@
 }
 
 .health-status tr:hover td {
-    background-color: #f8fdfb;
+    background-color: var(--color-bg-light);
 }
 
 /* Status badges */
@@ -72,7 +72,7 @@
 .status-ok,
 .status-up {
     background: linear-gradient(135deg, #b5ead7 0%, #c2f2e9 100%);
-    color: #2d7a5e;
+    color: var(--color-success-dark);
     border: 1px solid var(--color-primary);
 }
 
@@ -80,7 +80,7 @@
 .status-error,
 .status-down {
     background: linear-gradient(135deg, #ff6b6b 0%, #ff8a8a 100%);
-    color: #ffffff;
+    color: var(--color-bg-light);
     border: 1px solid #e53e3e;
     font-weight: 600;
 }
@@ -88,11 +88,23 @@
 .status-warning {
     background: linear-gradient(135deg, #f9e6a8 0%, #fcf0c8 100%);
     color: #7a6520;
-    border: 1px solid #f5d98f;
+    border: 1px solid var(--color-error-border);
 }
 
 .status-unknown {
     background: linear-gradient(135deg, #d3e0ea 0%, #e6eef5 100%);
-    color: #5a5a5a;
-    border: 1px solid #c0d0e0;
+    color: var(--color-text);
+    border: 1px solid var(--color-border-blue);
+}
+
+.health-error-links {
+    margin-top: 1.5rem;
+}
+
+.health-error-links-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
 }

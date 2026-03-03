@@ -15,19 +15,19 @@
 }
 
 .auth-form {
-    background: #ffffff;
+    background: var(--color-bg-light);
     padding: 2rem;
     border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
     width: 100%;
     max-width: 400px;
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--color-border);
 }
 
 .auth-form h2 {
     text-align: center;
     margin-bottom: 1.5rem;
-    color: #5a5a5a;
+    color: var(--color-text);
     font-size: 1.5rem;
     font-weight: 600;
 }
@@ -36,13 +36,13 @@
     width: 100%;
     padding: 0.75rem;
     background: linear-gradient(135deg, var(--color-primary) 0%, #c2f2e9 100%);
-    color: #5a5a5a;
+    color: var(--color-text);
     border: none;
     border-radius: 8px;
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal);
     box-shadow: 0 4px 8px rgba(163, 217, 197, 0.3);
 }
 
@@ -55,7 +55,7 @@
 .auth-link {
     text-align: center;
     margin-top: 1rem;
-    color: #5a5a5a;
+    color: var(--color-text);
 }
 
 .auth-link a {
@@ -65,14 +65,14 @@
 }
 
 .auth-link a:hover {
-    color: #7fb8a5;
+    color: var(--color-link-hover);
     text-decoration: underline;
 }
 
 .login-prompt {
     text-align: center;
     padding: 1rem;
-    background: #f9f9f9;
+    background: var(--color-bg);
     border-radius: 8px;
     margin: 1rem 0;
 }
@@ -84,7 +84,7 @@
 }
 
 .login-prompt a:hover {
-    color: #7fb8a5;
+    color: var(--color-link-hover);
     text-decoration: underline;
 }
 

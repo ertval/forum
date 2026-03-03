@@ -1,9 +1,9 @@
-// Package database provides database connection management and migrations.
 package database
 
 import (
-	"errors"
+	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"slices"
@@ -17,7 +17,6 @@ type Migrator struct {
 }
 
 // NewMigrator creates a new database migrator.
-// TODO: Implement migrator initialization.
 func NewMigrator(conn *Connection) *Migrator {
 	return &Migrator{
 		conn: conn,
@@ -26,7 +25,6 @@ func NewMigrator(conn *Connection) *Migrator {
 
 // Migrate runs all pending migrations.
 // Migrations are executed in order based on their version numbers.
-// TODO: Implement migration execution logic.
 func (m *Migrator) Migrate(migrationsPath string) error {
 	// Ensure schema_migrations table exists
 	_, err := m.conn.DB().Exec(`
@@ -61,7 +59,6 @@ func (m *Migrator) Migrate(migrationsPath string) error {
 		}
 		applied[v] = true
 	}
-	// NIT-1: Check for iteration errors
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("error iterating migration rows: %w", err)
 	}
@@ -105,18 +102,30 @@ func (m *Migrator) Migrate(migrationsPath string) error {
 		// Only apply the Up section
 		upSQL := extractUpSQL(string(content))
 		if upSQL == "" {
-			continue // skip if no Up section
+			log.Printf("WARNING: migration file %s has no '-- +migrate Up' marker, skipping", mig.name)
+			continue
 		}
-		_, err = m.conn.DB().Exec(upSQL)
+
+		// Wrap migration execution and record-writing in a single transaction
+		ctx := context.Background()
+		tx, err := m.conn.DB().BeginTx(ctx, nil)
 		if err != nil {
+			return fmt.Errorf("failed to begin transaction for migration %s: %w", mig.name, err)
+		}
+		if _, err = tx.ExecContext(ctx, upSQL); err != nil {
+			tx.Rollback()
 			return fmt.Errorf("failed to apply migration %s: %w", mig.name, err)
 		}
-		_, err = m.conn.DB().Exec(
+		_, err = tx.ExecContext(ctx,
 			"INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, datetime('now'))",
 			mig.version, mig.name,
 		)
 		if err != nil {
+			tx.Rollback()
 			return fmt.Errorf("failed to record migration %s: %w", mig.name, err)
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("failed to commit migration %s: %w", mig.name, err)
 		}
 	}
 	return nil
@@ -138,20 +147,4 @@ func extractUpSQL(content string) string {
 	return strings.TrimSpace(content[upIdx:downIdx])
 }
 
-// Rollback rolls back the last migration.
-// Returns an error as rollback is not yet implemented.
-func (m *Migrator) Rollback() error {
-	return errors.New("rollback not yet implemented")
-}
 
-// Version returns the current database schema version.
-func (m *Migrator) Version() (int, error) {
-	var version int
-	err := m.conn.DB().QueryRow(
-		"SELECT COALESCE(MAX(version), 0) FROM schema_migrations",
-	).Scan(&version)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get schema version: %w", err)
-	}
-	return version, nil
-}

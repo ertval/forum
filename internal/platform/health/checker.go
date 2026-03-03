@@ -3,12 +3,21 @@ package health
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
 )
+
+type endpoint struct {
+	method string
+	path   string
+}
+
+type moduleCheck struct {
+	resultKey string
+	endpoints []endpoint
+}
 
 // Checker is responsible for running health checks.
 type Checker struct {
@@ -22,18 +31,6 @@ func NewChecker(db *sql.DB, router *http.ServeMux) *Checker {
 	// Note: We allow nil checks to happen at Check() time to provide
 	// meaningful error messages in health check results rather than panicking
 	return &Checker{db: db, router: router}
-}
-
-// NewCheckerWithValidation creates a new Checker with strict validation.
-// Returns an error if required dependencies are nil.
-func NewCheckerWithValidation(db *sql.DB, router *http.ServeMux) (*Checker, error) {
-	if db == nil {
-		return nil, errors.New("database connection cannot be nil")
-	}
-	if router == nil {
-		return nil, errors.New("router cannot be nil")
-	}
-	return &Checker{db: db, router: router}, nil
 }
 
 // Check performs all health checks and returns a map of results.
@@ -65,80 +62,80 @@ func (c *Checker) Check(ctx context.Context) map[string]string {
 // checkAPIEndpoints checks the availability of API endpoints for each module
 func (c *Checker) checkAPIEndpoints(ctx context.Context, results map[string]string) {
 	// Check all endpoints per module and only mark the module as "up" if ALL endpoints are accessible
-
-	// Auth module endpoints
-	authEndpoints := []struct{ method, path string }{
-		{"POST", "/api/auth/register"},
-		{"POST", "/api/auth/login"},
-		{"POST", "/api/auth/logout"},
-		{"GET", "/api/auth/session"},
+	modules := []moduleCheck{
+		{
+			resultKey: "auth_api",
+			endpoints: []endpoint{
+				{"POST", "/api/auth/register"},
+				{"POST", "/api/auth/login"},
+				{"POST", "/api/auth/logout"},
+				{"GET", "/api/auth/session"},
+			},
+		},
+		{
+			resultKey: "post_api",
+			endpoints: []endpoint{
+				{"GET", "/"},
+				{"GET", "/api/posts"},
+				{"POST", "/api/posts"},
+				{"GET", "/api/posts/{id}"},
+				{"PUT", "/api/posts/{id}"},
+				{"DELETE", "/api/posts/{id}"},
+			},
+		},
+		{
+			resultKey: "user_api",
+			endpoints: []endpoint{
+				{"GET", "/api/users/{id}"},
+				{"GET", "/api/users"},
+				{"PUT", "/api/users/{id}/role"},
+				{"PUT", "/api/users/{id}/deactivate"},
+			},
+		},
+		{
+			resultKey: "comment_api",
+			endpoints: []endpoint{
+				{"POST", "/api/comments/posts/{post_id}"},
+				{"GET", "/api/comments/{id}"},
+				{"PUT", "/api/comments/{id}"},
+				{"DELETE", "/api/comments/{id}"},
+				{"GET", "/api/comments/posts/{post_id}"},
+			},
+		},
+		{
+			resultKey: "reaction_api",
+			endpoints: []endpoint{
+				{"POST", "/api/reactions"},
+				{"DELETE", "/api/reactions"},
+				{"GET", "/api/reactions/{targetType}/{targetId}"},
+				{"GET", "/api/reactions/{targetType}/{targetId}/count"},
+			},
+		},
+		{
+			resultKey: "moderation_api",
+			endpoints: []endpoint{
+				{"POST", "/api/moderation/reports"},
+				{"GET", "/api/moderation/reports"},
+				{"PUT", "/api/moderation/reports/{id}"},
+			},
+		},
+		{
+			resultKey: "notification_api",
+			endpoints: []endpoint{
+				{"GET", "/api/notifications"},
+				{"PUT", "/api/notifications/{id}/read"},
+			},
+		},
 	}
-	authAllUp := c.areAllRoutesRegistered(ctx, authEndpoints)
-	results["auth_api"] = map[bool]string{true: "up", false: "down"}[authAllUp]
 
-	// Post module endpoints
-	postEndpoints := []struct{ method, path string }{
-		{"GET", "/"},                  // homepage
-		{"GET", "/api/posts"},         // list posts
-		{"POST", "/api/posts"},        // create post
-		{"GET", "/api/posts/{id}"},    // get post (parameterized)
-		{"PUT", "/api/posts/{id}"},    // update post (parameterized)
-		{"DELETE", "/api/posts/{id}"}, // delete post (parameterized)
+	for _, module := range modules {
+		allUp := c.areAllRoutesRegistered(ctx, module.endpoints)
+		results[module.resultKey] = map[bool]string{true: "up", false: "down"}[allUp]
 	}
-	postAllUp := c.areAllRoutesRegistered(ctx, postEndpoints)
-	results["post_api"] = map[bool]string{true: "up", false: "down"}[postAllUp]
-
-	// User module endpoints
-	userEndpoints := []struct{ method, path string }{
-		{"GET", "/api/users/{id}"},
-		{"GET", "/api/users"},
-		{"PUT", "/api/users/{id}/role"},
-		{"PUT", "/api/users/{id}/deactivate"},
-	}
-	userAllUp := c.areAllRoutesRegistered(ctx, userEndpoints)
-	results["user_api"] = map[bool]string{true: "up", false: "down"}[userAllUp]
-
-	// Comment module endpoints
-	commentEndpoints := []struct{ method, path string }{
-		{"POST", "/api/comments/posts/{post_id}"},
-		{"GET", "/api/comments/{id}"},
-		{"PUT", "/api/comments/{id}"},
-		{"DELETE", "/api/comments/{id}"},
-		{"GET", "/api/comments/posts/{post_id}"},
-	}
-	commentAllUp := c.areAllRoutesRegistered(ctx, commentEndpoints)
-	results["comment_api"] = map[bool]string{true: "up", false: "down"}[commentAllUp]
-
-	// Reaction module endpoints
-	reactionEndpoints := []struct{ method, path string }{
-		{"POST", "/api/reactions"},
-		{"DELETE", "/api/reactions"},
-		{"GET", "/api/reactions/{targetType}/{targetId}"},
-		{"GET", "/api/reactions/{targetType}/{targetId}/count"},
-	}
-	reactionAllUp := c.areAllRoutesRegistered(ctx, reactionEndpoints)
-	results["reaction_api"] = map[bool]string{true: "up", false: "down"}[reactionAllUp]
-
-	// Moderation module endpoints - NOT YET IMPLEMENTED
-	moderationEndpoints := []struct{ method, path string }{
-		{"POST", "/api/moderation/reports"},
-		{"GET", "/api/moderation/reports"},
-		{"PUT", "/api/moderation/reports/{id}"},
-	}
-	moderationAllUp := c.areAllRoutesRegistered(ctx, moderationEndpoints)
-	results["moderation_api"] = map[bool]string{true: "down", false: "down"}[moderationAllUp] // TODO: change to "up" when implemented
-
-	// Notification module endpoints
-	notificationEndpoints := []struct{ method, path string }{
-		{"GET", "/api/notifications"},
-		{"PUT", "/api/notifications/{id}/read"},
-	}
-	notificationAllUp := c.areAllRoutesRegistered(ctx, notificationEndpoints)
-	results["notification_api"] = map[bool]string{true: "up", false: "down"}[notificationAllUp]
 }
 
 // areAllRoutesRegistered checks if all routes in the list are registered in the router
-func (c *Checker) areAllRoutesRegistered(ctx context.Context, endpoints []struct{ method, path string }) bool {
+func (c *Checker) areAllRoutesRegistered(ctx context.Context, endpoints []endpoint) bool {
 	for _, endpoint := range endpoints {
 		if !c.isRouteRegistered(ctx, endpoint.method, endpoint.path) {
 			return false

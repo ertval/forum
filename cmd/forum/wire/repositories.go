@@ -3,6 +3,7 @@ package wire
 
 import (
 	"database/sql"
+	"fmt"
 
 	authAdapters "forum/internal/modules/auth/adapters"
 	commentAdapters "forum/internal/modules/comment/adapters"
@@ -34,9 +35,14 @@ type Repositories struct {
 }
 
 // initRepositories creates all repository instances.
-func initRepositories(db *sql.DB) *Repositories {
+func initRepositories(db *sql.DB) (*Repositories, error) {
+	sessionRepo, err := authAdapters.NewSQLiteSessionRepository(db)
+	if err != nil {
+		return nil, fmt.Errorf("session repository: %w", err)
+	}
+
 	return &Repositories{
-		Session:      authAdapters.NewSQLiteSessionRepository(db),
+		Session:      sessionRepo,
 		User:         userAdapters.NewSQLiteUserRepository(db),
 		Post:         postAdapters.NewSQLitePostRepository(db),
 		Category:     postAdapters.NewSQLiteCategoryRepository(db),
@@ -44,5 +50,5 @@ func initRepositories(db *sql.DB) *Repositories {
 		Reaction:     reactionAdapters.NewSQLiteReactionRepository(db),
 		Moderation:   moderationAdapters.NewSQLiteReportRepository(db),
 		Notification: notificationAdapters.NewSQLiteNotificationRepository(db),
-	}
+	}, nil
 }

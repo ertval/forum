@@ -4,11 +4,12 @@ Fast path to functional forum MVP following core requirements, then complete rem
 
 ## Current Status
 
-**Project Phase**: Production-ready MVP — core features complete, optional modules scaffolded, and test coverage is broad with occasional regressions under active maintenance.
+**Project Phase**: Production-ready MVP — core features and moderation workflow are implemented with broad test coverage.
 
 ### ✅ Completed Features
 
 - **Platform layer**: config, database (SQLite), logger, httpserver, errors, validator, upload
+- **Shared module adapters**: `internal/modules/shared/adapters/httpjson` for JSON handler utilities used across module adapters
 - **Auth module**: Registration, login, sessions (one per user), logout, session validation
 - **User module**: Domain, repository, stats (post/comment counts cached in users table)
 - **Post module**: Full CRUD, categories, filtering (category, user, liked posts, date range)
@@ -20,16 +21,17 @@ Fast path to functional forum MVP following core requirements, then complete rem
 - **Filtering**: By category, My Posts, Liked Posts, date range (today/week/month/all)
 - **UI Enhancements**: Hover effects on reaction buttons, "Show More" pagination for comments
 - **Settings page**: Protected `GET /settings` page added and linked from existing navigation
+- **Docker reliability**: `make up/down` supports modern `docker compose` and container startup now normalizes mounted volume permissions before dropping privileges
 
-### ⚠️ Scaffolded (Needs Implementation)
+### ✅ Moderation Workflow Implemented
 
-- **Moderation module**: Domain/ports/adapters structure exists, minimal implementation
+- **Moderation module**: Moderator request workflow (request/list/review), report review controls, admin role management integration in settings
 
 ### 🧪 Test Status
 
 - ✅ Broad unit/integration/E2E coverage exists across core modules
 - ✅ `test_audit_advanced.sh` passes
-- ⚠️ Pending optional audits: moderation and authentication (OAuth extensions)
+- ⚠️ Pending optional audits: authentication (OAuth extensions)
 - ℹ️ Use `make test` to verify the current repository state on your environment
 
 ---
@@ -138,13 +140,14 @@ Fast path to functional forum MVP following core requirements, then complete rem
 
 ### Phase 10: Moderation [OPTIONAL]
 
-**Status**: Scaffolded, minimal implementation
+**Status**: Implemented for forum-moderation requirements in this repository
 
-- [ ] Report entity and repository
-- [ ] Moderator role checks
-- [ ] Admin role checks
-- [ ] Report creation/review workflow
-- [ ] Content deletion by moderators
+- [x] Report entity and repository
+- [x] Moderator role checks
+- [x] Admin role checks
+- [x] Report creation/review workflow
+- [x] Moderator role request + admin review workflow
+- [x] Settings UI controls for moderator/admin moderation actions
 
 ### Phase 11: Notifications [OPTIONAL]
 
@@ -178,7 +181,7 @@ Fast path to functional forum MVP following core requirements, then complete rem
 | post         | ✅     | ✅    | ✅          | ✅       | ✅    | Complete   |
 | comment      | ✅     | ✅    | ✅          | ✅       | ✅    | Complete   |
 | reaction     | ✅     | ✅    | ✅          | ✅       | ✅    | Complete   |
-| moderation   | ✅     | ✅    | ⚠️          | ⚠️       | ⚠️    | Scaffolded |
+| moderation   | ✅     | ✅    | ✅          | ✅       | ✅    | Complete   |
 | notification | ✅     | ✅    | ✅          | ✅       | ✅    | Complete   |
 
 ---
@@ -208,7 +211,7 @@ make test-script
 go build -o bin/forum cmd/forum/main.go
 
 # Docker
-docker-compose up --build
+docker compose up --build
 ```
 
 ---

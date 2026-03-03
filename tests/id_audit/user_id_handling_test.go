@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -52,7 +52,8 @@ func TestSQLiteUserRepositoryIDHandling(t *testing.T) {
 		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active INTEGER DEFAULT 1
+		is_active INTEGER DEFAULT 1,
+		avatar_path TEXT DEFAULT ''
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -136,7 +137,8 @@ func TestUserRepositoryQueryMethods(t *testing.T) {
 		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active INTEGER DEFAULT 1
+		is_active INTEGER DEFAULT 1,
+		avatar_path TEXT DEFAULT ''
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -223,7 +225,8 @@ func TestUserRepositoryInterfaceConsistency(t *testing.T) {
 		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active INTEGER DEFAULT 1
+		is_active INTEGER DEFAULT 1,
+		avatar_path TEXT DEFAULT ''
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -257,11 +260,44 @@ func TestUserRepositoryInterfaceConsistency(t *testing.T) {
 
 // TestServiceUsesInternalIDs verifies that the service layer uses internal IDs for operations
 func TestServiceUsesInternalIDs(t *testing.T) {
-	// This test would require mocking the repository to verify that
-	// service methods properly use internal IDs when calling repository methods
-	// Since the user service implementations are largely placeholder implementations,
-	// we'll just verify the interface method signatures use int IDs as expected
-	fmt.Println("Service interface verification: All UserService methods use int IDs as per ports/service.go")
+	serviceType := reflect.TypeOf((*ports.UserService)(nil)).Elem()
+
+	expectIntSecondArg := map[string]bool{
+		"GetByID":                true,
+		"UpdateRole":             true,
+		"DeactivateUser":         true,
+		"ActivateUser":           true,
+		"IncrementPostCount":     true,
+		"DecrementPostCount":     true,
+		"IncrementCommentCount":  true,
+		"DecrementCommentCount":  true,
+		"IncrementReactionCount": true,
+		"DecrementReactionCount": true,
+	}
+
+	for methodName := range expectIntSecondArg {
+		method, ok := serviceType.MethodByName(methodName)
+		if !ok {
+			t.Fatalf("expected UserService.%s method to exist", methodName)
+		}
+		if method.Type.NumIn() < 2 {
+			t.Fatalf("unexpected signature for UserService.%s: %s", methodName, method.Type.String())
+		}
+		if method.Type.In(1).Kind() != reflect.Int {
+			t.Fatalf("expected UserService.%s second argument to be int internal ID, got %s", methodName, method.Type.In(1).Kind())
+		}
+	}
+
+	getByPublicID, ok := serviceType.MethodByName("GetByPublicID")
+	if !ok {
+		t.Fatal("expected UserService.GetByPublicID method to exist")
+	}
+	if getByPublicID.Type.NumIn() < 2 {
+		t.Fatalf("unexpected signature for UserService.GetByPublicID: %s", getByPublicID.Type.String())
+	}
+	if getByPublicID.Type.In(1).Kind() != reflect.String {
+		t.Fatalf("expected GetByPublicID argument to be string UUID, got %s", getByPublicID.Type.In(1).Kind())
+	}
 }
 
 // TestIDFormatValidation verifies that public IDs are UUID format and internal IDs are int
@@ -314,7 +350,8 @@ func TestHTTPResponseIDExposure(t *testing.T) {
 		reaction_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP,
 		updated_at TIMESTAMP,
-		is_active INTEGER DEFAULT 1
+		is_active INTEGER DEFAULT 1,
+		avatar_path TEXT DEFAULT ''
 	)`)
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -340,23 +377,23 @@ func TestHTTPResponseIDExposure(t *testing.T) {
 		t.Fatalf("Create returned error: %v", err)
 	}
 
-	// The issue is that when the user is returned in JSON responses,
-	// the public_id field should be mapped to "id" in JSON while keeping internal ID hidden
-	// This would be handled by struct tags like:
-	// ID int `json:"-"` (internal, not in JSON)
-	// PublicID string `json:"id"` (exposed as "id" in JSON)
+	jsonData, err := json.Marshal(user)
+	if err != nil {
+		t.Fatalf("Failed to marshal user to JSON: %v", err)
+	}
 
-	// Verify user structure has proper tags
-	if user.ID != 0 && user.PublicID != "" {
-		// Serialize to JSON to see if internal ID is exposed
-		jsonData, err := json.Marshal(user)
-		if err != nil {
-			t.Fatalf("Failed to marshal user to JSON: %v", err)
-		}
+	var payload map[string]any
+	if err := json.Unmarshal(jsonData, &payload); err != nil {
+		t.Fatalf("failed to unmarshal user JSON payload: %v", err)
+	}
 
-		jsonStr := string(jsonData)
-		// Since User struct doesn't have JSON tags in domain, this will include both ID and PublicID
-		// This is expected at the domain level but should be handled at the HTTP response level
-		t.Logf("User JSON (domain level): %s", jsonStr)
+	if _, exists := payload["ID"]; exists {
+		t.Fatal("SECURITY VIOLATION: internal ID field should not be exposed in user JSON")
+	}
+	if payload["id"] != user.PublicID {
+		t.Fatalf("expected JSON id=%s, got %#v", user.PublicID, payload["id"])
+	}
+	if payload["username"] != user.Username {
+		t.Fatalf("expected JSON username=%s, got %#v", user.Username, payload["username"])
 	}
 }

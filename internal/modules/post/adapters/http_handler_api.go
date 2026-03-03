@@ -4,20 +4,136 @@
 package adapters
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
 	authPorts "forum/internal/modules/auth/ports"
 	postDomain "forum/internal/modules/post/domain"
+	"forum/internal/modules/shared/adapters/httpjson"
 	platformErrors "forum/internal/platform/errors"
 	logger "forum/internal/platform/logger"
 	"forum/internal/platform/upload"
 )
+
+// postRequestData holds the parsed fields from a create/update post request.
+type postRequestData struct {
+	Title       string
+	Content     string
+	Categories  []string
+	ImageData   []byte
+	RemoveImage bool
+}
+
+// parsePostRequest extracts title, content, categories, image data, and remove-image
+// flag from an HTTP request regardless of content type (multipart, JSON, form-encoded).
+func parsePostRequest(r *http.Request, maxUploadSize int64) (*postRequestData, error) {
+	data := &postRequestData{}
+	contentType := r.Header.Get("Content-Type")
+
+	switch {
+	case strings.HasPrefix(contentType, "multipart/form-data"):
+		if err := r.ParseMultipartForm(maxUploadSize); err != nil {
+			return nil, &parseError{status: http.StatusBadRequest, msg: "Invalid form data"}
+		}
+
+		data.Title = strings.TrimSpace(r.FormValue("title"))
+		data.Content = strings.TrimSpace(r.FormValue("content"))
+		data.RemoveImage = r.FormValue("remove_image") == "true"
+		data.Categories = r.Form["categories[]"]
+		if len(data.Categories) == 0 {
+			data.Categories = r.Form["categories"]
+		}
+		if len(data.Categories) == 0 {
+			if csv := strings.TrimSpace(r.FormValue("categories")); csv != "" {
+				data.Categories = strings.Split(csv, ",")
+				for i := range data.Categories {
+					data.Categories[i] = strings.TrimSpace(data.Categories[i])
+				}
+			}
+		}
+
+		// Try reading image from multipart
+		file, header, err := r.FormFile("image")
+		if err == nil {
+			defer file.Close()
+			if header.Size > maxUploadSize {
+				return nil, &parseError{status: http.StatusRequestEntityTooLarge, msg: upload.FormatImageSizeError(maxUploadSize)}
+			}
+			data.ImageData, err = io.ReadAll(io.LimitReader(file, maxUploadSize))
+			if err != nil {
+				return nil, &parseError{status: http.StatusBadRequest, msg: "Failed to read image upload"}
+			}
+		} else if err != http.ErrMissingFile {
+			return nil, &parseError{status: http.StatusBadRequest, msg: "Invalid image upload"}
+		}
+
+	case strings.HasPrefix(contentType, "application/json"),
+		strings.HasPrefix(contentType, "text/json"),
+		contentType == "":
+		var req struct {
+			Title       string   `json:"title"`
+			Content     string   `json:"content"`
+			Categories  []string `json:"categories"`
+			RemoveImage bool     `json:"remove_image"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			return nil, &parseError{status: http.StatusBadRequest, msg: "Invalid request body", decodeErr: err}
+		}
+		data.Title = strings.TrimSpace(req.Title)
+		data.Content = strings.TrimSpace(req.Content)
+		data.Categories = req.Categories
+		data.RemoveImage = req.RemoveImage
+
+	default:
+		// Try form-encoded as fallback for application/x-www-form-urlencoded
+		if strings.HasPrefix(contentType, "application/x-www-form-urlencoded") {
+			if err := r.ParseForm(); err == nil {
+				data.Title = strings.TrimSpace(r.FormValue("title"))
+				data.Content = strings.TrimSpace(r.FormValue("content"))
+				data.RemoveImage = r.FormValue("remove_image") == "true"
+				data.Categories = r.Form["categories[]"]
+				if len(data.Categories) == 0 {
+					data.Categories = r.Form["categories"]
+				}
+				if len(data.Categories) == 0 {
+					if csv := strings.TrimSpace(r.FormValue("categories")); csv != "" {
+						data.Categories = strings.Split(csv, ",")
+						for i := range data.Categories {
+							data.Categories[i] = strings.TrimSpace(data.Categories[i])
+						}
+					}
+				}
+			}
+		} else {
+			return nil, &parseError{status: http.StatusUnsupportedMediaType, msg: "Unsupported content type"}
+		}
+	}
+
+	// Trim category names
+	if len(data.Categories) > 0 {
+		filtered := make([]string, 0, len(data.Categories))
+		for _, cat := range data.Categories {
+			if trimmed := strings.TrimSpace(cat); trimmed != "" {
+				filtered = append(filtered, trimmed)
+			}
+		}
+		data.Categories = filtered
+	}
+
+	return data, nil
+}
+
+// parseError is a typed error wrapping HTTP status and message for parse failures.
+type parseError struct {
+	status    int
+	msg       string
+	decodeErr error // optional underlying JSON decode error
+}
+
+func (e *parseError) Error() string { return e.msg }
 
 // RegisterAPIRoutes registers all post API routes with the router.
 func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
@@ -38,11 +154,6 @@ func (h *HTTPHandler) RegisterAPIRoutes(router *http.ServeMux) {
 
 // CreatePostAPI handles post creation requests.
 func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		platformErrors.WriteErrorJSON(w, http.StatusMethodNotAllowed, "Method not allowed")
-		return
-	}
-
 	// Get user PUBLIC ID (UUID) from context (set by RequireAuth middleware)
 	userPublicID := authPorts.GetUserID(r.Context())
 	if userPublicID == "" {
@@ -58,91 +169,24 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse request body (JSON or multipart form submissions from browser)
-	maxUploadSize := h.postService.MaxImageSize()
-	var (
-		req struct {
-			Title      string   `json:"title"`
-			Content    string   `json:"content"`
-			Categories []string `json:"categories"`
-		}
-		imageData []byte
-	)
-
-	contentType := r.Header.Get("Content-Type")
-	switch {
-	case strings.HasPrefix(contentType, "multipart/form-data"):
-		if err := r.ParseMultipartForm(maxUploadSize); err != nil {
-			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid form data")
-			return
-		}
-
-		req.Title = strings.TrimSpace(r.FormValue("title"))
-		req.Content = strings.TrimSpace(r.FormValue("content"))
-		req.Categories = r.Form["categories[]"]
-		if len(req.Categories) == 0 {
-			req.Categories = r.Form["categories"]
-		}
-		if len(req.Categories) == 0 {
-			if csv := strings.TrimSpace(r.FormValue("categories")); csv != "" {
-				req.Categories = strings.Split(csv, ",")
-				for i := range req.Categories {
-					req.Categories[i] = strings.TrimSpace(req.Categories[i])
-				}
+	data, err := parsePostRequest(r, h.postService.MaxImageSize())
+	if err != nil {
+		if pe, ok := err.(*parseError); ok {
+			if pe.decodeErr != nil {
+				h.logger.Error("http.request.error",
+					logger.String("url", r.URL.RequestURI()),
+					logger.String("error", pe.decodeErr.Error()),
+				)
 			}
+			platformErrors.WriteErrorJSON(w, pe.status, pe.msg)
+		} else {
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 		}
-
-		file, header, err := r.FormFile("image")
-		if err == nil {
-			defer file.Close()
-			if header.Size > maxUploadSize {
-				platformErrors.WriteErrorJSON(w, http.StatusRequestEntityTooLarge, upload.FormatImageSizeError(maxUploadSize))
-				return
-			}
-			imageData, err = io.ReadAll(io.LimitReader(file, maxUploadSize))
-			if err != nil {
-				platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Failed to read image upload")
-				return
-			}
-		} else if err != http.ErrMissingFile {
-			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid image upload")
-			return
-		}
-
-	case strings.HasPrefix(contentType, "application/json"), strings.HasPrefix(contentType, "text/json"), contentType == "":
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			// Log decode error to terminal
-			cfg := &logger.Config{
-				TimePrecision: logger.TimePrecisionSeconds,
-				AllowedFields: []string{"url", "error", "errors"},
-				MaxLineWidth:  120,
-			}
-			l := logger.NewWithConfig(logger.ErrorLevel, os.Stderr, cfg)
-			l.Error("http.request.error",
-				logger.String("url", r.URL.RequestURI()),
-				logger.String("error", err.Error()),
-			)
-			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
-			return
-		}
-	default:
-		platformErrors.WriteErrorJSON(w, http.StatusUnsupportedMediaType, "Unsupported content type")
 		return
 	}
 
-	req.Title = strings.TrimSpace(req.Title)
-	req.Content = strings.TrimSpace(req.Content)
-	if len(req.Categories) > 0 {
-		filtered := make([]string, 0, len(req.Categories))
-		for _, cat := range req.Categories {
-			if trimmed := strings.TrimSpace(cat); trimmed != "" {
-				filtered = append(filtered, trimmed)
-			}
-		}
-		req.Categories = filtered
-	}
-
 	// Create post
-	post, err := h.postService.CreatePost(r.Context(), userID, req.Title, req.Content, req.Categories, imageData)
+	post, err := h.postService.CreatePost(r.Context(), userID, data.Title, data.Content, data.Categories, data.ImageData)
 	if err != nil {
 		switch err {
 		case postDomain.ErrEmptyTitle, postDomain.ErrEmptyContent, postDomain.ErrNoCategories,
@@ -162,16 +206,11 @@ func (h *HTTPHandler) CreatePostAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.writeJSON(w, http.StatusCreated, post)
+	httpjson.WriteJSON(w, http.StatusCreated, post)
 }
 
 // GetPostAPI handles post retrieval requests.
 func (h *HTTPHandler) GetPostAPI(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		platformErrors.WriteErrorJSON(w, http.StatusMethodNotAllowed, "Method not allowed")
-		return
-	}
-
 	ctx := r.Context()
 
 	// Extract post ID from path variable (Go 1.22+ pattern)
@@ -198,7 +237,7 @@ func (h *HTTPHandler) GetPostAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return JSON for API requests
-	h.writeJSON(w, http.StatusOK, post)
+	httpjson.WriteJSON(w, http.StatusOK, post)
 }
 
 // UpdatePostAPI handles post update requests.
@@ -213,6 +252,11 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 	// Convert PUBLIC ID (UUID) to internal INT ID for service layer
 	userID, err := h.getInternalUserID(r.Context(), userPublicID)
 	if err != nil {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
+		return
+	}
+	currentUser, err := h.userService.GetByPublicID(r.Context(), userPublicID)
+	if err != nil || currentUser == nil {
 		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
 		return
 	}
@@ -240,52 +284,27 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse request body. The edit form sends a PUT with multipart/form-data (FormData),
-	// so support multipart parsing as well as JSON bodies.
-	var req struct {
-		Title       string   `json:"title"`
-		Content     string   `json:"content"`
-		Categories  []string `json:"categories"`
-		RemoveImage bool     `json:"remove_image"`
-	}
-
-	var imageData []byte
-	contentType := r.Header.Get("Content-Type")
-
 	// Log incoming request for debugging
-	cfg := &logger.Config{
-		TimePrecision: logger.TimePrecisionSeconds,
-		AllowedFields: []string{"url", "method", "content_type", "post_id"},
-		MaxLineWidth:  200,
-	}
-	l := logger.NewWithConfig(logger.InfoLevel, os.Stderr, cfg)
-	l.Info("http.post.update.request",
+	contentType := r.Header.Get("Content-Type")
+	h.logger.Info("http.post.update.request",
 		logger.String("method", r.Method),
 		logger.String("content_type", contentType),
 		logger.String("post_id", postID))
 
-	switch {
-	case strings.HasPrefix(contentType, "multipart/form-data"):
-		if err := r.ParseMultipartForm(h.postService.MaxImageSize()); err != nil {
-			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid form data")
-			return
+	// Parse request body
+	data, err := parsePostRequest(r, h.postService.MaxImageSize())
+	if err != nil {
+		if pe, ok := err.(*parseError); ok {
+			platformErrors.WriteErrorJSON(w, pe.status, pe.msg)
+		} else {
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
 		}
-		req.Title = strings.TrimSpace(r.FormValue("title"))
-		req.Content = strings.TrimSpace(r.FormValue("content"))
-		req.RemoveImage = r.FormValue("remove_image") == "true"
-		req.Categories = r.Form["categories[]"]
-		if len(req.Categories) == 0 {
-			req.Categories = r.Form["categories"]
-		}
-		if len(req.Categories) == 0 {
-			if csv := strings.TrimSpace(r.FormValue("categories")); csv != "" {
-				req.Categories = strings.Split(csv, ",")
-				for i := range req.Categories {
-					req.Categories[i] = strings.TrimSpace(req.Categories[i])
-				}
-			}
-		}
-		// Parse image upload using the dedicated helper
+		return
+	}
+
+	// For multipart update, also check the dedicated image upload helper for advanced
+	// image handling (e.g. ParseImageUpload with remove detection).
+	if strings.HasPrefix(contentType, "multipart/form-data") {
 		imageResult, err := ParseImageUpload(r, "image", h.postService.MaxImageSize())
 		if err != nil {
 			if err == upload.ErrImageTooLarge {
@@ -295,42 +314,17 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-		imageData = imageResult.Data
+		if len(imageResult.Data) > 0 {
+			data.ImageData = imageResult.Data
+		}
 		if imageResult.RemoveImage {
-			req.RemoveImage = true
+			data.RemoveImage = true
 		}
-
-	case strings.HasPrefix(contentType, "application/json"), strings.HasPrefix(contentType, "text/json"), contentType == "":
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Invalid request body")
-			return
-		}
-
-	default:
-		if err := r.ParseForm(); err == nil {
-			req.Title = strings.TrimSpace(r.FormValue("title"))
-			req.Content = strings.TrimSpace(r.FormValue("content"))
-			req.Categories = r.Form["categories[]"]
-			if len(req.Categories) == 0 {
-				req.Categories = r.Form["categories"]
-			}
-			if len(req.Categories) == 0 {
-				if csv := strings.TrimSpace(r.FormValue("categories")); csv != "" {
-					req.Categories = strings.Split(csv, ",")
-					for i := range req.Categories {
-						req.Categories[i] = strings.TrimSpace(req.Categories[i])
-					}
-				}
-			}
-			break
-		}
-		platformErrors.WriteErrorJSON(w, http.StatusUnsupportedMediaType, "Unsupported content type")
-		return
 	}
 
 	// Update post including categories
-	if err := h.postService.UpdatePost(r.Context(), postID, req.Title, req.Content, req.Categories); err != nil {
-		l.Error("http.post.update.service_error",
+	if err := h.postService.UpdatePost(r.Context(), postID, data.Title, data.Content, data.Categories); err != nil {
+		h.logger.Error("http.post.update.service_error",
 			logger.String("error", err.Error()),
 			logger.String("post_id", postID))
 
@@ -349,9 +343,9 @@ func (h *HTTPHandler) UpdatePostAPI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Handle image update if there's new image data or removal request
-	if len(imageData) > 0 || req.RemoveImage {
-		if err := h.postService.UpdatePostImage(r.Context(), postID, imageData, req.RemoveImage); err != nil {
-			l.Error("http.post.update.image_error",
+	if len(data.ImageData) > 0 || data.RemoveImage {
+		if err := h.postService.UpdatePostImage(r.Context(), postID, data.ImageData, data.RemoveImage); err != nil {
+			h.logger.Error("http.post.update.image_error",
 				logger.String("error", err.Error()),
 				logger.String("post_id", postID))
 			// Don't fail the whole request, post content was already updated
@@ -378,6 +372,12 @@ func (h *HTTPHandler) DeletePostAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	currentUser, err := h.userService.GetByPublicID(r.Context(), userPublicID)
+	if err != nil || currentUser == nil {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Invalid user")
+		return
+	}
+
 	// Extract post ID from URL
 	postID := r.PathValue("id")
 	if postID == "" {
@@ -399,7 +399,8 @@ func (h *HTTPHandler) DeletePostAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if post.UserID != userID {
+	canDeleteAny := currentUser.Role == "moderator" || currentUser.Role == "admin"
+	if post.UserID != userID && !canDeleteAny {
 		platformErrors.WriteErrorJSON(w, http.StatusForbidden, "You can only delete your own posts")
 		return
 	}
@@ -417,15 +418,8 @@ func (h *HTTPHandler) DeletePostAPI(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ListPostsAPI handles listing posts with filters.
-func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		platformErrors.WriteErrorJSON(w, http.StatusMethodNotAllowed, "Method not allowed")
-		return
-	}
-
-	currentUserPublicID := authPorts.GetUserID(r.Context())
-	limit := 50
+func parseListPagination(r *http.Request, defaultLimit int) (int, int) {
+	limit := defaultLimit
 	offset := 0
 
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
@@ -433,13 +427,20 @@ func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 			limit = parsedLimit
 		}
 	}
+
 	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
 		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
 			offset = parsedOffset
 		}
 	}
 
-	filterParams := postDomain.FilterParams{
+	return limit, offset
+}
+
+func buildListFilterOptions(r *http.Request, currentUserPublicID string, defaultLimit int) listFilterOptions {
+	limit, offset := parseListPagination(r, defaultLimit)
+
+	filterOptions := listFilterOptions{
 		Category:       r.URL.Query().Get("category"),
 		UserID:         r.URL.Query().Get("user"),
 		ActivityType:   r.URL.Query().Get("activity_type"),
@@ -454,14 +455,23 @@ func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 		Offset:         offset,
 		CurrentUserID:  currentUserPublicID,
 	}
-	if filterParams.Commenter == "" && filterParams.CommentedPosts && currentUserPublicID != "" {
-		filterParams.Commenter = currentUserPublicID
+	if filterOptions.Commenter == "" && filterOptions.CommentedPosts && currentUserPublicID != "" {
+		filterOptions.Commenter = currentUserPublicID
 	}
 
-	filter := h.buildFilter(r.Context(), filterParams)
+	return filterOptions
+}
 
-	// Get posts
-	posts, err := h.postService.ListPosts(r.Context(), filter)
+func (h *HTTPHandler) listPostsForRequest(r *http.Request, currentUserPublicID string, defaultLimit int) ([]*postDomain.Post, error) {
+	filterOptions := buildListFilterOptions(r, currentUserPublicID, defaultLimit)
+	filter := buildPostFilter(filterOptions)
+	return h.postService.ListPosts(r.Context(), filter)
+}
+
+// ListPostsAPI handles listing posts with filters.
+func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
+	currentUserPublicID := authPorts.GetUserID(r.Context())
+	posts, err := h.listPostsForRequest(r, currentUserPublicID, 50)
 	if err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve posts")
 		return
@@ -471,68 +481,13 @@ func (h *HTTPHandler) ListPostsAPI(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"posts": posts,
 	}
-	h.writeJSON(w, http.StatusOK, response)
+	httpjson.WriteJSON(w, http.StatusOK, response)
 }
 
 // LoadMorePostsAPI handles loading additional posts for the homepage.
 func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		platformErrors.WriteErrorJSON(w, http.StatusMethodNotAllowed, "Method not allowed")
-		return
-	}
-
-	ctx := r.Context()
-
-	// Get user PUBLIC ID (UUID) from session cookie if available.
-	var userPublicID string
-	cookie, err := r.Cookie("session_token")
-	if err == nil && cookie.Value != "" {
-		if session, err := h.authService.ValidateSession(ctx, cookie.Value); err == nil && session != nil {
-			user, err := h.userService.GetByID(ctx, session.UserID)
-			if err == nil && user != nil {
-				userPublicID = user.PublicID
-			}
-		}
-	}
-
-	limit := 20 // Load 20 posts at a time
-	offset := 0
-
-	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
-		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
-		}
-	}
-
-	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
-		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
-			offset = parsedOffset
-		}
-	}
-
-	filterParams := postDomain.FilterParams{
-		Category:       r.URL.Query().Get("category"),
-		UserID:         r.URL.Query().Get("user"),
-		ActivityType:   r.URL.Query().Get("activity_type"),
-		ReactionType:   r.URL.Query().Get("reaction_type"),
-		MyPosts:        r.URL.Query().Get("my_posts") == "true",
-		LikedPosts:     r.URL.Query().Get("liked_posts") == "true",
-		DislikedPosts:  r.URL.Query().Get("disliked_posts") == "true",
-		CommentedPosts: r.URL.Query().Get("commented_posts") == "true",
-		Commenter:      r.URL.Query().Get("commenter"),
-		DateFilter:     r.URL.Query().Get("date_filter"),
-		Limit:          limit,
-		Offset:         offset,
-		CurrentUserID:  userPublicID,
-	}
-	if filterParams.Commenter == "" && filterParams.CommentedPosts && userPublicID != "" {
-		filterParams.Commenter = userPublicID
-	}
-
-	filter := h.buildFilter(r.Context(), filterParams)
-
-	// Get posts
-	posts, err := h.postService.ListPosts(r.Context(), filter)
+	currentUserPublicID := authPorts.GetUserID(r.Context())
+	posts, err := h.listPostsForRequest(r, currentUserPublicID, 20)
 	if err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve posts")
 		return
@@ -548,7 +503,6 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 		previewPost["UserID"] = post.UserPublicID
 		previewPost["UserPublicID"] = post.UserPublicID
 		previewPost["AuthorUsername"] = post.AuthorUsername
-		previewPost["Author"] = post.Author
 		previewPost["Title"] = post.Title
 		previewPost["Content"] = createPostPreview(post.Content)
 		previewPost["ImageURL"] = post.ImageURL
@@ -562,60 +516,5 @@ func (h *HTTPHandler) LoadMorePostsAPI(w http.ResponseWriter, r *http.Request) {
 		previewPosts[i] = previewPost
 	}
 
-	h.writeJSON(w, http.StatusOK, previewPosts)
-}
-
-func (h *HTTPHandler) buildFilter(ctx context.Context, params postDomain.FilterParams) postDomain.PostFilter {
-	if h.filterService != nil {
-		return h.filterService.BuildFilter(ctx, params)
-	}
-
-	filter := postDomain.PostFilter{
-		Limit:      params.Limit,
-		Offset:     params.Offset,
-		DateFilter: params.DateFilter,
-	}
-
-	if filter.DateFilter == "" {
-		filter.DateFilter = "all"
-	}
-	if params.Category != "" {
-		filter.Categories = []string{params.Category}
-	}
-	if params.UserID != "" {
-		filter.UserID = params.UserID
-	}
-	if params.MyPosts && params.CurrentUserID != "" {
-		filter.UserID = params.CurrentUserID
-	}
-	if params.LikedPosts && params.CurrentUserID != "" {
-		filter.LikedByUserID = params.CurrentUserID
-	}
-	if params.DislikedPosts && params.CurrentUserID != "" {
-		filter.DislikedByUserID = params.CurrentUserID
-	}
-	if params.Commenter != "" {
-		filter.CommenterID = params.Commenter
-	} else if params.CommentedPosts && params.CurrentUserID != "" {
-		filter.CommenterID = params.CurrentUserID
-	}
-
-	if params.ActivityType == "reactions" {
-		switch params.ReactionType {
-		case "like":
-			if params.CurrentUserID != "" {
-				filter.LikedByUserID = params.CurrentUserID
-			}
-		case "dislike":
-			if params.CurrentUserID != "" {
-				filter.DislikedByUserID = params.CurrentUserID
-			}
-		default:
-			if params.CurrentUserID != "" {
-				filter.ReactedByUserID = params.CurrentUserID
-			}
-		}
-	}
-
-	return filter
+	httpjson.WriteJSON(w, http.StatusOK, previewPosts)
 }

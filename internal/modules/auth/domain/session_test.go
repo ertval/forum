@@ -102,14 +102,14 @@ func TestCredentials(t *testing.T) {
 	// Test that Credentials can be created and used as expected
 	creds := &Credentials{
 		Email:    "test@example.com",
-		Password: "password123",
+		Password: "Password123",
 	}
 
 	if creds.Email != "test@example.com" {
 		t.Errorf("Expected Email to be 'test@example.com', got '%s'", creds.Email)
 	}
 
-	if creds.Password != "password123" {
-		t.Errorf("Expected Password to be 'password123', got '%s'", creds.Password)
+	if creds.Password != "Password123" {
+		t.Errorf("Expected Password to be 'Password123', got '%s'", creds.Password)
 	}
 }

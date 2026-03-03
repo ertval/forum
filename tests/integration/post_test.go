@@ -25,7 +25,7 @@ func TestPostCreationAndRetrieval(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register user and login
-	sessionToken := registerAndLogin(t, app, "user@test.com", "Test User", "password123")
+	sessionToken := registerAndLogin(t, app, "user@test.com", "Test User", "Password123")
 
 	// Create category
 	createCategory(t, app, "tests")
@@ -73,7 +73,7 @@ func TestEmptyPostValidation(t *testing.T) {
 	app := setupTestApp(t)
 	defer app.Cleanup()
 
-	sessionToken := registerAndLogin(t, app, "user2@test.com", "Second User", "password123")
+	sessionToken := registerAndLogin(t, app, "user2@test.com", "Second User", "Password123")
 
 	// Empty title
 	postData := map[string]interface{}{
@@ -100,7 +100,7 @@ func TestFormPostCreation(t *testing.T) {
 	app := setupTestApp(t)
 	defer app.Cleanup()
 
-	sessionToken := registerAndLogin(t, app, "user3@test.com", "Third User", "password123")
+	sessionToken := registerAndLogin(t, app, "user3@test.com", "Third User", "Password123")
 	createCategory(t, app, "tests")
 	createCategory(t, app, "news")
 
@@ -145,7 +145,7 @@ func setupTestApp(t *testing.T) *wire.App {
 			MigrationsDir: "../../migrations",
 		},
 		Server:   config.ServerConfig{Port: 8080},
-		Session:  config.SessionConfig{Duration: 24 * time.Hour},
+		Session:  config.SessionConfig{Duration: 24 * time.Hour, CookieName: "session_token"},
 		Security: config.SecurityConfig{RateLimitRequests: 100, RateLimitWindow: time.Minute},
 		Upload: config.UploadConfig{
 			MaxSize:      20 * 1024 * 1024,
@@ -159,6 +159,12 @@ func setupTestApp(t *testing.T) *wire.App {
 	if err != nil {
 		t.Fatalf("Failed to init app: %v", err)
 	}
+
+	// Keep a single SQLite connection for :memory: databases so all operations
+	// share the same schema/state during integration tests.
+	db := app.Database.DB()
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 
 	return app
 }
@@ -182,7 +188,25 @@ func registerAndLogin(t *testing.T, app *wire.App, email, username, password str
 		}
 	}
 
-	t.Fatal("No session token")
+	loginData := map[string]string{"email": email, "password": password}
+	loginBody, _ := json.Marshal(loginData)
+	loginReq := httptest.NewRequest("POST", "/api/auth/login", bytes.NewBuffer(loginBody))
+	loginReq.Header.Set("Content-Type", "application/json")
+
+	loginW := httptest.NewRecorder()
+	app.Server.Router().ServeHTTP(loginW, loginReq)
+
+	if loginW.Code != http.StatusOK {
+		t.Fatalf("No session cookie after register and login failed: %d - %s", loginW.Code, loginW.Body.String())
+	}
+
+	for _, cookie := range loginW.Result().Cookies() {
+		if cookie.Name == "session_token" {
+			return cookie.Value
+		}
+	}
+
+	t.Fatal("No session token after register/login")
 	return ""
 }
 
@@ -206,10 +230,12 @@ func createPost(t *testing.T, app *wire.App, sessionToken, title, content string
 	w := httptest.NewRecorder()
 	app.Server.Router().ServeHTTP(w, req)
 
-	if w.Code == http.StatusUnauthorized || w.Code == http.StatusInternalServerError {
-		// Skip test if post creation fails due to auth or server issues in test environment
-		t.Skipf("Skipping test - post creation fails in in-memory SQLite test environment: %s", w.Body.String())
-		return ""
+	if w.Code == http.StatusUnauthorized {
+		t.Fatalf("Post creation unexpectedly unauthorized in controlled test setup: %s", w.Body.String())
+	}
+
+	if w.Code == http.StatusInternalServerError {
+		t.Fatalf("Post creation returned 500 in controlled test setup: %s", w.Body.String())
 	}
 
 	if w.Code != http.StatusCreated {

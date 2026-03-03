@@ -106,6 +106,25 @@
 {{end}}
 
 {{define "scripts"}}
+<template id="comment-template">
+    <article class="comment">
+        <div class="comment-header">
+            <span class="comment-author" data-field="author"></span>
+            <span class="comment-date" data-field="date"></span>
+        </div>
+        <div class="comment-content" data-field="content"></div>
+        <div class="comment-actions">
+            <div class="comment-reactions">
+                <button class="btn-like-comment" data-field="like-btn">👍 (0)</button>
+                <button class="btn-dislike-comment" data-field="dislike-btn">👎 (0)</button>
+            </div>
+            <div class="comment-owner-actions">
+                <button class="btn btn-secondary btn-edit-comment" data-field="edit-btn">Edit</button>
+                <button class="btn btn-danger btn-delete-comment" data-field="delete-btn">Delete</button>
+            </div>
+        </div>
+    </article>
+</template>
 <script src="/static/js/reactions.js"></script>
 <script src="/static/js/post-detail.js"></script>
 {{end}}

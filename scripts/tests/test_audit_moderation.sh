@@ -12,7 +12,6 @@ set -e
 BASE_URL="http://localhost:8080"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DB_PATH="${PROJECT_ROOT}/data/forum.db"
-SESSION_COOKIE=""
 SESSION_COOKIE_FILE="/tmp/forum_moderation_audit_session.txt"
 SERVER_PID=""
 SERVER_LOG="/tmp/forum_moderation_audit_server.log"
@@ -23,7 +22,7 @@ ADMIN_PASSWORD="adminpass123"
 MOD_EMAIL="moderator@example.com"
 MOD_PASSWORD="modpass123"
 USER_EMAIL="testuser@example.com"
-USER_PASSWORD="password123"
+USER_PASSWORD="Password123"
 
 # Colors
 if [ -t 1 ]; then
@@ -73,18 +72,30 @@ print_answer() {
     echo ""
 }
 
-extract_session_cookie() {
-    echo "$1" | grep -i "set-cookie" | grep "session_token" | sed 's/.*session_token=\([^;]*\).*/\1/' | head -n 1
+has_session_cookies() {
+    local cookie_file="$1"
+    [ -f "$cookie_file" ] && awk 'NF && $1 !~ /^#/' "$cookie_file" >/dev/null 2>&1
 }
 
 login_as() {
     local email="$1"
     local password="$2"
-    RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
+    local cookie_file="$3"
+    local response
+
+    rm -f "$cookie_file"
+    response=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/auth/login" \
+        -c "$cookie_file" \
+        -b "$cookie_file" \
         -H "Content-Type: application/json" \
         -d "{\"email\":\"$email\",\"password\":\"$password\"}")
-    SESSION_COOKIE=$(extract_session_cookie "$RESPONSE")
-    echo "$SESSION_COOKIE"
+    local http_code
+    http_code=$(echo "$response" | tail -n1)
+
+    if [ "$http_code" = "200" ] && has_session_cookies "$cookie_file"; then
+        return 0
+    fi
+    return 1
 }
 
 check_server_running() {
@@ -127,17 +138,13 @@ cleanup() {
     
     # Re-login to get a fresh session for cleanup
     if [ ${#CREATED_POSTS[@]} -gt 0 ] || [ ${#CREATED_COMMENTS[@]} -gt 0 ]; then
-        RESPONSE=$(curl -s -i -X POST "$BASE_URL/api/auth/login" \
-            -H "Content-Type: application/json" \
-            -d "{\"email\":\"$USER_EMAIL\",\"password\":\"$USER_PASSWORD\"}" 2>/dev/null)
-        CLEANUP_SESSION=$(extract_session_cookie "$RESPONSE")
-        
-        if [ -n "$CLEANUP_SESSION" ]; then
+        CLEANUP_COOKIE_FILE="/tmp/forum_moderation_audit_cleanup_session.txt"
+        if login_as "$USER_EMAIL" "$USER_PASSWORD" "$CLEANUP_COOKIE_FILE"; then
             # Delete created posts (this will cascade delete comments and reactions)
             for post_id in "${CREATED_POSTS[@]}"; do
                 if [ -n "$post_id" ]; then
                     curl -s -X DELETE "$BASE_URL/api/posts/$post_id" \
-                        -H "Cookie: session_token=$CLEANUP_SESSION" > /dev/null 2>&1
+                        -b "$CLEANUP_COOKIE_FILE" > /dev/null 2>&1
                 fi
             done
             
@@ -145,10 +152,11 @@ cleanup() {
             for comment_id in "${CREATED_COMMENTS[@]}"; do
                 if [ -n "$comment_id" ]; then
                     curl -s -X DELETE "$BASE_URL/api/comments/$comment_id" \
-                        -H "Cookie: session_token=$CLEANUP_SESSION" > /dev/null 2>&1
+                        -b "$CLEANUP_COOKIE_FILE" > /dev/null 2>&1
                 fi
             done
         fi
+        rm -f "$CLEANUP_COOKIE_FILE"
     fi
     
     echo -e "${GREEN}✓ Test data cleaned up${NC}"
@@ -249,15 +257,17 @@ fi
 print_section "NORMAL USER"
 
 # Login as normal user
-SESSION_COOKIE=$(login_as "$USER_EMAIL" "$USER_PASSWORD")
+if ! login_as "$USER_EMAIL" "$USER_PASSWORD" "$SESSION_COOKIE_FILE"; then
+    :
+fi
 
 # Q: Can you create posts and comments (as user)?
 print_question "Try registering as a normal user - Can you create posts and comments?"
-if [ -n "$SESSION_COOKIE" ]; then
+if has_session_cookies "$SESSION_COOKIE_FILE"; then
     # Create post
     POST_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/posts" \
         -H "Content-Type: application/json" \
-        -H "Cookie: session_token=$SESSION_COOKIE" \
+        -b "$SESSION_COOKIE_FILE" \
         -d '{"title":"Moderation Test Post","content":"Testing user capabilities","categories":["General"]}')
     POST_CODE=$(echo "$POST_RESPONSE" | tail -n1)
     POST_BODY=$(echo "$POST_RESPONSE" | sed '$d')
@@ -271,7 +281,7 @@ if [ -n "$SESSION_COOKIE" ]; then
         # Create comment
         COMMENT_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/comments/posts/$POST_ID" \
             -H "Content-Type: application/json" \
-            -H "Cookie: session_token=$SESSION_COOKIE" \
+            -b "$SESSION_COOKIE_FILE" \
             -d '{"content":"Test comment from user"}')
         COMMENT_CODE=$(echo "$COMMENT_RESPONSE" | tail -n1)
         COMMENT_BODY=$(echo "$COMMENT_RESPONSE" | sed '$d')
@@ -295,7 +305,7 @@ print_question "Try registering as a normal user - Can you like or dislike a pos
 POST_ID=$(sqlite3 "$DB_PATH" "SELECT public_id FROM posts LIMIT 1;" 2>/dev/null)
 REACTION_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/reactions" \
     -H "Content-Type: application/json" \
-    -H "Cookie: session_token=$SESSION_COOKIE" \
+    -b "$SESSION_COOKIE_FILE" \
     -d "{\"target_type\":\"post\",\"target_id\":\"$POST_ID\",\"type\":\"like\"}")
 REACTION_CODE=$(echo "$REACTION_RESPONSE" | tail -n1)
 

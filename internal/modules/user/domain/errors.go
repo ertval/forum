@@ -1,4 +1,4 @@
-// Package domain contains the core business entities for the user module.
+// Package domain contains error definitions for the user module.
 package domain
 
 import "errors"
@@ -34,4 +34,26 @@ var (
 
 	// ErrUsernameAlreadyExists is returned when another user already has the username.
 	ErrUsernameAlreadyExists = errors.New("username already exists")
+
+	// ErrInvalidPublicID is returned when the public identifier is empty or invalid.
+	ErrInvalidPublicID = errors.New("invalid public id")
 )
+
+// PasswordValidationError provides specific feedback about which password
+// criteria were not met.
+type PasswordValidationError struct {
+	Message string
+}
+
+func (e *PasswordValidationError) Error() string { return e.Message }
+
+// Is allows errors.Is(err, ErrWeakPassword) to return true for PasswordValidationError.
+func (e *PasswordValidationError) Is(target error) bool {
+	return target == ErrWeakPassword
+}
+
+// IsPasswordValidationError checks whether the given error is a PasswordValidationError.
+func IsPasswordValidationError(err error) bool {
+	var pve *PasswordValidationError
+	return errors.As(err, &pve)
+}

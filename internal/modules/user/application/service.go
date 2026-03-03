@@ -4,14 +4,23 @@ package application
 import (
 	"context"
 	"fmt"
+	"html"
+	"regexp"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"forum/internal/modules/user/domain"
 	"forum/internal/modules/user/ports"
-	"forum/internal/platform/validator"
 
 	"golang.org/x/crypto/bcrypt"
+)
+
+// Package-level regexes for input validation (stdlib only).
+var (
+	userEmailRegex    = regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$`)
+	userNamePartRegex = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`)
 )
 
 // Service implements the UserService interface.
@@ -48,7 +57,6 @@ func (s *Service) CreateUser(ctx context.Context, email, username, passwordHash 
 }
 
 // GetByID retrieves a user by their internal ID (for internal use only).
-// TODO: Implement user retrieval.
 func (s *Service) GetByID(ctx context.Context, userID int) (*domain.User, error) {
 	return s.userRepo.GetByID(ctx, userID)
 }
@@ -59,13 +67,11 @@ func (s *Service) GetByPublicID(ctx context.Context, publicID string) (*domain.U
 }
 
 // GetByUsername retrieves a user by their username.
-// TODO: Implement username-based retrieval.
 func (s *Service) GetByUsername(ctx context.Context, username string) (*domain.User, error) {
 	return s.userRepo.GetByUsername(ctx, username)
 }
 
 // GetByEmail retrieves a user by their email address.
-// TODO: Implement email-based retrieval.
 func (s *Service) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	return s.userRepo.GetByEmail(ctx, email)
 }
@@ -137,8 +143,82 @@ func isValidRole(role domain.Role) bool {
 	}
 }
 
+// userValidateUsername validates a username against format rules.
+func userValidateUsername(username string) error {
+	parts := strings.Fields(username)
+	if len(parts) == 0 {
+		return domain.ErrInvalidUsername
+	}
+	for _, part := range parts {
+		if !userNamePartRegex.MatchString(part) {
+			return domain.ErrInvalidUsername
+		}
+	}
+	return nil
+}
+
+// userValidatePassword checks password strength.
+// Returns (message, invalid) where invalid is true if the password does not meet requirements.
+func userValidatePassword(password string, minLen int) (string, bool) {
+	if utf8.RuneCountInString(password) < minLen {
+		return fmt.Sprintf("Password must be at least %d characters long", minLen), true
+	}
+	var hasUpper, hasLower, hasDigit bool
+	for _, r := range password {
+		if unicode.IsUpper(r) {
+			hasUpper = true
+		}
+		if unicode.IsLower(r) {
+			hasLower = true
+		}
+		if unicode.IsDigit(r) {
+			hasDigit = true
+		}
+	}
+	missing := make([]string, 0, 3)
+	if !hasUpper {
+		missing = append(missing, "an uppercase letter")
+	}
+	if !hasLower {
+		missing = append(missing, "a lowercase letter")
+	}
+	if !hasDigit {
+		missing = append(missing, "a digit")
+	}
+	if len(missing) > 0 {
+		return "Password must contain at least " + strings.Join(missing, ", "), true
+	}
+	return "", false
+}
+
+// userSanitize removes potentially dangerous characters from user-supplied input.
+var (
+	userReScript = regexp.MustCompile(`(?i)<script[^>]*>[\s\S]*?</script>`)
+	userReStyle  = regexp.MustCompile(`(?i)<style[^>]*>[\s\S]*?</style>`)
+	userReTags   = regexp.MustCompile(`<[^>]+>`)
+	userReSpace  = regexp.MustCompile(`\s+`)
+)
+
+func userSanitize(input string) string {
+	if input == "" {
+		return ""
+	}
+	s := html.UnescapeString(input)
+	s = userReScript.ReplaceAllString(s, "")
+	s = userReStyle.ReplaceAllString(s, "")
+	s = userReTags.ReplaceAllString(s, "")
+	var b strings.Builder
+	for _, r := range s {
+		if r >= 0x20 || r == '\t' || r == '\n' || r == '\r' {
+			b.WriteRune(r)
+		}
+	}
+	s = b.String()
+	s = userReSpace.ReplaceAllString(strings.TrimSpace(s), " ")
+	return s
+}
+
 // ListUsers returns a paginated list of users.
-// TODO: Implement user listing.
 func (s *Service) ListUsers(ctx context.Context, offset, limit int) ([]*domain.User, error) {
 	return s.userRepo.List(ctx, offset, limit)
 }
@@ -194,32 +274,27 @@ func (s *Service) UpdateSettings(ctx context.Context, publicID, username, email,
 		return nil, domain.ErrUserNotFound
 	}
 
-	username = strings.TrimSpace(validator.Sanitize(username))
-	email = strings.ToLower(strings.TrimSpace(validator.Sanitize(email)))
+	username = strings.TrimSpace(userSanitize(username))
+	email = strings.ToLower(strings.TrimSpace(userSanitize(email)))
 
-	v := validator.New()
-	v.Required("username", username)
-	v.Required("email", email)
-	if username != "" {
-		v.Username("username", username)
+	// Validate username
+	if strings.TrimSpace(username) == "" {
+		return nil, domain.ErrInvalidUsername
 	}
-	if email != "" {
-		v.Email("email", email)
+	if err := userValidateUsername(username); err != nil {
+		return nil, err
 	}
+	// Validate email
+	if strings.TrimSpace(email) == "" {
+		return nil, domain.ErrInvalidEmail
+	}
+	if !userEmailRegex.MatchString(strings.ToLower(strings.TrimSpace(email))) {
+		return nil, domain.ErrInvalidEmail
+	}
+	// Validate password if provided
 	if newPassword != "" {
-		v.Password("password", newPassword, 8)
-	}
-
-	if !v.Valid() {
-		for field := range v.Errors() {
-			switch field {
-			case "username":
-				return nil, domain.ErrInvalidUsername
-			case "email":
-				return nil, domain.ErrInvalidEmail
-			case "password":
-				return nil, domain.ErrWeakPassword
-			}
+		if msg, invalid := userValidatePassword(newPassword, 8); invalid {
+			return nil, &domain.PasswordValidationError{Message: msg}
 		}
 	}
 
@@ -255,7 +330,7 @@ func (s *Service) UpdateSettings(ctx context.Context, publicID, username, email,
 	}
 
 	if user.AvatarPath != "" {
-		user.AvatarURL = "/static/uploads/" + user.AvatarPath
+		user.AvatarURL = domain.AvatarURLPrefix + user.AvatarPath
 	} else {
 		user.AvatarURL = ""
 	}

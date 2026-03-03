@@ -18,7 +18,7 @@ func TestUnauthorizedReaction(t *testing.T) {
 	defer app.Cleanup()
 
 	// First, create a post as a logged-in user to get a valid post ID
-	sessionToken := registerAndLogin(t, app, "reactionpermtest@test.com", "Reaction Perm User", "password123")
+	sessionToken := registerAndLogin(t, app, "reactionpermtest@test.com", "Reaction Perm User", "Password123")
 	createCategory(t, app, "reaction-test")
 	postID := createPost(t, app, sessionToken, "Test Post for Reactions", "Test content", []string{"reaction-test"})
 
@@ -64,7 +64,7 @@ func TestReactionMutualExclusivity(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register and login
-	sessionToken := registerAndLogin(t, app, "toggletest@test.com", "Toggle Test User", "password123")
+	sessionToken := registerAndLogin(t, app, "toggletest@test.com", "Toggle Test User", "Password123")
 	createCategory(t, app, "toggle-test")
 	postID := createPost(t, app, sessionToken, "Test Post for Toggle", "Test content", []string{"toggle-test"})
 
@@ -153,7 +153,7 @@ func TestAuthorizedReaction(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register and login
-	sessionToken := registerAndLogin(t, app, "authreactiontest@test.com", "Auth Reaction User", "password123")
+	sessionToken := registerAndLogin(t, app, "authreactiontest@test.com", "Auth Reaction User", "Password123")
 	createCategory(t, app, "auth-reaction-test")
 	postID := createPost(t, app, sessionToken, "Test Post for Auth Reaction", "Test content", []string{"auth-reaction-test"})
 
@@ -190,7 +190,7 @@ func TestReactionPersistsAfterRefresh(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register and login
-	sessionToken := registerAndLogin(t, app, "persisttest@test.com", "Persist Test User", "password123")
+	sessionToken := registerAndLogin(t, app, "persisttest@test.com", "Persist Test User", "Password123")
 	createCategory(t, app, "persist-test")
 	postID := createPost(t, app, sessionToken, "Test Post for Persist", "Test content", []string{"persist-test"})
 

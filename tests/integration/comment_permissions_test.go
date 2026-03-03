@@ -17,7 +17,7 @@ func TestUnauthorizedCommentCreation(t *testing.T) {
 	defer app.Cleanup()
 
 	// First, create a post as a logged-in user to get a valid post ID
-	sessionToken := registerAndLogin(t, app, "commentpermtest@test.com", "Comment Perm User", "password123")
+	sessionToken := registerAndLogin(t, app, "commentpermtest@test.com", "Comment Perm User", "Password123")
 	createCategory(t, app, "comment-test")
 	postID := createPost(t, app, sessionToken, "Test Post for Comments", "Test content", []string{"comment-test"})
 
@@ -47,7 +47,7 @@ func TestEmptyCommentValidation(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register and login
-	sessionToken := registerAndLogin(t, app, "emptycommenttest@test.com", "Empty Comment User", "password123")
+	sessionToken := registerAndLogin(t, app, "emptycommenttest@test.com", "Empty Comment User", "Password123")
 	createCategory(t, app, "empty-comment-test")
 	postID := createPost(t, app, sessionToken, "Test Post for Empty Comment", "Test content", []string{"empty-comment-test"})
 
@@ -77,7 +77,7 @@ func TestAuthorizedCommentCreation(t *testing.T) {
 	defer app.Cleanup()
 
 	// Register and login
-	sessionToken := registerAndLogin(t, app, "authcommenttest@test.com", "Auth Comment User", "password123")
+	sessionToken := registerAndLogin(t, app, "authcommenttest@test.com", "Auth Comment User", "Password123")
 	createCategory(t, app, "auth-comment-test")
 	postID := createPost(t, app, sessionToken, "Test Post for Auth Comment", "Test content", []string{"auth-comment-test"})
 
@@ -94,11 +94,6 @@ func TestAuthorizedCommentCreation(t *testing.T) {
 	w := httptest.NewRecorder()
 	app.Server.Router().ServeHTTP(w, req)
 
-	// Handle test environment issues gracefully
-	if w.Code == http.StatusInternalServerError {
-		t.Skipf("Skipping - comment creation fails in in-memory SQLite test environment: %s", w.Body.String())
-	}
-
 	// Should return 201 Created
 	if w.Code != http.StatusCreated {
 		t.Errorf("Expected 201 Created for authenticated comment creation, got %d: %s", w.Code, w.Body.String())
@@ -113,5 +108,81 @@ func TestAuthorizedCommentCreation(t *testing.T) {
 
 	if _, exists := response["id"]; !exists {
 		t.Error("Response should contain 'id' field")
+	}
+}
+
+// TestDeleteCommentReturnsNoContent verifies DELETE comment returns 204 with an empty body.
+func TestDeleteCommentReturnsNoContent(t *testing.T) {
+	app := setupTestApp(t)
+	defer app.Cleanup()
+
+	sessionToken := registerAndLogin(t, app, "deletecommenttest@test.com", "Delete Comment User", "Password123")
+	createCategory(t, app, "delete-comment-test")
+	postID := createPost(t, app, sessionToken, "Post For Delete Comment", "Test content", []string{"delete-comment-test"})
+
+	commentData := map[string]string{"content": "comment to delete"}
+	body, _ := json.Marshal(commentData)
+	createReq := httptest.NewRequest("POST", "/api/comments/posts/"+postID, bytes.NewBuffer(body))
+	createReq.Header.Set("Content-Type", "application/json")
+	createReq.AddCookie(&http.Cookie{Name: "session_token", Value: sessionToken})
+
+	createW := httptest.NewRecorder()
+	app.Server.Router().ServeHTTP(createW, createReq)
+
+	if createW.Code != http.StatusCreated {
+		t.Fatalf("Expected 201 Created for comment creation, got %d: %s", createW.Code, createW.Body.String())
+	}
+
+	var created map[string]interface{}
+	if err := json.NewDecoder(createW.Body).Decode(&created); err != nil {
+		t.Fatalf("Failed to decode created comment: %v", err)
+	}
+	commentID, ok := created["id"].(string)
+	if !ok || commentID == "" {
+		t.Fatalf("Expected created comment id, got: %#v", created["id"])
+	}
+
+	deleteReq := httptest.NewRequest("DELETE", "/api/comments/"+commentID, nil)
+	deleteReq.AddCookie(&http.Cookie{Name: "session_token", Value: sessionToken})
+	deleteW := httptest.NewRecorder()
+	app.Server.Router().ServeHTTP(deleteW, deleteReq)
+
+	if deleteW.Code != http.StatusNoContent {
+		t.Fatalf("Expected 204 No Content, got %d: %s", deleteW.Code, deleteW.Body.String())
+	}
+	if deleteW.Body.Len() != 0 {
+		t.Fatalf("Expected empty response body for 204, got: %q", deleteW.Body.String())
+	}
+}
+
+// TestListCommentsEmptyArrayNotNull verifies comments list serializes empty list as [] and not null.
+func TestListCommentsEmptyArrayNotNull(t *testing.T) {
+	app := setupTestApp(t)
+	defer app.Cleanup()
+
+	sessionToken := registerAndLogin(t, app, "emptylistcommenttest@test.com", "Empty List User", "Password123")
+	createCategory(t, app, "empty-list-comment-test")
+	postID := createPost(t, app, sessionToken, "Post Without Comments", "Test content", []string{"empty-list-comment-test"})
+
+	listReq := httptest.NewRequest("GET", "/api/comments/posts/"+postID, nil)
+	listW := httptest.NewRecorder()
+	app.Server.Router().ServeHTTP(listW, listReq)
+
+	if listW.Code != http.StatusOK {
+		t.Fatalf("Expected 200 OK for listing comments, got %d: %s", listW.Code, listW.Body.String())
+	}
+
+	var response struct {
+		Comments []map[string]interface{} `json:"comments"`
+	}
+	if err := json.NewDecoder(listW.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode comments list response: %v", err)
+	}
+
+	if response.Comments == nil {
+		t.Fatalf("Expected comments to be an empty array, got null")
+	}
+	if len(response.Comments) != 0 {
+		t.Fatalf("Expected zero comments, got %d", len(response.Comments))
 	}
 }

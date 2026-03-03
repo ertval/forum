@@ -1,7 +1,10 @@
 // Package domain contains error definitions for the post module.
 package domain
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // Domain errors for the post module.
 var (
@@ -30,7 +33,7 @@ var (
 	ErrNoCategories = errors.New("post must have at least one category")
 
 	// ErrTitleTooLong is returned when post title exceeds max length.
-	ErrTitleTooLong = errors.New("post title too long (max 300 characters)")
+	ErrTitleTooLong = fmt.Errorf("post title too long (max %d characters)", MaxTitleLength)
 
 	// ErrContentTooLong is returned when post content exceeds max length.
 	ErrContentTooLong = errors.New("post content too long (max 50000 characters)")

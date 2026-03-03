@@ -3,6 +3,9 @@ package domain
 
 import "time"
 
+// MaxTitleLength is the maximum allowed length for a post title.
+const MaxTitleLength = 255
+
 // Post represents a forum post.
 type Post struct {
 	ID             int       `json:"-"`                         // Internal unique identifier (INT PRIMARY KEY)
@@ -10,7 +13,6 @@ type Post struct {
 	UserID         int       `json:"-"`                         // Internal ID of the user who created the post
 	UserPublicID   string    `json:"user_id,omitempty"`         // Public UUID of the user (for API)
 	AuthorUsername string    `json:"author_username,omitempty"` // Username of the post author (for display)
-	Author         string    `json:"author,omitempty"`          // Alias for AuthorUsername (for compatibility)
 	Title          string    `json:"title"`                     // Post title
 	Content        string    `json:"content"`                   // Post content (body text)
 	ImageURL       string    `json:"image_url,omitempty"`       // Optional image URL/path
@@ -27,7 +29,7 @@ func (p *Post) Validate() error {
 	if p.Title == "" {
 		return ErrEmptyTitle
 	}
-	if len(p.Title) > 255 {
+	if len(p.Title) > MaxTitleLength {
 		return ErrTitleTooLong
 	}
 	if p.Content == "" {

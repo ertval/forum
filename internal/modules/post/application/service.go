@@ -3,25 +3,32 @@ package application
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"time"
 
 	"forum/internal/modules/post/domain"
 	"forum/internal/modules/post/ports"
-	userPorts "forum/internal/modules/user/ports"
+	"forum/internal/platform/async"
 )
+
+// userService defines the minimal user operations required by the post service.
+// This avoids a direct import of the user module's ports package.
+type userService interface {
+	IncrementPostCount(ctx context.Context, userID int) error
+	DecrementPostCount(ctx context.Context, userID int) error
+}
 
 // Service implements the PostService interface.
 type Service struct {
 	postRepo     ports.PostRepository
 	categoryRepo ports.CategoryRepository
-	userService  userPorts.UserService
+	userService  userService
 	imageHandler ports.ImageHandler
 	maxImageSize int64
 }
 
 // NewService creates a new post service.
-func NewService(postRepo ports.PostRepository, categoryRepo ports.CategoryRepository, userService userPorts.UserService, imageHandler ports.ImageHandler, maxImageSize int64) *Service {
+func NewService(postRepo ports.PostRepository, categoryRepo ports.CategoryRepository, userService userService, imageHandler ports.ImageHandler, maxImageSize int64) *Service {
 	return &Service{
 		postRepo:     postRepo,
 		categoryRepo: categoryRepo,
@@ -34,53 +41,6 @@ func NewService(postRepo ports.PostRepository, categoryRepo ports.CategoryReposi
 // MaxImageSize returns the maximum allowed image size in bytes.
 func (s *Service) MaxImageSize() int64 {
 	return s.maxImageSize
-}
-
-// CategoryService implements the CategoryService interface.
-type CategoryService struct {
-	categoryRepo ports.CategoryRepository
-}
-
-// NewCategoryService creates a new category service.
-func NewCategoryService(categoryRepo ports.CategoryRepository) ports.CategoryService {
-	return &CategoryService{
-		categoryRepo: categoryRepo,
-	}
-}
-
-// Create creates a new category.
-func (s *CategoryService) Create(ctx context.Context, name, description string) (*domain.Category, error) {
-	category := &domain.Category{
-		Name:        name,
-		Description: description,
-	}
-
-	// Validate category
-	if err := category.Validate(); err != nil {
-		return nil, err
-	}
-
-	// Repository will generate both internal ID and public_id
-	if err := s.categoryRepo.Create(ctx, category); err != nil {
-		return nil, err
-	}
-
-	return category, nil
-}
-
-// Get retrieves a category by ID.
-func (s *CategoryService) Get(ctx context.Context, categoryID string) (*domain.Category, error) {
-	return s.categoryRepo.GetByID(ctx, categoryID)
-}
-
-// List retrieves all categories.
-func (s *CategoryService) List(ctx context.Context) ([]*domain.Category, error) {
-	return s.categoryRepo.List(ctx)
-}
-
-// Delete deletes a category.
-func (s *CategoryService) Delete(ctx context.Context, categoryID string) error {
-	return s.categoryRepo.Delete(ctx, categoryID)
 }
 
 // CreatePost creates a new post.
@@ -100,12 +60,13 @@ func (s *Service) CreatePost(ctx context.Context, userID int, title, content str
 		return nil, err
 	}
 
-	// Verify all categories exist
-	for _, categoryName := range categories {
-		_, err := s.categoryRepo.GetByName(ctx, categoryName)
-		if err != nil {
-			return nil, err
-		}
+	// Verify all categories exist (batch lookup)
+	foundCats, err := s.categoryRepo.GetByNames(ctx, categories)
+	if err != nil {
+		return nil, err
+	}
+	if len(foundCats) != len(categories) {
+		return nil, domain.ErrCategoryNotFound
 	}
 
 	// Handle image upload if provided
@@ -129,13 +90,9 @@ func (s *Service) CreatePost(ctx context.Context, userID int, title, content str
 	}
 
 	// Increment user's post count asynchronously (non-blocking)
-	go func(uid int) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := s.userService.IncrementPostCount(ctx, uid); err != nil {
-			log.Printf("WARNING: failed to increment post count for user %d: %v", uid, err)
-		}
-	}(userID)
+	async.Run(func(ctx context.Context) error {
+		return s.userService.IncrementPostCount(ctx, userID)
+	}, fmt.Sprintf("increment post count for user %d", userID))
 
 	return post, nil
 }
@@ -164,12 +121,13 @@ func (s *Service) UpdatePost(ctx context.Context, postID string, title, content 
 		return err
 	}
 
-	// Verify all categories exist
-	for _, categoryName := range categories {
-		_, err := s.categoryRepo.GetByName(ctx, categoryName)
-		if err != nil {
-			return err
-		}
+	// Verify all categories exist (batch lookup)
+	foundCats, err := s.categoryRepo.GetByNames(ctx, categories)
+	if err != nil {
+		return err
+	}
+	if len(foundCats) != len(categories) {
+		return domain.ErrCategoryNotFound
 	}
 
 	// Save to repository
@@ -198,13 +156,9 @@ func (s *Service) DeletePost(ctx context.Context, postID string) error {
 	}
 
 	// Decrement user's post count asynchronously (non-blocking)
-	go func(uid int) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := s.userService.DecrementPostCount(ctx, uid); err != nil {
-			log.Printf("WARNING: failed to decrement post count for user %d: %v", uid, err)
-		}
-	}(post.UserID)
+	async.Run(func(ctx context.Context) error {
+		return s.userService.DecrementPostCount(ctx, post.UserID)
+	}, fmt.Sprintf("decrement post count for user %d", post.UserID))
 
 	return nil
 }

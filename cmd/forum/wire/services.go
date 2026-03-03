@@ -25,64 +25,78 @@ import (
 )
 
 // ServiceContainer holds all application services for dependency injection.
-// This provides a unified way to pass dependencies to handlers.
-// Fields are lowercase (private) with public accessor methods for interface satisfaction.
+// Fields are private with public accessor methods for interface segregation.
+// Each handler declares a local interface with only the accessors it needs.
 type ServiceContainer struct {
 	auth           authPorts.AuthService
 	authMiddleware authPorts.AuthMiddleware
 	user           userPorts.UserService
 	post           postPorts.PostService
 	category       postPorts.CategoryService
-	filter         postPorts.FilterService
 	comment        commentPorts.CommentService
 	reaction       reactionPorts.ReactionService
 	moderation     moderationPorts.ModerationService
 	notification   notificationPorts.NotificationService
 	logger         *logger.Logger
+	sessionCookie  string
+	secureCookies  bool
+	uploadDir      string
 }
 
-// Service accessor methods satisfy handler-specific interfaces.
-// Each handler declares only the services it needs, e.g.:
-//
-//	type ServiceContainer interface { Auth() authPorts.AuthService }
-//
-// This pattern enables compile-time dependency verification and interface segregation.
+// Service accessor methods.
 func (sc *ServiceContainer) Auth() authPorts.AuthService                   { return sc.auth }
 func (sc *ServiceContainer) AuthMiddleware() authPorts.AuthMiddleware      { return sc.authMiddleware }
 func (sc *ServiceContainer) User() userPorts.UserService                   { return sc.user }
 func (sc *ServiceContainer) Post() postPorts.PostService                   { return sc.post }
 func (sc *ServiceContainer) Category() postPorts.CategoryService           { return sc.category }
-func (sc *ServiceContainer) Filter() postPorts.FilterService               { return sc.filter }
 func (sc *ServiceContainer) Comment() commentPorts.CommentService          { return sc.comment }
 func (sc *ServiceContainer) Reaction() reactionPorts.ReactionService       { return sc.reaction }
 func (sc *ServiceContainer) Moderation() moderationPorts.ModerationService { return sc.moderation }
 func (sc *ServiceContainer) Notification() notificationPorts.NotificationService {
 	return sc.notification
 }
-func (sc *ServiceContainer) Logger() *logger.Logger { return sc.logger }
+func (sc *ServiceContainer) Logger() *logger.Logger    { return sc.logger }
+func (sc *ServiceContainer) SessionCookieName() string { return sc.sessionCookie }
+func (sc *ServiceContainer) SecureCookies() bool       { return sc.secureCookies }
+func (sc *ServiceContainer) UploadDir() string         { return sc.uploadDir }
 
-// initServices creates a ServiceContainer with all service instances and their dependencies.
+// initServices creates a ServiceContainer with all service instances.
 func initServices(repos *Repositories, cfg *config.Config, lgr *logger.Logger) *ServiceContainer {
-	// Layer 1: Foundation services (no inter-service dependencies)
+	// Simple services (single repository dependency)
 	userService := userApp.NewService(repos.User)
 	categoryService := postApp.NewCategoryService(repos.Category)
-	filterService := postApp.NewFilterService()
 	moderationService := moderationApp.NewService(repos.Moderation)
 	notificationService := notificationApp.NewService(repos.Notification)
 
-	// Layer 1b: Infrastructure adapters (config-driven, no service dependencies)
+	// Services with cross-module adapters
 	imageHandler := upload.NewImageHandler(cfg.Upload.UploadDir, cfg.Upload.MaxSize)
 
-	// Layer 2: Domain services (depend on Layer 1 services)
-	authService := authApp.NewService(repos.Session, userService, cfg.Session.Duration)
-	postService := postApp.NewService(repos.Post, repos.Category, userService, imageHandler, cfg.Upload.MaxSize)
-	reactionService := reactionApp.NewService(repos.Reaction, repos.Post, repos.Comment, userService)
-	commentService := commentApp.NewService(repos.Comment, postService, userService)
-	reactionService.SetNotificationService(notificationService)
-	commentService.SetNotificationService(notificationService)
+	authService := authApp.NewService(
+		repos.Session,
+		authUserAdapter{user: userService},
+		cfg.Session.Duration,
+	)
 
-	// Layer 3: Cross-cutting middleware (depend on services)
-	authMiddleware := authAdapters.NewAuthMiddleware(authService, userService)
+	postService := postApp.NewService(
+		repos.Post, repos.Category, userService, imageHandler, cfg.Upload.MaxSize,
+	)
+
+	commentService := commentApp.NewService(
+		repos.Comment,
+		commentPostAdapter{post: postService},
+		commentUserAdapter{user: userService},
+		notificationService,
+	)
+
+	reactionService := reactionApp.NewService(
+		repos.Reaction,
+		reactionPostAdapter{post: repos.Post},
+		reactionCommentAdapter{comment: repos.Comment},
+		userService,
+		notificationService,
+	)
+
+	authMiddleware := authAdapters.NewAuthMiddleware(authService, userService, cfg.Session.CookieName)
 
 	return &ServiceContainer{
 		auth:           authService,
@@ -90,11 +104,13 @@ func initServices(repos *Repositories, cfg *config.Config, lgr *logger.Logger) *
 		user:           userService,
 		post:           postService,
 		category:       categoryService,
-		filter:         filterService,
 		comment:        commentService,
 		reaction:       reactionService,
 		moderation:     moderationService,
 		notification:   notificationService,
 		logger:         lgr,
+		sessionCookie:  cfg.Session.CookieName,
+		secureCookies:  cfg.Session.Secure,
+		uploadDir:      cfg.Upload.UploadDir,
 	}
 }

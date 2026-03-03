@@ -16,8 +16,8 @@ make test-fail     # Show only failures
 
 **Test Credentials:**
 - Default: `erti@erti.com` / `ertierti`
-- Primary: `testuser@example.com` / `password123`
-- Secondary: `testuser2@example.com` / `password123`
+- Primary: `testuser@example.com` / `Password123`
+- Secondary: `testuser2@example.com` / `Password123`
 - Admin: `admin@example.com` / `adminpass123`
 - Moderator: `moderator@example.com` / `modpass123`
 
@@ -135,7 +135,7 @@ status=$(echo "$response" | tail -n 1)
 ```bash
 curl -s -c "$COOKIE_FILE" -X POST http://localhost:8080/api/auth/login \
     -H "Content-Type: application/json" \
-    -d '{"email":"user@example.com","password":"password123"}'
+    -d '{"email":"user@example.com","password":"Password123"}'
 ```
 
 **Database Query:**

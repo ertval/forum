@@ -3,7 +3,10 @@
 package templates
 
 import (
+	"bytes"
+	"fmt"
 	"html/template"
+	"io"
 	"sync"
 )
 
@@ -60,4 +63,45 @@ func (r *Registry) GetOrParse(key string, files ...string) (*template.Template, 
 // Example usage: templates.Get("home", "templates/base.html", "templates/home.html")
 func Get(key string, files ...string) (*template.Template, error) {
 	return global.GetOrParse(key, files...)
+}
+
+// Lookup retrieves a cached template by key. Returns nil if not found or not yet parsed.
+// Use GetOrParse to ensure the template is parsed before calling Lookup.
+func (r *Registry) Lookup(key string) *template.Template {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.cache[key]
+}
+
+// TemplateEntry defines a template to load: key name and file paths.
+type TemplateEntry struct {
+	Key   string
+	Files []string
+}
+
+// LoadAll parses and caches multiple templates in one call.
+// Returns an error on the first template that fails to parse.
+func (r *Registry) LoadAll(entries []TemplateEntry) error {
+	for _, e := range entries {
+		if _, err := r.GetOrParse(e.Key, e.Files...); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ExecuteTemplate looks up a cached template by key and executes the named
+// template definition within it. Rendering is done to an internal buffer first
+// so that partial output is never written to w on error.
+func (r *Registry) ExecuteTemplate(w io.Writer, key string, name string, data interface{}) error {
+	tmpl := r.Lookup(key)
+	if tmpl == nil {
+		return fmt.Errorf("template %q not found in registry", key)
+	}
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, name, data); err != nil {
+		return err
+	}
+	_, err := buf.WriteTo(w)
+	return err
 }

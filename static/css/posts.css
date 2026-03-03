@@ -4,28 +4,28 @@
 
 /* Posts Container */
 .posts {
-  background: #ffffff;
+  background: var(--color-bg-light);
   padding: 1.5rem;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e0e0e0;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--color-border);
 }
 
 .posts h2 {
   font-size: 1.5rem;
   margin-bottom: 1.5rem;
-  color: #5a5a5a;
+  color: var(--color-text);
   text-align: center;
 }
 
 /* Post Card - Board Page (with horizontal image layout) */
 .post-card {
-  border: 1px solid #c0d0e0;
+  border: 1px solid var(--color-border-blue);
   border-radius: 12px;
   padding: 1.25rem;
   margin-bottom: 1.5rem;
-  background: #ffffff;
-  transition: all 0.3s ease;
+  background: var(--color-bg-light);
+  transition: all var(--transition-normal);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   display: grid;
   grid-template-columns: 1fr 130px;
@@ -59,10 +59,10 @@
 }
 
 .post-card .post-header h3 a {
-  color: #5a5a5a;
+  color: var(--color-text);
   text-decoration: none;
   font-size: 1.3rem;
-  transition: color 0.3s ease;
+  transition: color var(--transition-normal);
 }
 
 .post-card .post-header h3 a:hover {
@@ -73,7 +73,7 @@
   display: flex;
   gap: 1rem;
   font-size: 0.9rem;
-  color: #7a7a7a;
+  color: var(--color-text-muted);
   margin-bottom: 0;
   border-bottom: none;
   padding-bottom: 0;
@@ -81,7 +81,7 @@
 
 .post-card .post-meta .author {
   font-weight: 600;
-  color: #5a5a5a;
+  color: var(--color-text);
 }
 
 /* Post Image - Positioned on right side */
@@ -106,7 +106,7 @@
 /* Post Content */
 .post-card .post-content {
   grid-area: content;
-  color: #555;
+  color: var(--color-text);
   line-height: 1.6;
   overflow: hidden;
   display: -webkit-box;
@@ -130,7 +130,7 @@
   justify-content: space-between;
   align-items: center;
   padding-top: 0.75rem;
-  border-top: 1px solid #e8e8e8;
+  border-top: 1px solid var(--color-border);
   gap: 1rem;
 }
 
@@ -150,14 +150,14 @@
 }
 
 .post-actions button {
-  background: #e0f7e9;
-  border: 1px solid #c2e6d6;
+  background: var(--color-reaction-bg);
+  border: 1px solid var(--color-reaction-border);
   padding: 0.35rem 0.75rem;
   border-radius: 16px;
   cursor: pointer;
   font-size: 0.9rem;
-  color: #5a5a5a;
-  transition: all 0.3s ease;
+  color: var(--color-text);
+  transition: all var(--transition-normal);
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -165,13 +165,13 @@
 }
 
 .post-actions button:hover {
-  background: #b5ead7;
-  color: #5a5a5a;
+  background: var(--color-primary-light);
+  color: var(--color-text);
   transform: translateY(-1px);
 }
 
 .post-actions button.active {
-  background: #80cbc4;
+  background: var(--color-reaction-active);
   color: white;
 }
 
@@ -180,8 +180,8 @@
 }
 
 .post-actions .comments {
-  color: #7a7a7a;
-  background-color: #f0f4f8;
+  color: var(--color-text-muted);
+  background-color: var(--color-secondary);
   padding: 0.25rem 0.75rem;
   border-radius: 16px;
   display: flex;
@@ -192,7 +192,7 @@
 .no-posts {
   text-align: center;
   padding: 2rem;
-  color: #7a7a7a;
+  color: var(--color-text-muted);
   font-style: italic;
 }
 
@@ -203,7 +203,7 @@
 }
 
 .no-posts a:hover {
-  color: #7fb8a5;
+  color: var(--color-link-hover);
   text-decoration: underline;
 }
 

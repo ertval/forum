@@ -11,13 +11,13 @@
     text-align: center;
     cursor: pointer;
     border: none;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal);
     font-size: 0.95rem;
 }
 
 .btn-primary {
     background: linear-gradient(135deg, #b5ead7 0%, #c2f2e9 100%); /* Soft Green */
-    color: #5a5a5a;
+    color: var(--color-text);
     border: 1px solid var(--color-primary);
     box-shadow: 0 2px 6px rgba(181, 234, 215, 0.4);
 }
@@ -30,8 +30,8 @@
 
 .btn-secondary {
     background: linear-gradient(135deg, #d3e0ea 0%, #e6eef5 100%); /* Soft Blue */
-    color: #5a5a5a;
-    border: 1px solid #c0d0e0;
+    color: var(--color-text);
+    border: 1px solid var(--color-border-blue);
     box-shadow: 0 2px 6px rgba(211, 224, 234, 0.4);
 }
 
@@ -43,7 +43,7 @@
 
 .btn-danger {
     background: linear-gradient(135deg, #f1c28e 0%, #f5d9b6 100%); /* Pastel orange for danger */
-    color: #5a5a5a;
+    color: var(--color-text);
     border: 1px solid #ecc198;
     box-shadow: 0 2px 6px rgba(241, 194, 142, 0.4);
 }

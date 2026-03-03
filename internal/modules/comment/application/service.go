@@ -9,38 +9,60 @@ import (
 
 	"forum/internal/modules/comment/domain"
 	"forum/internal/modules/comment/ports"
-	notificationDomain "forum/internal/modules/notification/domain"
-	notificationPorts "forum/internal/modules/notification/ports"
-	postPorts "forum/internal/modules/post/ports"
-	userPorts "forum/internal/modules/user/ports"
+	"forum/internal/platform/async"
 )
+
+// Notification type constants mirrored locally to avoid cross-module port imports.
+const notifTypeComment = "comment"
+
+type PostRecord struct {
+	ID       int
+	PublicID string
+	UserID   int
+}
+
+// postService defines the minimal post operations required by the comment service.
+// This avoids a direct import of the post module's ports package.
+type postService interface {
+	GetPostForComment(ctx context.Context, postID string) (*PostRecord, error)
+}
+
+// userService defines the minimal user operations required by the comment service.
+// This avoids a direct import of the user module's ports package.
+type userService interface {
+	ResolveUserIDByPublicID(ctx context.Context, publicID string) (int, error)
+	IncrementCommentCount(ctx context.Context, userID int) error
+	DecrementCommentCount(ctx context.Context, userID int) error
+}
+
+// notificationService defines the minimal notification operations required by the comment service.
+// This avoids a direct import of the notification module's ports package.
+type notificationService interface {
+	CreateNotification(ctx context.Context, userID, actorID int, notifType, message string, targetPublicID string) error
+}
 
 // Service implements the CommentService interface.
 type Service struct {
 	commentRepo         ports.CommentRepository
-	postService         postPorts.PostService
-	userService         userPorts.UserService
-	notificationService notificationPorts.NotificationService
+	postService         postService
+	userService         userService
+	notificationService notificationService
 }
 
 // NewService creates a new comment service.
-func NewService(commentRepo ports.CommentRepository, postService postPorts.PostService, userService userPorts.UserService) *Service {
+func NewService(commentRepo ports.CommentRepository, postService postService, userService userService, notificationService notificationService) *Service {
 	return &Service{
-		commentRepo: commentRepo,
-		postService: postService,
-		userService: userService,
+		commentRepo:         commentRepo,
+		postService:         postService,
+		userService:         userService,
+		notificationService: notificationService,
 	}
-}
-
-// SetNotificationService injects notification capability as an optional cross-module dependency.
-func (s *Service) SetNotificationService(notificationService notificationPorts.NotificationService) {
-	s.notificationService = notificationService
 }
 
 // CreateComment creates a new comment.
 func (s *Service) CreateComment(ctx context.Context, postPublicID string, userID int, content string) (*domain.Comment, error) {
 	// Get the post to get its internal ID
-	post, err := s.postService.GetPost(ctx, postPublicID)
+	post, err := s.postService.GetPostForComment(ctx, postPublicID)
 	if err != nil {
 		return nil, fmt.Errorf("post not found: %w", err)
 	}
@@ -67,19 +89,14 @@ func (s *Service) CreateComment(ctx context.Context, postPublicID string, userID
 
 	if s.notificationService != nil && post.UserID != userID {
 		message := "Someone commented on your post"
-		if err := s.notificationService.CreateNotification(ctx, post.UserID, userID, notificationDomain.TypeComment, message, post.PublicID); err != nil {
+		if err := s.notificationService.CreateNotification(ctx, post.UserID, userID, notifTypeComment, message, post.PublicID); err != nil {
 			log.Printf("WARNING: failed to create comment notification for post owner %d: %v", post.UserID, err)
 		}
 	}
 
-	// Increment user's comment count asynchronously (non-blocking)
-	go func(uid int) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := s.userService.IncrementCommentCount(ctx, uid); err != nil {
-			log.Printf("WARNING: failed to increment comment count for user %d: %v", uid, err)
-		}
-	}(userID)
+	async.Run(func(ctx context.Context) error {
+		return s.userService.IncrementCommentCount(ctx, userID)
+	}, fmt.Sprintf("increment comment count for user %d", userID))
 
 	return comment, nil
 }
@@ -128,14 +145,9 @@ func (s *Service) DeleteComment(ctx context.Context, commentPublicID string) err
 		return err
 	}
 
-	// Decrement user's comment count asynchronously (non-blocking)
-	go func(uid int) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := s.userService.DecrementCommentCount(ctx, uid); err != nil {
-			log.Printf("WARNING: failed to decrement comment count for user %d: %v", uid, err)
-		}
-	}(comment.UserID)
+	async.Run(func(ctx context.Context) error {
+		return s.userService.DecrementCommentCount(ctx, comment.UserID)
+	}, fmt.Sprintf("decrement comment count for user %d", comment.UserID))
 
 	return nil
 }
@@ -148,23 +160,25 @@ func (s *Service) ListCommentsByPost(ctx context.Context, postPublicID string) (
 // ListCommentsByUser retrieves all comments made by a specific user.
 func (s *Service) ListCommentsByUser(ctx context.Context, userPublicID string) ([]*domain.Comment, error) {
 	// First get the internal user ID from the public ID
-	user, err := s.userService.GetByPublicID(ctx, userPublicID)
+	userID, err := s.userService.ResolveUserIDByPublicID(ctx, userPublicID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
 	// Call the repository to get comments by user ID
-	return s.commentRepo.ListByUser(ctx, user.ID)
+	return s.commentRepo.ListByUser(ctx, userID)
 }
 
 // ListCommentsByUserPaginated retrieves comments made by a user with pagination.
 func (s *Service) ListCommentsByUserPaginated(ctx context.Context, userPublicID string, limit, offset int) ([]*domain.Comment, error) {
 	// First get the internal user ID from the public ID
-	user, err := s.userService.GetByPublicID(ctx, userPublicID)
+	userID, err := s.userService.ResolveUserIDByPublicID(ctx, userPublicID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
 	// Call the repository to get comments by user ID with pagination
-	return s.commentRepo.ListByUserPaginated(ctx, user.ID, limit, offset)
+	return s.commentRepo.ListByUserPaginated(ctx, userID, limit, offset)
 }
+
+

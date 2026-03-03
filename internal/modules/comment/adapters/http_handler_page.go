@@ -6,20 +6,37 @@ package adapters
 import (
 	"bytes"
 	"context"
+	"errors"
 	"log"
 	"net/http"
-	"strconv"
+	"strings"
 	"time"
 
-	postDomain "forum/internal/modules/post/domain"
+	commentDomain "forum/internal/modules/comment/domain"
 	platformErrors "forum/internal/platform/errors"
-	"forum/internal/platform/templates"
 )
 
 type activityFilters struct {
 	ActivityType string
 	Category     string
 	Time         string
+	ReactionType string
+}
+
+func mapActivityTypeForSharedFilterCard(activityType string) string {
+	switch activityType {
+	case "created_posts":
+		return "my_posts"
+	case "comments":
+		return "commented_posts"
+	default:
+		return activityType
+	}
+}
+
+type myCommentsFilters struct {
+	Category     string
+	DateFilter   string
 	ReactionType string
 }
 
@@ -30,16 +47,18 @@ func (h *HTTPHandler) RegisterPageRoutes(router *http.ServeMux) {
 	router.Handle("GET /comments", authMiddleware(http.HandlerFunc(h.MyCommentsPage)))
 	router.Handle("GET /activity", authMiddleware(http.HandlerFunc(h.ActivityPage)))
 
-	// Protected API route for loading more comments (requires authentication)
-	optionalAuth := h.middlewareProvider.OptionalAuth()
-	router.Handle("GET /api/comments/load-more", optionalAuth(http.HandlerFunc(h.LoadMoreCommentsAPI)))
+	// Form submission routes
+	// POST /posts/{post_id}/comments - Create comment via form
+	router.HandleFunc("POST /posts/{post_id}/comments", h.CreateCommentForm)
+	// DELETE /comments/{id} - Delete comment via form
+	router.HandleFunc("DELETE /comments/{id}", h.DeleteCommentForm)
 }
 
 // ActivityPage handles the unified page that displays user activity.
 func (h *HTTPHandler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	cookie, err := r.Cookie("session_token")
+	cookie, err := r.Cookie(h.cookieName)
 	if err != nil || cookie.Value == "" {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
@@ -54,7 +73,7 @@ func (h *HTTPHandler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 	currentUser := h.buildCurrentUser(ctx, session.UserID)
 	userPublicID, ok := currentUser["PublicID"].(string)
 	if !ok || userPublicID == "" {
-		http.Error(w, "User not authenticated properly", http.StatusUnauthorized)
+		platformErrors.RenderErrorPage(w, http.StatusUnauthorized, "", nil)
 		return
 	}
 
@@ -67,45 +86,71 @@ func (h *HTTPHandler) ActivityPage(w http.ResponseWriter, r *http.Request) {
 
 	activity, err := h.aggregateUserActivity(ctx, userPublicID, filters)
 	if err != nil {
-		http.Error(w, "Failed to load activity", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", nil)
 		return
 	}
 
 	showCreatedPosts := filters.ActivityType == "all" || filters.ActivityType == "created_posts"
 	showReactions := filters.ActivityType == "all" || filters.ActivityType == "reactions"
 	showComments := filters.ActivityType == "all" || filters.ActivityType == "comments"
-
-	data := map[string]interface{}{
-		"Title":            "My Activity",
-		"User":             currentUser,
-		"ShowFilter":       true,
-		"ShowFilterRight":  false,
-		"ShowSidebar":      false,
-		"FilterAction":     "/activity",
-		"Categories":       categories,
-		"SelectedCategory": filters.Category,
-		"SelectedTime":     filters.Time,
-		"ActivityType":     filters.ActivityType,
-		"SelectedReaction": filters.ReactionType,
-		"HideCreatedPosts": !showCreatedPosts,
-		"HideReactions":    !showReactions,
-		"HideComments":     !showComments,
-		"CreatedPosts":     activity["created_posts"],
-		"Reactions":        activity["reactions"],
-		"Comments":         activity["comments"],
+	showActivityTypeFilter := filters.ActivityType == "all"
+	sharedActivityType := mapActivityTypeForSharedFilterCard(filters.ActivityType)
+	fixedActivityType := ""
+	filterTitle := ""
+	if !showActivityTypeFilter {
+		fixedActivityType = sharedActivityType
+		if sharedActivityType == "reactions" {
+			filterTitle = "Filter Reactions"
+		}
 	}
 
-	tmpl, err := templates.Get("activity", "templates/base.html", "templates/activity.html")
-	if err != nil {
-		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+	reactions, _ := activity["reactions"].([]map[string]interface{})
+	postReactions, commentReactions := splitReactionItemsByTarget(reactions)
+
+	data := map[string]interface{}{
+		"Title":                  "My Activity",
+		"User":                   currentUser,
+		"ShowFilter":             true,
+		"ShowFilterRight":        false,
+		"ShowSidebar":            false,
+		"FilterAction":           "/activity",
+		"FilterMode":             "activity",
+		"FilterTitle":            filterTitle,
+		"ShowActivityTypeFilter": showActivityTypeFilter,
+		"FixedActivityType":      fixedActivityType,
+		"Categories":             categories,
+		"SelectedCategory":       filters.Category,
+		"DateFilter":             filters.Time,
+		"SelectedTime":           filters.Time,
+		"ActivityType":           sharedActivityType,
+		"SelectedReaction":       filters.ReactionType,
+		"HideCreatedPosts":       !showCreatedPosts,
+		"HideReactions":          !showReactions,
+		"HideComments":           !showComments,
+		"CreatedPosts":           activity["created_posts"],
+		"Reactions":              activity["reactions"],
+		"PostReactions":          postReactions,
+		"CommentReactions":       commentReactions,
+		"Comments":               activity["comments"],
+	}
+
+	if h.templates == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "templates not configured", currentUser)
+		return
+	}
+	tmpl := h.templates.Lookup("activity")
+	if tmpl == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "template not found", currentUser)
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 		return
 	}
+	buf.WriteTo(w)
 }
 
 func parseActivityFilters(r *http.Request) activityFilters {
@@ -113,9 +158,12 @@ func parseActivityFilters(r *http.Request) activityFilters {
 	switch activityType {
 	case "", "all":
 		activityType = "all"
-	case "created_posts", "posts":
+	case "created_posts", "posts", "my_posts":
 		activityType = "created_posts"
-	case "reactions", "comments":
+	case "reactions":
+		activityType = "reactions"
+	case "comments", "commented_posts":
+		activityType = "comments"
 	default:
 		activityType = "all"
 	}
@@ -147,6 +195,139 @@ func parseActivityFilters(r *http.Request) activityFilters {
 		Time:         timeFilter,
 		ReactionType: reactionType,
 	}
+}
+
+func parseMyCommentsFilters(r *http.Request) myCommentsFilters {
+	dateFilter := r.URL.Query().Get("date_filter")
+	switch dateFilter {
+	case "", "all":
+		dateFilter = "all"
+	case "today", "week", "month":
+	default:
+		dateFilter = "all"
+	}
+
+	reactionType := r.URL.Query().Get("reaction_type")
+	switch reactionType {
+	case "", "all":
+		reactionType = "all"
+	case "like", "dislike":
+	default:
+		reactionType = "all"
+	}
+
+	return myCommentsFilters{
+		Category:     strings.TrimSpace(r.URL.Query().Get("category")),
+		DateFilter:   dateFilter,
+		ReactionType: reactionType,
+	}
+}
+
+func matchesCommentReactionFilter(likes, dislikes int, reactionType string) bool {
+	switch reactionType {
+	case "like":
+		return likes > 0
+	case "dislike":
+		return dislikes > 0
+	default:
+		return true
+	}
+}
+
+func (h *HTTPHandler) buildFilteredCommentItems(ctx context.Context, commentsFromService []*commentDomain.Comment, filters myCommentsFilters) []map[string]interface{} {
+	type postInfo struct {
+		Title          string
+		AuthorUsername string
+		Categories     []string
+	}
+	type reactionCounts struct {
+		likes    int
+		dislikes int
+	}
+
+	uniquePostIDs := make(map[string]struct{})
+	for _, comment := range commentsFromService {
+		if comment.PublicPostID != "" {
+			uniquePostIDs[comment.PublicPostID] = struct{}{}
+		}
+	}
+
+	postCache := make(map[string]postInfo, len(uniquePostIDs))
+	for pid := range uniquePostIDs {
+		post, err := h.postService.GetPost(ctx, pid)
+		if err == nil && post != nil {
+			postCache[pid] = postInfo{
+				Title:          post.Title,
+				AuthorUsername: post.AuthorUsername,
+				Categories:     post.Categories,
+			}
+		}
+	}
+
+	reactionCache := make(map[string]reactionCounts, len(commentsFromService))
+	if h.reactionService != nil && len(commentsFromService) > 0 {
+		commentIDs := make([]string, 0, len(commentsFromService))
+		for _, comment := range commentsFromService {
+			commentIDs = append(commentIDs, comment.PublicID)
+		}
+		batchCounts, err := h.reactionService.CountReactionsBatch(ctx, commentIDs, "comment")
+		if err != nil {
+			log.Printf("Error batch counting reactions for comments: %v", err)
+		} else {
+			for id, counts := range batchCounts {
+				reactionCache[id] = reactionCounts{
+					likes:    counts["like"],
+					dislikes: counts["dislike"],
+				}
+			}
+		}
+	}
+
+	now := time.Now()
+	filtered := make([]map[string]interface{}, 0, len(commentsFromService))
+	for _, comment := range commentsFromService {
+		authorUsername := comment.AuthorUsername
+
+		postTitle := "Post not found"
+		postAuthorUsername := "Unknown"
+		var postCategories []string
+		if pi, ok := postCache[comment.PublicPostID]; ok {
+			postTitle = pi.Title
+			postAuthorUsername = pi.AuthorUsername
+			postCategories = pi.Categories
+		} else if comment.PublicPostID == "" {
+			postTitle = "Post ID unknown"
+		}
+
+		if !categoriesContain(postCategories, filters.Category) {
+			continue
+		}
+
+		if !matchesTimeFilter(comment.CreatedAt, filters.DateFilter, now) {
+			continue
+		}
+
+		rc := reactionCache[comment.PublicID]
+		if !matchesCommentReactionFilter(rc.likes, rc.dislikes, filters.ReactionType) {
+			continue
+		}
+
+		filtered = append(filtered, map[string]interface{}{
+			"PublicID":           comment.PublicID,
+			"AuthorUsername":     authorUsername,
+			"Content":            comment.Content,
+			"PostPublicID":       comment.PublicPostID,
+			"PostTitle":          postTitle,
+			"PostAuthorUsername": postAuthorUsername,
+			"PostCategories":     postCategories,
+			"CreatedAt":          comment.CreatedAt,
+			"UpdatedAt":          comment.UpdatedAt,
+			"Likes":              rc.likes,
+			"Dislikes":           rc.dislikes,
+		})
+	}
+
+	return filtered
 }
 
 func cutoffForTimeFilter(now time.Time, timeFilter string) (time.Time, bool) {
@@ -182,6 +363,17 @@ func categoriesContain(categories []string, selectedCategory string) bool {
 	return false
 }
 
+func matchesPostReactionFilter(likes, dislikes int, reactionType string) bool {
+	switch reactionType {
+	case "like":
+		return likes > 0
+	case "dislike":
+		return dislikes > 0
+	default:
+		return true
+	}
+}
+
 func filterCreatedPostItems(items []map[string]interface{}, filters activityFilters, now time.Time) []map[string]interface{} {
 	filtered := make([]map[string]interface{}, 0, len(items))
 	for _, item := range items {
@@ -192,6 +384,12 @@ func filterCreatedPostItems(items []map[string]interface{}, filters activityFilt
 
 		categories, _ := item["Categories"].([]string)
 		if !categoriesContain(categories, filters.Category) {
+			continue
+		}
+
+		likes, _ := item["LikeCount"].(int)
+		dislikes, _ := item["DislikeCount"].(int)
+		if !matchesPostReactionFilter(likes, dislikes, filters.ReactionType) {
 			continue
 		}
 
@@ -225,6 +423,22 @@ func filterReactionItems(items []map[string]interface{}, filters activityFilters
 	return filtered
 }
 
+func splitReactionItemsByTarget(items []map[string]interface{}) ([]map[string]interface{}, []map[string]interface{}) {
+	postReactions := make([]map[string]interface{}, 0, len(items))
+	commentReactions := make([]map[string]interface{}, 0, len(items))
+
+	for _, item := range items {
+		targetType, _ := item["ReactionTargetType"].(string)
+		if targetType == "comment" {
+			commentReactions = append(commentReactions, item)
+			continue
+		}
+		postReactions = append(postReactions, item)
+	}
+
+	return postReactions, commentReactions
+}
+
 func filterCommentItems(items []map[string]interface{}, filters activityFilters, now time.Time) []map[string]interface{} {
 	filtered := make([]map[string]interface{}, 0, len(items))
 	for _, item := range items {
@@ -235,6 +449,12 @@ func filterCommentItems(items []map[string]interface{}, filters activityFilters,
 
 		postCategories, _ := item["PostCategories"].([]string)
 		if !categoriesContain(postCategories, filters.Category) {
+			continue
+		}
+
+		likes, _ := item["PostLikeCount"].(int)
+		dislikes, _ := item["PostDislikeCount"].(int)
+		if !matchesPostReactionFilter(likes, dislikes, filters.ReactionType) {
 			continue
 		}
 
@@ -250,7 +470,7 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 
 	// Get current user if logged in
 	var currentUser interface{}
-	cookie, err := r.Cookie("session_token")
+	cookie, err := r.Cookie(h.cookieName)
 	if err != nil || cookie.Value == "" {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
@@ -265,11 +485,7 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 	currentUser = h.buildCurrentUser(ctx, session.UserID)
 
 	// Get filter parameters
-	selectedCategory := r.URL.Query().Get("category")
-	dateFilter := r.URL.Query().Get("date_filter")
-	if dateFilter == "" {
-		dateFilter = "all"
-	}
+	filters := parseMyCommentsFilters(r)
 
 	// Fetch all categories for filter dropdown
 	categories, err := h.categoryService.List(ctx)
@@ -278,131 +494,63 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch comments made by this user (with pagination)
-	var comments []interface{}
+	comments := make([]interface{}, 0, 16)
 	var hasMoreComments bool
 	if h.commentService != nil {
 		currentUserInfo, ok := currentUser.(map[string]interface{})
 		if !ok {
-			http.Error(w, "Failed to get user info", http.StatusInternalServerError)
+			platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 			return
 		}
 
 		userPublicID, ok := currentUserInfo["PublicID"].(string)
 		if !ok || userPublicID == "" {
-			http.Error(w, "User not authenticated properly", http.StatusUnauthorized)
+			platformErrors.RenderErrorPage(w, http.StatusUnauthorized, "", currentUser)
 			return
 		}
 
-		// Fetch one extra to check if there are more comments
-		commentsFromService, err := h.commentService.ListCommentsByUserPaginated(ctx, userPublicID, initialLimit+1, 0)
+		commentsFromService, err := h.commentService.ListCommentsByUser(ctx, userPublicID)
 		if err != nil {
 			log.Printf("Error fetching user comments: %v", err)
 		} else {
-			// Check if there are more comments than the initial limit
-			if len(commentsFromService) > initialLimit {
+			filteredComments := h.buildFilteredCommentItems(ctx, commentsFromService, filters)
+			if len(filteredComments) > initialLimit {
 				hasMoreComments = true
-				commentsFromService = commentsFromService[:initialLimit]
+				filteredComments = filteredComments[:initialLimit]
 			}
-
-			for _, comment := range commentsFromService {
-				var authorUsername string
-				if comment.UserID != 0 {
-					user, err := h.userService.GetByID(ctx, comment.UserID)
-					if err == nil && user != nil {
-						authorUsername = user.Username
-					}
-				}
-
-				var postTitle string
-				var postAuthorUsername string
-				var postCategories []string
-				if comment.PublicPostID != "" {
-					post, err := h.postService.GetPost(ctx, comment.PublicPostID)
-					if err == nil && post != nil {
-						postTitle = post.Title
-						postAuthorUsername = post.AuthorUsername
-						postCategories = post.Categories
-					} else {
-						postTitle = "Post not found"
-						postAuthorUsername = "Unknown"
-					}
-				} else {
-					postTitle = "Post ID unknown"
-					postAuthorUsername = "Unknown"
-				}
-
-				// Apply category filter - skip if doesn't match
-				if selectedCategory != "" && len(postCategories) > 0 {
-					categoryMatch := false
-					for _, cat := range postCategories {
-						if cat == selectedCategory {
-							categoryMatch = true
-							break
-						}
-					}
-					if !categoryMatch {
-						continue
-					}
-				}
-
-				// Apply date filter
-				if dateFilter != "all" {
-					now := time.Now()
-					var cutoff time.Time
-					switch dateFilter {
-					case "today":
-						cutoff = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-					case "week":
-						cutoff = now.AddDate(0, 0, -7)
-					case "month":
-						cutoff = now.AddDate(0, -1, 0)
-					}
-					if comment.CreatedAt.Before(cutoff) {
-						continue
-					}
-				}
-
-				// Get reaction counts for this comment
-				likes, dislikes := 0, 0
-				if h.reactionService != nil {
-					likes, dislikes, _ = h.reactionService.CountReactions(ctx, comment.PublicID, "comment")
-				}
-
-				commentData := map[string]interface{}{
-					"PublicID":           comment.PublicID,
-					"AuthorUsername":     authorUsername,
-					"Content":            comment.Content,
-					"PostPublicID":       comment.PublicPostID,
-					"PostTitle":          postTitle,
-					"PostAuthorUsername": postAuthorUsername,
-					"PostCategories":     postCategories,
-					"CreatedAt":          comment.CreatedAt,
-					"UpdatedAt":          comment.UpdatedAt,
-					"Likes":              likes,
-					"Dislikes":           dislikes,
-				}
-				comments = append(comments, commentData)
+			for _, item := range filteredComments {
+				comments = append(comments, item)
 			}
 		}
 	}
 
 	data := map[string]interface{}{
-		"Title":            "My Comments",
-		"User":             currentUser,
-		"Comments":         comments,
-		"ShowFilter":       true,
-		"FilterAction":     "/comments",
-		"Categories":       categories,
-		"SelectedCategory": selectedCategory,
-		"DateFilter":       dateFilter,
-		"HasMoreComments":  hasMoreComments,
-		"Offset":           initialLimit,
+		"Title":                  "My Comments",
+		"User":                   currentUser,
+		"Comments":               comments,
+		"ShowFilter":             true,
+		"FilterAction":           "/comments",
+		"FilterMode":             "comments",
+		"ShowActivityTypeFilter": false,
+		"FixedActivityType":      "commented_posts",
+		"ActivityType":           "commented_posts",
+		"Categories":             categories,
+		"SelectedCategory":       filters.Category,
+		"DateFilter":             filters.DateFilter,
+		"SelectedReaction":       filters.ReactionType,
+		"HasMoreComments":        hasMoreComments,
+		"Offset":                 len(comments),
+		"LoadMoreID":             "load-more-comments-btn",
 	}
 
 	// Get cached templates (only parses on first request)
-	tmpl, err := templates.Get("comments", "templates/base.html", "templates/comments.html")
-	if err != nil {
-		http.Error(w, "Failed to parse templates", http.StatusInternalServerError)
+	if h.templates == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "templates not configured", currentUser)
+		return
+	}
+	tmpl := h.templates.Lookup("comments")
+	if tmpl == nil {
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "template not found", currentUser)
 		return
 	}
 
@@ -410,138 +558,15 @@ func (h *HTTPHandler) MyCommentsPage(w http.ResponseWriter, r *http.Request) {
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
 		log.Printf("Template error: %v", err)
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		platformErrors.RenderErrorPage(w, http.StatusInternalServerError, "", currentUser)
 		return
 	}
 	if _, err := buf.WriteTo(w); err != nil {
-		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+		log.Printf("Write error: %v", err)
 	}
 }
-
-// LoadMoreCommentsAPI handles loading additional comments for the My Comments page.
-func (h *HTTPHandler) LoadMoreCommentsAPI(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	ctx := r.Context()
-
-	// Get user PUBLIC ID (UUID) from session cookie.
-	var userPublicID string
-	cookie, err := r.Cookie("session_token")
-	if err == nil && cookie.Value != "" {
-		if session, err := h.authService.ValidateSession(ctx, cookie.Value); err == nil && session != nil {
-			user, err := h.userService.GetByID(ctx, session.UserID)
-			if err == nil && user != nil {
-				userPublicID = user.PublicID
-			}
-		}
-	}
-
-	if userPublicID == "" {
-		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
-		return
-	}
-
-	// Parse pagination parameters
-	limit := DefaultPaginationLimit
-	offset := 0
-
-	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
-		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= MaxPaginationLimit {
-			limit = l
-		}
-	}
-
-	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
-		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
-			offset = o
-		}
-	}
-
-	// Fetch comments using paginated method
-	comments, err := h.commentService.ListCommentsByUserPaginated(ctx, userPublicID, limit, offset)
-	if err != nil {
-		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve comments")
-		return
-	}
-
-	// Enrich comments with post and user information
-	commentsData := make([]map[string]interface{}, 0, len(comments))
-	for _, comment := range comments {
-		var authorUsername string
-		if comment.UserID != 0 {
-			user, err := h.userService.GetByID(ctx, comment.UserID)
-			if err == nil && user != nil {
-				authorUsername = user.Username
-			}
-		}
-
-		var postTitle string
-		var postAuthorUsername string
-		if comment.PublicPostID != "" {
-			post, err := h.postService.GetPost(ctx, comment.PublicPostID)
-			if err == nil && post != nil {
-				postTitle = post.Title
-				postAuthorUsername = post.AuthorUsername
-			} else {
-				postTitle = "Post not found"
-				postAuthorUsername = "Unknown"
-			}
-		} else {
-			postTitle = "Post ID unknown"
-			postAuthorUsername = "Unknown"
-		}
-
-		// Get reaction counts for this comment
-		likes, dislikes := 0, 0
-		if h.reactionService != nil {
-			likes, dislikes, _ = h.reactionService.CountReactions(ctx, comment.PublicID, "comment")
-		}
-
-		commentData := map[string]interface{}{
-			"PublicID":           comment.PublicID,
-			"AuthorUsername":     authorUsername,
-			"Content":            comment.Content,
-			"PostPublicID":       comment.PublicPostID,
-			"PostTitle":          postTitle,
-			"PostAuthorUsername": postAuthorUsername,
-			"CreatedAt":          comment.CreatedAt,
-			"UpdatedAt":          comment.UpdatedAt,
-			"Likes":              likes,
-			"Dislikes":           dislikes,
-		}
-		commentsData = append(commentsData, commentData)
-	}
-
-	h.writeJSON(w, http.StatusOK, commentsData)
-}
-
 func (h *HTTPHandler) aggregateUserActivity(ctx context.Context, userPublicID string, filters activityFilters) (map[string]interface{}, error) {
-	createdPosts, err := h.postService.ListPosts(ctx, postDomain.PostFilter{
-		UserID: userPublicID,
-		Limit:  50,
-		Offset: 0,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	likedPosts, err := h.postService.ListPosts(ctx, postDomain.PostFilter{
-		LikedByUserID: userPublicID,
-		Limit:         50,
-		Offset:        0,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	dislikedPosts, err := h.postService.ListPosts(ctx, postDomain.PostFilter{
-		DislikedByUserID: userPublicID,
-		Limit:            50,
-		Offset:           0,
-	})
+	createdPosts, err := h.listCreatedPostsForActivity(ctx, userPublicID)
 	if err != nil {
 		return nil, err
 	}
@@ -551,47 +576,148 @@ func (h *HTTPHandler) aggregateUserActivity(ctx context.Context, userPublicID st
 		return nil, err
 	}
 
-	reactionItems := make([]map[string]interface{}, 0, len(likedPosts)+len(dislikedPosts))
-	for _, post := range likedPosts {
-		reactionItems = append(reactionItems, map[string]interface{}{
-			"PostPublicID":   post.PublicID,
-			"PostTitle":      post.Title,
-			"PostCategories": post.Categories,
-			"ReactionType":   "like",
-			"CreatedAt":      post.CreatedAt,
-		})
-	}
-	for _, post := range dislikedPosts {
-		reactionItems = append(reactionItems, map[string]interface{}{
-			"PostPublicID":   post.PublicID,
-			"PostTitle":      post.Title,
-			"PostCategories": post.Categories,
-			"ReactionType":   "dislike",
-			"CreatedAt":      post.CreatedAt,
-		})
+	reactionItems := make([]map[string]interface{}, 0, 16)
+	if h.reactionService != nil {
+		user, userErr := h.userService.GetByPublicID(ctx, userPublicID)
+		if userErr != nil {
+			return nil, userErr
+		}
+
+		reactions, reactionErr := h.reactionService.ListUserReactions(ctx, user.ID)
+		if reactionErr != nil {
+			return nil, reactionErr
+		}
+
+		postCache := make(map[string]*activityPostView)
+		for _, post := range createdPosts {
+			if post != nil {
+				postCache[post.PublicID] = post
+			}
+		}
+
+		for _, reaction := range reactions {
+			if reaction == nil || reaction.PublicTargetID == "" {
+				continue
+			}
+
+			reactionType := string(reaction.Type)
+			if reactionType != "like" && reactionType != "dislike" {
+				continue
+			}
+
+			switch reaction.TargetType {
+			case "post":
+				postPublicID := reaction.PublicTargetID
+				post := postCache[postPublicID]
+				if post == nil {
+					resolvedPost, getErr := h.getPostViewForActivity(ctx, postPublicID)
+					if getErr == nil && resolvedPost != nil {
+						post = resolvedPost
+						postCache[postPublicID] = resolvedPost
+					}
+				}
+
+				postTitle := "Post not found"
+				postCategories := []string{}
+				if post != nil {
+					postTitle = post.Title
+					postCategories = post.Categories
+				}
+
+				reactionItems = append(reactionItems, map[string]interface{}{
+					"PostPublicID":       postPublicID,
+					"PostTitle":          postTitle,
+					"PostCategories":     postCategories,
+					"ReactionType":       reactionType,
+					"ReactionTargetType": "post",
+					"CreatedAt":          reaction.CreatedAt,
+				})
+
+			case "comment":
+				comment, getCommentErr := h.commentService.GetComment(ctx, reaction.PublicTargetID)
+				if getCommentErr != nil || comment == nil || comment.PublicPostID == "" {
+					continue
+				}
+
+				post := postCache[comment.PublicPostID]
+				if post == nil {
+					resolvedPost, getErr := h.getPostViewForActivity(ctx, comment.PublicPostID)
+					if getErr == nil && resolvedPost != nil {
+						post = resolvedPost
+						postCache[comment.PublicPostID] = resolvedPost
+					}
+				}
+
+				postTitle := "Post not found"
+				postCategories := []string{}
+				if post != nil {
+					postTitle = post.Title
+					postCategories = post.Categories
+				}
+
+				reactionItems = append(reactionItems, map[string]interface{}{
+					"PostPublicID":       comment.PublicPostID,
+					"PostTitle":          postTitle,
+					"PostCategories":     postCategories,
+					"CommentPublicID":    comment.PublicID,
+					"ReactionType":       reactionType,
+					"ReactionTargetType": "comment",
+					"CreatedAt":          reaction.CreatedAt,
+				})
+			}
+		}
 	}
 
 	commentItems := make([]map[string]interface{}, 0, len(commentsFromService))
+
+	// Fetch all posts the user has commented on in one query to avoid per-comment lookups.
+	postCache := make(map[string]*activityPostView)
+	commentedPosts, err := h.listCommentedPostsForActivity(ctx, userPublicID)
+	if err == nil {
+		postCache = make(map[string]*activityPostView, len(commentedPosts))
+		for _, post := range commentedPosts {
+			if post != nil {
+				postCache[post.PublicID] = post
+			}
+		}
+	}
+
+	for _, comment := range commentsFromService {
+		if comment.PublicPostID == "" {
+			continue
+		}
+		if _, ok := postCache[comment.PublicPostID]; ok {
+			continue
+		}
+		post, getErr := h.getPostViewForActivity(ctx, comment.PublicPostID)
+		if getErr == nil && post != nil {
+			postCache[comment.PublicPostID] = post
+		}
+	}
+
 	for _, comment := range commentsFromService {
 		postTitle := "Post not found"
 		postPublicID := comment.PublicPostID
 		postCategories := []string{}
-		if comment.PublicPostID != "" {
-			post, err := h.postService.GetPost(ctx, comment.PublicPostID)
-			if err == nil && post != nil {
-				postTitle = post.Title
-				postPublicID = post.PublicID
-				postCategories = post.Categories
-			}
+		postLikeCount := 0
+		postDislikeCount := 0
+		if post, ok := postCache[comment.PublicPostID]; ok {
+			postTitle = post.Title
+			postPublicID = post.PublicID
+			postCategories = post.Categories
+			postLikeCount = post.LikeCount
+			postDislikeCount = post.DislikeCount
 		}
 
 		commentItems = append(commentItems, map[string]interface{}{
-			"CommentPublicID": comment.PublicID,
-			"Content":         comment.Content,
-			"PostPublicID":    postPublicID,
-			"PostTitle":       postTitle,
-			"PostCategories":  postCategories,
-			"CreatedAt":       comment.CreatedAt,
+			"CommentPublicID":  comment.PublicID,
+			"Content":          comment.Content,
+			"PostPublicID":     postPublicID,
+			"PostTitle":        postTitle,
+			"PostCategories":   postCategories,
+			"PostLikeCount":    postLikeCount,
+			"PostDislikeCount": postDislikeCount,
+			"CreatedAt":        comment.CreatedAt,
 		})
 	}
 
@@ -618,4 +744,79 @@ func (h *HTTPHandler) aggregateUserActivity(ctx context.Context, userPublicID st
 		"reactions":     reactionItems,
 		"comments":      commentItems,
 	}, nil
+}
+
+// CreateCommentForm handles comment form submissions from the post detail page (HTML form).
+func (h *HTTPHandler) CreateCommentForm(w http.ResponseWriter, r *http.Request) {
+	userID, _ := h.GetCurrentUser(r)
+	if userID == 0 {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	postPublicID := r.PathValue("post_id")
+	if postPublicID == "" {
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Post ID is required")
+		return
+	}
+
+	content := strings.TrimSpace(r.FormValue("content"))
+	if content == "" {
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Comment content is required")
+		return
+	}
+
+	_, err := h.commentService.CreateComment(r.Context(), postPublicID, userID, content)
+	if err != nil {
+		if errors.Is(err, commentDomain.ErrEmptyContent) || errors.Is(err, commentDomain.ErrContentTooLong) {
+			platformErrors.WriteErrorJSON(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to create comment")
+		return
+	}
+
+	http.Redirect(w, r, r.Referer(), http.StatusSeeOther)
+}
+
+// DeleteCommentForm handles comment deletion from the post detail page (HTML form).
+func (h *HTTPHandler) DeleteCommentForm(w http.ResponseWriter, r *http.Request) {
+	userID, _ := h.GetCurrentUser(r)
+	if userID == 0 {
+		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	commentPublicID := r.PathValue("id")
+	if commentPublicID == "" {
+		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "Comment ID is required")
+		return
+	}
+
+	existingComment, err := h.commentService.GetComment(r.Context(), commentPublicID)
+	if err != nil {
+		if errors.Is(err, commentDomain.ErrCommentNotFound) {
+			platformErrors.WriteErrorJSON(w, http.StatusNotFound, "Comment not found")
+			return
+		}
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to retrieve comment")
+		return
+	}
+
+	if existingComment.UserID != userID {
+		platformErrors.WriteErrorJSON(w, http.StatusForbidden, "Not authorized to delete this comment")
+		return
+	}
+
+	err = h.commentService.DeleteComment(r.Context(), commentPublicID)
+	if err != nil {
+		if errors.Is(err, commentDomain.ErrCommentNotFound) {
+			platformErrors.WriteErrorJSON(w, http.StatusNotFound, "Comment not found")
+			return
+		}
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Failed to delete comment")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

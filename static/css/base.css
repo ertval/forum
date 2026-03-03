@@ -29,8 +29,19 @@
   --color-error-border: #f5d98f;
 
   /* Border Colors */
-  --color-border: #e6e6e6;
+  --color-border: #e0e0e0;
   --color-border-blue: #c0d0e0;
+  --color-form-border: #c5d0b8;
+
+  /* Reaction Colors */
+  --color-reaction-bg: #e0f7e9;
+  --color-reaction-border: #c2e6d6;
+  --color-reaction-active: #80cbc4;
+  --color-reaction-active-hover: #5a9e97;
+
+  /* Additional Colors */
+  --color-link-hover: #7fb8a5;
+  --color-success-dark: #2d7a5e;
 
   /* Gradients */
   --gradient-green-blue: linear-gradient(135deg, #e0f7e9 0%, #d3e0ea 100%);
