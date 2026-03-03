@@ -346,12 +346,12 @@ func TestSQLiteReactionRepository_ToggleReaction_CreateUpdateDelete(t *testing.T
 		CreatedAt:      time.Now(),
 	}
 
-	removed, err := repo.ToggleReaction(ctx, reaction)
+	action, err := repo.ToggleReaction(ctx, reaction)
 	if err != nil {
 		t.Fatalf("ToggleReaction(create) returned error: %v", err)
 	}
-	if removed {
-		t.Fatalf("ToggleReaction(create) removed = true, want false")
+	if action != domain.ToggleActionCreated {
+		t.Fatalf("ToggleReaction(create) action = %q, want %q", action, domain.ToggleActionCreated)
 	}
 
 	var rowCount int
@@ -364,12 +364,12 @@ func TestSQLiteReactionRepository_ToggleReaction_CreateUpdateDelete(t *testing.T
 	}
 
 	reaction.Type = domain.ReactionDislike
-	removed, err = repo.ToggleReaction(ctx, reaction)
+	action, err = repo.ToggleReaction(ctx, reaction)
 	if err != nil {
 		t.Fatalf("ToggleReaction(update) returned error: %v", err)
 	}
-	if removed {
-		t.Fatalf("ToggleReaction(update) removed = true, want false")
+	if action != domain.ToggleActionUpdated {
+		t.Fatalf("ToggleReaction(update) action = %q, want %q", action, domain.ToggleActionUpdated)
 	}
 
 	var reactionType string
@@ -381,12 +381,12 @@ func TestSQLiteReactionRepository_ToggleReaction_CreateUpdateDelete(t *testing.T
 		t.Fatalf("after update type = %q, want %q", reactionType, domain.ReactionDislike)
 	}
 
-	removed, err = repo.ToggleReaction(ctx, reaction)
+	action, err = repo.ToggleReaction(ctx, reaction)
 	if err != nil {
 		t.Fatalf("ToggleReaction(delete) returned error: %v", err)
 	}
-	if !removed {
-		t.Fatalf("ToggleReaction(delete) removed = false, want true")
+	if action != domain.ToggleActionRemoved {
+		t.Fatalf("ToggleReaction(delete) action = %q, want %q", action, domain.ToggleActionRemoved)
 	}
 
 	err = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM reactions WHERE user_id = ? AND target_id = ? AND target_type = ?", 42, 10, "post").Scan(&rowCount)
@@ -421,5 +421,46 @@ func TestSQLiteReactionRepository_DeleteByTargetPublicID_ReactionNotFound(t *tes
 	err := repo.DeleteByTargetPublicID(ctx, 999, "public-10", "post")
 	if err != domain.ErrReactionNotFound {
 		t.Fatalf("expected ErrReactionNotFound, got %v", err)
+	}
+}
+
+func TestSQLiteReactionRepository_ListByUserID_IncludesPostAndCommentTargets(t *testing.T) {
+	db := setupReactionTestDB(t)
+	defer db.Close()
+
+	_, err := db.Exec("INSERT INTO comments (id, public_id) VALUES (?, ?)", 15, "comment-15")
+	if err != nil {
+		t.Fatalf("Failed to insert comment mapping: %v", err)
+	}
+
+	// Newer reaction on comment, older on post
+	_, err = db.Exec(`
+		INSERT INTO reactions (public_id, user_id, target_id, target_type, type, created_at)
+		VALUES
+			('rxn-post', 7, 10, 'post', 'like', '2026-03-01 10:00:00'),
+			('rxn-comment', 7, 15, 'comment', 'dislike', '2026-03-02 10:00:00')
+	`)
+	if err != nil {
+		t.Fatalf("Failed to seed reactions: %v", err)
+	}
+
+	repo := NewSQLiteReactionRepository(db)
+	ctx := context.Background()
+
+	reactions, err := repo.ListByUserID(ctx, 7)
+	if err != nil {
+		t.Fatalf("ListByUserID returned error: %v", err)
+	}
+
+	if len(reactions) != 2 {
+		t.Fatalf("expected 2 reactions, got %d", len(reactions))
+	}
+
+	if reactions[0].TargetType != "comment" || reactions[0].PublicTargetID != "comment-15" {
+		t.Fatalf("expected newest comment reaction first with public target comment-15, got targetType=%q publicTarget=%q", reactions[0].TargetType, reactions[0].PublicTargetID)
+	}
+
+	if reactions[1].TargetType != "post" || reactions[1].PublicTargetID != "public-10" {
+		t.Fatalf("expected post reaction second with public target public-10, got targetType=%q publicTarget=%q", reactions[1].TargetType, reactions[1].PublicTargetID)
 	}
 }

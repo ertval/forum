@@ -36,6 +36,22 @@ func (m *mockModerationService) ListReports(ctx context.Context, status string) 
 	return nil, nil
 }
 
+func (m *mockModerationService) RequestModeratorRole(ctx context.Context, requesterID int, message string) (*domain.ModeratorRequest, error) {
+	return nil, nil
+}
+
+func (m *mockModerationService) ReviewModeratorRequest(ctx context.Context, reviewerID int, requestPublicID string, status, response string) (*domain.ModeratorRequest, error) {
+	return nil, nil
+}
+
+func (m *mockModerationService) GetModeratorRequestByPublicID(ctx context.Context, requestPublicID string) (*domain.ModeratorRequest, error) {
+	return nil, nil
+}
+
+func (m *mockModerationService) ListModeratorRequests(ctx context.Context, status string) ([]*domain.ModeratorRequest, error) {
+	return nil, nil
+}
+
 type mockReportRepository struct{}
 
 func (m *mockReportRepository) List(ctx context.Context, status string) ([]*domain.Report, error) {
@@ -58,6 +74,26 @@ func (m *mockReportRepository) ResolveTargetID(ctx context.Context, targetType, 
 	return 0, nil
 }
 
+func (m *mockReportRepository) CreateModeratorRequest(ctx context.Context, request *domain.ModeratorRequest) error {
+	return nil
+}
+
+func (m *mockReportRepository) GetModeratorRequestByPublicID(ctx context.Context, requestPublicID string) (*domain.ModeratorRequest, error) {
+	return nil, nil
+}
+
+func (m *mockReportRepository) ListModeratorRequests(ctx context.Context, status string) ([]*domain.ModeratorRequest, error) {
+	return nil, nil
+}
+
+func (m *mockReportRepository) UpdateModeratorRequest(ctx context.Context, request *domain.ModeratorRequest) error {
+	return nil
+}
+
+func (m *mockReportRepository) HasPendingModeratorRequest(ctx context.Context, requesterID int) (bool, error) {
+	return false, nil
+}
+
 func TestModerationServiceInterfaceMethods(t *testing.T) {
 	// Create context for testing
 	ctx := context.Background()
@@ -78,6 +114,26 @@ func TestModerationServiceInterfaceMethods(t *testing.T) {
 	}
 
 	_, err = service.ListReports(ctx, "status")
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	_, err = service.RequestModeratorRole(ctx, 1, "message")
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	_, err = service.ReviewModeratorRequest(ctx, 1, "req-1", "approved", "response")
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	_, err = service.GetModeratorRequestByPublicID(ctx, "req-1")
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	_, err = service.ListModeratorRequests(ctx, "pending")
 	if err != nil {
 		// Expected to be not implemented in mock
 	}
@@ -121,6 +177,31 @@ func TestReportRepositoryInterfaceMethods(t *testing.T) {
 
 	// Test ResolveTargetID method
 	_, err = repo.ResolveTargetID(ctx, "post", "pub-1")
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	err = repo.CreateModeratorRequest(ctx, &domain.ModeratorRequest{})
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	_, err = repo.GetModeratorRequestByPublicID(ctx, "req-1")
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	_, err = repo.ListModeratorRequests(ctx, "pending")
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	err = repo.UpdateModeratorRequest(ctx, &domain.ModeratorRequest{})
+	if err != nil {
+		// Expected to be not implemented in mock
+	}
+
+	_, err = repo.HasPendingModeratorRequest(ctx, 1)
 	if err != nil {
 		// Expected to be not implemented in mock
 	}

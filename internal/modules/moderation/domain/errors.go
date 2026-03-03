@@ -23,4 +23,16 @@ var (
 
 	// ErrInsufficientPermissions is returned when a user lacks moderation permissions.
 	ErrInsufficientPermissions = errors.New("insufficient permissions to perform moderation action")
+
+	// ErrModeratorRequestNotFound is returned when moderator request does not exist.
+	ErrModeratorRequestNotFound = errors.New("moderator request not found")
+
+	// ErrInvalidRequestStatus is returned when moderator request status is invalid.
+	ErrInvalidRequestStatus = errors.New("invalid moderator request status")
+
+	// ErrInvalidRequester is returned when moderator request requester is invalid.
+	ErrInvalidRequester = errors.New("invalid moderator request requester")
+
+	// ErrModeratorRequestAlreadyPending is returned when user already has a pending moderator request.
+	ErrModeratorRequestAlreadyPending = errors.New("moderator request already pending")
 )

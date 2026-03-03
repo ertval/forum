@@ -108,3 +108,88 @@ func (s *Service) ListReports(ctx context.Context, status string) ([]*domain.Rep
 	}
 	return s.reportRepo.List(ctx, status)
 }
+
+// RequestModeratorRole creates a new moderator-role request for a user.
+func (s *Service) RequestModeratorRole(ctx context.Context, requesterID int, message string) (*domain.ModeratorRequest, error) {
+	if requesterID <= 0 {
+		return nil, domain.ErrInvalidRequester
+	}
+
+	pending, err := s.reportRepo.HasPendingModeratorRequest(ctx, requesterID)
+	if err != nil {
+		return nil, err
+	}
+	if pending {
+		return nil, domain.ErrModeratorRequestAlreadyPending
+	}
+
+	request := &domain.ModeratorRequest{
+		RequesterID: requesterID,
+		Status:      domain.RequestStatusPending,
+		Message:     strings.TrimSpace(message),
+		CreatedAt:   time.Now(),
+	}
+
+	if err := request.Validate(); err != nil {
+		return nil, err
+	}
+
+	if err := s.reportRepo.CreateModeratorRequest(ctx, request); err != nil {
+		return nil, err
+	}
+
+	return request, nil
+}
+
+// ReviewModeratorRequest approves or denies a moderator-role request.
+func (s *Service) ReviewModeratorRequest(ctx context.Context, reviewerID int, requestPublicID string, status, response string) (*domain.ModeratorRequest, error) {
+	if reviewerID <= 0 {
+		return nil, domain.ErrInsufficientPermissions
+	}
+
+	requestPublicID = strings.TrimSpace(requestPublicID)
+	status = domain.NormalizeRequestStatus(status)
+	response = strings.TrimSpace(response)
+
+	if requestPublicID == "" {
+		return nil, domain.ErrModeratorRequestNotFound
+	}
+	if status != domain.RequestStatusApproved && status != domain.RequestStatusDenied {
+		return nil, domain.ErrInvalidRequestStatus
+	}
+
+	request, err := s.reportRepo.GetModeratorRequestByPublicID(ctx, requestPublicID)
+	if err != nil {
+		return nil, err
+	}
+
+	request.Status = status
+	request.Response = response
+	request.ReviewerID = &reviewerID
+	now := time.Now()
+	request.ReviewedAt = &now
+
+	if err := s.reportRepo.UpdateModeratorRequest(ctx, request); err != nil {
+		return nil, err
+	}
+
+	return request, nil
+}
+
+// GetModeratorRequestByPublicID retrieves a moderator request by UUID.
+func (s *Service) GetModeratorRequestByPublicID(ctx context.Context, requestPublicID string) (*domain.ModeratorRequest, error) {
+	requestPublicID = strings.TrimSpace(requestPublicID)
+	if requestPublicID == "" {
+		return nil, domain.ErrModeratorRequestNotFound
+	}
+	return s.reportRepo.GetModeratorRequestByPublicID(ctx, requestPublicID)
+}
+
+// ListModeratorRequests retrieves moderator requests filtered by status.
+func (s *Service) ListModeratorRequests(ctx context.Context, status string) ([]*domain.ModeratorRequest, error) {
+	status = strings.TrimSpace(status)
+	if status != "" && !domain.IsValidRequestStatus(status) {
+		return nil, domain.ErrInvalidRequestStatus
+	}
+	return s.reportRepo.ListModeratorRequests(ctx, status)
+}

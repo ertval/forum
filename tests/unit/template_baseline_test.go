@@ -284,7 +284,7 @@ func TestAllTemplatesWithBase(t *testing.T) {
 				"<!DOCTYPE html>",
 				"<title>My Activity - Forum</title>",
 				`<a class="comment-post-link" href="/board?my_posts=true">Created Posts</a>`,
-				`<a class="comment-post-link" href="/board?liked_posts=true">Post Reactions</a>`,
+				`<a class="comment-post-link" href="/activity?activity_type=reactions">Reactions</a>`,
 				`<a class="comment-post-link" href="/comments">Comments</a>`,
 			},
 		},

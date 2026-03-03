@@ -26,6 +26,9 @@ type ReactionService interface {
 	// GetUserReactionCount returns the total number of reactions given by a user.
 	GetUserReactionCount(ctx context.Context, userID int) (int, error)
 
+	// ListUserReactions returns all reactions made by a user, newest first.
+	ListUserReactions(ctx context.Context, userID int) ([]*domain.Reaction, error)
+
 	// GetByUserAndTargetPublicID retrieves a user's reaction for a specific target by target's public UUID.
 	GetByUserAndTargetPublicID(ctx context.Context, userID int, targetPublicID string, targetType string) (*domain.Reaction, error)
 

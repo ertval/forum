@@ -5,7 +5,24 @@
     // Update a button's displayed count by replacing the "(N)" pattern in its text.
     function updateButtonCount(btn, newCount) {
         if (!btn) return;
-        btn.textContent = btn.textContent.replace(/\(\d+\)/, `(${newCount})`);
+
+        const currentText = btn.textContent;
+        if (/\(\d+\)/.test(currentText)) {
+            btn.textContent = currentText.replace(/\(\d+\)/, `(${newCount})`);
+        } else if (/\d+/.test(currentText)) {
+            btn.textContent = currentText.replace(/\d+(?!.*\d)/, String(newCount));
+        } else {
+            btn.textContent = `${currentText} (${newCount})`;
+        }
+
+        const ariaLabel = btn.getAttribute('aria-label');
+        if (ariaLabel) {
+            if (/current count:\s*\d+/i.test(ariaLabel)) {
+                btn.setAttribute('aria-label', ariaLabel.replace(/current count:\s*\d+/i, `current count: ${newCount}`));
+            } else {
+                btn.setAttribute('aria-label', `${ariaLabel}, current count: ${newCount}`);
+            }
+        }
     }
 
     // Fetch updated counts from the server and apply them to the like/dislike buttons.
@@ -23,11 +40,31 @@
         }
     }
 
+    function applyCountsFromResponse(response, likeBtn, dislikeBtn) {
+        if (!response || typeof response !== 'object') {
+            return false;
+        }
+
+        const hasLikes = typeof response.likes === 'number';
+        const hasDislikes = typeof response.dislikes === 'number';
+        if (!hasLikes && !hasDislikes) {
+            return false;
+        }
+
+        if (hasLikes) {
+            updateButtonCount(likeBtn, response.likes);
+        }
+        if (hasDislikes) {
+            updateButtonCount(dislikeBtn, response.dislikes);
+        }
+        return true;
+    }
+
     // Unified reaction handler for both posts and comments
     async function handleReaction(targetType, targetId, reactionType, likeBtn, dislikeBtn) {
         window.clearError('page-errors');
         try {
-            await window.api.request('/api/reactions', {
+            const response = await window.api.request('/api/reactions', {
                 method: 'POST',
                 body: JSON.stringify({
                     target_type: targetType,
@@ -35,7 +72,11 @@
                     type: reactionType
                 })
             });
-            await refreshCounts(targetType, targetId, likeBtn, dislikeBtn);
+
+            const applied = applyCountsFromResponse(response, likeBtn, dislikeBtn);
+            if (!applied) {
+                await refreshCounts(targetType, targetId, likeBtn, dislikeBtn);
+            }
         } catch (error) {
             if (error && error.status === 401) {
                 window.showError(`Please login to react to ${targetType}s`, 'page-errors');
@@ -87,6 +128,7 @@
             // Handle comment likes
             if (btn.classList.contains('btn-like-comment')) {
                 e.preventDefault();
+                e.stopPropagation();
                 const commentId = btn.getAttribute('data-comment-id');
                 if (commentId) {
                     const dislikeBtn = document.querySelector(`.btn-dislike-comment[data-comment-id="${commentId}"]`);
@@ -97,6 +139,7 @@
             // Handle comment dislikes
             if (btn.classList.contains('btn-dislike-comment')) {
                 e.preventDefault();
+                e.stopPropagation();
                 const commentId = btn.getAttribute('data-comment-id');
                 if (commentId) {
                     const likeBtn = document.querySelector(`.btn-like-comment[data-comment-id="${commentId}"]`);

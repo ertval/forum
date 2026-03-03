@@ -31,6 +31,10 @@ type ReactionRepository interface {
 	// CountByUserID returns the total number of reactions given by a user.
 	CountByUserID(ctx context.Context, userID int) (int, error)
 
+	// ListByUserID returns all reactions made by a user, newest first.
+	// Each returned reaction must include PublicTargetID.
+	ListByUserID(ctx context.Context, userID int) ([]*domain.Reaction, error)
+
 	// CountBatchByTargetPublicIDs returns like and dislike counts for multiple targets in a single query.
 	// The result is a map keyed by targetPublicID, with inner maps of reaction type ("like"/"dislike") -> count.
 	CountBatchByTargetPublicIDs(ctx context.Context, targetPublicIDs []string, targetType string) (map[string]map[string]int, error)
@@ -40,5 +44,5 @@ type ReactionRepository interface {
 	// - Deletes the reaction if the same type already exists (toggle off, removed=true)
 	// - Updates the reaction type if a different type exists (removed=false)
 	// - Creates a new reaction if none exists (removed=false)
-	ToggleReaction(ctx context.Context, reaction *domain.Reaction) (removed bool, err error)
+	ToggleReaction(ctx context.Context, reaction *domain.Reaction) (action domain.ToggleAction, err error)
 }

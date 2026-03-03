@@ -44,6 +44,10 @@ func (m *mockReactionService) GetUserReactionCount(ctx context.Context, userID i
 	return 0, nil
 }
 
+func (m *mockReactionService) ListUserReactions(ctx context.Context, userID int) ([]*domain.Reaction, error) {
+	return nil, nil
+}
+
 func (m *mockReactionService) GetByUserAndTargetPublicID(ctx context.Context, userID int, targetPublicID string, targetType string) (*domain.Reaction, error) {
 	return nil, nil
 }
@@ -82,12 +86,16 @@ func (m *mockReactionRepository) CountByUserID(ctx context.Context, userID int) 
 	return 0, nil
 }
 
-func (m *mockReactionRepository) ToggleReaction(ctx context.Context, reaction *domain.Reaction) (removed bool, err error) {
-	return false, nil
+func (m *mockReactionRepository) ToggleReaction(ctx context.Context, reaction *domain.Reaction) (domain.ToggleAction, error) {
+	return domain.ToggleActionCreated, nil
 }
 
 func (m *mockReactionRepository) CountBatchByTargetPublicIDs(ctx context.Context, targetPublicIDs []string, targetType string) (map[string]map[string]int, error) {
 	return make(map[string]map[string]int), nil
+}
+
+func (m *mockReactionRepository) ListByUserID(ctx context.Context, userID int) ([]*domain.Reaction, error) {
+	return nil, nil
 }
 
 // Compile-time interface satisfaction checks
@@ -120,6 +128,11 @@ func TestReactionServiceInterfaceMethods(t *testing.T) {
 	}
 
 	_, err = service.GetUserReactionCount(ctx, 1)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	_, err = service.ListUserReactions(ctx, 1)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}

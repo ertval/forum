@@ -77,18 +77,7 @@ type updateRoleRequest struct {
 // UpdateRoleAPI handles updating a user's role.
 // Requires admin permissions (checked via middleware in production).
 func (h *HTTPHandler) UpdateRoleAPI(w http.ResponseWriter, r *http.Request) {
-	requesterPublicID := authPorts.GetUserID(r.Context())
-	if requesterPublicID == "" {
-		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	requester, err := h.userService.GetByPublicID(r.Context(), requesterPublicID)
-	if err != nil || requester == nil {
-		platformErrors.WriteErrorJSON(w, http.StatusUnauthorized, "invalid user")
-		return
-	}
-	if requester.Role != domain.RoleAdmin {
+	if _, err := h.requireAdmin(r); err != nil {
 		platformErrors.WriteErrorJSON(w, http.StatusForbidden, "admin role required")
 		return
 	}
@@ -134,6 +123,11 @@ func (h *HTTPHandler) UpdateRoleAPI(w http.ResponseWriter, r *http.Request) {
 
 // DeactivateUserAPI handles deactivating a user account.
 func (h *HTTPHandler) DeactivateUserAPI(w http.ResponseWriter, r *http.Request) {
+	if _, err := h.requireAdmin(r); err != nil {
+		platformErrors.WriteErrorJSON(w, http.StatusForbidden, "admin role required")
+		return
+	}
+
 	publicID := r.PathValue("id")
 	if publicID == "" {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "user id is required")
@@ -157,6 +151,11 @@ func (h *HTTPHandler) DeactivateUserAPI(w http.ResponseWriter, r *http.Request) 
 
 // ActivateUserAPI handles activating a user account.
 func (h *HTTPHandler) ActivateUserAPI(w http.ResponseWriter, r *http.Request) {
+	if _, err := h.requireAdmin(r); err != nil {
+		platformErrors.WriteErrorJSON(w, http.StatusForbidden, "admin role required")
+		return
+	}
+
 	publicID := r.PathValue("id")
 	if publicID == "" {
 		platformErrors.WriteErrorJSON(w, http.StatusBadRequest, "user id is required")
@@ -196,4 +195,21 @@ func (h *HTTPHandler) UpdateSettingsAPI(w http.ResponseWriter, r *http.Request) 
 		"message": "settings updated successfully",
 		"user":    updatedUser,
 	})
+}
+
+func (h *HTTPHandler) requireAdmin(r *http.Request) (*domain.User, error) {
+	requesterPublicID := authPorts.GetUserID(r.Context())
+	if requesterPublicID == "" {
+		return nil, domain.ErrUserNotFound
+	}
+
+	requester, err := h.userService.GetByPublicID(r.Context(), requesterPublicID)
+	if err != nil || requester == nil {
+		return nil, domain.ErrUserNotFound
+	}
+	if requester.Role != domain.RoleAdmin {
+		return nil, domain.ErrInvalidRole
+	}
+
+	return requester, nil
 }

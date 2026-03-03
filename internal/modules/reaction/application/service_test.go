@@ -130,6 +130,16 @@ func (m *MockReactionRepository) CountByUserID(ctx context.Context, userID int) 
 	return count, nil
 }
 
+func (m *MockReactionRepository) ListByUserID(ctx context.Context, userID int) ([]*domain.Reaction, error) {
+	result := make([]*domain.Reaction, 0, len(m.reactions))
+	for _, reaction := range m.reactions {
+		if reaction.UserID == userID {
+			result = append(result, reaction)
+		}
+	}
+	return result, nil
+}
+
 func (m *MockReactionRepository) CountLikesAndDislikesByTargetPublicID(ctx context.Context, targetPublicID string, targetType string) (likes, dislikes int, err error) {
 	if m.countLikesAndDislikesFn != nil {
 		return m.countLikesAndDislikesFn(ctx, targetPublicID, targetType)
@@ -153,7 +163,7 @@ func (m *MockReactionRepository) CountBatchByTargetPublicIDs(ctx context.Context
 	return make(map[string]map[string]int), nil
 }
 
-func (m *MockReactionRepository) ToggleReaction(ctx context.Context, reaction *domain.Reaction) (bool, error) {
+func (m *MockReactionRepository) ToggleReaction(ctx context.Context, reaction *domain.Reaction) (domain.ToggleAction, error) {
 	if m.reactions == nil {
 		m.reactions = make(map[string]*domain.Reaction)
 	}
@@ -163,16 +173,16 @@ func (m *MockReactionRepository) ToggleReaction(ctx context.Context, reaction *d
 		if existing.Type == reaction.Type {
 			// Same type — toggle off (delete)
 			delete(m.reactions, key)
-			return true, nil
+			return domain.ToggleActionRemoved, nil
 		}
 		// Different type — update in place
 		existing.Type = reaction.Type
-		return false, nil
+		return domain.ToggleActionUpdated, nil
 	}
 
 	// New reaction — create
 	m.reactions[key] = reaction
-	return false, nil
+	return domain.ToggleActionCreated, nil
 }
 
 // MockPostRepository implements PostRepository for testing
@@ -305,7 +315,10 @@ func (m *MockCommentRepository) ListByUserPaginated(ctx context.Context, userID 
 }
 
 // MockUserService implements UserService for testing
-type MockUserService struct{}
+type MockUserService struct {
+	incrementCalls int
+	decrementCalls int
+}
 
 func (m *MockUserService) CreateUser(ctx context.Context, email, username, passwordHash string) (userID int, err error) {
 	return 0, nil
@@ -360,10 +373,12 @@ func (m *MockUserService) DecrementCommentCount(ctx context.Context, userID int)
 }
 
 func (m *MockUserService) IncrementReactionCount(ctx context.Context, userID int) error {
+	m.incrementCalls++
 	return nil
 }
 
 func (m *MockUserService) DecrementReactionCount(ctx context.Context, userID int) error {
+	m.decrementCalls++
 	return nil
 }
 
@@ -397,6 +412,37 @@ func TestService_React(t *testing.T) {
 	if err != nil {
 		// Since there's no real error handling in the mock, any error means an issue
 		t.Errorf("Expected no error, got %v", err)
+	}
+}
+
+func TestService_React_DoesNotChangeReactionCountOnTypeSwitch(t *testing.T) {
+	ctx := context.Background()
+	mockRepo := &MockReactionRepository{}
+	mockPostRepo := &MockPostRepository{posts: map[string]*postDomain.Post{
+		"public-10": {ID: 10, PublicID: "public-10", UserID: 2},
+	}}
+	mockCommentRepo := &MockCommentRepository{}
+	mockUserService := &MockUserService{}
+
+	service := NewService(mockRepo, mockPostRepo, mockCommentRepo, mockUserService, nil)
+
+	if err := service.React(ctx, 1, "public-10", "post", domain.ReactionLike); err != nil {
+		t.Fatalf("initial like failed: %v", err)
+	}
+	if err := service.React(ctx, 1, "public-10", "post", domain.ReactionDislike); err != nil {
+		t.Fatalf("switch to dislike failed: %v", err)
+	}
+
+	deadline := time.Now().Add(200 * time.Millisecond)
+	for mockUserService.incrementCalls == 0 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	if mockUserService.incrementCalls != 1 {
+		t.Fatalf("expected increment to be called once (create only), got %d", mockUserService.incrementCalls)
+	}
+	if mockUserService.decrementCalls != 0 {
+		t.Fatalf("expected decrement not to be called on type switch, got %d", mockUserService.decrementCalls)
 	}
 }
 

@@ -19,4 +19,16 @@ type ModerationService interface {
 
 	// ListReports retrieves reports filtered by status.
 	ListReports(ctx context.Context, status string) ([]*domain.Report, error)
+
+	// RequestModeratorRole creates a moderator-role request for a user.
+	RequestModeratorRole(ctx context.Context, requesterID int, message string) (*domain.ModeratorRequest, error)
+
+	// ReviewModeratorRequest approves or denies a moderator-role request.
+	ReviewModeratorRequest(ctx context.Context, reviewerID int, requestPublicID string, status, response string) (*domain.ModeratorRequest, error)
+
+	// GetModeratorRequestByPublicID retrieves a moderator-role request by UUID.
+	GetModeratorRequestByPublicID(ctx context.Context, requestPublicID string) (*domain.ModeratorRequest, error)
+
+	// ListModeratorRequests retrieves moderator-role requests filtered by status.
+	ListModeratorRequests(ctx context.Context, status string) ([]*domain.ModeratorRequest, error)
 }

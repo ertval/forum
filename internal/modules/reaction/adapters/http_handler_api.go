@@ -111,11 +111,29 @@ func (h *HTTPHandler) AddReactionAPI(w http.ResponseWriter, r *http.Request) {
 		logger.String("target_id", req.TargetID),
 		logger.String("reaction_type", string(req.Type)))
 
+	likes, dislikes, countErr := h.reactionService.CountReactions(r.Context(), req.TargetID, req.TargetType)
+	if countErr != nil {
+		h.logger.Error("Failed to count reactions after add",
+			logger.String("target_type", req.TargetType),
+			logger.String("target_id", req.TargetID),
+			logger.Error(countErr))
+		platformErrors.WriteErrorJSON(w, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
 	// Return success
 	httpjson.WriteJSON(w, http.StatusOK, struct {
-		Message string `json:"message"`
+		Message    string `json:"message"`
+		TargetID   string `json:"target_id"`
+		TargetType string `json:"target_type"`
+		Likes      int    `json:"likes"`
+		Dislikes   int    `json:"dislikes"`
 	}{
-		Message: "Reaction added successfully",
+		Message:    "Reaction added successfully",
+		TargetID:   req.TargetID,
+		TargetType: req.TargetType,
+		Likes:      likes,
+		Dislikes:   dislikes,
 	})
 }
 

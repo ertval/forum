@@ -472,39 +472,101 @@ func (h *HTTPHandler) aggregateUserActivity(ctx context.Context, userPublicID st
 		return nil, err
 	}
 
-	likedPosts, err := h.listLikedPostsForActivity(ctx, userPublicID)
-	if err != nil {
-		return nil, err
-	}
-
-	dislikedPosts, err := h.listDislikedPostsForActivity(ctx, userPublicID)
-	if err != nil {
-		return nil, err
-	}
-
 	commentsFromService, err := h.commentService.ListCommentsByUserPaginated(ctx, userPublicID, 100, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	reactionItems := make([]map[string]interface{}, 0, len(likedPosts)+len(dislikedPosts))
-	for _, post := range likedPosts {
-		reactionItems = append(reactionItems, map[string]interface{}{
-			"PostPublicID":   post.PublicID,
-			"PostTitle":      post.Title,
-			"PostCategories": post.Categories,
-			"ReactionType":   "like",
-			"CreatedAt":      post.CreatedAt,
-		})
-	}
-	for _, post := range dislikedPosts {
-		reactionItems = append(reactionItems, map[string]interface{}{
-			"PostPublicID":   post.PublicID,
-			"PostTitle":      post.Title,
-			"PostCategories": post.Categories,
-			"ReactionType":   "dislike",
-			"CreatedAt":      post.CreatedAt,
-		})
+	reactionItems := make([]map[string]interface{}, 0, 16)
+	if h.reactionService != nil {
+		user, userErr := h.userService.GetByPublicID(ctx, userPublicID)
+		if userErr != nil {
+			return nil, userErr
+		}
+
+		reactions, reactionErr := h.reactionService.ListUserReactions(ctx, user.ID)
+		if reactionErr != nil {
+			return nil, reactionErr
+		}
+
+		postCache := make(map[string]*activityPostView)
+		for _, post := range createdPosts {
+			if post != nil {
+				postCache[post.PublicID] = post
+			}
+		}
+
+		for _, reaction := range reactions {
+			if reaction == nil || reaction.PublicTargetID == "" {
+				continue
+			}
+
+			reactionType := string(reaction.Type)
+			if reactionType != "like" && reactionType != "dislike" {
+				continue
+			}
+
+			switch reaction.TargetType {
+			case "post":
+				postPublicID := reaction.PublicTargetID
+				post := postCache[postPublicID]
+				if post == nil {
+					resolvedPost, getErr := h.getPostViewForActivity(ctx, postPublicID)
+					if getErr == nil && resolvedPost != nil {
+						post = resolvedPost
+						postCache[postPublicID] = resolvedPost
+					}
+				}
+
+				postTitle := "Post not found"
+				postCategories := []string{}
+				if post != nil {
+					postTitle = post.Title
+					postCategories = post.Categories
+				}
+
+				reactionItems = append(reactionItems, map[string]interface{}{
+					"PostPublicID":       postPublicID,
+					"PostTitle":          postTitle,
+					"PostCategories":     postCategories,
+					"ReactionType":       reactionType,
+					"ReactionTargetType": "post",
+					"CreatedAt":          reaction.CreatedAt,
+				})
+
+			case "comment":
+				comment, getCommentErr := h.commentService.GetComment(ctx, reaction.PublicTargetID)
+				if getCommentErr != nil || comment == nil || comment.PublicPostID == "" {
+					continue
+				}
+
+				post := postCache[comment.PublicPostID]
+				if post == nil {
+					resolvedPost, getErr := h.getPostViewForActivity(ctx, comment.PublicPostID)
+					if getErr == nil && resolvedPost != nil {
+						post = resolvedPost
+						postCache[comment.PublicPostID] = resolvedPost
+					}
+				}
+
+				postTitle := "Post not found"
+				postCategories := []string{}
+				if post != nil {
+					postTitle = post.Title
+					postCategories = post.Categories
+				}
+
+				reactionItems = append(reactionItems, map[string]interface{}{
+					"PostPublicID":       comment.PublicPostID,
+					"PostTitle":          postTitle,
+					"PostCategories":     postCategories,
+					"CommentPublicID":    comment.PublicID,
+					"ReactionType":       reactionType,
+					"ReactionTargetType": "comment",
+					"CreatedAt":          reaction.CreatedAt,
+				})
+			}
+		}
 	}
 
 	commentItems := make([]map[string]interface{}, 0, len(commentsFromService))

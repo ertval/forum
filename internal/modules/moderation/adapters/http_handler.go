@@ -24,6 +24,8 @@ type HTTPHandler struct {
 
 type userLookupService interface {
 	GetByPublicID(ctx context.Context, publicID string) (*userDomain.User, error)
+	GetByID(ctx context.Context, userID int) (*userDomain.User, error)
+	UpdateRole(ctx context.Context, userID int, newRole userDomain.Role) error
 }
 
 // ServiceContainer defines the minimal interface needed by this handler.

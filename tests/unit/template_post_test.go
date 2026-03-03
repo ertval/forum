@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"html/template"
 	"testing"
+	"time"
 )
 
 // TestPostTemplatesWithBase tests all post-related templates with base pattern.
@@ -177,9 +178,57 @@ func TestBoardTemplateWithBase(t *testing.T) {
 	assertContains(t, html, `<script src="/static/js/load-more-posts.js"></script>`)
 }
 
+func TestBoardPostCardReactionButtonsUsePostPublicID(t *testing.T) {
+	tmpl, err := template.ParseFiles("../../templates/base.html", "../../templates/board.html")
+	if err != nil {
+		t.Fatalf("Failed to parse templates: %v", err)
+	}
+
+	data := map[string]interface{}{
+		"Title": "Board",
+		"Posts": []interface{}{
+			map[string]interface{}{
+				"PublicID":       "123e4567-e89b-12d3-a456-426614174000",
+				"Title":          "Test Post",
+				"Content":        "Test content",
+				"AuthorUsername": "testuser",
+				"Categories":     []string{"General"},
+				"LikeCount":      7,
+				"DislikeCount":   2,
+				"CommentCount":   3,
+				"CreatedAt":      time.Date(2026, time.March, 3, 12, 0, 0, 0, time.UTC),
+			},
+		},
+		"Categories":       []map[string]string{{"Name": "General"}},
+		"SelectedCategory": "",
+		"MyPosts":          false,
+		"LikedPosts":       false,
+		"ShowFilter":       true,
+		"ShowSidebar":      true,
+		"FilterAction":     "/board",
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "base", data); err != nil {
+		t.Fatalf("Failed to execute template: %v", err)
+	}
+
+	html := buf.String()
+	assertContains(t, html, `data-href="/posts/123e4567-e89b-12d3-a456-426614174000"`)
+	assertContains(t, html, `data-post-id="123e4567-e89b-12d3-a456-426614174000"`)
+	assertNotContains(t, html, `data-post-id=""`)
+}
+
 func assertContains(t *testing.T, s, substr string) {
 	t.Helper()
 	if !bytes.Contains([]byte(s), []byte(substr)) {
 		t.Errorf("Expected to contain %q", substr)
+	}
+}
+
+func assertNotContains(t *testing.T, s, substr string) {
+	t.Helper()
+	if bytes.Contains([]byte(s), []byte(substr)) {
+		t.Errorf("Expected not to contain %q", substr)
 	}
 }

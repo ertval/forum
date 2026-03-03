@@ -314,6 +314,69 @@ func (r *SQLiteReactionRepository) CountByUserID(ctx context.Context, userID int
 	return count, nil
 }
 
+// ListByUserID returns all reactions made by a user, newest first.
+// Includes resolved target public UUID in Reaction.PublicTargetID.
+func (r *SQLiteReactionRepository) ListByUserID(ctx context.Context, userID int) ([]*domain.Reaction, error) {
+	query := `
+		SELECT
+			r.id,
+			r.public_id,
+			r.user_id,
+			r.target_id,
+			r.target_type,
+			r.type,
+			r.created_at,
+			COALESCE(p.public_id, c.public_id) AS target_public_id
+		FROM reactions r
+		LEFT JOIN posts p ON r.target_type = 'post' AND p.id = r.target_id
+		LEFT JOIN comments c ON r.target_type = 'comment' AND c.id = r.target_id
+		WHERE r.user_id = ?
+		ORDER BY r.created_at DESC, r.id DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	reactions := make([]*domain.Reaction, 0, 16)
+	for rows.Next() {
+		var reaction domain.Reaction
+		var createdAt sql.NullTime
+		var publicTargetID sql.NullString
+
+		err := rows.Scan(
+			&reaction.ID,
+			&reaction.PublicID,
+			&reaction.UserID,
+			&reaction.TargetID,
+			&reaction.TargetType,
+			&reaction.Type,
+			&createdAt,
+			&publicTargetID,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if createdAt.Valid {
+			reaction.CreatedAt = createdAt.Time
+		}
+		if publicTargetID.Valid {
+			reaction.PublicTargetID = publicTargetID.String
+		}
+
+		reactions = append(reactions, &reaction)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating user reactions: %w", err)
+	}
+
+	return reactions, nil
+}
+
 // CountBatchByTargetPublicIDs returns like and dislike counts for multiple targets in a single query.
 func (r *SQLiteReactionRepository) CountBatchByTargetPublicIDs(ctx context.Context, targetPublicIDs []string, targetType string) (map[string]map[string]int, error) {
 	if targetType != "post" && targetType != "comment" {
@@ -374,17 +437,17 @@ func (r *SQLiteReactionRepository) CountBatchByTargetPublicIDs(ctx context.Conte
 // - Deletes the reaction if the same type already exists (toggle off, removed=true)
 // - Updates the reaction type if a different type exists (removed=false)
 // - Creates a new reaction if none exists (removed=false)
-func (r *SQLiteReactionRepository) ToggleReaction(ctx context.Context, reaction *domain.Reaction) (removed bool, err error) {
+func (r *SQLiteReactionRepository) ToggleReaction(ctx context.Context, reaction *domain.Reaction) (action domain.ToggleAction, err error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 	defer tx.Rollback()
 
 	// Resolve the target within the transaction
 	targetID, err := r.resolveTargetIDTx(ctx, tx, reaction.PublicTargetID, reaction.TargetType)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 	reaction.TargetID = targetID
 
@@ -404,9 +467,12 @@ func (r *SQLiteReactionRepository) ToggleReaction(ctx context.Context, reaction 
 				reaction.UserID, targetID, reaction.TargetType,
 			)
 			if err != nil {
-				return false, err
+				return "", err
 			}
-			return true, tx.Commit()
+			if err := tx.Commit(); err != nil {
+				return "", err
+			}
+			return domain.ToggleActionRemoved, nil
 		}
 		// Different type — update in place
 		_, err = tx.ExecContext(ctx,
@@ -414,19 +480,22 @@ func (r *SQLiteReactionRepository) ToggleReaction(ctx context.Context, reaction 
 			reaction.Type, reaction.UserID, targetID, reaction.TargetType,
 		)
 		if err != nil {
-			return false, err
+			return "", err
 		}
-		return false, tx.Commit()
+		if err := tx.Commit(); err != nil {
+			return "", err
+		}
+		return domain.ToggleActionUpdated, nil
 	}
 
 	if err != sql.ErrNoRows {
-		return false, err
+		return "", err
 	}
 
 	// No existing reaction — generate UUID and insert
 	publicID, err := uuid.NewV4()
 	if err != nil {
-		return false, err
+		return "", err
 	}
 	reaction.PublicID = publicID.String()
 
@@ -436,7 +505,10 @@ func (r *SQLiteReactionRepository) ToggleReaction(ctx context.Context, reaction 
 		reaction.PublicID, reaction.UserID, targetID, reaction.TargetType, reaction.Type,
 	)
 	if err != nil {
-		return false, err
+		return "", err
 	}
-	return false, tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return "", err
+	}
+	return domain.ToggleActionCreated, nil
 }

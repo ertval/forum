@@ -100,12 +100,12 @@ func (s *Service) React(ctx context.Context, userID int, targetPublicID string, 
 
 	// Atomically toggle/create the reaction in a single transaction.
 	// This avoids the TOCTOU race of separate read → delete → create steps.
-	removed, err := s.reactionRepo.ToggleReaction(ctx, reaction)
+	action, err := s.reactionRepo.ToggleReaction(ctx, reaction)
 	if err != nil {
 		return err
 	}
 
-	if removed {
+	if action == domain.ToggleActionRemoved {
 		// Reaction was toggled off — decrement user's reaction count
 		async.Run(func(ctx context.Context) error {
 			return s.userService.DecrementReactionCount(ctx, userID)
@@ -129,10 +129,12 @@ func (s *Service) React(ctx context.Context, userID int, targetPublicID string, 
 		}
 	}
 
-	// Increment user's reaction count asynchronously (non-blocking)
-	async.Run(func(ctx context.Context) error {
-		return s.userService.IncrementReactionCount(ctx, userID)
-	}, fmt.Sprintf("increment reaction count for user %d", userID))
+	// Increment user's reaction count only when a new reaction is created.
+	if action == domain.ToggleActionCreated {
+		async.Run(func(ctx context.Context) error {
+			return s.userService.IncrementReactionCount(ctx, userID)
+		}, fmt.Sprintf("increment reaction count for user %d", userID))
+	}
 
 	return nil
 }
@@ -207,6 +209,15 @@ func (s *Service) GetUserReactionCount(ctx context.Context, userID int) (int, er
 	return s.reactionRepo.CountByUserID(ctx, userID)
 }
 
+// ListUserReactions returns all reactions made by a user, newest first.
+func (s *Service) ListUserReactions(ctx context.Context, userID int) ([]*domain.Reaction, error) {
+	if userID <= 0 {
+		return nil, domain.ErrInvalidUserID
+	}
+
+	return s.reactionRepo.ListByUserID(ctx, userID)
+}
+
 // CountReactionsBatch returns likes/dislikes counts for multiple targets in a single query.
 func (s *Service) CountReactionsBatch(ctx context.Context, targetPublicIDs []string, targetType string) (map[string]map[string]int, error) {
 	if targetType != "post" && targetType != "comment" {
@@ -245,5 +256,3 @@ func (s *Service) GetByUserAndTargetPublicID(ctx context.Context, userID int, ta
 
 	return s.reactionRepo.GetByUserAndTargetPublicID(ctx, userID, targetPublicID, targetType)
 }
-
-

@@ -10,12 +10,18 @@ import (
 
 // MockReportRepository implements ReportRepository for testing
 type MockReportRepository struct {
-	reports   map[int]*domain.Report
-	listFn    func(ctx context.Context, status string) ([]*domain.Report, error)
-	createFn  func(ctx context.Context, report *domain.Report) error
-	updateFn  func(ctx context.Context, report *domain.Report) error
-	getFn     func(ctx context.Context, reportPublicID string) (*domain.Report, error)
-	resolveFn func(ctx context.Context, targetType, targetPublicID string) (int, error)
+	reports                      map[int]*domain.Report
+	moderatorRequests            map[int]*domain.ModeratorRequest
+	listFn                       func(ctx context.Context, status string) ([]*domain.Report, error)
+	createFn                     func(ctx context.Context, report *domain.Report) error
+	updateFn                     func(ctx context.Context, report *domain.Report) error
+	getFn                        func(ctx context.Context, reportPublicID string) (*domain.Report, error)
+	resolveFn                    func(ctx context.Context, targetType, targetPublicID string) (int, error)
+	createModeratorRequestFn     func(ctx context.Context, request *domain.ModeratorRequest) error
+	getModeratorRequestFn        func(ctx context.Context, requestPublicID string) (*domain.ModeratorRequest, error)
+	listModeratorRequestsFn      func(ctx context.Context, status string) ([]*domain.ModeratorRequest, error)
+	updateModeratorRequestFn     func(ctx context.Context, request *domain.ModeratorRequest) error
+	hasPendingModeratorRequestFn func(ctx context.Context, requesterID int) (bool, error)
 }
 
 func (m *MockReportRepository) List(ctx context.Context, status string) ([]*domain.Report, error) {
@@ -82,6 +88,71 @@ func (m *MockReportRepository) ResolveTargetID(ctx context.Context, targetType, 
 		return 0, domain.ErrInvalidTarget
 	}
 	return 100, nil
+}
+
+func (m *MockReportRepository) CreateModeratorRequest(ctx context.Context, request *domain.ModeratorRequest) error {
+	if m.createModeratorRequestFn != nil {
+		return m.createModeratorRequestFn(ctx, request)
+	}
+	if m.moderatorRequests == nil {
+		m.moderatorRequests = make(map[int]*domain.ModeratorRequest)
+	}
+	if request.ID == 0 {
+		request.ID = len(m.moderatorRequests) + 1
+	}
+	if request.PublicID == "" {
+		request.PublicID = "moderator-request-public-id"
+	}
+	m.moderatorRequests[request.ID] = request
+	return nil
+}
+
+func (m *MockReportRepository) GetModeratorRequestByPublicID(ctx context.Context, requestPublicID string) (*domain.ModeratorRequest, error) {
+	if m.getModeratorRequestFn != nil {
+		return m.getModeratorRequestFn(ctx, requestPublicID)
+	}
+	for _, request := range m.moderatorRequests {
+		if request.PublicID == requestPublicID {
+			return request, nil
+		}
+	}
+	return nil, domain.ErrModeratorRequestNotFound
+}
+
+func (m *MockReportRepository) ListModeratorRequests(ctx context.Context, status string) ([]*domain.ModeratorRequest, error) {
+	if m.listModeratorRequestsFn != nil {
+		return m.listModeratorRequestsFn(ctx, status)
+	}
+	var result []*domain.ModeratorRequest
+	for _, request := range m.moderatorRequests {
+		if status == "" || request.Status == status {
+			result = append(result, request)
+		}
+	}
+	return result, nil
+}
+
+func (m *MockReportRepository) UpdateModeratorRequest(ctx context.Context, request *domain.ModeratorRequest) error {
+	if m.updateModeratorRequestFn != nil {
+		return m.updateModeratorRequestFn(ctx, request)
+	}
+	if m.moderatorRequests == nil {
+		m.moderatorRequests = make(map[int]*domain.ModeratorRequest)
+	}
+	m.moderatorRequests[request.ID] = request
+	return nil
+}
+
+func (m *MockReportRepository) HasPendingModeratorRequest(ctx context.Context, requesterID int) (bool, error) {
+	if m.hasPendingModeratorRequestFn != nil {
+		return m.hasPendingModeratorRequestFn(ctx, requesterID)
+	}
+	for _, request := range m.moderatorRequests {
+		if request.RequesterID == requesterID && request.Status == domain.RequestStatusPending {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func TestService_CreateReport(t *testing.T) {
@@ -251,4 +322,40 @@ func TestService_ListReports(t *testing.T) {
 			t.Fatalf("expected ErrInvalidReportStatus, got %v", err)
 		}
 	})
+}
+
+func TestService_RequestModeratorRole(t *testing.T) {
+	ctx := context.Background()
+	service := NewService(&MockReportRepository{moderatorRequests: map[int]*domain.ModeratorRequest{}})
+
+	request, err := service.RequestModeratorRole(ctx, 12, "I can help moderate")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if request.Status != domain.RequestStatusPending {
+		t.Fatalf("status = %q, want %q", request.Status, domain.RequestStatusPending)
+	}
+
+	_, err = service.RequestModeratorRole(ctx, 12, "duplicate")
+	if !errors.Is(err, domain.ErrModeratorRequestAlreadyPending) {
+		t.Fatalf("expected ErrModeratorRequestAlreadyPending, got %v", err)
+	}
+}
+
+func TestService_ReviewModeratorRequest(t *testing.T) {
+	ctx := context.Background()
+	req := &domain.ModeratorRequest{ID: 1, PublicID: "req-1", RequesterID: 10, Status: domain.RequestStatusPending, CreatedAt: time.Now()}
+	repo := &MockReportRepository{moderatorRequests: map[int]*domain.ModeratorRequest{1: req}}
+	service := NewService(repo)
+
+	updated, err := service.ReviewModeratorRequest(ctx, 99, "req-1", domain.RequestStatusApproved, "ok")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if updated.Status != domain.RequestStatusApproved {
+		t.Fatalf("status = %q, want %q", updated.Status, domain.RequestStatusApproved)
+	}
+	if updated.ReviewerID == nil || *updated.ReviewerID != 99 {
+		t.Fatalf("reviewer id = %v, want 99", updated.ReviewerID)
+	}
 }

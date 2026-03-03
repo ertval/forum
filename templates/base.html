@@ -344,8 +344,7 @@
                 <option value="all" {{if eq .ActivityType "all" }}selected{{end}}>All Posts</option>
                 <option value="my_posts" {{if eq .ActivityType "my_posts" }}selected{{end}}>My Posts</option>
                 <option value="reactions" {{if eq .ActivityType "reactions" }}selected{{end}}>My Reactions</option>
-                <option value="commented_posts" {{if eq .ActivityType "commented_posts" }}selected{{end}}>Posts I
-                    Commented</option>
+                <option value="commented_posts" {{if eq .ActivityType "commented_posts" }}selected{{end}}>My Comments</option>
             </select>
         </div>
 
@@ -427,11 +426,11 @@
         </div>
 
         <div class="post-actions">
-            <button class="btn-like" data-post-id="{{$.PublicID}}" aria-label="Like this post" title="Like">👍
-                {{$.LikeCount}}</button>
-            <button class="btn-dislike" data-post-id="{{$.PublicID}}" aria-label="Dislike this post" title="Dislike">👎
-                {{$.DislikeCount}}</button>
-            <span class="comments">💬 {{$.CommentCount}}</span>
+            <button class="btn-like" data-post-id="{{.PublicID}}" aria-label="Like this post" title="Like">👍
+                {{.LikeCount}}</button>
+            <button class="btn-dislike" data-post-id="{{.PublicID}}" aria-label="Dislike this post" title="Dislike">👎
+                {{.DislikeCount}}</button>
+            <span class="comments">💬 {{.CommentCount}}</span>
         </div>
     </div>
 </article>
@@ -466,11 +465,11 @@
         </div>
 
         <div class="post-actions-compact">
-            <button class="btn-like" data-post-id="{{$.PublicID}}" aria-label="Like this post" title="Like">👍
-                {{$.LikeCount}}</button>
-            <button class="btn-dislike" data-post-id="{{$.PublicID}}" aria-label="Dislike this post" title="Dislike">👎
-                {{$.DislikeCount}}</button>
-            <span class="comments-compact">💬 {{$.CommentCount}}</span>
+            <button class="btn-like" data-post-id="{{.PublicID}}" aria-label="Like this post" title="Like">👍
+                {{.LikeCount}}</button>
+            <button class="btn-dislike" data-post-id="{{.PublicID}}" aria-label="Dislike this post" title="Dislike">👎
+                {{.DislikeCount}}</button>
+            <span class="comments-compact">💬 {{.CommentCount}}</span>
         </div>
     </div>
 </article>

@@ -87,5 +87,54 @@
             <p>Use the Logout action from the user menu to end your current session on this device.</p>
         </div>
     </article>
+
+    <article class="comment" id="moderation-settings" data-user-role="{{.User.Role}}" data-user-id="{{.User.PublicID}}">
+        <div class="comment-content">
+            <h3>Moderation & Role</h3>
+            <p><strong>Your role:</strong> {{.User.Role}}</p>
+            <p><strong>Forum role model:</strong> guest (view-only), user, moderator, admin.</p>
+
+            {{if eq .User.Role "user"}}
+            <form id="moderator-request-form" class="settings-form">
+                <div class="form-group">
+                    <label for="moderator-request-message">Request moderator role</label>
+                    <textarea id="moderator-request-message" name="message" rows="3" maxlength="500" placeholder="Why do you want to help moderate?"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Request Moderator Role</button>
+                </div>
+            </form>
+            <p id="moderator-request-feedback"></p>
+            {{end}}
+
+            {{if or (eq .User.Role "moderator") (eq .User.Role "admin")}}
+            <div class="form-group">
+                <label>Moderation reports</label>
+                <button type="button" class="btn btn-primary" id="refresh-reports-btn">Refresh Reports</button>
+            </div>
+            <div id="moderation-reports-list"></div>
+            {{end}}
+
+            {{if eq .User.Role "admin"}}
+            <hr>
+            <div class="form-group">
+                <label>Moderator role requests</label>
+                <button type="button" class="btn btn-primary" id="refresh-role-requests-btn">Refresh Requests</button>
+            </div>
+            <div id="moderator-requests-list"></div>
+
+            <hr>
+            <div class="form-group">
+                <label>User role management</label>
+                <button type="button" class="btn btn-primary" id="refresh-users-btn">Refresh Users</button>
+            </div>
+            <div id="role-management-list"></div>
+            {{end}}
+        </div>
+    </article>
 </div>
+{{end}}
+
+{{define "scripts"}}
+<script src="/static/js/settings-moderation.js"></script>
 {{end}}

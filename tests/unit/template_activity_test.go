@@ -31,8 +31,8 @@ func TestActivityTemplateReactionClasses(t *testing.T) {
 	}
 
 	html := buf.String()
-	assertContains(t, html, `class="comment comment-reaction comment-reaction-like"`)
-	assertContains(t, html, `class="comment comment-reaction comment-reaction-dislike"`)
-	assertContains(t, html, "Liked:")
-	assertContains(t, html, "Disliked:")
+	assertContains(t, html, `class="comment clickable-card comment-reaction comment-reaction-like"`)
+	assertContains(t, html, `class="comment clickable-card comment-reaction comment-reaction-dislike"`)
+	assertContains(t, html, "Liked")
+	assertContains(t, html, "Disliked")
 }

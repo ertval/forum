@@ -26,4 +26,19 @@ type ReportRepository interface {
 
 	// ResolveTargetID resolves target public UUID to internal INT ID by target type.
 	ResolveTargetID(ctx context.Context, targetType, targetPublicID string) (int, error)
+
+	// CreateModeratorRequest stores a new moderator-role request.
+	CreateModeratorRequest(ctx context.Context, request *domain.ModeratorRequest) error
+
+	// GetModeratorRequestByPublicID retrieves a moderator-role request by UUID.
+	GetModeratorRequestByPublicID(ctx context.Context, requestPublicID string) (*domain.ModeratorRequest, error)
+
+	// ListModeratorRequests retrieves moderator-role requests filtered by status.
+	ListModeratorRequests(ctx context.Context, status string) ([]*domain.ModeratorRequest, error)
+
+	// UpdateModeratorRequest updates an existing moderator-role request.
+	UpdateModeratorRequest(ctx context.Context, request *domain.ModeratorRequest) error
+
+	// HasPendingModeratorRequest returns true when requester already has a pending request.
+	HasPendingModeratorRequest(ctx context.Context, requesterID int) (bool, error)
 }
