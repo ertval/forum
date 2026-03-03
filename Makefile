@@ -356,6 +356,10 @@ kill: kill-http kill-https
 	@echo "$(GREEN)All forum ports cleared$(NC)"
 .PHONY: kill
 
+# Alias to kill for convenience
+free: kill
+.PHONY: free
+
 # Help
 help:
 	@echo "$(BLUE)Available targets:$(NC)"
