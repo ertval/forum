@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	platformErrors "forum/internal/platform/errors"
 	"forum/internal/platform/logger"
 )
 
@@ -251,7 +252,7 @@ func RateLimitWithConfig(cfg RateLimiterConfig) (Middleware, func()) {
 
 			if !limiter.allow(clientIP) {
 				w.Header().Set("Retry-After", fmt.Sprintf("%d", int(cfg.Window.Seconds())))
-				http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+				platformErrors.RenderErrorPage(w, http.StatusTooManyRequests, "", nil)
 				return
 			}
 

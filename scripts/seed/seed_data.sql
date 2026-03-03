@@ -112,7 +112,14 @@ INSERT OR IGNORE INTO post_categories (post_id, category_id) VALUES
 ((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440009'), (SELECT id FROM categories WHERE name = 'Technology')),
 ((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440010'), (SELECT id FROM categories WHERE name = 'Entertainment')),
 ((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440010'), (SELECT id FROM categories WHERE name = 'General')),
-((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440011'), (SELECT id FROM categories WHERE name = 'Sports'));
+((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440011'), (SELECT id FROM categories WHERE name = 'Sports')),
+((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440012'), (SELECT id FROM categories WHERE name = 'Gaming')),
+((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440013'), (SELECT id FROM categories WHERE name = 'Technology')),
+((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440014'), (SELECT id FROM categories WHERE name = 'Health')),
+((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440015'), (SELECT id FROM categories WHERE name = 'Science')),
+((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440016'), (SELECT id FROM categories WHERE name = 'Entertainment')),
+((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440017'), (SELECT id FROM categories WHERE name = 'Technology')),
+((SELECT id FROM posts WHERE public_id = '750e8400-e29b-41d4-a716-446655440018'), (SELECT id FROM categories WHERE name = 'General'));
 
 -- =============================================================================
 -- COMMENTS - For comment display tests and reaction tests
