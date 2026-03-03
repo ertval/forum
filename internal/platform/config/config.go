@@ -93,8 +93,6 @@ type UploadConfig struct {
 	UploadDir    string   // Upload directory path
 }
 
-
-
 // Load loads configuration from environment variables and config files.
 // It returns a Config struct with all values populated.
 func Load() (*Config, error) {

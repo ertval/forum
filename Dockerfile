@@ -2,7 +2,7 @@
 # Uses multi-stage build for security and minimal image size
 
 # == Build stage ==
-# Use a stable Go 1.25 Alpine image for reproducible builds and security
+# Use a stable Go 1.24 Alpine image for reproducible builds and security
 FROM golang:1.24-alpine AS builder
 
 # Install build dependencies required for CGO and SQLite compilation
@@ -32,7 +32,7 @@ FROM alpine:3.20
 # Install minimal runtime dependencies and create non-root user
 # ca-certificates: HTTPS/TLS, sqlite-libs: database, tzdata: timezones
 # --no-cache reduces image size by not storing package manager cache
-RUN apk add --no-cache ca-certificates sqlite-libs tzdata su-exec && \
+RUN apk add --no-cache ca-certificates sqlite-libs tzdata && \
     adduser -D -s /bin/sh appuser
 
 # Set working directory for the application
@@ -45,23 +45,20 @@ COPY --from=builder /app/forum .
 COPY --from=builder /app/static ./static
 COPY --from=builder /app/templates ./templates
 COPY --from=builder /app/migrations ./migrations
-COPY --from=builder /app/scripts/docker/entrypoint.sh ./docker-entrypoint.sh
 
-# Create data and upload directories so the app can run without mounted volumes
-RUN mkdir -p data static/uploads
-
-# Change ownership of all files to the non-root user
-RUN chown -R appuser:appuser /app
+# Create data and upload directories and set ownership at build time.
+# Since docker-compose mounts these as bind volumes the ownership is preserved.
+RUN mkdir -p data static/uploads && \
+    chown -R appuser:appuser /app
 
 # Declare volumes for data persistence across container restarts
 VOLUME ["/app/data", "/app/static/uploads"]
 
-# Expose port 8080 for HTTP traffic
-EXPOSE 8080
+# Drop to non-root user for all subsequent commands and at runtime
+USER appuser
 
-# Runtime entrypoint normalizes mount permissions then drops to appuser
-RUN chmod +x ./docker-entrypoint.sh
-ENTRYPOINT ["./docker-entrypoint.sh"]
+# Expose HTTP and HTTPS ports
+EXPOSE 8080 8443
 
 # Run the application using exec form (preferred over shell form for signal handling)
 CMD ["./forum"]

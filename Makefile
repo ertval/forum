@@ -200,9 +200,9 @@ migration:
 .PHONY: migration
 
 # Docker build
-docker-build:
+docker-build: certs
 	@echo "$(BLUE)Building Docker image...$(NC)"
-	docker build -t forum .
+	docker build --rm --force-rm -t forum .
 	@echo "$(GREEN)Docker image built$(NC)"
 .PHONY: docker-build
 
@@ -269,6 +269,13 @@ seed:
 	bash ./scripts/seed/seed.sh
 .PHONY: seed
 
+# Generate TLS certificates (self-signed, for development/Docker use)
+certs:
+	@echo "$(BLUE)Generating TLS certificates...$(NC)"
+	bash ./scripts/seed/generate_certs.sh
+	@echo "$(GREEN)Certificates ready in ./certs/$(NC)"
+.PHONY: certs
+
 # Generate all audit evidence artifacts
 audit-evidence:
 	@echo "$(BLUE)Generating audit evidence artifacts...$(NC)"
@@ -317,6 +324,38 @@ docker-prune-apply:
 	bash ./scripts/audit/docker_cleanup_prune.sh --apply
 .PHONY: docker-prune-apply
 
+# ── Port-kill helpers ────────────────────────────────────────────────────────
+# Kill whatever process is listening on port 8080 (HTTP)
+kill-http:
+	@echo "$(YELLOW)Killing process on port 8080...$(NC)"
+	@if command -v fuser >/dev/null 2>&1; then \
+		fuser -k 8080/tcp 2>/dev/null && echo "$(GREEN)Port 8080 cleared$(NC)" || echo "$(BLUE)Nothing on port 8080$(NC)"; \
+	elif command -v lsof >/dev/null 2>&1; then \
+		pid=$$(lsof -ti tcp:8080 2>/dev/null); \
+		if [ -n "$$pid" ]; then kill -9 $$pid && echo "$(GREEN)Port 8080 cleared (PID $$pid)$(NC)"; else echo "$(BLUE)Nothing on port 8080$(NC)"; fi; \
+	else \
+		echo "$(YELLOW)fuser/lsof not found — on Windows use: netstat -ano | findstr :8080$(NC)"; \
+	fi
+.PHONY: kill-http
+
+# Kill whatever process is listening on port 8443 (HTTPS)
+kill-https:
+	@echo "$(YELLOW)Killing process on port 8443...$(NC)"
+	@if command -v fuser >/dev/null 2>&1; then \
+		fuser -k 8443/tcp 2>/dev/null && echo "$(GREEN)Port 8443 cleared$(NC)" || echo "$(BLUE)Nothing on port 8443$(NC)"; \
+	elif command -v lsof >/dev/null 2>&1; then \
+		pid=$$(lsof -ti tcp:8443 2>/dev/null); \
+		if [ -n "$$pid" ]; then kill -9 $$pid && echo "$(GREEN)Port 8443 cleared (PID $$pid)$(NC)"; else echo "$(BLUE)Nothing on port 8443$(NC)"; fi; \
+	else \
+		echo "$(YELLOW)fuser/lsof not found — on Windows use: netstat -ano | findstr :8443$(NC)"; \
+	fi
+.PHONY: kill-https
+
+# Kill processes on both default ports (8080 + 8443)
+kill: kill-http kill-https
+	@echo "$(GREEN)All forum ports cleared$(NC)"
+.PHONY: kill
+
 # Help
 help:
 	@echo "$(BLUE)Available targets:$(NC)"
@@ -355,6 +394,10 @@ help:
 	@echo "  $(GREEN)dead-refs-apply$(NC) - Apply safe cleanup of dead DB references"
 	@echo "  $(GREEN)docker-prune-dry-run$(NC) - Show docker cleanup process without deleting"
 	@echo "  $(GREEN)docker-prune-apply$(NC) - Apply docker cleanup process"
+	@echo "  $(GREEN)kill$(NC)            - Kill processes on ports 8080 and 8443"
+	@echo "  $(GREEN)kill-http$(NC)       - Kill process on port 8080 (HTTP)"
+	@echo "  $(GREEN)kill-https$(NC)      - Kill process on port 8443 (HTTPS)"
 	@echo "  $(GREEN)seed$(NC)            - Seed database"
+	@echo "  $(GREEN)certs$(NC)           - Generate self-signed TLS certificates"
 	@echo "  $(GREEN)help$(NC)            - Show this help"
 .PHONY: help

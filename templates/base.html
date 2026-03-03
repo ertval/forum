@@ -163,7 +163,7 @@
 
     <footer>
         <div class="container">
-            <p>&copy; <span id="current-year"></span> Forum Authors.</p>
+            <p>&copy; <span id="current-year"></span> Ertval Karameta & Magnus Edvall.</p>
             <p><a href="/health" class="category-tag">Health Status</a></p>
         </div>
     </footer>
@@ -195,8 +195,10 @@
             <div class="post-footer">
                 <div class="categories" data-field="categories"></div>
                 <div class="post-actions">
-                    <button class="btn-like" data-field="like-btn" aria-label="Like this post" title="Like">👍 0</button>
-                    <button class="btn-dislike" data-field="dislike-btn" aria-label="Dislike this post" title="Dislike">👎 0</button>
+                    <button class="btn-like" data-field="like-btn" aria-label="Like this post" title="Like">👍
+                        0</button>
+                    <button class="btn-dislike" data-field="dislike-btn" aria-label="Dislike this post"
+                        title="Dislike">👎 0</button>
                     <span class="comments" data-field="comment-count">💬 0</span>
                 </div>
             </div>
@@ -221,8 +223,10 @@
             <div class="post-footer-compact">
                 <div class="categories-compact" data-field="categories"></div>
                 <div class="post-actions-compact">
-                    <button class="btn-like" data-field="like-btn" aria-label="Like this post" title="Like">👍 0</button>
-                    <button class="btn-dislike" data-field="dislike-btn" aria-label="Dislike this post" title="Dislike">👎 0</button>
+                    <button class="btn-like" data-field="like-btn" aria-label="Like this post" title="Like">👍
+                        0</button>
+                    <button class="btn-dislike" data-field="dislike-btn" aria-label="Dislike this post"
+                        title="Dislike">👎 0</button>
                     <span class="comments-compact" data-field="comment-count">💬 0</span>
                 </div>
             </div>
@@ -285,16 +289,18 @@
 {{/* Filter Card Component - Shows filtering options */}}
 {{define "filter-card"}}
 <div class="filters">
-    <h2>{{if eq .FilterMode "comments"}}Filter Comments{{else if eq .FilterMode "activity"}}Filter Activity{{else}}Filter Posts{{end}}</h2>
+    <h2>{{if eq .FilterMode "comments"}}Filter Comments{{else if eq .FilterMode "activity"}}Filter
+        Activity{{else}}Filter Posts{{end}}</h2>
     <form method="GET" action="{{.FilterAction}}">
         {{if eq .FilterMode "activity"}}
         <div class="filter-group">
             <label for="activity_type">Activity Type:</label>
             <select name="activity_type" id="activity_type">
-                <option value="all" {{if eq .ActivityType "all"}}selected{{end}}>All</option>
-                <option value="created_posts" {{if eq .ActivityType "created_posts"}}selected{{end}}>Created Posts</option>
-                <option value="reactions" {{if eq .ActivityType "reactions"}}selected{{end}}>Reactions</option>
-                <option value="comments" {{if eq .ActivityType "comments"}}selected{{end}}>Comments</option>
+                <option value="all" {{if eq .ActivityType "all" }}selected{{end}}>All</option>
+                <option value="created_posts" {{if eq .ActivityType "created_posts" }}selected{{end}}>Created Posts
+                </option>
+                <option value="reactions" {{if eq .ActivityType "reactions" }}selected{{end}}>Reactions</option>
+                <option value="comments" {{if eq .ActivityType "comments" }}selected{{end}}>Comments</option>
             </select>
         </div>
 
@@ -311,19 +317,19 @@
         <div class="filter-group">
             <label for="time">Time:</label>
             <select name="time" id="time">
-                <option value="all" {{if eq .SelectedTime "all"}}selected{{end}}>All Time</option>
-                <option value="today" {{if eq .SelectedTime "today"}}selected{{end}}>Today</option>
-                <option value="week" {{if eq .SelectedTime "week"}}selected{{end}}>This Week</option>
-                <option value="month" {{if eq .SelectedTime "month"}}selected{{end}}>This Month</option>
+                <option value="all" {{if eq .SelectedTime "all" }}selected{{end}}>All Time</option>
+                <option value="today" {{if eq .SelectedTime "today" }}selected{{end}}>Today</option>
+                <option value="week" {{if eq .SelectedTime "week" }}selected{{end}}>This Week</option>
+                <option value="month" {{if eq .SelectedTime "month" }}selected{{end}}>This Month</option>
             </select>
         </div>
 
         <div class="filter-group">
             <label for="reaction_type">Reaction Type:</label>
             <select name="reaction_type" id="reaction_type">
-                <option value="all" {{if eq .SelectedReaction "all"}}selected{{end}}>All</option>
-                <option value="like" {{if eq .SelectedReaction "like"}}selected{{end}}>Like</option>
-                <option value="dislike" {{if eq .SelectedReaction "dislike"}}selected{{end}}>Dislike</option>
+                <option value="all" {{if eq .SelectedReaction "all" }}selected{{end}}>All</option>
+                <option value="like" {{if eq .SelectedReaction "like" }}selected{{end}}>Like</option>
+                <option value="dislike" {{if eq .SelectedReaction "dislike" }}selected{{end}}>Dislike</option>
             </select>
         </div>
         {{else}}
@@ -335,19 +341,20 @@
         <div class="filter-group">
             <label for="activity_type">Activity Type:</label>
             <select name="activity_type" id="activity_type">
-                <option value="all" {{if eq .ActivityType "all"}}selected{{end}}>All Posts</option>
-                <option value="my_posts" {{if eq .ActivityType "my_posts"}}selected{{end}}>My Posts</option>
-                <option value="reactions" {{if eq .ActivityType "reactions"}}selected{{end}}>My Reactions</option>
-                <option value="commented_posts" {{if eq .ActivityType "commented_posts"}}selected{{end}}>Posts I Commented</option>
+                <option value="all" {{if eq .ActivityType "all" }}selected{{end}}>All Posts</option>
+                <option value="my_posts" {{if eq .ActivityType "my_posts" }}selected{{end}}>My Posts</option>
+                <option value="reactions" {{if eq .ActivityType "reactions" }}selected{{end}}>My Reactions</option>
+                <option value="commented_posts" {{if eq .ActivityType "commented_posts" }}selected{{end}}>Posts I
+                    Commented</option>
             </select>
         </div>
 
         <div class="filter-group">
             <label for="reaction_type">Reaction Type:</label>
             <select name="reaction_type" id="reaction_type">
-                <option value="all" {{if eq .SelectedReaction "all"}}selected{{end}}>All Reactions</option>
-                <option value="like" {{if eq .SelectedReaction "like"}}selected{{end}}>Like</option>
-                <option value="dislike" {{if eq .SelectedReaction "dislike"}}selected{{end}}>Dislike</option>
+                <option value="all" {{if eq .SelectedReaction "all" }}selected{{end}}>All Reactions</option>
+                <option value="like" {{if eq .SelectedReaction "like" }}selected{{end}}>Like</option>
+                <option value="dislike" {{if eq .SelectedReaction "dislike" }}selected{{end}}>Dislike</option>
             </select>
         </div>
 
@@ -420,8 +427,10 @@
         </div>
 
         <div class="post-actions">
-            <button class="btn-like" data-post-id="{{$.PublicID}}" aria-label="Like this post" title="Like">👍 {{$.LikeCount}}</button>
-            <button class="btn-dislike" data-post-id="{{$.PublicID}}" aria-label="Dislike this post" title="Dislike">👎 {{$.DislikeCount}}</button>
+            <button class="btn-like" data-post-id="{{$.PublicID}}" aria-label="Like this post" title="Like">👍
+                {{$.LikeCount}}</button>
+            <button class="btn-dislike" data-post-id="{{$.PublicID}}" aria-label="Dislike this post" title="Dislike">👎
+                {{$.DislikeCount}}</button>
             <span class="comments">💬 {{$.CommentCount}}</span>
         </div>
     </div>
@@ -457,8 +466,10 @@
         </div>
 
         <div class="post-actions-compact">
-            <button class="btn-like" data-post-id="{{$.PublicID}}" aria-label="Like this post" title="Like">👍 {{$.LikeCount}}</button>
-            <button class="btn-dislike" data-post-id="{{$.PublicID}}" aria-label="Dislike this post" title="Dislike">👎 {{$.DislikeCount}}</button>
+            <button class="btn-like" data-post-id="{{$.PublicID}}" aria-label="Like this post" title="Like">👍
+                {{$.LikeCount}}</button>
+            <button class="btn-dislike" data-post-id="{{$.PublicID}}" aria-label="Dislike this post" title="Dislike">👎
+                {{$.DislikeCount}}</button>
             <span class="comments-compact">💬 {{$.CommentCount}}</span>
         </div>
     </div>
@@ -467,18 +478,15 @@
 
 {{/* Load More Button Component - Shared button for pagination */}}
 {{define "load-more-button"}}
-<button id="{{if .LoadMoreID}}{{.LoadMoreID}}{{else}}load-more-btn{{end}}"
-        class="btn btn-primary"
-        data-offset="{{if .Offset}}{{.Offset}}{{else if .Posts}}{{len .Posts}}{{else}}0{{end}}"
-        data-category="{{if .SelectedCategory}}{{.SelectedCategory}}{{end}}"
-        data-activity-type="{{if .ActivityType}}{{.ActivityType}}{{else}}all{{end}}"
-        data-reaction-type="{{if .SelectedReaction}}{{.SelectedReaction}}{{else}}all{{end}}"
-        data-my-posts="{{if .MyPosts}}true{{end}}"
-        data-liked-posts="{{if .LikedPosts}}true{{end}}"
-        data-disliked-posts="{{if .DislikedPosts}}true{{end}}"
-        data-commented-posts="{{if .CommentedPosts}}true{{end}}"
-        data-commenter="{{if .Commenter}}{{.Commenter}}{{end}}"
-        data-date-filter="{{if .DateFilter}}{{.DateFilter}}{{end}}">Show More</button>
+<button id="{{if .LoadMoreID}}{{.LoadMoreID}}{{else}}load-more-btn{{end}}" class="btn btn-primary"
+    data-offset="{{if .Offset}}{{.Offset}}{{else if .Posts}}{{len .Posts}}{{else}}0{{end}}"
+    data-category="{{if .SelectedCategory}}{{.SelectedCategory}}{{end}}"
+    data-activity-type="{{if .ActivityType}}{{.ActivityType}}{{else}}all{{end}}"
+    data-reaction-type="{{if .SelectedReaction}}{{.SelectedReaction}}{{else}}all{{end}}"
+    data-my-posts="{{if .MyPosts}}true{{end}}" data-liked-posts="{{if .LikedPosts}}true{{end}}"
+    data-disliked-posts="{{if .DislikedPosts}}true{{end}}" data-commented-posts="{{if .CommentedPosts}}true{{end}}"
+    data-commenter="{{if .Commenter}}{{.Commenter}}{{end}}"
+    data-date-filter="{{if .DateFilter}}{{.DateFilter}}{{end}}">Show More</button>
 {{end}}
 
 {{define "post-form-sidebar-content"}}
@@ -500,7 +508,8 @@
     <div class="form-group">
         <div class="current-image" id="current-image-container">
             <img src="{{.Post.ImageURL}}" alt="Current image" id="current-image">
-            <button type="button" class="btn-remove-image" id="remove-current-image" title="Remove image" aria-label="Remove the current post image">
+            <button type="button" class="btn-remove-image" id="remove-current-image" title="Remove image"
+                aria-label="Remove the current post image">
                 <span class="remove-icon">×</span> Remove Image
             </button>
         </div>
@@ -511,7 +520,8 @@
         <label for="image">{{if .Post.ImageURL}}Replace Image{{else}}Add Image{{end}} (Optional)</label>
         <div class="file-input-wrapper">
             <label for="image" class="file-input-label btn btn-primary btn-small">Choose File</label>
-            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif,image/webp" form="post-edit-form">
+            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif,image/webp"
+                form="post-edit-form">
             <span class="file-name" id="file-name-display">No file chosen</span>
         </div>
         <span class="form-help">JPEG, PNG, GIF, or WebP. Maximum 20MB</span>
@@ -550,7 +560,8 @@
         <label for="image">Add Image (Optional)</label>
         <div class="file-input-wrapper">
             <label for="image" class="file-input-label btn btn-primary btn-small">Choose File</label>
-            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif,image/webp" form="post-create-form">
+            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif,image/webp"
+                form="post-create-form">
             <span class="file-name" id="file-name-display">No file chosen</span>
         </div>
         <span class="form-help">JPEG, PNG, GIF, or WebP. Maximum 20MB</span>

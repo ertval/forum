@@ -51,15 +51,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	httpAddr := fmt.Sprintf("http://%s:%d", cfg.Server.Host, cfg.Server.Port)
-	httpsAddr := fmt.Sprintf("https://%s:%d", cfg.Server.Host, cfg.Server.TLSPort)
+	lgr.Info("Forum server started")
 
-	urls := httpAddr
+	fmt.Fprintf(os.Stderr, "\n  ➜  Local: http://%s:%d\n", cfg.Server.Host, cfg.Server.Port)
 	if cfg.Security.TLSCertFile != "" && cfg.Security.TLSKeyFile != "" {
-		urls += " " + httpsAddr
+		fmt.Fprintf(os.Stderr, "  ➜  Local (TLS): https://%s:%d\n", cfg.Server.Host, cfg.Server.TLSPort)
 	}
-
-	lgr.Info("Forum server started", logger.String("urls", urls))
+	fmt.Fprintln(os.Stderr)
 
 	// 5. Graceful Shutdown
 	quit := make(chan os.Signal, 1)
