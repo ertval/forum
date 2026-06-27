@@ -205,3 +205,4 @@ Examples:
 6. Add migration: `migrations/NNN_module.sql`
 
 Use `internal/modules/auth/` as the reference implementation.
+
