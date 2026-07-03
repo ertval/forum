@@ -1,5 +1,12 @@
 # Forum (Go Modular Monolith)
 
+[![Go](https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat-square&logo=go&logoColor=white)](https://golang.org)
+[![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://sqlite.org)
+[![License](https://img.shields.io/badge/License-GPL--3.0-blue?style=flat-square)](LICENSE)
+[![Go CI](https://img.shields.io/github/actions/workflow/status/ertval/forum/go.yml?style=flat-square&logo=github&logoColor=white)](https://github.com/ertval/forum/actions)
+
+A lightweight, self-hosted community forum with zero external dependencies. Designed for developers who want full control over their discussion platform without proprietary SaaS lock-in.
+
 A web forum built with Go using **Hexagonal Architecture (Ports & Adapters)** in a **modular monolith**.
 
 - **Language**: Go 1.24+
@@ -39,7 +46,23 @@ Internal DB IDs are integers, but **never expose sequential IDs** in URLs, templ
 
 ---
 
-## Architecture in one view
+## Architecture
+
+Hexagonal (ports-and-adapters) Go monolith:
+- Core domain: threads, posts, user auth
+- Adapters: PostgreSQL, REST API, WebSocket
+- No framework — standard library + gorilla/mux
+
+```mermaid
+graph TD
+  subgraph "Hexagonal Module"
+    D[Domain] --> P[Ports]
+    P --> A[Application]
+    A --> Ad[Adapters]
+    Ad -->|HTTP| Rest[API]
+    Ad -->|SQL| SQLite[(SQLite)]
+  end
+```
 
 Each module follows this strict structure:
 
@@ -205,4 +228,8 @@ Examples:
 6. Add migration: `migrations/NNN_module.sql`
 
 Use `internal/modules/auth/` as the reference implementation.
+
+## Related
+- [CV / Portfolio](https://ertval.github.io)
+- [real-time-forum](https://github.com/ertval/real-time-forum) — SPA with WebSocket chat
 
