@@ -5,6 +5,14 @@
 [![License](https://img.shields.io/badge/License-GPL--3.0-blue?style=flat-square)](LICENSE)
 [![Go CI](https://img.shields.io/github/actions/workflow/status/ertval/forum/go.yml?style=flat-square&logo=github&logoColor=white)](https://github.com/ertval/forum/actions)
 
+---
+
+**Problem:** Lightweight community forums are often bloated with SaaS lock-ins, complex database dependencies, or heavy runtime frameworks.
+
+**Solution:** A zero-dependency Go web forum utilizing strict Hexagonal Architecture (Ports & Adapters) boundaries with SQLite, running in lightweight Docker containers.
+
+---
+
 A lightweight, self-hosted community forum with zero external dependencies. Designed for developers who want full control over their discussion platform without proprietary SaaS lock-in.
 
 A web forum built with Go using **Hexagonal Architecture (Ports & Adapters)** in a **modular monolith**.
